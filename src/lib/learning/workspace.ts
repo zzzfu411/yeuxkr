@@ -7,6 +7,7 @@ import { vocab } from "../../data/lexicon.js";
 import { grammarPoints } from "../../data/grammar.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
 import { nuanceSets } from "../../data/nuance.js";
+import { soundChangeRules } from "../../data/sound-changes.js";
 import { immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
 import { buildSelfStudyPlan } from "../../data/self-study.js";
 import { proficiencyLevels, proficiencyMetrics } from "../../data/proficiency.js";
@@ -47,6 +48,8 @@ import {
   quizQuestionEvidenceEventId,
   quizTransferEvidenceEventId,
   reviewEvidenceEventId,
+  soundChangeCardId,
+  soundChangeQuestionId,
   taskEventId,
   vocabCardId,
   vocabQuestionId
@@ -138,6 +141,10 @@ export function useLearningWorkspace() {
     return togglePronunciationPair(itemId, progress);
   }, [progress]);
 
+  const toggleSoundChange = useCallback((ruleId: string) => {
+    return toggleSoundChangeRule(ruleId, progress);
+  }, [progress]);
+
   const toggleVocab = useCallback((itemId: string) => {
     return toggleVocabItem(itemId, progress);
   }, [progress]);
@@ -203,6 +210,7 @@ export function useLearningWorkspace() {
     completeLesson,
     toggleHangul,
     togglePronunciation,
+    toggleSoundChange,
     toggleVocab,
     toggleGrammar,
     toggleNative,
@@ -390,6 +398,43 @@ export function togglePronunciationPair(itemId: string, fallbackProgress: Learni
     bumpStreak(next);
     markTaskDone(next, "ability:listening");
     recordAbilityEvent(next, `pronunciation:${itemId}`, ["listening"], 2);
+  }
+  if (!saveLearningProgress(next)) {
+    rollbackSrsCardSnapshots(snapshots);
+    return false;
+  }
+  return true;
+}
+
+export function toggleSoundChangeRule(ruleId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  const rule = soundChangeRules.find((item: any) => item.id === ruleId);
+  if (!rule) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  const cardId = soundChangeCardId(ruleId);
+  const removeIds = [cardId, mistakeCardId(soundChangeQuestionId(ruleId))];
+  const snapshots = removeIds.map(snapshotSrsCard);
+  const example = rule.examples[0];
+  if (snapshots[0]?.previous) {
+    if (!removeCardsAndDerivedMistakesOrRollback(removeIds, snapshots)) return false;
+  } else if (!ensureSrsCardOrRollback(cardId, {
+    kind: "soundChange",
+    itemId: ruleId,
+    type: "choice",
+    prompt: `${rule.title}（${rule.korean}）：${example.written} 实际读作哪一个？`,
+    answer: example.spoken,
+    choices: rule.examples.map((item: any) => item.spoken),
+    explain: `${rule.rule}。`,
+    speak: example.speak
+  }, snapshots)) return false;
+
+  const next = mutableProgress(current);
+  if (snapshots[0]?.previous) {
+    removeAbilityEvent(next, `soundChange:${ruleId}`, ["listening"]);
+    clearTaskDoneIfNoRemainingEvidence(next, "ability:listening");
+  } else {
+    bumpStreak(next);
+    markTaskDone(next, "ability:listening");
+    recordAbilityEvent(next, `soundChange:${ruleId}`, ["listening"], 2);
   }
   if (!saveLearningProgress(next)) {
     rollbackSrsCardSnapshots(snapshots);
@@ -1920,6 +1965,7 @@ export function validateCheckpointEvidence(evidence: string) {
 export function mapCardToAbilities(card: SrsCard): AbilityId[] {
   if (card.payload.kind === "hangul") return ["script"];
   if (card.payload.kind === "pronunciation") return ["listening"];
+  if (card.payload.kind === "soundChange") return ["listening"];
   if (card.payload.kind === "vocab") return ["vocabulary"];
   if (card.payload.kind === "grammar") return ["grammar"];
   if (card.payload.kind === "material") {
@@ -1961,6 +2007,7 @@ function mapQuestionToAbilities(questionId: string): AbilityId[] {
   if (hasQuestionPrefix(questionId, "lesson")) return mapLessonCardToAbilities(questionId);
   if (hasQuestionPrefix(questionId, "hangul")) return ["script"];
   if (hasQuestionPrefix(questionId, "pronunciation")) return ["listening"];
+  if (hasQuestionPrefix(questionId, "soundChange")) return ["listening"];
   if (hasQuestionPrefix(questionId, "vocab")) return ["vocabulary"];
   if (hasQuestionPrefix(questionId, "grammar")) return ["grammar"];
   if (hasQuestionPrefix(questionId, "nativePragmatics")) return ["pragmatics"];
@@ -1969,16 +2016,24 @@ function mapQuestionToAbilities(questionId: string): AbilityId[] {
   if (hasQuestionPrefix(questionId, "outputTransfer")) return ["grammar", "pragmatics", "native"];
   if (hasCardPrefix(questionId, "output")) return ["grammar", "pragmatics", "native"];
   if (hasCardPrefix(questionId, "material")) return ["listening", "pragmatics", "native"];
+  if (hasCardPrefix(questionId, "soundChange")) return ["listening"];
   if (hasCardPrefix(questionId, "native") && questionId.includes(":pragmatics:")) return ["pragmatics"];
   if (hasCardPrefix(questionId, "native") && questionId.includes(":nuance:")) return ["native"];
   return ["grammar"];
+}
+
+function countListeningSrsEvidence(outputEvidence: OutputEvidenceInput) {
+  if (typeof outputEvidence === "number") return 0;
+  return Object.values(outputEvidence.srs.cards).filter((card) => {
+    return card.payload.kind === "pronunciation" || card.payload.kind === "soundChange";
+  }).length;
 }
 
 function buildEvidenceBackedAbility(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }): Record<AbilityId, number> {
   const ability = defaultProgress().ability;
   addAbilityEvidence(ability, {
     script: progress.masteredHangul.length,
-    listening: progress.masteredHangul.length,
+    listening: countListeningSrsEvidence(outputEvidence) * 2,
     vocabulary: progress.learnedVocab.length,
     grammar: progress.learnedGrammar.length * 3,
     pragmatics: countNativePracticeEvidence(progress, "pragmatics") * 4,
@@ -2021,6 +2076,7 @@ function abilityFromEvents(events: LearningProgress["abilityEvents"] = {}) {
 function abilitiesForEventId(eventId: string): AbilityId[] {
   if (eventId.startsWith("hangul:")) return ["script"];
   if (eventId.startsWith("pronunciation:")) return ["listening"];
+  if (eventId.startsWith("soundChange:")) return ["listening"];
   if (eventId.startsWith("vocab:")) return ["vocabulary"];
   if (eventId.startsWith("grammar:")) return ["grammar"];
   if (eventId.startsWith("nativeEvidence:pragmatics:")) return ["pragmatics"];

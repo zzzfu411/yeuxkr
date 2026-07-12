@@ -4,17 +4,21 @@ import { useState } from "react";
 import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { MasteryGate } from "@/components/learning/mastery-gate";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { hangulGroups, pronunciationPairs, syllableLabs } from "@/data/hangul";
-import { pronunciationCardId } from "@/lib/learning/ids";
+import { soundChangeRules } from "@/data/sound-changes";
+import { pronunciationCardId, soundChangeCardId } from "@/lib/learning/ids";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
 export default function HangulPage() {
-  const { workspace, srsState, toggleHangul, togglePronunciation } = useLearningWorkspace();
+  const { workspace, srsState, toggleHangul, togglePronunciation, toggleSoundChange } = useLearningWorkspace();
   const [srsErrorId, setSrsErrorId] = useState("");
+  const [gateItemId, setGateItemId] = useState("");
   const mastered = new Set(workspace.progress.masteredHangul);
   const pronunciationCards = new Set(Object.keys(srsState.cards).filter((id) => id.startsWith("pronunciation:")));
+  const soundChangeCards = new Set(Object.keys(srsState.cards).filter((id) => id.startsWith("soundChange:")));
   const toggleSrs = (id: string, action: () => boolean) => {
     if (action()) {
       setSrsErrorId((current) => (current === id ? "" : current));
@@ -77,9 +81,33 @@ export default function HangulPage() {
                 <p className="text-sm leading-6 text-[var(--muted)]">{item.cue}</p>
                 <strong className="hangul-display text-2xl">{item.example}</strong>
                 <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
-                <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id))}>
-                  {mastered.has(item.id) ? "已加入 SRS" : "加入掌握"}
-                </Button>
+                {mastered.has(item.id) ? (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id))}>
+                    已掌握 · 点击移出
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    aria-expanded={gateItemId === item.id}
+                    onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
+                  >
+                    测一测 · 加入掌握
+                  </Button>
+                )}
+                {gateItemId === item.id && !mastered.has(item.id) ? (
+                  <MasteryGate
+                    kind="hangul"
+                    itemId={item.id}
+                    title={item.glyph}
+                    onPassed={() => {
+                      toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id));
+                      setGateItemId("");
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : null}
                 {srsErrorId === `hangul:${item.id}` ? <SrsError /> : null}
               </article>
             ))}
@@ -109,6 +137,79 @@ export default function HangulPage() {
               {srsErrorId === `pronunciation:${pair.id}` ? <SrsError className="mt-3" /> : null}
             </article>
           ))}
+        </div>
+      </Surface>
+
+      <Surface variant="plain">
+        <SectionHeading
+          kicker="Sound Change Lab"
+          title="音变实验室"
+          copy="韩语“写的”和“读的”经常不一样。每条规则都能看拼写、听实际读音：播放的是标准拼写，语音引擎会自动做出真实的连读效果。"
+        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {soundChangeRules.map((rule: any) => {
+            const cardId = soundChangeCardId(rule.id);
+            const added = soundChangeCards.has(cardId);
+            return (
+              <article key={rule.id} className={`grid content-start gap-3 rounded-[8px] border p-4 ${added ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.11)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-serif text-xl font-black">{rule.title}</h3>
+                  <span className="hangul-display font-mono text-sm font-black text-[var(--ocean)]">{rule.korean}</span>
+                </div>
+                <p className="text-sm leading-6 text-[var(--muted)]">{rule.summary}</p>
+                <p className="rounded-[8px] bg-[rgba(23,63,115,0.06)] p-2 font-mono text-xs font-black text-[var(--ocean)]">{rule.rule}</p>
+                <div className="grid gap-2">
+                  {rule.examples.map((example: any) => (
+                    <button
+                      key={example.written}
+                      type="button"
+                      className="focus-ring flex items-center justify-between gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
+                      onClick={() => speakKorean(example.speak)}
+                      aria-label={`播放 ${example.written}`}
+                    >
+                      <span className="hangul-display text-lg font-black">
+                        {example.written}
+                        <span className="mx-1 text-[var(--muted)]">→</span>
+                        <span className="text-[var(--celadon)]">[{example.spoken}]</span>
+                      </span>
+                      <span className="flex items-center gap-2 text-xs font-bold text-[var(--muted)]">
+                        {example.zh}
+                        <Volume2 className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {added ? (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(cardId, () => toggleSoundChange(rule.id))}>
+                    已加入听辨复习 · 点击移出
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    aria-expanded={gateItemId === rule.id}
+                    onClick={() => setGateItemId((current) => (current === rule.id ? "" : rule.id))}
+                  >
+                    测一测 · 加入听辨复习
+                  </Button>
+                )}
+                {gateItemId === rule.id && !added ? (
+                  <MasteryGate
+                    kind="soundChange"
+                    itemId={rule.id}
+                    title={rule.title}
+                    onPassed={() => {
+                      toggleSrs(cardId, () => toggleSoundChange(rule.id));
+                      setGateItemId("");
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : null}
+                {srsErrorId === cardId ? <SrsError /> : null}
+              </article>
+            );
+          })}
         </div>
       </Surface>
     </div>

@@ -1,8 +1,9 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { getNextLesson, lessons, milestones, UNLOCK_SCORE } from "../src/data/curriculum.js";
+import { getNextLesson, lessons, milestones, normalizeTeachEntry, UNLOCK_SCORE } from "../src/data/curriculum.js";
 import { grammarPoints } from "../src/data/grammar.js";
 import { hangulGroups, pronunciationPairs, syllableLabs } from "../src/data/hangul.js";
-import { vocab, vocabCategories, vocabLevels } from "../src/data/lexicon.js";
+import { soundChangeRules } from "../src/data/sound-changes.js";
+import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "../src/data/lexicon.js";
 import { nuanceSets } from "../src/data/nuance.js";
 import { pragmaticScenarios } from "../src/data/pragmatics.js";
 import { immersionMaterials, outputRubric } from "../src/data/materials.ts";
@@ -170,6 +171,16 @@ for (const lesson of lessons) {
   assert(lesson.title && lesson.subtitle, `lesson ${lesson.id} missing title/subtitle`);
   assert(lesson.objectives?.length >= 2, `lesson ${lesson.id} needs objectives`);
   assert(lesson.teach?.length >= 2, `lesson ${lesson.id} needs teach blocks`);
+  for (const rawTeach of lesson.teach ?? []) {
+    const entry = normalizeTeachEntry(rawTeach);
+    assert(typeof entry.body === "string" && entry.body.trim(), `lesson ${lesson.id} has a teach entry without body text`);
+    if (typeof rawTeach === "object" && rawTeach?.speak !== undefined) {
+      assert(hasKoreanText(rawTeach.speak), `lesson ${lesson.id} teach speak "${rawTeach.speak}" should contain Korean`);
+    }
+    for (const example of entry.examples ?? []) {
+      assert(hasKoreanText(example.ko) && example.zh, `lesson ${lesson.id} teach example needs Korean text and Chinese gloss`);
+    }
+  }
   assert(lesson.drills?.length >= 2, `lesson ${lesson.id} needs drills`);
   for (const drill of lesson.drills) {
     assert(drill.prompt && drill.answer && drill.explain, `lesson ${lesson.id} has incomplete drill`);
@@ -306,6 +317,44 @@ for (const item of compoundVowelGroup?.items ?? []) {
 }
 assert(pronunciationPairs.length >= 9, `pronunciation pairs should cover compound vowels too, found ${pronunciationPairs.length}`);
 assert(syllableLabs.some((lab) => ["ㅘ", "ㅙ", "ㅚ", "ㅝ", "ㅞ", "ㅟ", "ㅢ"].some((glyph) => lab.blocks.includes(glyph))), "syllable labs should demonstrate a compound vowel block");
+
+unique(soundChangeRules.map((rule) => rule.id), "sound change rule");
+assert(soundChangeRules.length >= 7, `sound change lab should cover the seven core rules, found ${soundChangeRules.length}`);
+for (const rule of soundChangeRules) {
+  assert(rule.korean && rule.title && rule.summary && rule.rule, `sound change ${rule.id} incomplete`);
+  assert(["foundation", "growth"].includes(rule.stage), `sound change ${rule.id} has invalid stage ${rule.stage}`);
+  assert(rule.examples?.length >= 2, `sound change ${rule.id} needs at least 2 examples`);
+  for (const example of rule.examples ?? []) {
+    assert(hasKoreanText(example.written) && hasKoreanText(example.spoken), `sound change ${rule.id} example needs Korean written/spoken forms`);
+    assert(example.speak === example.written, `sound change ${rule.id} example ${example.written} should speak its written form so TTS applies the change`);
+    assert(example.romanization && example.zh, `sound change ${rule.id} example ${example.written} needs romanization and Chinese gloss`);
+  }
+}
+
+const vocabIdSetForRefs = new Set(vocab.map((item) => item.id));
+const soundChangeRuleIds = new Set(soundChangeRules.map((rule) => rule.id));
+const grammarIdSetForRefs = new Set(grammarPoints.map((point) => point.id));
+for (const item of vocab) {
+  if (item.pos !== undefined) {
+    assert(Boolean(vocabPosLabels[item.pos]), `vocab ${item.id} has unknown pos ${item.pos}`);
+  }
+  for (const confusable of item.confusables ?? []) {
+    assert(vocabIdSetForRefs.has(confusable), `vocab ${item.id} confusable ${confusable} does not exist`);
+    assert(confusable !== item.id, `vocab ${item.id} lists itself as a confusable`);
+  }
+  if (item.soundChangeRuleId !== undefined) {
+    assert(soundChangeRuleIds.has(item.soundChangeRuleId), `vocab ${item.id} references unknown sound change rule ${item.soundChangeRuleId}`);
+  }
+  for (const collocation of item.collocations ?? []) {
+    assert(hasKoreanText(collocation.ko) && collocation.zh, `vocab ${item.id} collocation needs Korean text and Chinese gloss`);
+  }
+}
+for (const point of grammarPoints) {
+  for (const confusable of point.confusables ?? []) {
+    assert(grammarIdSetForRefs.has(confusable), `grammar ${point.id} confusable ${confusable} does not exist`);
+    assert(confusable !== point.id, `grammar ${point.id} lists itself as a confusable`);
+  }
+}
 
 for (const scene of pragmaticScenarios) {
   assert(scene.lines?.length >= 2, `scenario ${scene.id} needs lines`);
@@ -455,7 +504,10 @@ for (const file of [
   "src/components/korean/speech-status.tsx",
   "src/components/korean/speech-settings.tsx",
   "src/components/learning/onboarding-flow.tsx",
+  "src/components/learning/mastery-gate.tsx",
   "src/lib/korean/jamo.ts",
+  "src/lib/learning/gate.ts",
+  "src/data/sound-changes.js",
   "public/manifest.webmanifest",
   "public/sw.js",
   "public/offline.html",
@@ -806,6 +858,12 @@ assert(reviewPage.includes('href="/path"') && reviewPage.includes('href="/vocabu
 assert(mistakesPage.includes("buildMistakeInsights") && mistakesPage.includes("summarizeMistakes"), "mistake notebook should derive weak points from normalized SRS cards");
 assert(mistakesPage.includes("removeMistakeCardAndPracticeItem") && mistakesPage.includes('href="/review"'), "mistake notebook should let learners remove handled mistakes and return to review");
 assert(mistakesPage.includes("buildRetrainQuestions") && mistakesPage.includes("<DrillRunner") && mistakesPage.includes("gradeReviewCardAndProgress"), "mistake notebook should retrain selected mistakes in place and grade them through the shared review pipeline");
+assert(hangulPage.includes("<MasteryGate") && hangulPage.includes("测一测"), "hangul page should gate mastery behind a quick check instead of a bare toggle");
+assert(vocabularyPage.includes("<MasteryGate") && vocabularyPage.includes("测一测"), "vocabulary page should gate mastery behind a quick check instead of a bare toggle");
+assert(grammarPage.includes("<MasteryGate") && grammarPage.includes("测一测"), "grammar page should gate mastery behind a quick check instead of a bare toggle");
+assert(hangulPage.includes("soundChangeRules") && hangulPage.includes("音变实验室"), "hangul page should expose the sound change lab");
+assert(vocabularyPage.includes("vocabPosLabels") && vocabularyPage.includes("collocations") && vocabularyPage.includes("soundChangeNote"), "vocabulary page should render structured vocab fields when present");
+assert(lessonClientSource.includes("normalizeTeachEntry") && lessonClientSource.includes("speakKorean(entry.speak"), "lesson teach cards should support audio playback via normalized teach entries");
 assert(mistakesPage.includes('<LearningCompass workspace={workspace} active="mistakes" condensed />'), "mistake notebook should stay connected to the shared learning compass");
 assert(quizPage.indexOf("<DrillRunner") < quizPage.indexOf("<LearningCompass"), "quiz page should show the transfer drill before secondary learning context");
 assert(quizPage.includes("onResult={saveQuizResult}") && quizPage.includes("重试保存") && quizPage.includes("savedQuizId"), "quiz page should save results as soon as the result screen appears and expose retry on localStorage failure");

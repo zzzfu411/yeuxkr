@@ -23,7 +23,8 @@ export const QUESTION_PREFIXES = {
   nativePragmatics: "nq:pragmatics:",
   nativeNuance: "nq:nuance:",
   materialRetell: "mq:",
-  outputTransfer: "oq:"
+  outputTransfer: "oq:",
+  soundChange: "scq:"
 } as const;
 
 export const CARD_PREFIXES = {
@@ -35,7 +36,8 @@ export const CARD_PREFIXES = {
   material: "material:",
   output: "output:",
   mistake: "mistake:",
-  lesson: "lesson:"
+  lesson: "lesson:",
+  soundChange: "soundChange:"
 } as const;
 
 export function lessonTaskId(lessonId: string) {
@@ -108,6 +110,14 @@ export function outputCardId(outputId: string) {
 
 export function mistakeCardId(questionId: string) {
   return `${CARD_PREFIXES.mistake}${cleanId(questionId)}`;
+}
+
+export function soundChangeCardId(ruleId: string) {
+  return `${CARD_PREFIXES.soundChange}${cleanId(ruleId)}`;
+}
+
+export function soundChangeQuestionId(ruleId: string) {
+  return `${QUESTION_PREFIXES.soundChange}${cleanId(ruleId)}`;
 }
 
 export function lessonReviewCardId(lessonId: string, zeroBasedIndex: number) {

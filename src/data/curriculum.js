@@ -49,9 +49,31 @@ export const lessons = [
     focus: ["script", "sound"],
     objectives: ["认识音节块结构", "区分竖元音和横元音布局", "会读 가/고/한"],
     teach: [
-      "韩文音节块通常由初声、 中声、可选终声组成。",
-      "竖元音如 ㅏ 放在辅音右侧，横元音如 ㅗ 放在辅音下方。",
-      "ㅇ 在音节开头不发音，在收音位置读 ng。"
+      {
+        title: "拼块，不是字母排队",
+        body: "韩文音节块通常由初声、中声、可选终声组成，一个块读一拍。",
+        speak: "한",
+        romanization: "han",
+        examples: [{ ko: "한", zh: "ㅎ + ㅏ + ㄴ 压成一个块", note: "点击听整块发音" }]
+      },
+      {
+        title: "元音决定布局",
+        body: "竖元音如 ㅏ 放在辅音右侧，横元音如 ㅗ 放在辅音下方。",
+        speak: "가, 고",
+        examples: [
+          { ko: "가", zh: "ㄱ + ㅏ，左右结构" },
+          { ko: "고", zh: "ㄱ + ㅗ，上下结构" }
+        ]
+      },
+      {
+        title: "ㅇ 是占位符",
+        body: "ㅇ 在音节开头不发音，只占初声的位置；在收音位置读 ng。",
+        speak: "아, 강",
+        examples: [
+          { ko: "아", zh: "开头 ㅇ 不发音，只读 a" },
+          { ko: "강", zh: "收音 ㅇ 读 ng（河）" }
+        ]
+      }
     ],
     drills: [
       { type: "choice", prompt: "가 的结构是什么？", answer: "ㄱ + ㅏ", choices: ["ㄱ + ㅏ", "ㄱ + ㅗ", "ㅇ + ㅏ", "ㅎ + ㅏ + ㄴ"], explain: "ㅏ 是竖元音，放在 ㄱ 右侧。" },
@@ -70,9 +92,31 @@ export const lessons = [
     focus: ["sound"],
     objectives: ["读出基础元音", "知道 ㅓ 和 ㅗ 的差异", "避免把 ㅡ 读成中文儿化音"],
     teach: [
-      "ㅏ 是开口前方，ㅓ 更靠后且不圆唇。",
-      "ㅗ 与 ㅜ 都圆唇，但 ㅗ 更靠前，ㅜ 更靠后。",
-      "ㅡ 的嘴唇放松，舌位高，是很多学习者需要单独训练的音。"
+      {
+        title: "开口方向",
+        body: "ㅏ 是开口前方，ㅓ 更靠后且不圆唇。先听三遍再跟读。",
+        speak: "아, 어",
+        examples: [
+          { ko: "아", zh: "a：口腔打开靠前" },
+          { ko: "어", zh: "eo：更靠后，不圆唇" }
+        ]
+      },
+      {
+        title: "圆唇两兄弟",
+        body: "ㅗ 与 ㅜ 都圆唇，但 ㅗ 更靠前，ㅜ 更靠后。",
+        speak: "오, 우",
+        examples: [
+          { ko: "오", zh: "o：圆唇靠前" },
+          { ko: "우", zh: "u：圆唇靠后" }
+        ]
+      },
+      {
+        title: "最容易读错的 ㅡ",
+        body: "ㅡ 的嘴唇放松，舌位高，不要读成中文的“呃儿”。这个音值得单独练。",
+        speak: "으",
+        romanization: "eu",
+        examples: [{ ko: "으", zh: "eu：嘴唇完全放松" }]
+      }
     ],
     drills: [
       { type: "choice", prompt: "哪个元音需要圆唇？", answer: "ㅗ", choices: ["ㅏ", "ㅓ", "ㅗ", "ㅡ"], explain: "ㅗ 是圆唇元音。" },
@@ -91,9 +135,27 @@ export const lessons = [
     focus: ["sound", "script"],
     objectives: ["认识基础辅音", "理解词首松音不等于浊音", "会读 나/마/바/자"],
     teach: [
-      "ㄱ ㄷ ㅂ ㅈ 在词首常听起来偏 k/t/p/ch，在元音之间更接近 g/d/b/j。",
-      "ㄹ 在元音之间像轻弹 r，在收音位置像 l。",
-      "不要用罗马音决定发音，要用韩文字母和位置决定。"
+      {
+        title: "松音随位置变化",
+        body: "ㄱ ㄷ ㅂ ㅈ 在词首常听起来偏 k/t/p/ch，在元音之间更接近 g/d/b/j。",
+        speak: "가구",
+        examples: [{ ko: "가구", zh: "家具：第一个 ㄱ 偏 k，第二个偏 g" }]
+      },
+      {
+        title: "ㄹ 的两幅面孔",
+        body: "ㄹ 在元音之间像轻弹 r，在收音位置像 l。",
+        speak: "라디오, 물",
+        examples: [
+          { ko: "라디오", zh: "收音机：元音间轻弹 r" },
+          { ko: "물", zh: "水：收音位置读 l" }
+        ]
+      },
+      {
+        title: "别让罗马音接管",
+        body: "不要用罗马音决定发音，要用韩文字母和位置决定。罗马音只是查找工具。",
+        speak: "나, 마, 바, 자",
+        examples: [{ ko: "나, 마, 바, 자", zh: "na / ma / ba / ja：跟读四个基础音节" }]
+      }
     ],
     drills: [
       { type: "choice", prompt: "라디오 中 ㄹ 更接近什么？", answer: "轻弹 r", choices: ["轻弹 r", "强卷舌 r", "完全不发音", "m"], explain: "元音之间的 ㄹ 是轻弹音。" },
@@ -112,9 +174,28 @@ export const lessons = [
     focus: ["sentence", "pragmatics"],
     objectives: ["会打招呼", "会介绍名字", "会用 이에요/예요"],
     teach: [
-      "안녕하세요 是最安全的通用问候。",
-      "저는 + 名字 + 예요/이에요 可以完成自我介绍。",
-      "有收音接 이에요，没有收音接 예요。"
+      {
+        title: "最安全的问候",
+        body: "안녕하세요 是最安全的通用问候，任何场合都不会失礼。",
+        speak: "안녕하세요",
+        romanization: "annyeonghaseyo",
+        examples: [{ ko: "안녕하세요", zh: "你好（礼貌通用）" }]
+      },
+      {
+        title: "一句完成自我介绍",
+        body: "저는 + 名字 + 예요/이에요 可以完成自我介绍。",
+        speak: "저는 리나예요",
+        examples: [{ ko: "저는 리나예요.", zh: "我是 Lina。" }]
+      },
+      {
+        title: "收音决定 예요 还是 이에요",
+        body: "名字最后一个字有收音接 이에요，没有收音接 예요。注意 예 是复合元音 ㅖ。",
+        speak: "리나예요, 민준이에요",
+        examples: [
+          { ko: "리나예요", zh: "리나 无收音 → 예요" },
+          { ko: "민준이에요", zh: "민준 有收音 ㄴ → 이에요" }
+        ]
+      }
     ],
     drills: [
       { type: "choice", prompt: "리나 后面应接？", answer: "예요", choices: ["이에요", "예요", "입니다가", "은요"], explain: "리나 没有收音，所以用 예요。" },
@@ -133,9 +214,24 @@ export const lessons = [
     focus: ["grammar"],
     objectives: ["理解话题和新信息", "会说 저는 학생이에요", "会用 제가 回答“谁”"],
     teach: [
-      "은/는 常把一个对象放到桌面上：关于它，我们来说点什么。",
-      "이/가 常指出句中真正发生状态或动作的主体。",
-      "学习初期最重要的是在真实句子里建立直觉。"
+      {
+        title: "은/는 把话题放上桌",
+        body: "은/는 常把一个对象放到桌面上：关于它，我们来说点什么。",
+        speak: "저는 학생이에요",
+        examples: [{ ko: "저는 학생이에요.", zh: "（要说我了）我是学生。" }]
+      },
+      {
+        title: "이/가 指出主体",
+        body: "이/가 常指出句中真正发生状态或动作的主体，回答“谁/什么”。",
+        speak: "제가 할게요",
+        examples: [{ ko: "제가 할게요.", zh: "（问谁做？）我来做。" }]
+      },
+      {
+        title: "靠真实句子建立直觉",
+        body: "学习初期不要背规则清单，最重要的是在真实句子里建立话题 vs 焦点的直觉。",
+        speak: "비가 와요",
+        examples: [{ ko: "비가 와요.", zh: "下雨了（新信息用 가）。" }]
+      }
     ],
     drills: [
       { type: "choice", prompt: "表达“我是学生”最自然的是？", answer: "저는 학생이에요.", choices: ["제가 학생이에요.", "저는 학생이에요.", "저를 학생이에요.", "저에 학생이에요."], explain: "自我介绍通常用 저는 设定话题。" },
@@ -252,6 +348,25 @@ export const lessons = [
 
 export function getLessonById(id) {
   return lessons.find((lesson) => lesson.id === id);
+}
+
+// teach 条目支持两种形态（渐进迁移）：
+//   "一句讲解文本"
+//   { title?, body, speak?, romanization?, examples?: [{ ko, zh, note? }] }
+export function normalizeTeachEntry(entry) {
+  if (typeof entry === "string") return { body: entry };
+  if (entry && typeof entry === "object" && typeof entry.body === "string") {
+    return {
+      title: typeof entry.title === "string" ? entry.title : undefined,
+      body: entry.body,
+      speak: typeof entry.speak === "string" && entry.speak.trim() ? entry.speak : undefined,
+      romanization: typeof entry.romanization === "string" && entry.romanization.trim() ? entry.romanization : undefined,
+      examples: Array.isArray(entry.examples)
+        ? entry.examples.filter((example) => example && typeof example.ko === "string" && typeof example.zh === "string")
+        : undefined
+    };
+  }
+  return { body: String(entry ?? "") };
 }
 
 export const UNLOCK_SCORE = 65;

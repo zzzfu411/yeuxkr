@@ -6,6 +6,7 @@ import { vocab } from "../../data/lexicon.js";
 import { grammarPoints } from "../../data/grammar.js";
 import { nuanceSets } from "../../data/nuance.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
+import { soundChangeRules } from "../../data/sound-changes.js";
 import { immersionMaterials } from "../../data/materials.ts";
 import {
   grammarQuestionId,
@@ -193,6 +194,20 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
             speak: example.ko
           } satisfies Question;
         }
+      }
+      if (card.payload.kind === "soundChange") {
+        const rule = soundChangeRules.find((entry: any) => entry.id === card.payload.itemId);
+        const example = rule?.examples?.[0];
+        if (!rule || !example) return null;
+        return {
+          id: card.id,
+          type: "choice",
+          prompt: `${rule.title}（${rule.korean}）：${example.written} 实际读作哪一个？`,
+          answer: example.spoken,
+          choices: makeChoices(example.spoken, soundChangeRules.flatMap((entry: any) => entry.examples.map((item: any) => item.spoken)).filter((item: string) => item !== example.spoken)),
+          explain: `${rule.rule}。${example.written} → [${example.spoken}]（${example.zh}）。`,
+          speak: example.speak
+        } satisfies Question;
       }
       if (card.payload.kind === "material") {
         const material = immersionMaterials.find((entry) => entry.id === card.payload.itemId);
@@ -517,7 +532,7 @@ function practiceSeenAtMs(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function seededRandom(seed: number) {
+export function seededRandom(seed: number) {
   let state = seed >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;

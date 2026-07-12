@@ -6,6 +6,26 @@ export const vocabLevels = [
   { id: "native", label: "母语者表达", target: "2500+ 词", description: "处理搭配、语域、惯用语、新闻和抽象讨论。" }
 ];
 
+// 词条可选扩展字段（schema v2，向后兼容）：
+//   pos: 词性（见 vocabPosLabels 白名单）
+//   collocations: [{ ko, zh }] 高频搭配
+//   soundChangeNote: 发音提示（如连音/紧音化）
+//   soundChangeRuleId: 关联 sound-changes.js 的规则 id
+//   confusables: 易混淆词 id 列表（出题时优先做干扰项）
+//   tags: 附加标签（hanja / loanword / honorific ...）
+export const vocabPosLabels = {
+  noun: "名词",
+  verb: "动词",
+  adj: "形容词",
+  adv: "副词",
+  particle: "助词",
+  expression: "表达",
+  counter: "量词",
+  number: "数词",
+  pronoun: "代词",
+  interjection: "叹词"
+};
+
 export const vocabCategories = [
   { id: "greetings", label: "寒暄", color: "red" },
   { id: "identity", label: "身份", color: "blue" },

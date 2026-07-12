@@ -8,6 +8,7 @@ import { vocab } from "../../data/lexicon.js";
 import { immersionMaterials } from "../../data/materials.ts";
 import { nuanceSets } from "../../data/nuance.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
+import { soundChangeRules } from "../../data/sound-changes.js";
 import { lessonReviewCardId } from "./ids.ts";
 import type { QuestionType } from "./types.ts";
 
@@ -36,12 +37,13 @@ const pronunciationIdSet = new Set(pronunciationPairs.map((pair: any) => pair.id
 const vocabIdSet = new Set(vocab.map((item: any) => item.id));
 const grammarIdSet = new Set(grammarPoints.map((item: any) => item.id));
 const materialIdSet = new Set(immersionMaterials.map((item) => item.id));
+const soundChangeIdSet = new Set(soundChangeRules.map((rule: any) => rule.id));
 const nativeIdSet = new Set([
   ...pragmaticScenarios.map((item: any) => `pragmatics:${item.id}`),
   ...nuanceSets.map((item: any) => `nuance:${item.id}`)
 ]);
 
-export type SrsKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "native" | "material" | "output" | "mistake" | "lesson";
+export type SrsKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "native" | "material" | "output" | "mistake" | "lesson" | "soundChange";
 
 export interface SrsCard {
   id: string;
@@ -334,6 +336,7 @@ function isReviewablePayload(payload: Partial<SrsCard["payload"]>) {
   if (payload.kind === "vocab") return vocabIdSet.has(String(payload.itemId));
   if (payload.kind === "grammar") return grammarIdSet.has(String(payload.itemId));
   if (payload.kind === "native") return nativeIdSet.has(String(payload.itemId));
+  if (payload.kind === "soundChange") return soundChangeIdSet.has(String(payload.itemId));
   if (payload.kind === "material") return materialIdSet.has(String(payload.itemId)) && Boolean(payload.prompt && payload.answer);
   if (payload.kind === "lesson") {
     return Boolean(findLessonDrillByReviewItemId(String(payload.itemId)) && payload.prompt && payload.answer);

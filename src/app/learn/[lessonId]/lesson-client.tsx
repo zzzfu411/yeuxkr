@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Radio, RefreshCcw, Route } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Radio, RefreshCcw, Route, Volume2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { Button } from "@/components/ui/button";
 import { SectionHeading, Surface } from "@/components/ui/section";
-import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, UNLOCK_SCORE } from "@/data/curriculum";
+import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, normalizeTeachEntry, UNLOCK_SCORE } from "@/data/curriculum";
 import { buildLessonBridge, type LessonBridge } from "@/lib/learning/lesson-bridge";
 import { clearLessonPracticeSession, getLessonPracticeSession, saveLessonPracticeSession } from "@/lib/learning/lesson-session";
 import { lessonQuestions } from "@/lib/learning/quiz";
 import { ABILITY_LABELS, useLearningWorkspace } from "@/lib/learning/workspace";
+import { speakKorean } from "@/lib/speech";
 
 export function LessonClient({ lesson }: { lesson: any }) {
   const { workspace, completeLesson } = useLearningWorkspace();
@@ -131,13 +132,46 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <Surface>
             <SectionHeading kicker="Teach" title="先建立直觉" />
             <div className="grid gap-3">
-              {lesson.teach.map((item: string, index: number) => (
-                <p key={item} className="grid gap-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.64)] p-4 leading-8 md:grid-cols-[2.4rem_minmax(0,1fr)]">
+              {lesson.teach.map(normalizeTeachEntry).map((entry: ReturnType<typeof normalizeTeachEntry>, index: number) => (
+                <div key={`${index}-${entry.body}`} className="grid gap-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.64)] p-4 md:grid-cols-[2.4rem_minmax(0,1fr)]">
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--celadon)] font-mono text-sm font-black text-white">
                     {index + 1}
                   </span>
-                  {item}
-                </p>
+                  <div className="grid gap-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="leading-8">
+                        {entry.title ? <strong className="mr-2 font-serif">{entry.title}</strong> : null}
+                        {entry.body}
+                      </p>
+                      {entry.speak ? (
+                        <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(entry.speak!)} aria-label={`播放 ${entry.speak}`}>
+                          <Volume2 className="h-4 w-4" aria-hidden="true" />
+                          听
+                        </Button>
+                      ) : null}
+                    </div>
+                    {entry.romanization ? (
+                      <p className="font-mono text-xs font-black text-[var(--ocean)]">{entry.romanization}</p>
+                    ) : null}
+                    {entry.examples?.length ? (
+                      <div className="grid gap-1.5">
+                        {entry.examples.map((example: { ko: string; zh: string; note?: string }) => (
+                          <button
+                            key={example.ko}
+                            type="button"
+                            className="focus-ring flex flex-wrap items-baseline gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
+                            onClick={() => speakKorean(example.ko)}
+                            aria-label={`播放 ${example.ko}`}
+                          >
+                            <span className="hangul-display text-lg font-black">{example.ko}</span>
+                            <span className="text-sm text-[var(--muted)]">{example.zh}</span>
+                            {example.note ? <span className="text-xs font-bold text-[var(--brass)]">{example.note}</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               ))}
             </div>
           </Surface>

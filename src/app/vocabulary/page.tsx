@@ -5,8 +5,9 @@ import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { MasteryGate } from "@/components/learning/mastery-gate";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { vocab, vocabCategories, vocabLevels } from "@/data/lexicon";
+import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "@/data/lexicon";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean } from "@/lib/speech";
 
@@ -19,6 +20,7 @@ export default function VocabularyPage() {
   const [onlyLearned, setOnlyLearned] = useState(false);
   const [srsErrorId, setSrsErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [gateItemId, setGateItemId] = useState("");
   const filteredVocab = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return vocab.filter((item: any) => {
@@ -154,20 +156,66 @@ export default function VocabularyPage() {
                 >
                   <Volume2 className="h-4 w-4" />
                 </button>
-                <span className="w-fit rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2.5 py-1 text-xs font-bold text-[var(--ocean)]">
-                  {categoryLabel(item.category)}
+                <span className="flex w-fit flex-wrap items-center gap-1.5">
+                  <span className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2.5 py-1 text-xs font-bold text-[var(--ocean)]">
+                    {categoryLabel(item.category)}
+                  </span>
+                  {item.pos ? (
+                    <span className="rounded-[8px] bg-[rgba(183,135,63,0.12)] px-2.5 py-1 font-mono text-[0.65rem] font-black uppercase text-[var(--brass)]">
+                      {vocabPosLabels[item.pos] ?? item.pos}
+                    </span>
+                  ) : null}
                 </span>
                 <h3 className="hangul-display text-3xl font-black md:text-4xl">{item.korean}</h3>
                 <p className="font-mono text-sm font-black text-[var(--ocean)]">{item.romanization}</p>
                 <strong>{item.meaning}</strong>
                 <p className="hangul-display text-xl">{item.example}</p>
                 <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
+                {item.soundChangeNote ? (
+                  <p className="rounded-[8px] bg-[rgba(79,140,118,0.08)] p-2 text-xs font-bold leading-5 text-[var(--celadon)]">
+                    发音提示：{item.soundChangeNote}
+                  </p>
+                ) : null}
+                {item.collocations?.length ? (
+                  <div className="grid gap-1 text-sm leading-6">
+                    {item.collocations.map((collocation: any) => (
+                      <p key={collocation.ko}>
+                        <span className="hangul-display font-black">{collocation.ko}</span>
+                        <span className="ml-2 text-[var(--muted)]">{collocation.zh}</span>
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="rounded-[8px] border-l-4 border-[var(--ocean)] bg-[rgba(23,63,115,0.06)] p-3 text-sm leading-6 text-[var(--muted)]">
                   {item.note}
                 </div>
-                <Button type="button" variant="secondary" size="sm" onClick={() => toggleVocabSrs(item.id)}>
-                  {learned.has(item.id) ? "已加入 SRS" : "加入 SRS"}
-                </Button>
+                {learned.has(item.id) ? (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleVocabSrs(item.id)}>
+                    已掌握 · 点击移出
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    aria-expanded={gateItemId === item.id}
+                    onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
+                  >
+                    测一测 · 加入掌握
+                  </Button>
+                )}
+                {gateItemId === item.id && !learned.has(item.id) ? (
+                  <MasteryGate
+                    kind="vocab"
+                    itemId={item.id}
+                    title={item.korean}
+                    onPassed={() => {
+                      toggleVocabSrs(item.id);
+                      setGateItemId("");
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : null}
                 {srsErrorId === item.id ? <SrsError /> : null}
               </article>
             ))}

@@ -5,6 +5,7 @@ import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { MasteryGate } from "@/components/learning/mastery-gate";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { grammarPoints } from "@/data/grammar";
 import { speakKorean } from "@/lib/speech";
@@ -24,6 +25,7 @@ export default function GrammarPage() {
   const [onlyLearned, setOnlyLearned] = useState(false);
   const [srsErrorId, setSrsErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [gateItemId, setGateItemId] = useState("");
   const filteredPoints = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return grammarPoints.filter((point: any) => {
@@ -148,9 +150,34 @@ export default function GrammarPage() {
                   </span>
                   <h3 className="mt-3 font-serif text-3xl font-black">{point.title}</h3>
                   <p className="mt-3 leading-7 text-[var(--muted)]">{point.explanation}</p>
-                  <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
-                    {learned.has(point.id) ? "已加入 SRS" : "加入语法复习"}
-                  </Button>
+                  {learned.has(point.id) ? (
+                    <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
+                      已掌握 · 点击移出
+                    </Button>
+                  ) : (
+                    <Button
+                      className="mt-4"
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      aria-expanded={gateItemId === point.id}
+                      onClick={() => setGateItemId((current) => (current === point.id ? "" : point.id))}
+                    >
+                      测一测 · 加入语法复习
+                    </Button>
+                  )}
+                  {gateItemId === point.id && !learned.has(point.id) ? (
+                    <MasteryGate
+                      kind="grammar"
+                      itemId={point.id}
+                      title={point.title}
+                      onPassed={() => {
+                        toggleGrammarSrs(point.id);
+                        setGateItemId("");
+                      }}
+                      onClose={() => setGateItemId("")}
+                    />
+                  ) : null}
                   {srsErrorId === point.id ? <SrsError /> : null}
                   <div className="mt-4 grid gap-2">
                     {point.pitfalls.map((pitfall: string) => (

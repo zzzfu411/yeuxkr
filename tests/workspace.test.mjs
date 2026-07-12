@@ -2266,3 +2266,31 @@ test("native roadmap material evidence should use validated workspace stats", ()
   assert.equal(countNativePracticeEvidence(workspace.progress), 0);
   assert.equal(stage.currentStage.id, "in-app-bridge");
 });
+
+test("listening ability comes from pronunciation and sound-change practice, not hangul toggles", () => {
+  const progress = normalizeLearningProgress({ ...defaultProgress(), masteredHangul: ["v-a", "v-ya", "v-eo"] });
+  const noListening = buildLearningWorkspace(normalizeUserProfile({}), progress, 0, { outputs: [], srs: { cards: {}, history: [] } });
+  assert.equal(noListening.proficiency.evidence.scriptAbility >= 3, true);
+  assert.equal(noListening.proficiency.evidence.listeningAbility, 0);
+
+  const srsWithListening = {
+    cards: {
+      "pronunciation:eo-o": { id: "pronunciation:eo-o", box: 0, dueAt: 0, correct: 0, wrong: 0, lastSeenAt: null, payload: { kind: "pronunciation", itemId: "eo-o" } },
+      "soundChange:sc-liaison": { id: "soundChange:sc-liaison", box: 0, dueAt: 0, correct: 0, wrong: 0, lastSeenAt: null, payload: { kind: "soundChange", itemId: "sc-liaison" } }
+    },
+    history: []
+  };
+  const withListening = buildLearningWorkspace(normalizeUserProfile({}), progress, 0, { outputs: [], srs: srsWithListening });
+  assert.equal(withListening.proficiency.evidence.listeningAbility, 4);
+});
+
+test("sound change cards survive normalization and map to listening", () => {
+  const srsState = {
+    cards: {
+      "soundChange:sc-liaison": { id: "soundChange:sc-liaison", box: 1, dueAt: 0, correct: 1, wrong: 0, lastSeenAt: null, payload: { kind: "soundChange", itemId: "sc-liaison" } },
+      "soundChange:sc-unknown": { id: "soundChange:sc-unknown", box: 1, dueAt: 0, correct: 0, wrong: 0, lastSeenAt: null, payload: { kind: "soundChange", itemId: "sc-unknown" } }
+    },
+    history: []
+  };
+  assert.deepEqual(mapCardToAbilities(srsState.cards["soundChange:sc-liaison"]), ["listening"]);
+});

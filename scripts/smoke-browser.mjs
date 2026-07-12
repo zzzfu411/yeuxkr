@@ -484,7 +484,7 @@ await page.getByRole("button", { name: "重置筛选" }).first().click();
 
 await page.goto(`${baseUrl}/vocabulary`, { waitUntil: "networkidle" });
 const defaultVocabSlice = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("测一测 · 加入掌握") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasSliceCopy: document.body.textContent?.includes("今日词汇切片") ?? false,
@@ -495,13 +495,35 @@ if (defaultVocabSlice.visibleCards !== 12) issues.push(`default vocabulary page 
 if (!defaultVocabSlice.hasSliceCopy) issues.push("default vocabulary page should explain the daily vocabulary slice");
 if (!defaultVocabSlice.hasExpand) issues.push("default vocabulary page should offer an expand-all action");
 await page.evaluate(() => {
+  const now = new Date().toISOString();
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  progress.learnedVocab = ["v-annyeonghaseyo"];
+  progress.abilityEvents = { ...(progress.abilityEvents ?? {}), "vocab:v-annyeonghaseyo": 1 };
+  progress.updatedAt = now;
+  localStorage.setItem("kirina.progress.v2", JSON.stringify(progress));
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  srs.cards = srs.cards ?? {};
+  srs.cards["vocab:v-annyeonghaseyo"] = {
+    id: "vocab:v-annyeonghaseyo",
+    box: 0,
+    dueAt: Date.now() + 60_000,
+    correct: 0,
+    wrong: 0,
+    lastSeenAt: null,
+    payload: { kind: "vocab", itemId: "v-annyeonghaseyo" }
+  };
+  localStorage.setItem("kirina.srs.v2", JSON.stringify(srs));
+});
+await page.reload({ waitUntil: "networkidle" });
+await expectText(page, "已掌握 · 点击移出");
+await page.evaluate(() => {
   window.__kirinaOriginalSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function (key, value) {
     if (key === "kirina.progress.v2") throw new DOMException("Quota exceeded", "QuotaExceededError");
     return window.__kirinaOriginalSetItem.call(this, key, value);
   };
 });
-await page.getByRole("button", { name: "加入 SRS" }).first().click();
+await page.getByRole("button", { name: "已掌握 · 点击移出" }).first().click();
 await expectText(page, "这张词汇卡没有写入成功");
 const blockedVocabResult = await page.evaluate(() => {
   const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
@@ -517,27 +539,45 @@ await page.evaluate(() => {
     delete window.__kirinaOriginalSetItem;
   }
 });
-if (blockedVocabResult.learnedVocab !== 0) issues.push(`failed vocabulary save should not mutate progress, found ${blockedVocabResult.learnedVocab}`);
-if (blockedVocabResult.vocabCards !== 0) issues.push(`failed vocabulary save should roll back SRS cards, found ${blockedVocabResult.vocabCards}`);
+if (blockedVocabResult.learnedVocab !== 1) issues.push(`failed vocabulary removal should keep learned progress, found ${blockedVocabResult.learnedVocab}`);
+if (blockedVocabResult.vocabCards !== 1) issues.push(`failed vocabulary removal should roll back SRS card deletion, found ${blockedVocabResult.vocabCards}`);
 await page.reload({ waitUntil: "networkidle" });
-await expectText(page, "加入 SRS");
-await page.getByRole("button", { name: "加入 SRS" }).first().click();
+await page.getByRole("button", { name: "已掌握 · 点击移出" }).first().click();
 let vocabCards = await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
   return Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length;
 });
-if (vocabCards < 1) issues.push("adding vocabulary should create a vocab SRS card");
-await page.getByRole("button", { name: "已加入 SRS" }).first().click();
-vocabCards = await page.evaluate(() => {
+if (vocabCards !== 0) issues.push(`removing mastered vocabulary should remove its SRS card, found ${vocabCards}`);
+await page.getByRole("button", { name: "测一测 · 加入掌握" }).first().click();
+await expectText(page, "掌握小测");
+await page.getByRole("radio", { name: "안녕하세요" }).check();
+await page.getByRole("button", { name: "提交" }).click();
+await page.getByRole("button", { name: "下一题" }).click();
+await page.getByRole("radio", { name: "你好" }).check();
+await page.getByRole("button", { name: "提交" }).click();
+await page.getByRole("button", { name: "下一题" }).click();
+await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
+await page.getByRole("button", { name: "提交" }).click();
+await page.getByRole("button", { name: "下一题" }).click();
+await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
+await page.getByRole("button", { name: "提交" }).click();
+await page.getByRole("button", { name: "交卷" }).click();
+await expectText(page, "已掌握 · 点击移出");
+const gatedVocabState = await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
-  return Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length;
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return {
+    learnedVocab: progress.learnedVocab?.length ?? 0,
+    vocabCards: Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length
+  };
 });
-if (vocabCards !== 0) issues.push(`removing vocabulary should remove its SRS card, found ${vocabCards}`);
+if (gatedVocabState.learnedVocab !== 1) issues.push(`passing the vocab mastery gate should persist learnedVocab, found ${gatedVocabState.learnedVocab}`);
+if (gatedVocabState.vocabCards !== 1) issues.push(`passing the vocab mastery gate should create one vocab SRS card, found ${gatedVocabState.vocabCards}`);
 await page.getByLabel("搜索词汇").fill("지하철");
 await expectText(page, "지하철");
 await expectText(page, "地铁");
 const subwaySearchState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("测一测 · 加入掌握") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasUnrelatedGreeting: cards.some((item) => item.textContent?.includes("안녕하세요"))
@@ -549,7 +589,7 @@ await page.getByRole("button", { name: "重置筛选" }).click();
 await page.getByRole("radio", { name: /移动/ }).click();
 await expectText(page, "숙소");
 const travelFilterState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("测一测 · 加入掌握") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasFood: cards.some((item) => item.textContent?.includes("아이스 아메리카노"))
@@ -562,7 +602,7 @@ await page.getByRole("button", { name: "重置筛选" }).click();
 await page.goto(`${baseUrl}/grammar`, { waitUntil: "networkidle" });
 await expectText(page, "今日句型切片");
 const defaultGrammarState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasExpandAction: document.body.textContent?.includes("展开全部句型") ?? false
@@ -573,7 +613,7 @@ if (!defaultGrammarState.hasExpandAction) issues.push("grammar page should expos
 await page.getByLabel("搜索语法").fill("-고 있어요");
 await expectText(page, "动词词干 + 고 있어요");
 const grammarSearchState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasTopicMarker: cards.some((item) => item.textContent?.includes("은/는 与 이/가"))
@@ -586,7 +626,7 @@ await page.getByRole("radio", { name: /母语者语法/ }).click();
 await expectText(page, "母语者语法");
 await expectText(page, "-는 것");
 const nativeGrammarState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已掌握"));
   return {
     visibleCards: cards.length,
     hasFoundation: cards.some((item) => item.textContent?.includes("이에요/예요"))
@@ -595,8 +635,34 @@ const nativeGrammarState = await page.evaluate(() => {
 if (nativeGrammarState.visibleCards < 6) issues.push(`native grammar filter should show native grammar cards, found ${nativeGrammarState.visibleCards}`);
 if (nativeGrammarState.hasFoundation) issues.push("native grammar filter should hide foundation cards");
 await page.getByRole("button", { name: "重置筛选" }).click();
-await page.getByRole("button", { name: "加入语法复习" }).first().click();
-await page.getByRole("button", { name: "已加入 SRS" }).first().click();
+const passTopicSubjectGate = async () => {
+  await page.getByRole("button", { name: "测一测 · 加入语法复习" }).first().click();
+  await expectText(page, "掌握小测");
+  await page.getByRole("radio", { name: "我是学生。" }).check();
+  await page.getByRole("button", { name: "提交" }).click();
+  await page.getByRole("button", { name: "下一题" }).click();
+  await page.getByRole("radio", { name: "话题标记 vs 主语标记" }).check();
+  await page.getByRole("button", { name: "提交" }).click();
+  await page.getByRole("button", { name: "下一题" }).click();
+  await page.getByRole("radio", { name: "不要把 은/는 简单等同于“是”。" }).check();
+  await page.getByRole("button", { name: "提交" }).click();
+  await page.getByRole("button", { name: "交卷" }).click();
+  await expectText(page, "已掌握 · 点击移出");
+};
+await passTopicSubjectGate();
+const grammarStateAfterGate = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    ability: progress.ability?.grammar,
+    learnedGrammar: progress.learnedGrammar?.length ?? 0,
+    grammarCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "grammar").length
+  };
+});
+if (grammarStateAfterGate.ability !== 2) issues.push(`passing the grammar gate should record ability 2, found ${grammarStateAfterGate.ability}`);
+if (grammarStateAfterGate.learnedGrammar !== 1) issues.push(`passing the grammar gate should persist learnedGrammar, found ${grammarStateAfterGate.learnedGrammar}`);
+if (grammarStateAfterGate.grammarCards !== 1) issues.push(`passing the grammar gate should create one grammar SRS card, found ${grammarStateAfterGate.grammarCards}`);
+await page.getByRole("button", { name: "已掌握 · 点击移出" }).first().click();
 const grammarStateAfterRemove = await page.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
   const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
@@ -609,7 +675,7 @@ const grammarStateAfterRemove = await page.evaluate(() => {
 if (grammarStateAfterRemove.ability !== 0) issues.push(`removing grammar should retract the evidence-backed ability: ${grammarStateAfterRemove.ability}`);
 if (grammarStateAfterRemove.learnedGrammar !== 0) issues.push(`removing grammar should clear learnedGrammar: ${grammarStateAfterRemove.learnedGrammar}`);
 if (grammarStateAfterRemove.grammarCards !== 0) issues.push(`removing grammar should remove SRS card: ${grammarStateAfterRemove.grammarCards}`);
-await page.getByRole("button", { name: "加入语法复习" }).first().click();
+await passTopicSubjectGate();
 const grammarStateAfterReAdd = await page.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
   const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
