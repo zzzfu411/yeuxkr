@@ -126,6 +126,14 @@ export function vocabQuestionId(itemId: string) {
   return `${QUESTION_PREFIXES.vocab}${cleanId(itemId)}`;
 }
 
+export function vocabDictationQuestionId(itemId: string) {
+  return `${QUESTION_PREFIXES.vocab}dict:${cleanId(itemId)}`;
+}
+
+export function vocabClozeQuestionId(itemId: string) {
+  return `${QUESTION_PREFIXES.vocab}cloze:${cleanId(itemId)}`;
+}
+
 export function grammarQuestionId(itemId: string) {
   return `${QUESTION_PREFIXES.grammar}${cleanId(itemId)}`;
 }

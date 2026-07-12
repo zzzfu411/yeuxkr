@@ -1,9 +1,1 @@
-export const BOX_INTERVALS = [
-  0,
-  1000 * 60 * 10,
-  1000 * 60 * 60 * 8,
-  1000 * 60 * 60 * 24,
-  1000 * 60 * 60 * 24 * 3,
-  1000 * 60 * 60 * 24 * 7,
-  1000 * 60 * 60 * 24 * 21
-];
+export { BOX_INTERVALS, MAX_INTERVAL_DAYS, DEFAULT_EASE } from "../../src/lib/learning/srs.ts";

@@ -1,5 +1,7 @@
 export type AbilityId = "script" | "listening" | "vocabulary" | "grammar" | "pragmatics" | "native";
 
+export type QuestionType = "choice" | "listen" | "type" | "dictation" | "cloze" | "translate";
+
 export type StudyMode = "guided" | "self";
 
 export type StudyGoal = "foundation" | "travel" | "media" | "native";

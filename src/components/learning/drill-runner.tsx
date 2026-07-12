@@ -95,7 +95,8 @@ export function DrillRunner({
   }, [answers, finished, onResult, resultSignature, score]);
 
   useEffect(() => {
-    if (finished || !question || question.type !== "listen" || !question.speak) return;
+    if (finished || !question || !question.speak) return;
+    if (question.type !== "listen" && question.type !== "dictation") return;
     if (answers[index]) return;
     if (playedListenRef.current === question.id) return;
     playedListenRef.current = question.id;
@@ -117,7 +118,7 @@ export function DrillRunner({
         submitRef.current();
         return;
       }
-      if (question.type !== "type" && !answers[index]) {
+      if ((question.choices?.length ?? 0) > 0 && !answers[index]) {
         const choiceIndex = Number(event.key);
         const choices = question.choices ?? [];
         if (Number.isInteger(choiceIndex) && choiceIndex >= 1 && choiceIndex <= choices.length) {
@@ -151,8 +152,15 @@ export function DrillRunner({
       const mistakeCard = recordMistake(mistakeCardId(question.id), {
         kind: "mistake",
         itemId: question.id,
+        type: question.type,
         prompt: question.prompt,
-        answer: question.answer
+        answer: question.answer,
+        acceptable: question.acceptable,
+        choices: question.choices,
+        explain: question.explain,
+        speak: question.speak,
+        clozeText: question.clozeText,
+        hint: question.hint
       });
       if (!mistakeCard) {
         setSrsError("错题没有写入本地复习队列，请释放浏览器存储空间后再继续。");
@@ -234,6 +242,13 @@ export function DrillRunner({
     );
   }
 
+  const usesTextEntry =
+    question &&
+    (question.type === "type" ||
+      question.type === "dictation" ||
+      question.type === "translate" ||
+      (question.type === "cloze" && !(question.choices?.length)));
+
   return (
     <article className={`rounded-[8px] border p-5 ${existing?.correct ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : existing ? "border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.72)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -260,7 +275,7 @@ export function DrillRunner({
       <div className="min-h-72">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h3 className="font-serif text-3xl font-black leading-tight">{question.prompt}</h3>
-          {question.speak ? (
+          {question.speak && question.type !== "dictation" ? (
             <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(question.speak!)}>
               <Volume2 className="h-4 w-4" />
               听
@@ -268,7 +283,41 @@ export function DrillRunner({
           ) : null}
         </div>
 
-        {question.type === "type" ? (
+        {question.type === "dictation" && question.speak ? (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button type="button" onClick={() => speakKorean(question.speak!)}>
+              <Volume2 className="h-4 w-4" />
+              播放
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => speakKorean(question.speak!, { rate: 0.62 })}>
+              慢速重播
+            </Button>
+          </div>
+        ) : null}
+
+        {question.type === "cloze" && question.clozeText ? (
+          <p className="hangul-display mt-6 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-4 text-2xl leading-relaxed">
+            {question.clozeText.split("___").map((segment, segmentIndex, segments) => (
+              <span key={segmentIndex}>
+                {segment}
+                {segmentIndex < segments.length - 1 ? (
+                  <span className="mx-1 inline-block min-w-16 border-b-2 border-[var(--brass)] text-center text-[var(--ocean)]">
+                    {(existing?.answer ?? value) || "   "}
+                  </span>
+                ) : null}
+              </span>
+            ))}
+          </p>
+        ) : null}
+
+        {question.type === "translate" && question.hint ? (
+          <details className="mt-4 text-sm font-bold text-[var(--muted)]">
+            <summary className="cursor-pointer">需要提示？</summary>
+            <p className="mt-1 leading-6">{question.hint}</p>
+          </details>
+        ) : null}
+
+        {usesTextEntry ? (
           hasKoreanText(question.answer) ? (
             <div className="mt-6 grid gap-2 font-extrabold">
               输入答案（可用屏幕韩文键盘）
@@ -326,6 +375,14 @@ export function DrillRunner({
         {existing ? (
           <div className="mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-3">
             <strong>{existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
+            {question.type === "dictation" && !existing.correct ? (
+              <DictationDiff expected={question.answer} actual={existing.answer} />
+            ) : null}
+            {question.type === "translate" && question.acceptable?.length ? (
+              <p className="mt-1 text-sm font-bold leading-6 text-[var(--celadon)]">
+                可接受的表达：{[...new Set([question.answer, ...question.acceptable])].join(" / ")}
+              </p>
+            ) : null}
             <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{question.explain}</p>
           </div>
         ) : null}
@@ -347,6 +404,23 @@ export function DrillRunner({
         </Button>
       </div>
     </article>
+  );
+}
+
+function DictationDiff({ expected, actual }: { expected: string; actual: string }) {
+  const expectedChars = [...expected];
+  const actualChars = [...actual];
+  return (
+    <p className="hangul-display mt-2 text-2xl" aria-label="逐字对照">
+      {expectedChars.map((char, charIndex) => (
+        <span
+          key={`${charIndex}-${char}`}
+          className={actualChars[charIndex] === char ? "text-[var(--celadon)]" : "text-[var(--cinnabar)]"}
+        >
+          {char}
+        </span>
+      ))}
+    </p>
   );
 }
 

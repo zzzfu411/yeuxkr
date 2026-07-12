@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultProgress } from "../src/lib/learning/storage.ts";
-import { buildProgressQuiz, buildReviewQuestions, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer } from "../src/lib/learning/quiz.ts";
+import { buildDistractors, buildProgressQuiz, buildReviewQuestions, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer } from "../src/lib/learning/quiz.ts";
 import { defaultSrsState, ensureCard, getSrsState } from "../src/lib/learning/srs.ts";
 import { grammarQuestionId, lessonReviewCardId, materialCardId, outputCardId, pronunciationCardId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -31,11 +31,46 @@ test("normalizeAnswer trims, compacts, and lowercases", () => {
   assert.equal(normalizeAnswer("  ABC   def  "), "abc def");
 });
 
+test("normalizeAnswer applies NFC and ignores trailing punctuation", () => {
+  const decomposed = "가";
+  assert.equal(normalizeAnswer(decomposed), "가");
+  assert.equal(normalizeAnswer("좋아요."), "좋아요");
+  assert.equal(normalizeAnswer("어디예요？"), "어디예요");
+  assert.equal(normalizeAnswer("네!!"), "네");
+});
+
+test("checkAnswer tolerates trailing punctuation and composition form", () => {
+  const drill = { answer: "비가 와서 집에 있었어요", acceptable: [] };
+  assert.equal(checkAnswer(drill, "비가 와서 집에 있었어요."), true);
+  assert.equal(checkAnswer(drill, "비가  와서 집에 있었어요"), true);
+  assert.equal(checkAnswer(drill, "비가 왔어요"), false);
+});
+
 test("checkAnswer accepts canonical and acceptable answers", () => {
   const drill = { answer: "어디예요", acceptable: ["어디에요"] };
   assert.equal(checkAnswer(drill, " 어디예요 "), true);
   assert.equal(checkAnswer(drill, "어디에요"), true);
   assert.equal(checkAnswer(drill, "어디"), false);
+});
+
+test("buildDistractors prefers confusables, then category, then level", () => {
+  const pool = [
+    { id: "a", category: "food", level: "survival", value: "答案" },
+    { id: "b", category: "food", level: "survival", value: "同类" },
+    { id: "c", category: "travel", level: "survival", value: "同级" },
+    { id: "d", category: "travel", level: "daily", value: "混淆" },
+    { id: "e", category: "travel", level: "daily", value: "其余" }
+  ];
+  const item = { ...pool[0], confusables: ["d"] };
+
+  const two = buildDistractors(item, pool, (entry) => entry.value, 2, () => 0.5);
+  assert.deepEqual(two, ["混淆", "同类"]);
+
+  const four = buildDistractors(item, pool, (entry) => entry.value, 4, () => 0.5);
+  assert.equal(four[0], "混淆");
+  assert.equal(four[1], "同类");
+  assert.equal(four[2], "同级");
+  assert.equal(four.includes("答案"), false);
 });
 
 test("makeChoices always includes the answer", () => {
@@ -180,7 +215,8 @@ test("buildProgressQuiz limits default transfer checks to learned content", () =
 
   assert.equal(learnedQuestions.some((question) => question.id === "vq:v-annyeonghaseyo"), true);
   assert.equal(learnedQuestions.some((question) => question.id === "gq:g-topic-subject"), true);
-  assert.equal(learnedQuestions.some((question) => question.id.startsWith("vq:") && question.id !== "vq:v-annyeonghaseyo"), false);
+  assert.equal(learnedQuestions.some((question) => question.id === "vq:dict:v-annyeonghaseyo" && question.type === "dictation" && question.speak), true);
+  assert.equal(learnedQuestions.filter((question) => question.id.startsWith("vq:")).every((question) => question.id.endsWith(":v-annyeonghaseyo") || question.id === "vq:v-annyeonghaseyo"), true);
   assert.equal(learnedQuestions.some((question) => question.id.startsWith("gq:") && question.id !== "gq:g-topic-subject"), false);
   assert.equal(learnedQuestions.some((question) => question.id.startsWith("pq:")), false);
 });

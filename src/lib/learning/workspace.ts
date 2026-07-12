@@ -14,7 +14,7 @@ import { hrefForStudyModule, moduleToAbility, studyModuleReadinessRequirement } 
 import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasKoreanText as hasKoreanEvidenceText, mapFocusToAbilities } from "./evidence.ts";
 import { defaultProfile, defaultProgress, nowIso, parseJson, readJson, STORAGE_KEYS, todayKey, useClientNow, useStorageRaw, writeJson } from "./storage.ts";
 import { addOutputEntry, clearOutputEntriesByMaterial, defaultOutputState, getOutputState, getOutputStateFromRaw, saveOutputState, type OutputEntry } from "./output.ts";
-import { BOX_INTERVALS as SRS_BOX_INTERVALS, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
+import { applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
 import { defaultLessonPracticeState, getLessonPracticeState, saveLessonPracticeState } from "./lesson-session.ts";
 import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftState } from "./drafts.ts";
 import { summarizeMistakes } from "./mistakes.ts";
@@ -83,13 +83,15 @@ type OutputArchiveInput = Omit<OutputEntry, "id" | "createdAt">;
 export type LessonAnswerCommitEntry = {
   question: {
     id: string;
-    type?: "choice" | "listen" | "type";
+    type?: "choice" | "listen" | "type" | "dictation" | "cloze" | "translate";
     prompt?: string;
     answer?: string;
     acceptable?: string[];
     choices?: string[];
     explain?: string;
     speak?: string;
+    clozeText?: string;
+    hint?: string;
   };
   correct: boolean;
 };
@@ -990,27 +992,14 @@ export function applyReviewProgress(progress: LearningProgress, card: SrsCard, i
 export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean) {
   const previousProgress = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, defaultProgress()));
   const previousSrs = getSrsState();
-  const workingSrs = {
-    ...previousSrs,
-    cards: { ...previousSrs.cards },
-    history: [...previousSrs.history]
-  };
-  const current = workingSrs.cards[card.id];
+  const current = previousSrs.cards[card.id];
   if (!current) return false;
-  const nextBox = isCorrect ? Math.min(SRS_BOX_INTERVALS.length - 1, current.box + 1) : 0;
   const at = Date.now();
-  workingSrs.cards[card.id] = {
-    ...current,
-    box: nextBox,
-    dueAt: at + SRS_BOX_INTERVALS[nextBox],
-    correct: current.correct + (isCorrect ? 1 : 0),
-    wrong: current.wrong + (isCorrect ? 0 : 1),
-    lastSeenAt: at
-  };
-  workingSrs.history = [{ id: card.id, isCorrect, at, box: nextBox }, ...(workingSrs.history ?? [])].slice(0, 400);
+  const graded = applyGradeToState(previousSrs, card.id, isCorrect, at);
+  if (!graded) return false;
 
-  if (!saveSrsState(workingSrs)) return false;
-  const reviewQueueCleared = getDueCardsFromState(workingSrs, 1, at).length === 0;
+  if (!saveSrsState(graded.state)) return false;
+  const reviewQueueCleared = getDueCardsFromState(graded.state, 1, at).length === 0;
   const nextProgress = applyReviewProgress(previousProgress, current, isCorrect, reviewQueueCleared);
   if (!saveLearningProgress(nextProgress)) {
     saveSrsState(previousSrs);
@@ -1022,8 +1011,15 @@ export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean) {
 type QuizAnswerCommitEntry = {
   question: {
     id: string;
+    type?: "choice" | "listen" | "type" | "dictation" | "cloze" | "translate";
     prompt?: string;
     answer?: string;
+    acceptable?: string[];
+    choices?: string[];
+    explain?: string;
+    speak?: string;
+    clozeText?: string;
+    hint?: string;
   };
   correct: boolean;
 };
@@ -1082,8 +1078,15 @@ export function commitQuizSession(quizId: string, answers: QuizAnswerCommitEntry
         ...current.payload,
         kind: "mistake",
         itemId: entry.question.id,
+        type: entry.question.type,
         prompt: entry.question.prompt,
-        answer: entry.question.answer
+        answer: entry.question.answer,
+        acceptable: entry.question.acceptable,
+        choices: entry.question.choices,
+        explain: entry.question.explain,
+        speak: entry.question.speak,
+        clozeText: entry.question.clozeText,
+        hint: entry.question.hint
       },
       box: 0,
       dueAt: at,
@@ -1672,7 +1675,9 @@ function addLessonMistakeCardsToState(state: SrsState, lessonId: string, answers
         acceptable: entry.question.acceptable,
         choices: entry.question.choices,
         explain: entry.question.explain,
-        speak: entry.question.speak
+        speak: entry.question.speak,
+        clozeText: entry.question.clozeText,
+        hint: entry.question.hint
       }
     };
     state.history.unshift({ id, isCorrect: false, at, box: 0 });

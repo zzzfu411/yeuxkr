@@ -18,30 +18,37 @@ import {
   outputCardId,
   outputTransferQuestionId,
   pronunciationQuestionId,
+  vocabClozeQuestionId,
+  vocabDictationQuestionId,
   vocabQuestionId
 } from "./ids.ts";
 import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence } from "./evidence.ts";
 import { getOutputState, type OutputEntry } from "./output.ts";
 import { getSrsState, type SrsState } from "./srs.ts";
 import type { SrsCard } from "./srs.ts";
-import type { LearningProgress } from "./types.ts";
+import type { LearningProgress, QuestionType } from "./types.ts";
 
 export interface Question {
   id: string;
-  type: "choice" | "listen" | "type";
+  type: QuestionType;
   prompt: string;
   answer: string;
   acceptable?: string[];
   choices?: string[];
   explain?: string;
   speak?: string;
+  clozeText?: string;
+  hint?: string;
 }
 
 export function normalizeAnswer(value: unknown) {
   return String(value ?? "")
+    .normalize("NFC")
     .trim()
+    .replace(/[.。?？!！…~〜]+$/g, "")
     .replace(/\s+/g, " ")
-    .toLowerCase();
+    .toLowerCase()
+    .trim();
 }
 
 export function checkAnswer(question: Question, answer: string) {
@@ -99,12 +106,24 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
       if (card.payload.kind === "vocab") {
         const item = vocab.find((entry: any) => entry.id === card.payload.itemId);
         if (!item) return null;
+        if (card.box >= 3) {
+          return {
+            id: card.id,
+            type: "translate",
+            prompt: `「${item.meaning}」用韩语怎么说？`,
+            answer: item.korean,
+            acceptable: [item.korean],
+            hint: `罗马音提示：${item.romanization}`,
+            explain: `${item.korean}（${item.romanization}）。${item.example} = ${item.exampleMeaning}。`,
+            speak: item.korean
+          } satisfies Question;
+        }
         return {
           id: card.id,
           type: "choice",
           prompt: `${item.korean} 的意思是？`,
           answer: item.meaning,
-          choices: makeChoices(item.meaning, vocab.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.meaning)),
+          choices: makeChoices(item.meaning, buildDistractors(item, vocab as any[], (entry: any) => entry.meaning)),
           explain: `${item.example} = ${item.exampleMeaning}。${item.note}`,
           speak: item.korean
         } satisfies Question;
@@ -139,7 +158,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
           type: "choice",
           prompt: `${point.title}: ${example.ko} 的意思是？`,
           answer: example.zh,
-          choices: makeChoices(example.zh, grammarPoints.filter((entry: any) => entry.id !== point.id).map((entry: any) => entry.meaning)),
+          choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning)),
           explain: point.explanation,
           speak: example.ko
         } satisfies Question;
@@ -222,7 +241,7 @@ export function buildMixedQuiz(count = 10, seed = Date.now()): Question[] {
     type: "choice" as const,
     prompt: `${item.meaning} 对应哪一个韩语？`,
     answer: item.korean,
-    choices: makeChoices(item.korean, vocab.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.korean), 4, random),
+    choices: makeChoices(item.korean, buildDistractors(item, vocab as any[], (entry: any) => entry.korean, 6, random), 4, random),
     explain: `${item.korean}: ${item.note}`,
     speak: item.korean
   }));
@@ -232,7 +251,7 @@ export function buildMixedQuiz(count = 10, seed = Date.now()): Question[] {
       type: "choice" as const,
       prompt: `${point.title}: ${example.ko} 的意思是？`,
       answer: example.zh,
-      choices: makeChoices(example.zh, grammarPoints.filter((entry: any) => entry.id !== point.id).map((entry: any) => entry.meaning), 4, random),
+      choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning, 6, random), 4, random),
       explain: point.explanation,
       speak: example.ko
     }))
@@ -282,9 +301,30 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
       type: "choice" as const,
       prompt: `${item.meaning} 对应哪一个韩语？`,
       answer: item.korean,
-      choices: makeChoices(item.korean, vocab.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.korean), 4, random),
+      choices: makeChoices(item.korean, buildDistractors(item, vocab as any[], (entry: any) => entry.korean, 6, random), 4, random),
       explain: `${item.korean}: ${item.note}`,
       speak: item.korean
+    }));
+  const vocabDictationQuestions = vocab
+    .filter((item: any) => learnedVocab.has(item.id))
+    .map((item: any) => ({
+      id: vocabDictationQuestionId(item.id),
+      type: "dictation" as const,
+      prompt: "听音频，用韩文写出这个词。",
+      answer: item.korean,
+      explain: `${item.korean}（${item.romanization}）= ${item.meaning}。${item.note}`,
+      speak: item.korean
+    }));
+  const vocabClozeQuestions = vocab
+    .filter((item: any) => learnedVocab.has(item.id) && typeof item.example === "string" && item.example.includes(item.korean))
+    .map((item: any) => ({
+      id: vocabClozeQuestionId(item.id),
+      type: "cloze" as const,
+      prompt: `补全例句：${item.exampleMeaning}`,
+      answer: item.korean,
+      clozeText: item.example.replace(item.korean, "___"),
+      explain: `${item.example} = ${item.exampleMeaning}`,
+      speak: item.example
     }));
   const grammarQuestions = grammarPoints
     .filter((point: any) => learnedGrammar.has(point.id))
@@ -294,7 +334,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
         type: "choice" as const,
         prompt: `${point.title}: ${example.ko} 的意思是？`,
         answer: example.zh,
-        choices: makeChoices(example.zh, grammarPoints.filter((entry: any) => entry.id !== point.id).map((entry: any) => entry.meaning), 4, random),
+        choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning, 6, random), 4, random),
         explain: point.explanation,
         speak: example.ko
       }))
@@ -369,7 +409,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
       explain: `输出任务：${entry.mission || "把自己的弱点改写成更自然的韩语。"}`,
       speak: entry.targetRewrite || entry.draft
     }));
-  const pool = [...completedLessonQuestions, ...hangulQuestions, ...vocabQuestions, ...grammarQuestions, ...soundQuestions, ...pragmaticQuestions, ...nuanceQuestions, ...materialQuestions, ...outputQuestions];
+  const pool = [...completedLessonQuestions, ...hangulQuestions, ...vocabQuestions, ...vocabDictationQuestions, ...vocabClozeQuestions, ...grammarQuestions, ...soundQuestions, ...pragmaticQuestions, ...nuanceQuestions, ...materialQuestions, ...outputQuestions];
   if (pool.length) return prioritizeWeakPracticeQuestions(pool, progress, random).slice(0, count);
   return [];
 }
@@ -408,6 +448,41 @@ function hasCompleteMaterialSelfCheck(input: unknown, expected: string[]) {
 export function makeChoices(answer: string, distractors: string[], count = 4, random = Math.random) {
   const unique = [...new Set(distractors)].filter((item) => item !== answer);
   return shuffle([answer, ...shuffle(unique, random).slice(0, count - 1)], random);
+}
+
+type DistractorSource = {
+  id: string;
+  category?: string;
+  level?: string;
+  confusables?: string[];
+};
+
+export function buildDistractors<T extends DistractorSource>(
+  item: T,
+  pool: T[],
+  pick: (entry: T) => string,
+  count = 6,
+  random = Math.random
+): string[] {
+  const answer = pick(item);
+  const confusableIds = new Set(item.confusables ?? []);
+  const buckets: T[][] = [[], [], [], []];
+  for (const entry of pool) {
+    if (entry.id === item.id) continue;
+    if (confusableIds.has(entry.id)) buckets[0].push(entry);
+    else if (item.category && entry.category === item.category) buckets[1].push(entry);
+    else if (item.level && entry.level === item.level) buckets[2].push(entry);
+    else buckets[3].push(entry);
+  }
+  const values: string[] = [];
+  for (const bucket of [buckets[0], ...buckets.slice(1).map((bucket) => shuffle(bucket, random))]) {
+    for (const entry of bucket) {
+      const value = pick(entry);
+      if (value && value !== answer && !values.includes(value)) values.push(value);
+      if (values.length >= count) return values;
+    }
+  }
+  return values;
 }
 
 export function shuffle<T>(items: T[], random = Math.random) {

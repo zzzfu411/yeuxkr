@@ -2,29 +2,40 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleAlert, Clock, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, Clock, Play, RefreshCcw, Trash2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
+import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { buildMistakeInsights, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
+import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
+import type { Question } from "@/lib/learning/quiz";
 import { getSrsStateFromRaw } from "@/lib/learning/srs";
 import { STORAGE_KEYS, useClientNow, useStorageRaw } from "@/lib/learning/storage";
-import { removeMistakeCardAndPracticeItem, useLearningWorkspace } from "@/lib/learning/workspace";
+import { gradeReviewCardAndProgress, removeMistakeCardAndPracticeItem, useLearningWorkspace } from "@/lib/learning/workspace";
 
 export default function MistakesPage() {
   const { workspace } = useLearningWorkspace();
   const srsRaw = useStorageRaw(STORAGE_KEYS.srs);
   const now = useClientNow();
   const [status, setStatus] = useState<"idle" | "removed" | "error">("idle");
+  const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
+  const [retrainError, setRetrainError] = useState("");
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
   const insights = useMemo(() => buildMistakeInsights(srsState, now), [srsState, now]);
   const summary = useMemo(() => summarizeMistakes(srsState, now), [srsState, now]);
   const urgent = insights.slice(0, 4);
+  const dueIds = useMemo(() => insights.filter((item) => item.due).map((item) => item.id), [insights]);
 
   const handleRemove = (id: string) => {
     setStatus(removeMistakeCardAndPracticeItem(id) ? "removed" : "error");
+  };
+
+  const startRetrain = (ids: string[] | null) => {
+    const questions = buildRetrainQuestions(srsState, ids);
+    setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
+    setRetrainQuestions(questions.length ? questions : null);
   };
 
   return (
@@ -69,7 +80,37 @@ export default function MistakesPage() {
 
       {status === "removed" ? <InlineAlert tone="success">这张错题已经移出本地 SRS；如果以后再次答错，它会重新回来。</InlineAlert> : null}
       {status === "error" ? <InlineAlert>这张错题没有成功移出，请释放浏览器存储空间后再试。</InlineAlert> : null}
+      {retrainError ? <InlineAlert>{retrainError}</InlineAlert> : null}
       <LearningCompass workspace={workspace} active="mistakes" condensed />
+
+      {retrainQuestions ? (
+        <Surface>
+          <SectionHeading
+            kicker="Retrain"
+            title="错题定向重练"
+            copy="做对会按间隔延后这张卡，做错会立即回到队首。练完这组再回到优先队列。"
+            action={
+              <Button type="button" variant="secondary" size="sm" onClick={() => setRetrainQuestions(null)}>
+                退出重练
+              </Button>
+            }
+          />
+          <DrillRunner
+            questions={retrainQuestions}
+            finishLabel="结束重练"
+            recordMistakes={false}
+            onAnswer={(entry) => {
+              const card = srsState.cards[entry.question.id];
+              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
+                setRetrainError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
+                return false;
+              }
+              setRetrainError("");
+            }}
+            onFinish={() => setRetrainQuestions(null)}
+          />
+        </Surface>
+      ) : null}
 
       {insights.length ? (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -78,10 +119,16 @@ export default function MistakesPage() {
               kicker="Priority Queue"
               title="优先处理队列"
               copy="排序会优先看是否到期、错误次数、正确次数和盒子位置。越靠前，越值得今天先处理。"
+              action={
+                <Button type="button" size="sm" disabled={!dueIds.length} onClick={() => startRetrain(dueIds)}>
+                  <Play className="h-4 w-4" />
+                  重练全部到期（{dueIds.length}）
+                </Button>
+              }
             />
             <div className="grid gap-3">
               {insights.map((item) => (
-                <MistakeCard key={item.id} item={item} now={now} onRemove={handleRemove} />
+                <MistakeCard key={item.id} item={item} now={now} onRemove={handleRemove} onRetrain={(id) => startRetrain([id])} />
               ))}
             </div>
           </Surface>
@@ -154,7 +201,7 @@ function MistakeMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function MistakeCard({ item, now, onRemove }: { item: MistakeInsight; now: number; onRemove: (id: string) => void }) {
+function MistakeCard({ item, now, onRemove, onRetrain }: { item: MistakeInsight; now: number; onRemove: (id: string) => void; onRetrain: (id: string) => void }) {
   return (
     <article className="grid gap-3 rounded-[8px] border border-[rgba(24,28,27,0.12)] bg-[rgba(255,250,240,0.7)] p-4 md:grid-cols-[minmax(0,1fr)_12rem]">
       <div className="min-w-0">
@@ -179,17 +226,23 @@ function MistakeCard({ item, now, onRemove }: { item: MistakeInsight; now: numbe
           <SmallStat label="盒" value={item.box} />
         </div>
         <p className="text-xs font-bold leading-5 text-[var(--muted)]">{dueLabel(item, now)}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <Button asChild size="sm" variant="secondary">
-            <Link href="/review">
-              <RefreshCcw className="h-4 w-4" />
-              复习
-            </Link>
+        <div className="grid gap-2">
+          <Button type="button" size="sm" onClick={() => onRetrain(item.id)}>
+            <Play className="h-4 w-4" />
+            重练这题
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(item.id)}>
-            <Trash2 className="h-4 w-4" />
-            移出
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/review">
+                <RefreshCcw className="h-4 w-4" />
+                复习
+              </Link>
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(item.id)}>
+              <Trash2 className="h-4 w-4" />
+              移出
+            </Button>
+          </div>
         </div>
       </div>
     </article>

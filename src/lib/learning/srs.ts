@@ -9,6 +9,7 @@ import { immersionMaterials } from "../../data/materials.ts";
 import { nuanceSets } from "../../data/nuance.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
 import { lessonReviewCardId } from "./ids.ts";
+import type { QuestionType } from "./types.ts";
 
 export const BOX_INTERVALS = [
   0,
@@ -19,6 +20,15 @@ export const BOX_INTERVALS = [
   1000 * 60 * 60 * 24 * 7,
   1000 * 60 * 60 * 24 * 21
 ];
+
+export const MAX_INTERVAL_DAYS = 180;
+export const DEFAULT_EASE = 2.2;
+const EASE_STORED_MIN = 1.3;
+const EASE_STORED_MAX = 2.8;
+const EASE_RUNTIME_MIN = 1.6;
+const EASE_RUNTIME_MAX = 2.6;
+const MATURE_INTERVAL_DAYS = 3;
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 const FALLBACK_TIME = 0;
 const hangulIdSet = new Set(hangulGroups.flatMap((group: any) => group.items.map((item: any) => item.id)));
@@ -40,16 +50,21 @@ export interface SrsCard {
   correct: number;
   wrong: number;
   lastSeenAt: number | null;
+  ease?: number;
+  intervalDays?: number;
+  lapses?: number;
   payload: {
     kind: SrsKind;
     itemId: string;
-    type?: "choice" | "listen" | "type";
+    type?: QuestionType;
     prompt?: string;
     answer?: string;
     acceptable?: string[];
     choices?: string[];
     explain?: string;
     speak?: string;
+    clozeText?: string;
+    hint?: string;
   };
 }
 
@@ -124,23 +139,101 @@ export function recordMistake(id: string, payload: SrsCard["payload"]) {
   return gradeCard(id, false, payload);
 }
 
-export function gradeCard(id: string, isCorrect: boolean, payload?: Partial<SrsCard["payload"]>) {
-  const state = getSrsState();
+export function cardIntervalDays(card: Pick<SrsCard, "box" | "intervalDays">) {
+  if (typeof card.intervalDays === "number" && Number.isFinite(card.intervalDays) && card.intervalDays >= 0) {
+    return Math.min(MAX_INTERVAL_DAYS, card.intervalDays);
+  }
+  return BOX_INTERVALS[clampBox(card.box)] / DAY_MS;
+}
+
+export function boxForIntervalDays(intervalDays: number) {
+  const ms = Math.max(0, intervalDays) * DAY_MS;
+  let box = 0;
+  for (let index = 0; index < BOX_INTERVALS.length; index += 1) {
+    if (ms >= BOX_INTERVALS[index]) box = index;
+  }
+  return box;
+}
+
+export function computeNextReview(card: SrsCard, isCorrect: boolean, now = Date.now()) {
+  const ease = clampRuntimeEase(card.ease ?? DEFAULT_EASE);
+  const intervalDays = cardIntervalDays(card);
+  const lapses = clampCount(card.lapses);
+  if (isCorrect) {
+    if (intervalDays < MATURE_INTERVAL_DAYS) {
+      const nextBox = Math.min(BOX_INTERVALS.length - 1, clampBox(card.box) + 1);
+      return {
+        box: nextBox,
+        dueAt: now + BOX_INTERVALS[nextBox],
+        ease: clampRuntimeEase(ease + 0.02),
+        intervalDays: BOX_INTERVALS[nextBox] / DAY_MS,
+        lapses
+      };
+    }
+    const nextIntervalDays = Math.min(MAX_INTERVAL_DAYS, intervalDays * ease);
+    return {
+      box: boxForIntervalDays(nextIntervalDays),
+      dueAt: now + Math.round(nextIntervalDays * DAY_MS),
+      ease: clampRuntimeEase(ease + 0.05),
+      intervalDays: nextIntervalDays,
+      lapses
+    };
+  }
+  if (intervalDays < MATURE_INTERVAL_DAYS) {
+    return {
+      box: 0,
+      dueAt: now + BOX_INTERVALS[0],
+      ease: clampRuntimeEase(ease - 0.05),
+      intervalDays: 0,
+      lapses
+    };
+  }
+  const nextIntervalDays = Math.max(1, intervalDays * 0.25);
+  return {
+    box: Math.max(1, clampBox(card.box) - 2),
+    dueAt: now + Math.round(nextIntervalDays * DAY_MS),
+    ease: clampRuntimeEase(ease - 0.2),
+    intervalDays: nextIntervalDays,
+    lapses: lapses + 1
+  };
+}
+
+export function applyGradeToState(
+  state: SrsState,
+  id: string,
+  isCorrect: boolean,
+  now = Date.now(),
+  payload?: Partial<SrsCard["payload"]>
+): { state: SrsState; card: SrsCard } | null {
   const current = state.cards[id];
   if (!current) return null;
-  const nextBox = isCorrect ? Math.min(BOX_INTERVALS.length - 1, current.box + 1) : 0;
-  const dueAt = Date.now() + BOX_INTERVALS[nextBox];
-  state.cards[id] = {
+  const next = computeNextReview(current, isCorrect, now);
+  const card: SrsCard = {
     ...current,
-    payload: { ...current.payload, ...payload },
-    box: nextBox,
-    dueAt,
+    payload: payload ? { ...current.payload, ...payload } : current.payload,
+    box: next.box,
+    dueAt: next.dueAt,
+    ease: next.ease,
+    intervalDays: next.intervalDays,
+    lapses: next.lapses,
     correct: current.correct + (isCorrect ? 1 : 0),
     wrong: current.wrong + (isCorrect ? 0 : 1),
-    lastSeenAt: Date.now()
+    lastSeenAt: now
   };
-  state.history = [{ id, isCorrect, at: Date.now(), box: nextBox }, ...(state.history ?? [])].slice(0, 400);
-  return saveSrsState(state) ? state.cards[id] : null;
+  return {
+    state: {
+      cards: { ...state.cards, [id]: card },
+      history: [{ id, isCorrect, at: now, box: next.box }, ...(state.history ?? [])].slice(0, 400)
+    },
+    card
+  };
+}
+
+export function gradeCard(id: string, isCorrect: boolean, payload?: Partial<SrsCard["payload"]>) {
+  const state = getSrsState();
+  const result = applyGradeToState(state, id, isCorrect, Date.now(), payload);
+  if (!result) return null;
+  return saveSrsState(result.state) ? result.card : null;
 }
 
 export function getDueCards(limit = 30) {
@@ -182,6 +275,9 @@ function normalizeSrsState(input: Partial<SrsState> | null | undefined): SrsStat
         correct: clampCount(card.correct),
         wrong: clampCount(card.wrong),
         lastSeenAt: typeof card.lastSeenAt === "number" ? card.lastSeenAt : null,
+        ease: normalizeEase(card.ease),
+        intervalDays: normalizeIntervalDays(card.intervalDays),
+        lapses: normalizeLapses(card.lapses),
         payload
       };
     }
@@ -191,6 +287,28 @@ function normalizeSrsState(input: Partial<SrsState> | null | undefined): SrsStat
     cards,
     history: normalizeHistory(input?.history, new Set(Object.keys(cards)))
   };
+}
+
+function normalizeEase(input: unknown) {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return Math.min(EASE_STORED_MAX, Math.max(EASE_STORED_MIN, value));
+}
+
+function normalizeIntervalDays(input: unknown) {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return Math.min(MAX_INTERVAL_DAYS, value);
+}
+
+function normalizeLapses(input: unknown) {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return Math.trunc(value);
+}
+
+function clampRuntimeEase(value: number) {
+  return Math.min(EASE_RUNTIME_MAX, Math.max(EASE_RUNTIME_MIN, value));
 }
 
 function normalizePayload(payload: Partial<SrsCard["payload"]>): SrsCard["payload"] | null {
@@ -204,7 +322,9 @@ function normalizePayload(payload: Partial<SrsCard["payload"]>): SrsCard["payloa
     acceptable: normalizeStringList(payload.acceptable),
     choices: normalizeStringList(payload.choices),
     explain: normalizeOptionalText(payload.explain),
-    speak: normalizeOptionalText(payload.speak)
+    speak: normalizeOptionalText(payload.speak),
+    clozeText: normalizeOptionalText(payload.clozeText),
+    hint: normalizeOptionalText(payload.hint)
   };
 }
 
@@ -243,7 +363,9 @@ function clampCount(input: unknown) {
 }
 
 function normalizeQuestionType(input: unknown): SrsCard["payload"]["type"] {
-  return input === "choice" || input === "listen" || input === "type" ? input : undefined;
+  return input === "choice" || input === "listen" || input === "type" || input === "dictation" || input === "cloze" || input === "translate"
+    ? input
+    : undefined;
 }
 
 function normalizeStringList(input: unknown) {

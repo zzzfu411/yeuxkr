@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildMistakeInsights, summarizeMistakes } = await import("../src/lib/learning/mistakes.ts");
+const { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes } = await import("../src/lib/learning/mistakes.ts");
 
 function card(id, overrides = {}) {
   return {
@@ -75,4 +75,51 @@ test("mistake summary separates due, repeated, stabilizing, and mastered cards",
     stabilizing: 1,
     mastered: 1
   });
+});
+
+test("buildRetrainQuestions turns mistake payloads into full drill questions", () => {
+  const state = {
+    cards: {
+      "mistake:choice-one": card("mistake:choice-one", {
+        wrong: 4,
+        payload: {
+          type: "choice",
+          prompt: "选正确的助词",
+          answer: "이",
+          choices: ["이", "가", "은", "는"],
+          explain: "收音后用 이。",
+          speak: "책이"
+        }
+      }),
+      "mistake:cloze-one": card("mistake:cloze-one", {
+        wrong: 1,
+        payload: {
+          type: "cloze",
+          prompt: "补全句子",
+          answer: "와서",
+          clozeText: "비가 ___ 집에 있었어요.",
+          hint: "오다 + -아서"
+        }
+      }),
+      "mistake:broken": card("mistake:broken", { payload: { prompt: "", answer: "" } })
+    },
+    history: []
+  };
+
+  const all = buildRetrainQuestions(state);
+  assert.equal(all.length, 2);
+  assert.equal(all[0].id, "mistake:choice-one");
+  assert.equal(all[0].type, "choice");
+  assert.deepEqual(all[0].choices, ["이", "가", "은", "는"]);
+  assert.equal(all[0].speak, "책이");
+  const cloze = all.find((question) => question.id === "mistake:cloze-one");
+  assert.equal(cloze.type, "cloze");
+  assert.equal(cloze.clozeText, "비가 ___ 집에 있었어요.");
+  assert.equal(cloze.hint, "오다 + -아서");
+
+  const selected = buildRetrainQuestions(state, ["mistake:cloze-one"]);
+  assert.deepEqual(selected.map((question) => question.id), ["mistake:cloze-one"]);
+
+  const limited = buildRetrainQuestions(state, null, 1);
+  assert.equal(limited.length, 1);
 });

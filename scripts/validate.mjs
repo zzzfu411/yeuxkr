@@ -173,10 +173,25 @@ for (const lesson of lessons) {
   assert(lesson.drills?.length >= 2, `lesson ${lesson.id} needs drills`);
   for (const drill of lesson.drills) {
     assert(drill.prompt && drill.answer && drill.explain, `lesson ${lesson.id} has incomplete drill`);
-    assert(["choice", "listen", "type"].includes(drill.type), `lesson ${lesson.id} drill "${drill.prompt}" has invalid type ${drill.type}`);
+    assert(["choice", "listen", "type", "dictation", "cloze", "translate"].includes(drill.type), `lesson ${lesson.id} drill "${drill.prompt}" has invalid type ${drill.type}`);
     if (drill.type === "choice" || drill.type === "listen") {
       assert(drill.choices?.length >= 2, `lesson ${lesson.id} drill "${drill.prompt}" needs choices`);
       assert(drill.choices?.includes(drill.answer), `lesson ${lesson.id} drill "${drill.prompt}" missing correct choice`);
+    }
+    if (drill.type === "listen" || drill.type === "dictation") {
+      assert(typeof drill.speak === "string" && drill.speak.trim(), `lesson ${lesson.id} drill "${drill.prompt}" needs speak audio text`);
+    }
+    if (drill.type === "dictation") {
+      assert(!drill.prompt.includes(drill.answer), `lesson ${lesson.id} dictation "${drill.prompt}" should not reveal the answer in the prompt`);
+    }
+    if (drill.type === "cloze") {
+      assert(typeof drill.clozeText === "string" && drill.clozeText.includes("___"), `lesson ${lesson.id} cloze "${drill.prompt}" needs clozeText with a ___ blank`);
+      if (drill.choices?.length) {
+        assert(drill.choices.includes(drill.answer), `lesson ${lesson.id} cloze "${drill.prompt}" missing correct choice`);
+      }
+    }
+    if (drill.type === "translate") {
+      assert(Array.isArray(drill.acceptable) && drill.acceptable.length >= 1, `lesson ${lesson.id} translate "${drill.prompt}" needs at least one acceptable answer`);
     }
   }
   for (const unlock of lesson.unlocks ?? []) {
@@ -790,6 +805,7 @@ assert(reviewPage.includes('href="/mistakes"'), "review page should expose a dir
 assert(reviewPage.includes('href="/path"') && reviewPage.includes('href="/vocabulary"') && reviewPage.includes("继续路径") && reviewPage.includes("积累词汇"), "empty review state should offer evidence-building actions instead of only a quiz link");
 assert(mistakesPage.includes("buildMistakeInsights") && mistakesPage.includes("summarizeMistakes"), "mistake notebook should derive weak points from normalized SRS cards");
 assert(mistakesPage.includes("removeMistakeCardAndPracticeItem") && mistakesPage.includes('href="/review"'), "mistake notebook should let learners remove handled mistakes and return to review");
+assert(mistakesPage.includes("buildRetrainQuestions") && mistakesPage.includes("<DrillRunner") && mistakesPage.includes("gradeReviewCardAndProgress"), "mistake notebook should retrain selected mistakes in place and grade them through the shared review pipeline");
 assert(mistakesPage.includes('<LearningCompass workspace={workspace} active="mistakes" condensed />'), "mistake notebook should stay connected to the shared learning compass");
 assert(quizPage.indexOf("<DrillRunner") < quizPage.indexOf("<LearningCompass"), "quiz page should show the transfer drill before secondary learning context");
 assert(quizPage.includes("onResult={saveQuizResult}") && quizPage.includes("重试保存") && quizPage.includes("savedQuizId"), "quiz page should save results as soon as the result screen appears and expose retry on localStorage failure");
@@ -890,6 +906,16 @@ assert(quizPage.includes("outputEntries") && quizPage.includes("srsState"), "qui
 for (const question of buildMixedQuiz(50)) {
   if (question.choices) assert(question.choices.includes(question.answer), `mixed quiz question ${question.id} missing answer`);
 }
+
+const productionQuizPool = buildProgressQuiz(
+  normalizeLearningProgress({ learnedVocab: vocab.map((item) => item.id) }),
+  1000,
+  7,
+  [],
+  { cards: {}, history: [] }
+);
+assert(productionQuizPool.some((question) => question.type === "dictation" && question.speak), "progress quiz should generate dictation questions for learned vocab");
+assert(productionQuizPool.some((question) => question.type === "cloze" && question.clozeText?.includes("___")), "progress quiz should generate cloze questions with a ___ blank");
 
 for (const file of listSourceFiles("src")) {
   const source = readFileSync(file, "utf8");
