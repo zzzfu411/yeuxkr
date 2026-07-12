@@ -1,0 +1,103 @@
+{
+  "name": "Kirina Korean",
+  "short_name": "Kirina",
+  "description": "从零基础到母语者级韩语的自由学习工作台。",
+  "id": "/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "background_color": "#f3efe5",
+  "theme_color": "#181c1b",
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "学习工作台",
+      "url": "/",
+      "description": "打开今日推荐与自由学习入口",
+      "icons": [
+        {
+          "src": "/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "复习",
+      "url": "/review",
+      "description": "处理到期复习与错题",
+      "icons": [
+        {
+          "src": "/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "错题本",
+      "url": "/mistakes",
+      "description": "查看反复出错的知识点与修复顺序",
+      "icons": [
+        {
+          "src": "/assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/generated/hero.webp",
+      "sizes": "1774x887",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Kirina Korean 学习工作台的路径、自学与复习总览"
+    },
+    {
+      "src": "/assets/generated/self-study.webp",
+      "sizes": "1774x887",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "自学规划工作台与阶段路线"
+    },
+    {
+      "src": "/assets/generated/immersion.webp",
+      "sizes": "1774x887",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "真实材料沉浸训练与输出证据"
+    }
+  ]
+}

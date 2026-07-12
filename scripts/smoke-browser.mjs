@@ -1,0 +1,1291 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const baseUrl = process.env.KIRINA_URL;
+if (!baseUrl) {
+  console.error("Set KIRINA_URL so browser smoke cannot hit another local app by accident.");
+  process.exit(1);
+}
+const outDir = new URL("../.browser-check/", import.meta.url);
+const playwrightEntry = process.env.PLAYWRIGHT_ENTRY ?? "playwright";
+let chromium;
+try {
+  ({ chromium } = await import(playwrightEntry));
+} catch (error) {
+  console.error(`Browser smoke requires Playwright (${error.code ?? error.message}). Install it or set PLAYWRIGHT_ENTRY to an available package.`);
+  process.exit(1);
+}
+mkdirSync(outDir, { recursive: true });
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 980 }, deviceScaleFactor: 1 });
+const issues = [];
+
+page.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`${message.type()} at ${page.url()}: ${message.text()}`);
+});
+page.on("pageerror", (error) => issues.push(`pageerror at ${page.url()}: ${error.message}`));
+
+await page.addInitScript(() => {
+  Object.defineProperty(navigator, "storage", {
+    configurable: true,
+    value: {
+      estimate: async () => ({ usage: 1_000, quota: 100_000 }),
+      persist: async () => true,
+      persisted: async () => true
+    }
+  });
+});
+await page.goto(baseUrl, { waitUntil: "networkidle" });
+await page.screenshot({ path: fileURLToPath(new URL("home-onboarding.png", outDir)), fullPage: true });
+await expectText(page, "自由学习，但每一步都有依据");
+const serviceWorkerReady = await page.evaluate(async () => {
+  if (!("serviceWorker" in navigator)) return false;
+  await navigator.serviceWorker.ready;
+  return true;
+}).catch(() => false);
+if (!serviceWorkerReady) issues.push("service worker should become ready on first visit");
+await page.screenshot({ path: fileURLToPath(new URL("home-dashboard.png", outDir)), fullPage: true });
+await verifyLearningDataPanel(page, outDir, issues);
+
+const returningContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const returningPage = await returningContext.newPage();
+returningPage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`returning ${message.type()}: ${message.text()}`);
+});
+returningPage.on("pageerror", (error) => issues.push(`returning pageerror: ${error.message}`));
+await returningPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+await returningPage.evaluate(() => {
+  const now = new Date().toISOString();
+  localStorage.setItem("kirina.profile.v2", JSON.stringify({
+    name: "Learner",
+    studyMode: "guided",
+    selfStudyGoal: "native",
+    selfStudyIntensity: "steady",
+    selfStudyFocus: "conversation",
+    minutesGoal: 45,
+    romanization: "fade",
+    createdAt: now,
+    updatedAt: now
+  }));
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 92 },
+    masteredHangul: [],
+    learnedVocab: [],
+    learnedGrammar: [],
+    learnedNative: [],
+    completedMaterials: [],
+    completedTasks: {},
+    ability: { script: 12, listening: 4, vocabulary: 2, grammar: 0, pragmatics: 0, native: 0 },
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 45,
+    updatedAt: now
+  }));
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:returning": {
+        id: "mistake:returning",
+        box: 0,
+        dueAt: Date.now() - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: { kind: "mistake", itemId: "returning", prompt: "回访错题", answer: "정답" }
+      }
+    },
+    history: []
+  }));
+  localStorage.setItem("kirina.outputs.v1", JSON.stringify({
+    entries: [
+      {
+        id: "output-returning",
+        materialId: "im-cafe-real-speed",
+        materialTitle: "咖啡店真实语速点单",
+        mission: "回访输出任务",
+        draft: "아이스 아메리카노 하나 포장해 주세요.",
+        weakPoint: "포장해 주세요",
+        targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
+        rubric: ["naturalness"],
+        createdAt: now
+      }
+    ]
+  }));
+});
+await returningPage.reload({ waitUntil: "networkidle" });
+await expectText(returningPage, "45 min");
+await expectText(returningPage, "路径推荐");
+await returningPage.getByRole("button", { name: "自学" }).click();
+await expectText(returningPage, "学习模式已更新");
+await expectText(returningPage, "自由自学");
+const homeSelfModeState = await returningPage.evaluate(() => {
+  const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
+  return profile.studyMode;
+});
+if (homeSelfModeState !== "self") issues.push(`home self-study mode switch should persist self, found ${homeSelfModeState}`);
+await returningPage.getByRole("button", { name: "按路径" }).click();
+await expectText(returningPage, "路径推荐");
+const homeGuidedModeState = await returningPage.evaluate(() => {
+  const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
+  return profile.studyMode;
+});
+if (homeGuidedModeState !== "guided") issues.push(`home guided mode switch should persist guided, found ${homeGuidedModeState}`);
+await returningPage.goto(`${baseUrl}/self-study`, { waitUntil: "networkidle" });
+await expectText(returningPage, "45 分钟");
+await expectText(returningPage, "母语者级表达");
+const returningMinutes = await returningPage.getByLabel("每日可用分钟").inputValue();
+if (returningMinutes !== "45") issues.push(`returning self-study minutes mismatch: ${returningMinutes}`);
+await returningPage.getByRole("button", { name: "保存并应用到工作台" }).click();
+await expectText(returningPage, "今日自学规划已确认");
+const selfPlanTaskState = await returningPage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
+  return {
+    completed: Boolean(progress.completedTasks?.["open:self-plan"]),
+    minutesGoal: profile.minutesGoal,
+    studyMode: profile.studyMode
+  };
+});
+if (!selfPlanTaskState.completed) issues.push("saving a self-study plan should complete the open:self-plan task");
+if (selfPlanTaskState.minutesGoal !== 45) issues.push(`saving self-study plan should preserve minutesGoal 45, found ${selfPlanTaskState.minutesGoal}`);
+if (selfPlanTaskState.studyMode !== "guided") issues.push(`saving self-study plan should preserve selected study mode, found ${selfPlanTaskState.studyMode}`);
+await returningPage.goto(baseUrl, { waitUntil: "networkidle" });
+await expectText(returningPage, "今日已确认");
+await returningPage.goto(`${baseUrl}/self-study`, { waitUntil: "networkidle" });
+await returningPage.getByLabel("检查证据").first().fill("随便看看");
+await expectText(returningPage, "需要可复查证据");
+const invalidCheckpointDisabled = await returningPage.getByRole("button", { name: "记录检查点" }).first().isDisabled();
+if (!invalidCheckpointDisabled) issues.push("self-study checkpoint should keep the record button disabled for weak evidence");
+await returningPage.reload({ waitUntil: "networkidle" });
+const restoredCheckpointDraft = await returningPage.getByLabel("检查证据").first().inputValue();
+if (restoredCheckpointDraft !== "随便看看") issues.push(`self-study checkpoint draft should restore after reload, found ${restoredCheckpointDraft}`);
+await returningPage.getByLabel("检查证据").first().fill("录音 75 秒，能解释 힘들 것 같아요 的缓冲语气。");
+await returningPage.getByRole("button", { name: "记录检查点" }).first().click();
+await expectText(returningPage, "已记录");
+const checkpointState = await returningPage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const checkpointId = progress.completedCheckpoints?.[0];
+  return {
+    checkpointId,
+    evidence: checkpointId ? progress.checkpointEvidence?.[checkpointId] : "",
+    eventValue: checkpointId ? progress.abilityEvents?.[`checkpoint:${checkpointId}`] : undefined
+  };
+});
+if (!checkpointState.checkpointId) issues.push("self-study checkpoint should persist a completed checkpoint id");
+if (!checkpointState.evidence?.includes("录音 75 秒")) issues.push(`self-study checkpoint should persist evidence, found ${checkpointState.evidence}`);
+if (checkpointState.eventValue !== 3) issues.push(`self-study checkpoint should write an ability event worth 3, found ${checkpointState.eventValue}`);
+await returningPage.evaluate(() => {
+  window.__kirinaSmokeMarker = "self-study-link";
+});
+await returningPage.getByRole("link", { name: "母语者表达" }).first().click();
+await returningPage.waitForURL("**/native", { waitUntil: "networkidle" });
+await expectText(returningPage, "最后拉开差距");
+const selfStudyMarker = await returningPage.evaluate(() => window.__kirinaSmokeMarker).catch(() => null);
+if (selfStudyMarker !== "self-study-link") issues.push("self-study module links should use client-side navigation without a full page reload");
+await returningPage.goto(`${baseUrl}/review`, { waitUntil: "networkidle" });
+await expectText(returningPage, "回访错题");
+await returningPage.evaluate(() => {
+  localStorage.removeItem("kirina.srs.v2");
+  window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.srs.v2"] } }));
+});
+await expectText(returningPage, "现在没有到期复习");
+await returningPage.evaluate(() => {
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:returning": {
+        id: "mistake:returning",
+        box: 0,
+        dueAt: Date.now() - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: { kind: "mistake", itemId: "returning", prompt: "回访错题", answer: "정답" }
+      }
+    },
+    history: []
+  }));
+  window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.srs.v2"] } }));
+});
+await expectText(returningPage, "回访错题");
+const grammarAbilityBeforeReview = await returningPage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return progress.ability?.grammar ?? 0;
+});
+let reviewReloaded = false;
+returningPage.on("framenavigated", (frame) => {
+  if (frame === returningPage.mainFrame() && frame.url().includes("/review")) reviewReloaded = true;
+});
+await returningPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
+await returningPage.getByRole("button", { name: "提交" }).click();
+await expectText(returningPage, "答对了");
+await returningPage.getByRole("button", { name: "结束复习" }).click();
+await expectText(returningPage, "100%");
+await returningPage.getByRole("button", { name: "继续" }).click();
+await expectText(returningPage, "现在没有到期复习");
+for (const linkName of ["继续路径", "查看错题", "积累词汇", "综合测验"]) {
+  const actionCount = await returningPage.getByRole("link", { name: linkName }).count();
+  if (!actionCount) issues.push(`empty review state should expose "${linkName}" action`);
+}
+if (reviewReloaded) issues.push("review finish should refresh the queue without a full page navigation");
+const reviewProgressAfterGrade = await returningPage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return {
+    grammar: progress.ability?.grammar,
+    eventValue: progress.abilityEvents?.["review:mistake:returning:2"]
+  };
+});
+if (reviewProgressAfterGrade.grammar !== grammarAbilityBeforeReview + 1) issues.push(`reviewing a grammar-like mistake should bump grammar ability once, before ${grammarAbilityBeforeReview}, after ${reviewProgressAfterGrade.grammar}`);
+if (reviewProgressAfterGrade.eventValue !== 1) issues.push(`review should persist an ability event, found ${reviewProgressAfterGrade.eventValue}`);
+await returningPage.evaluate(() => {
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:same-tab-refresh": {
+        id: "mistake:same-tab-refresh",
+        box: 0,
+        dueAt: Date.now() - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: { kind: "mistake", itemId: "same-tab-refresh", prompt: "同页新到期卡", answer: "새 카드" }
+      }
+    },
+    history: []
+  }));
+  window.dispatchEvent(new CustomEvent("kirina:learning", { detail: { key: "kirina.srs.v2" } }));
+});
+await expectText(returningPage, "同页新到期卡");
+await returningPage.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
+await expectText(returningPage, "아이스 아메리카노 하나 포장해 주세요.");
+await expectText(returningPage, "弱点：포장해 주세요");
+await returningContext.close();
+
+for (const route of ["/path", "/hangul", "/vocabulary", "/grammar", "/native", "/immersion", "/mistakes", "/quiz"]) {
+  await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(120);
+  const h1 = await page.locator("h1").first().textContent({ timeout: 3000 }).catch(() => null);
+  if (!h1?.trim()) issues.push(`missing h1 on ${route}`);
+  if (route === "/path") {
+    const routeSelfLinks = await page.getByRole("link", { name: "查看全路线" }).count();
+    if (routeSelfLinks) issues.push("path compass should not show a current-page route link");
+  }
+  if (route === "/quiz") {
+    await expectText(page, "还没有可迁移的题目");
+    const emptySwitchButtons = await page.getByRole("button", { name: "换一组" }).count();
+    if (emptySwitchButtons) issues.push("empty quiz should point learners to evidence-building actions instead of showing a dead switch button");
+  }
+}
+
+const quizContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const quizAutoSavePage = await quizContext.newPage();
+quizAutoSavePage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`quiz autosave ${message.type()}: ${message.text()}`);
+});
+quizAutoSavePage.on("pageerror", (error) => issues.push(`quiz autosave pageerror: ${error.message}`));
+await quizAutoSavePage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+await quizAutoSavePage.evaluate(() => {
+  const now = new Date().toISOString();
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 92 },
+    completedTasks: {},
+    ability: { script: 10, listening: 6, vocabulary: 0, grammar: 0, pragmatics: 0, native: 0 },
+    practiceItems: {
+      "lesson:l01-hangul-map:1": {
+        attempts: 4,
+        correct: 1,
+        wrong: 3,
+        streak: 0,
+        lastCorrect: false,
+        lastSeenAt: now,
+        lastSource: "lesson"
+      },
+      "lesson:l01-hangul-map:2": {
+        attempts: 3,
+        correct: 1,
+        wrong: 2,
+        streak: 0,
+        lastCorrect: false,
+        lastSeenAt: now,
+        lastSource: "lesson"
+      },
+      "lesson:l01-hangul-map:3": {
+        attempts: 2,
+        correct: 1,
+        wrong: 1,
+        streak: 0,
+        lastCorrect: false,
+        lastSeenAt: now,
+        lastSource: "lesson"
+      }
+    },
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 30,
+    updatedAt: now
+  }));
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({ cards: {}, history: [] }));
+});
+await quizAutoSavePage.goto(`${baseUrl}/quiz`, { waitUntil: "networkidle" });
+await quizAutoSavePage.getByLabel("ㄱ + ㅏ").check();
+await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
+await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await quizAutoSavePage.getByLabel("ㄴ").check();
+await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
+await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await quizAutoSavePage.getByRole("textbox", { name: "输入答案" }).fill("고");
+await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
+await quizAutoSavePage.getByRole("button", { name: "再来一组" }).click();
+await expectText(quizAutoSavePage, "测验结果已写入进度");
+const quizAutoSaveState = await quizAutoSavePage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return {
+    quizDone: Boolean(progress.completedTasks?.["quiz:mixed"]),
+    openQuizDone: Boolean(progress.completedTasks?.["open:quiz"]),
+    firstLastCorrect: progress.practiceItems?.["lesson:l01-hangul-map:1"]?.lastCorrect,
+    secondLastCorrect: progress.practiceItems?.["lesson:l01-hangul-map:2"]?.lastCorrect,
+    thirdLastCorrect: progress.practiceItems?.["lesson:l01-hangul-map:3"]?.lastCorrect,
+    firstSource: progress.practiceItems?.["lesson:l01-hangul-map:1"]?.lastSource
+  };
+});
+if (!quizAutoSaveState.quizDone) issues.push("quiz result screen should auto-save quiz:mixed before the learner clicks the result-page next action");
+if (!quizAutoSaveState.openQuizDone) issues.push("quiz result screen should auto-complete open:quiz");
+if (!quizAutoSaveState.firstLastCorrect || !quizAutoSaveState.secondLastCorrect || !quizAutoSaveState.thirdLastCorrect) {
+  issues.push(`quiz auto-save should repair weak practice items, found ${JSON.stringify(quizAutoSaveState)}`);
+}
+if (quizAutoSaveState.firstSource !== "quiz") issues.push(`quiz auto-save should mark repaired practice source as quiz, found ${quizAutoSaveState.firstSource}`);
+await quizContext.close();
+
+const pathContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const pathPage = await pathContext.newPage();
+pathPage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`path ${message.type()}: ${message.text()}`);
+});
+pathPage.on("pageerror", (error) => issues.push(`path pageerror: ${error.message}`));
+await pathPage.goto(`${baseUrl}/path`, { waitUntil: "networkidle" });
+await expectText(pathPage, "继续当前建议课");
+await expectText(pathPage, "韩文不是字母表");
+await expectText(pathPage, "建议先修");
+await pathPage.getByRole("button", { name: /真实材料入口/ }).click();
+await expectText(pathPage, "真实材料入口课程窗口");
+await expectText(pathPage, "慢速新闻入口");
+await pathPage.evaluate(() => {
+  const now = new Date().toISOString();
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 92 },
+    previewLessonScores: {},
+    masteredHangul: [],
+    learnedVocab: [],
+    learnedGrammar: [],
+    learnedNative: [],
+    completedMaterials: [],
+    materialEvidence: {},
+    completedCheckpoints: [],
+    checkpointEvidence: {},
+    completedTasks: {},
+    ability: { script: 10, listening: 6, vocabulary: 0, grammar: 0, pragmatics: 0, native: 0 },
+    abilityEvents: {},
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 30,
+    updatedAt: now
+  }));
+});
+await pathPage.reload({ waitUntil: "networkidle" });
+await expectText(pathPage, "10 个基础元音");
+await pathPage.evaluate(() => {
+  window.__kirinaSmokeMarker = "path-current-lesson";
+});
+await pathPage.getByRole("link", { name: /10 个基础元音/ }).first().click();
+await pathPage.waitForURL("**/learn/l02-vowels", { waitUntil: "networkidle" });
+const pathMarker = await pathPage.evaluate(() => window.__kirinaSmokeMarker).catch(() => null);
+if (pathMarker !== "path-current-lesson") issues.push("path lesson links should use client-side navigation without a full page reload");
+await pathContext.close();
+
+await page.goto(`${baseUrl}/native`, { waitUntil: "networkidle" });
+await expectText(page, "今日母语者切片");
+const defaultNativeSlice = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入场景复习") || item.textContent?.includes("加入语气复习") || item.textContent?.includes("已加入 SRS"));
+  const playButtons = [...document.querySelectorAll("article button")].filter((button) => button.textContent?.includes("PLAY"));
+  return {
+    visibleCards: cards.length,
+    playButtons: playButtons.length,
+    hasPragmatics: cards.some((item) => item.textContent?.includes("咖啡店点单")),
+    hasNuance: cards.some((item) => item.textContent?.includes("感谢的温度")),
+    hasExpand: [...document.querySelectorAll("button")].some((button) => button.textContent?.includes("展开全部表达")),
+    hasLineExpand: [...document.querySelectorAll("button")].some((button) => button.textContent?.includes("展开完整排练"))
+  };
+});
+if (defaultNativeSlice.visibleCards !== 6) issues.push(`default native page should show a six-card daily slice, found ${defaultNativeSlice.visibleCards}`);
+if (defaultNativeSlice.playButtons !== 6) issues.push(`default native cards should show one key playable line each, found ${defaultNativeSlice.playButtons}`);
+if (!defaultNativeSlice.hasPragmatics || !defaultNativeSlice.hasNuance) issues.push("default native slice should mix pragmatic scenarios and nuance cards");
+if (!defaultNativeSlice.hasExpand) issues.push("default native page should offer an expand-all action");
+if (!defaultNativeSlice.hasLineExpand) issues.push("native cards should let learners expand complete rehearsals after the key line");
+await page.getByLabel("搜索表达").fill("아아");
+await expectText(page, "咖啡店点单");
+const nativeSearchState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入场景复习") || item.textContent?.includes("加入语气复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasFirstMeeting: cards.some((item) => item.textContent?.includes("第一次见面"))
+  };
+});
+if (nativeSearchState.visibleCards !== 1) issues.push(`native search should narrow to one cafe scenario, found ${nativeSearchState.visibleCards}`);
+if (nativeSearchState.hasFirstMeeting) issues.push("native search should hide unrelated first-meeting scenario");
+await page.getByRole("button", { name: "重置筛选" }).first().click();
+await page.getByRole("radio", { name: /语气细差/ }).click();
+await expectText(page, "感谢的温度");
+const nativeTrackState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入场景复习") || item.textContent?.includes("加入语气复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasPragmatics: cards.some((item) => item.textContent?.includes("咖啡店点单"))
+  };
+});
+if (nativeTrackState.visibleCards < 4) issues.push(`native nuance filter should show nuance cards, found ${nativeTrackState.visibleCards}`);
+if (nativeTrackState.hasPragmatics) issues.push("native nuance filter should hide pragmatic scenarios");
+await page.getByRole("button", { name: "加入语气复习" }).first().click();
+await expectText(page, "已加入 SRS");
+const nativeStateAfterAdd = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    learnedNative: progress.learnedNative?.filter((id) => String(id).startsWith("nuance:")).length ?? 0,
+    nativeCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "native" && String(card?.payload?.itemId ?? "").startsWith("nuance:")).length
+  };
+});
+if (nativeStateAfterAdd.learnedNative !== 1) issues.push(`adding native nuance should persist learnedNative, found ${nativeStateAfterAdd.learnedNative}`);
+if (nativeStateAfterAdd.nativeCards !== 1) issues.push(`adding native nuance should create one native SRS card, found ${nativeStateAfterAdd.nativeCards}`);
+await page.getByLabel("只看已加入 SRS").check();
+const learnedNativeOnlyState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入场景复习") || item.textContent?.includes("加入语气复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasUnlearnedButton: cards.some((item) => item.textContent?.includes("加入语气复习") || item.textContent?.includes("加入场景复习"))
+  };
+});
+if (learnedNativeOnlyState.visibleCards !== 1) issues.push(`native learned-only filter should show one card, found ${learnedNativeOnlyState.visibleCards}`);
+if (learnedNativeOnlyState.hasUnlearnedButton) issues.push("native learned-only filter should hide unlearned cards");
+await page.getByRole("button", { name: "已加入 SRS" }).first().click();
+await expectText(page, "确认移出复习");
+await page.getByRole("button", { name: "确认移出复习" }).first().click();
+const nativeStateAfterRemove = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    learnedNative: progress.learnedNative?.filter((id) => String(id).startsWith("nuance:")).length ?? 0,
+    nativeCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "native" && String(card?.payload?.itemId ?? "").startsWith("nuance:")).length
+  };
+});
+if (nativeStateAfterRemove.learnedNative !== 0) issues.push(`removing native nuance should clear learnedNative, found ${nativeStateAfterRemove.learnedNative}`);
+if (nativeStateAfterRemove.nativeCards !== 0) issues.push(`removing native nuance should remove native SRS card, found ${nativeStateAfterRemove.nativeCards}`);
+await page.getByRole("button", { name: "重置筛选" }).first().click();
+
+await page.goto(`${baseUrl}/vocabulary`, { waitUntil: "networkidle" });
+const defaultVocabSlice = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasSliceCopy: document.body.textContent?.includes("今日词汇切片") ?? false,
+    hasExpand: [...document.querySelectorAll("button")].some((button) => button.textContent?.includes("展开全部词汇"))
+  };
+});
+if (defaultVocabSlice.visibleCards !== 12) issues.push(`default vocabulary page should show 12-card daily slice, found ${defaultVocabSlice.visibleCards}`);
+if (!defaultVocabSlice.hasSliceCopy) issues.push("default vocabulary page should explain the daily vocabulary slice");
+if (!defaultVocabSlice.hasExpand) issues.push("default vocabulary page should offer an expand-all action");
+await page.evaluate(() => {
+  window.__kirinaOriginalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (key, value) {
+    if (key === "kirina.progress.v2") throw new DOMException("Quota exceeded", "QuotaExceededError");
+    return window.__kirinaOriginalSetItem.call(this, key, value);
+  };
+});
+await page.getByRole("button", { name: "加入 SRS" }).first().click();
+await expectText(page, "这张词汇卡没有写入成功");
+const blockedVocabResult = await page.evaluate(() => {
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return {
+    learnedVocab: progress.learnedVocab?.length ?? 0,
+    vocabCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length
+  };
+});
+await page.evaluate(() => {
+  if (window.__kirinaOriginalSetItem) {
+    Storage.prototype.setItem = window.__kirinaOriginalSetItem;
+    delete window.__kirinaOriginalSetItem;
+  }
+});
+if (blockedVocabResult.learnedVocab !== 0) issues.push(`failed vocabulary save should not mutate progress, found ${blockedVocabResult.learnedVocab}`);
+if (blockedVocabResult.vocabCards !== 0) issues.push(`failed vocabulary save should roll back SRS cards, found ${blockedVocabResult.vocabCards}`);
+await page.reload({ waitUntil: "networkidle" });
+await expectText(page, "加入 SRS");
+await page.getByRole("button", { name: "加入 SRS" }).first().click();
+let vocabCards = await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length;
+});
+if (vocabCards < 1) issues.push("adding vocabulary should create a vocab SRS card");
+await page.getByRole("button", { name: "已加入 SRS" }).first().click();
+vocabCards = await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "vocab").length;
+});
+if (vocabCards !== 0) issues.push(`removing vocabulary should remove its SRS card, found ${vocabCards}`);
+await page.getByLabel("搜索词汇").fill("지하철");
+await expectText(page, "지하철");
+await expectText(page, "地铁");
+const subwaySearchState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasUnrelatedGreeting: cards.some((item) => item.textContent?.includes("안녕하세요"))
+  };
+});
+if (subwaySearchState.visibleCards !== 1) issues.push(`vocabulary search should narrow to one subway card, found ${subwaySearchState.visibleCards}`);
+if (subwaySearchState.hasUnrelatedGreeting) issues.push("vocabulary search should hide unrelated greeting cards");
+await page.getByRole("button", { name: "重置筛选" }).click();
+await page.getByRole("radio", { name: /移动/ }).click();
+await expectText(page, "숙소");
+const travelFilterState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入 SRS") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasFood: cards.some((item) => item.textContent?.includes("아이스 아메리카노"))
+  };
+});
+if (travelFilterState.visibleCards < 6) issues.push(`travel category filter should show a useful set, found ${travelFilterState.visibleCards}`);
+if (travelFilterState.hasFood) issues.push("travel category filter should hide food-specific cards");
+await page.getByRole("button", { name: "重置筛选" }).click();
+
+await page.goto(`${baseUrl}/grammar`, { waitUntil: "networkidle" });
+await expectText(page, "今日句型切片");
+const defaultGrammarState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasExpandAction: document.body.textContent?.includes("展开全部句型") ?? false
+  };
+});
+if (defaultGrammarState.visibleCards !== 6) issues.push(`grammar should default to a six-card daily slice, found ${defaultGrammarState.visibleCards}`);
+if (!defaultGrammarState.hasExpandAction) issues.push("grammar page should expose an expand action beyond the daily slice");
+await page.getByLabel("搜索语法").fill("-고 있어요");
+await expectText(page, "动词词干 + 고 있어요");
+const grammarSearchState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasTopicMarker: cards.some((item) => item.textContent?.includes("은/는 与 이/가"))
+  };
+});
+if (grammarSearchState.visibleCards !== 1) issues.push(`grammar search should narrow to one progressive card, found ${grammarSearchState.visibleCards}`);
+if (grammarSearchState.hasTopicMarker) issues.push("grammar search should hide unrelated topic marker card");
+await page.getByRole("button", { name: "重置筛选" }).click();
+await page.getByRole("radio", { name: /母语者语法/ }).click();
+await expectText(page, "母语者语法");
+await expectText(page, "-는 것");
+const nativeGrammarState = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("加入语法复习") || item.textContent?.includes("已加入 SRS"));
+  return {
+    visibleCards: cards.length,
+    hasFoundation: cards.some((item) => item.textContent?.includes("이에요/예요"))
+  };
+});
+if (nativeGrammarState.visibleCards < 6) issues.push(`native grammar filter should show native grammar cards, found ${nativeGrammarState.visibleCards}`);
+if (nativeGrammarState.hasFoundation) issues.push("native grammar filter should hide foundation cards");
+await page.getByRole("button", { name: "重置筛选" }).click();
+await page.getByRole("button", { name: "加入语法复习" }).first().click();
+await page.getByRole("button", { name: "已加入 SRS" }).first().click();
+const grammarStateAfterRemove = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    ability: progress.ability?.grammar,
+    learnedGrammar: progress.learnedGrammar?.length ?? 0,
+    grammarCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "grammar").length
+  };
+});
+if (grammarStateAfterRemove.ability !== 0) issues.push(`removing grammar should retract the evidence-backed ability: ${grammarStateAfterRemove.ability}`);
+if (grammarStateAfterRemove.learnedGrammar !== 0) issues.push(`removing grammar should clear learnedGrammar: ${grammarStateAfterRemove.learnedGrammar}`);
+if (grammarStateAfterRemove.grammarCards !== 0) issues.push(`removing grammar should remove SRS card: ${grammarStateAfterRemove.grammarCards}`);
+await page.getByRole("button", { name: "加入语法复习" }).first().click();
+const grammarStateAfterReAdd = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    ability: progress.ability?.grammar,
+    learnedGrammar: progress.learnedGrammar?.length ?? 0,
+    grammarCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "grammar").length
+  };
+});
+if (grammarStateAfterReAdd.ability !== 2) issues.push(`re-adding the same grammar should not double-count ability: ${grammarStateAfterReAdd.ability}`);
+if (grammarStateAfterReAdd.learnedGrammar !== 1) issues.push(`re-adding grammar should restore learnedGrammar: ${grammarStateAfterReAdd.learnedGrammar}`);
+if (grammarStateAfterReAdd.grammarCards !== 1) issues.push(`re-adding grammar should restore one SRS card: ${grammarStateAfterReAdd.grammarCards}`);
+
+const lessonSessionFailureContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const lessonSessionFailurePage = await lessonSessionFailureContext.newPage();
+lessonSessionFailurePage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`lesson-session-failure ${message.type()}: ${message.text()}`);
+});
+lessonSessionFailurePage.on("pageerror", (error) => issues.push(`lesson-session-failure pageerror: ${error.message}`));
+await lessonSessionFailurePage.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
+await lessonSessionFailurePage.evaluate(() => {
+  window.__kirinaOriginalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function setItemWithLessonSessionFailure(key, value) {
+    if (key === "kirina.lesson-session.v1") throw new DOMException("Quota exceeded", "QuotaExceededError");
+    return window.__kirinaOriginalSetItem.call(this, key, value);
+  };
+});
+await lessonSessionFailurePage.getByLabel("ㄱ + ㅏ").check();
+await lessonSessionFailurePage.getByRole("button", { name: "提交" }).click();
+await expectText(lessonSessionFailurePage, "本次练习断点没有写入本地存储");
+const failedLessonSessionState = await lessonSessionFailurePage.evaluate(() => {
+  Storage.prototype.setItem = window.__kirinaOriginalSetItem;
+  delete window.__kirinaOriginalSetItem;
+  return localStorage.getItem("kirina.lesson-session.v1");
+});
+if (failedLessonSessionState) issues.push("failed lesson resume save should not leave a partial lesson session");
+await lessonSessionFailureContext.close();
+
+await page.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
+await expectText(page, "韩文不是字母表");
+await page.getByLabel("ㄱ + ㅏ").check();
+await page.getByRole("button", { name: "提交" }).click();
+await expectText(page, "答对了");
+const lessonSessionAfterFirstAnswer = await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("kirina.lesson-session.v1") ?? "{\"sessions\":{}}");
+  return state.sessions?.["l01-hangul-map"] ?? null;
+});
+if (lessonSessionAfterFirstAnswer?.currentIndex !== 0) issues.push(`lesson resume should persist current index 0 after first answer, found ${lessonSessionAfterFirstAnswer?.currentIndex}`);
+if (lessonSessionAfterFirstAnswer?.answers?.length !== 1) issues.push(`lesson resume should persist one answer after first answer, found ${lessonSessionAfterFirstAnswer?.answers?.length}`);
+await page.reload({ waitUntil: "networkidle" });
+await expectText(page, "已恢复上次练习");
+await expectText(page, "答对了");
+await page.getByRole("button", { name: "下一题" }).click();
+await page.getByLabel("ㄴ").check();
+await page.getByRole("button", { name: "提交" }).click();
+await expectText(page, "答对了");
+await page.getByRole("button", { name: "下一题" }).click();
+await page.getByRole("textbox", { name: "输入答案" }).fill("고");
+await page.getByRole("button", { name: "提交" }).click();
+await expectText(page, "答对了");
+await page.getByRole("button", { name: "完成课程" }).click();
+await expectText(page, "100%");
+await page.getByRole("button", { name: "继续" }).click();
+await expectText(page, "课程成绩已保存");
+await expectText(page, "下一课");
+const lessonReviewState = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const cards = Object.values(srs.cards ?? {});
+  const lessonCards = cards.filter((card) => card?.payload?.kind === "lesson" && card?.payload?.itemId?.startsWith("lesson:l01-hangul-map:"));
+  const mistakeCards = cards.filter((card) => card?.payload?.kind === "mistake" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:"));
+  return {
+    score: progress.lessonScores?.["l01-hangul-map"],
+    completed: progress.completedLessons?.includes("l01-hangul-map") ?? false,
+    lessonCards: lessonCards.length,
+    mistakeCards: mistakeCards.length,
+    lessonSession: localStorage.getItem("kirina.lesson-session.v1"),
+    firstPrompt: lessonCards.find((card) => card?.id === "lesson:l01-hangul-map:1")?.payload?.prompt,
+    finalAnswer: lessonCards.find((card) => card?.id === "lesson:l01-hangul-map:3")?.payload?.answer
+  };
+});
+if (lessonReviewState.score !== 100) issues.push(`finishing a perfect lesson should save score 100, found ${lessonReviewState.score}`);
+if (!lessonReviewState.completed) issues.push("finishing a lesson should mark it completed");
+if (lessonReviewState.lessonCards !== 3) issues.push(`finishing a perfect lesson should create 3 lesson SRS cards, found ${lessonReviewState.lessonCards}`);
+if (lessonReviewState.mistakeCards !== 0) issues.push(`finishing a perfect lesson should not create mistake cards, found ${lessonReviewState.mistakeCards}`);
+if (lessonReviewState.lessonSession && JSON.parse(lessonReviewState.lessonSession).sessions?.["l01-hangul-map"]) issues.push("finishing and saving a lesson should clear its resume session");
+if (lessonReviewState.firstPrompt !== "가 的结构是什么？") issues.push(`first lesson SRS prompt mismatch: ${lessonReviewState.firstPrompt}`);
+if (lessonReviewState.finalAnswer !== "고") issues.push(`final lesson SRS answer mismatch: ${lessonReviewState.finalAnswer}`);
+
+const lowScoreContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const lowScorePage = await lowScoreContext.newPage();
+lowScorePage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`low-score ${message.type()}: ${message.text()}`);
+});
+lowScorePage.on("pageerror", (error) => issues.push(`low-score pageerror: ${error.message}`));
+await lowScorePage.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
+await lowScorePage.getByLabel("ㄱ + ㅏ").check();
+await lowScorePage.getByRole("button", { name: "提交" }).click();
+await lowScorePage.getByRole("button", { name: "下一题" }).click();
+await lowScorePage.getByLabel("ㅎ").check();
+await lowScorePage.getByRole("button", { name: "提交" }).click();
+await lowScorePage.getByRole("button", { name: "下一题" }).click();
+await lowScorePage.getByRole("textbox", { name: "输入答案" }).fill("가");
+await lowScorePage.getByRole("button", { name: "提交" }).click();
+await lowScorePage.getByRole("button", { name: "完成课程" }).click();
+await expectText(lowScorePage, "33%");
+await lowScorePage.getByRole("button", { name: "继续" }).click();
+await expectText(lowScorePage, "成绩已保存，但还未达标");
+await expectText(lowScorePage, "重做本课");
+await expectText(lowScorePage, "先把本课达标，再进入后续路线或综合测验");
+const lowScoreNextLinks = await lowScorePage.getByRole("link", { name: "下一课" }).count();
+if (lowScoreNextLinks) issues.push("low-score lesson result should not offer the next lesson");
+const lowScoreOldBridgeHint = await lowScorePage.getByText("适合先继续下一课或做综合测验", { exact: false }).count();
+if (lowScoreOldBridgeHint) issues.push("low-score lesson bridge should not suggest continuing to the next lesson or quiz before mastery");
+const lowScoreState = await lowScorePage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const cards = Object.values(srs.cards ?? {});
+  return {
+    score: progress.lessonScores?.["l01-hangul-map"],
+    completed: progress.completedLessons?.includes("l01-hangul-map") ?? false,
+    lessonCards: cards.filter((card) => card?.payload?.kind === "lesson" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:")).length,
+    mistakeCards: cards.filter((card) => card?.payload?.kind === "mistake" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:")).length
+  };
+});
+if (lowScoreState.score !== 33) issues.push(`low-score lesson attempt should save the score for transparency, found ${lowScoreState.score}`);
+if (lowScoreState.completed) issues.push("low-score lesson attempt should not complete the core path");
+if (lowScoreState.lessonCards !== 0) issues.push(`low-score lesson attempt should not create whole-lesson review cards, found ${lowScoreState.lessonCards}`);
+if (lowScoreState.mistakeCards !== 2) issues.push(`low-score lesson attempt should still preserve concrete mistakes for review, found ${lowScoreState.mistakeCards}`);
+await lowScorePage.getByRole("button", { name: "重做本课" }).click();
+await expectText(lowScorePage, "练习 1 / 3");
+await lowScoreContext.close();
+
+const transferLockContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const transferLockPage = await transferLockContext.newPage();
+transferLockPage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`transfer-lock ${message.type()}: ${message.text()}`);
+});
+transferLockPage.on("pageerror", (error) => issues.push(`transfer-lock pageerror: ${error.message}`));
+await transferLockPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+await transferLockPage.evaluate(() => {
+  const now = new Date().toISOString();
+  const completedLessons = ["l01-hangul-map", "l02-vowels", "l03-consonants", "l04-first-sentences", "l05-particles"];
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons,
+    lessonScores: Object.fromEntries(completedLessons.map((id) => [id, 92])),
+    previewLessonScores: {},
+    masteredHangul: [],
+    learnedVocab: [],
+    learnedGrammar: [],
+    learnedNative: [],
+    completedMaterials: [],
+    materialEvidence: {},
+    completedCheckpoints: [],
+    checkpointEvidence: {},
+    completedTasks: {},
+    ability: { script: 24, listening: 18, vocabulary: 8, grammar: 8, pragmatics: 0, native: 0 },
+    abilityEvents: {},
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 30,
+    updatedAt: now
+  }));
+});
+await transferLockPage.goto(`${baseUrl}/learn/l06-cafe`, { waitUntil: "networkidle" });
+await expectText(transferLockPage, "达标后解锁材料迁移");
+await expectText(transferLockPage, "先把本课达到 65%");
+const lockedTransferMaterialLinks = await transferLockPage.locator('a[href*="/immersion?material="]').count();
+if (lockedTransferMaterialLinks) issues.push("unmastered lesson bridge should render transfer materials as locked cards, not material links");
+const lockedTransferCards = await transferLockPage.locator('[aria-disabled="true"]').filter({ hasText: "达标后解锁材料迁移" }).count();
+if (!lockedTransferCards) issues.push("unmastered lesson bridge should show an explicit locked material state");
+await transferLockContext.close();
+
+const mistakeContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const mistakePage = await mistakeContext.newPage();
+mistakePage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`mistake ${message.type()}: ${message.text()}`);
+});
+mistakePage.on("pageerror", (error) => issues.push(`mistake pageerror: ${error.message}`));
+await mistakePage.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
+await mistakePage.getByLabel("ㄱ + ㅗ").check();
+await mistakePage.getByRole("button", { name: "提交" }).click();
+await expectText(mistakePage, "正确答案：ㄱ + ㅏ");
+const lessonMistakeBeforeSave = await mistakePage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const cards = Object.values(srs.cards ?? {});
+  const mistakes = cards.filter((card) => card?.payload?.kind === "mistake" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:"));
+  return {
+    completed: progress.completedLessons?.includes("l01-hangul-map") ?? false,
+    mistakeCards: mistakes.length
+  };
+});
+if (lessonMistakeBeforeSave.completed) issues.push("answering one wrong lesson question should not complete the lesson");
+if (lessonMistakeBeforeSave.mistakeCards !== 0) issues.push(`lesson mistakes should wait for final lesson save, found ${lessonMistakeBeforeSave.mistakeCards}`);
+await mistakePage.getByRole("button", { name: "下一题" }).click();
+await mistakePage.getByLabel("ㄴ").check();
+await mistakePage.getByRole("button", { name: "提交" }).click();
+await mistakePage.getByRole("button", { name: "下一题" }).click();
+await mistakePage.getByRole("textbox", { name: "输入答案" }).fill("고");
+await mistakePage.getByRole("button", { name: "提交" }).click();
+await mistakePage.getByRole("button", { name: "完成课程" }).click();
+await expectText(mistakePage, "67%");
+await mistakePage.getByRole("button", { name: "继续" }).click();
+await expectText(mistakePage, "课程成绩已保存");
+const lessonMistakeAfterSave = await mistakePage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const cards = Object.values(srs.cards ?? {});
+  const mistakes = cards.filter((card) => card?.payload?.kind === "mistake" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:"));
+  const lessonCards = cards.filter((card) => card?.payload?.kind === "lesson" && String(card?.payload?.itemId ?? "").startsWith("lesson:l01-hangul-map:"));
+  return {
+    completed: progress.completedLessons?.includes("l01-hangul-map") ?? false,
+    mistakeCards: mistakes.length,
+    lessonCards: lessonCards.length,
+    firstMistakeAnswer: mistakes[0]?.payload?.answer
+  };
+});
+if (!lessonMistakeAfterSave.completed) issues.push("saving a passing lesson with a wrong answer should complete the lesson");
+if (lessonMistakeAfterSave.lessonCards !== 3) issues.push(`saving a passing lesson should create lesson cards, found ${lessonMistakeAfterSave.lessonCards}`);
+if (lessonMistakeAfterSave.mistakeCards !== 1) issues.push(`saving a passing lesson with one wrong answer should create one mistake card, found ${lessonMistakeAfterSave.mistakeCards}`);
+if (lessonMistakeAfterSave.firstMistakeAnswer !== "ㄱ + ㅏ") issues.push(`saved lesson mistake should keep canonical answer, found ${lessonMistakeAfterSave.firstMistakeAnswer}`);
+await mistakeContext.close();
+
+const blockedMistakeContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const blockedMistakePage = await blockedMistakeContext.newPage();
+await blockedMistakePage.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
+await blockedMistakePage.evaluate(() => {
+  window.__kirinaOriginalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (key, value) {
+    if (key === "kirina.srs.v2") throw new DOMException("Quota exceeded", "QuotaExceededError");
+    return window.__kirinaOriginalSetItem.call(this, key, value);
+  };
+});
+await blockedMistakePage.getByLabel("ㄱ + ㅗ").check();
+await blockedMistakePage.getByRole("button", { name: "提交" }).click();
+await blockedMistakePage.getByRole("button", { name: "下一题" }).click();
+await blockedMistakePage.getByLabel("ㄴ").check();
+await blockedMistakePage.getByRole("button", { name: "提交" }).click();
+await blockedMistakePage.getByRole("button", { name: "下一题" }).click();
+await blockedMistakePage.getByRole("textbox", { name: "输入答案" }).fill("고");
+await blockedMistakePage.getByRole("button", { name: "提交" }).click();
+await blockedMistakePage.getByRole("button", { name: "完成课程" }).click();
+await blockedMistakePage.getByRole("button", { name: "继续" }).click();
+await expectText(blockedMistakePage, "成绩没有写入本地进度");
+const blockedMistakeState = await blockedMistakePage.evaluate(() => {
+  Storage.prototype.setItem = window.__kirinaOriginalSetItem;
+  delete window.__kirinaOriginalSetItem;
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    completed: progress.completedLessons?.includes("l01-hangul-map") ?? false,
+    mistakeCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "mistake").length,
+    lessonCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "lesson").length
+  };
+});
+if (blockedMistakeState.completed) issues.push("blocked lesson SRS save should not complete the lesson");
+if (blockedMistakeState.mistakeCards !== 0) issues.push(`blocked lesson save should not leave mistake cards, found ${blockedMistakeState.mistakeCards}`);
+if (blockedMistakeState.lessonCards !== 0) issues.push(`blocked lesson save should not leave lesson cards, found ${blockedMistakeState.lessonCards}`);
+await blockedMistakeContext.close();
+
+const lockedLessonContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const lockedLessonPage = await lockedLessonContext.newPage();
+lockedLessonPage.on("console", (message) => {
+  if (["error", "warning"].includes(message.type())) issues.push(`locked ${message.type()}: ${message.text()}`);
+});
+lockedLessonPage.on("pageerror", (error) => issues.push(`locked pageerror: ${error.message}`));
+await lockedLessonPage.goto(`${baseUrl}/learn/l10-native-softeners`, { waitUntil: "networkidle" });
+await expectText(lockedLessonPage, "旁路预览");
+await lockedLessonPage.getByLabel("이건 틀렸어요.").check();
+await lockedLessonPage.getByRole("button", { name: "提交" }).click();
+await expectText(lockedLessonPage, "正确答案：이건 좀 어려운 것 같아요.");
+await lockedLessonPage.getByRole("button", { name: "下一题" }).click();
+await lockedLessonPage.getByRole("textbox", { name: "输入答案" }).fill("긴");
+await lockedLessonPage.getByRole("button", { name: "提交" }).click();
+await expectText(lockedLessonPage, "答对了");
+await lockedLessonPage.getByRole("button", { name: "下一题" }).click();
+await lockedLessonPage.getByLabel("委婉表示明天不太行").check();
+await lockedLessonPage.getByRole("button", { name: "提交" }).click();
+await expectText(lockedLessonPage, "答对了");
+await lockedLessonPage.getByRole("button", { name: "完成课程" }).click();
+await lockedLessonPage.getByRole("button", { name: "继续" }).click();
+await expectText(lockedLessonPage, "预览成绩已保存");
+const lockedLessonState = await lockedLessonPage.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return {
+    completed: progress.completedLessons?.includes("l10-native-softeners") ?? false,
+    previewScore: progress.previewLessonScores?.["l10-native-softeners"],
+    coreScore: progress.lessonScores?.["l10-native-softeners"],
+    nativeAbility: progress.ability?.native ?? 0,
+    pragmaticsAbility: progress.ability?.pragmatics ?? 0,
+    streak: progress.streak ?? 0,
+    lastStudyDate: progress.lastStudyDate ?? null,
+    mistakeCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "mistake").length,
+    lessonCards: Object.values(srs.cards ?? {}).filter((card) => card?.payload?.kind === "lesson").length
+  };
+});
+if (lockedLessonState.completed) issues.push("locked preview lesson should not mark the core lesson completed");
+if (lockedLessonState.previewScore !== 67) issues.push(`locked preview lesson should save preview score 67, found ${lockedLessonState.previewScore}`);
+if (lockedLessonState.coreScore !== undefined) issues.push(`locked preview lesson should not save core score, found ${lockedLessonState.coreScore}`);
+if (lockedLessonState.nativeAbility !== 0 || lockedLessonState.pragmaticsAbility !== 0) issues.push(`locked preview lesson should not advance native/pragmatics ability, found ${lockedLessonState.nativeAbility}/${lockedLessonState.pragmaticsAbility}`);
+if (lockedLessonState.streak !== 0 || lockedLessonState.lastStudyDate !== null) issues.push(`locked preview lesson should not count as a formal study day, found ${lockedLessonState.streak}/${lockedLessonState.lastStudyDate}`);
+if (lockedLessonState.mistakeCards !== 0) issues.push(`locked preview lesson should not create mistake cards, found ${lockedLessonState.mistakeCards}`);
+if (lockedLessonState.lessonCards !== 0) issues.push(`locked preview lesson should not create lesson review cards, found ${lockedLessonState.lessonCards}`);
+await lockedLessonContext.close();
+
+await page.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
+await expectText(page, "真实材料不是奖励");
+await expectText(page, "建议先修");
+await page.getByRole("button", { name: "显示译文" }).click();
+await expectText(page, "欢迎光临");
+if (await page.getByRole("button", { name: "完成材料并加入 SRS" }).isEnabled()) issues.push("material completion should require evidence before enabling");
+await page.getByLabel("听写证据").fill("포장해 주세요.");
+await page.getByLabel("韩语复述证据").fill("손님은 아이스 아메리카노를 주문하고 카드로 계산해요.");
+await page.getByRole("textbox", { name: "输出草稿" }).fill("아이스 아메리카노 하나 포장해 주세요.");
+await page.locator("label").filter({ hasText: "自然" }).click();
+await page.getByLabel("需要修正的弱点").fill("外带表达不够稳");
+await page.getByLabel("送回复习的目标改写").fill("아이스 아메리카노 하나 포장해 주세요.");
+await page.getByRole("button", { name: "保存输出" }).click();
+await expectText(page, "输出档案");
+await expectText(page, "绑定中");
+await expectText(page, "弱点：外带表达不够稳");
+await expectText(page, "目标：아이스 아메리카노 하나 포장해 주세요.");
+const outputDraftAfterSave = await page.getByRole("textbox", { name: "输出草稿" }).inputValue();
+if (outputDraftAfterSave !== "") issues.push(`output draft should clear after save: ${outputDraftAfterSave}`);
+const weakPointAfterSave = await page.getByLabel("需要修正的弱点").inputValue();
+if (weakPointAfterSave !== "") issues.push(`weak point should clear after save: ${weakPointAfterSave}`);
+const targetRewriteAfterSave = await page.getByLabel("送回复习的目标改写").inputValue();
+if (targetRewriteAfterSave !== "") issues.push(`target rewrite should clear after save: ${targetRewriteAfterSave}`);
+const outputCardsBeforeCompletion = await page.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  return Object.values(state.cards ?? {}).filter((card) => card?.payload?.kind === "output").length;
+});
+if (outputCardsBeforeCompletion !== 0) issues.push(`saved output draft should not create formal output SRS before material completion, found ${outputCardsBeforeCompletion}`);
+if (await page.getByRole("button", { name: "完成材料并加入 SRS" }).isEnabled()) issues.push("material completion should still require self-check after dictation, retell, and output evidence");
+await page.locator("label").filter({ hasText: "是否先说核心名词再说数量" }).click();
+await page.locator("label").filter({ hasText: "是否使用 주세요 或 드릴까요" }).click();
+await page.locator("label").filter({ hasText: "是否能不看中文复述交易流程" }).click();
+if (await page.getByRole("button", { name: "完成材料并加入 SRS" }).isEnabled()) issues.push("material completion should still require lesson prerequisites after evidence and self-check");
+await expectText(page, "补齐先修前，不会把这段材料写入完成或能力护照");
+await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const completedLessons = [
+    "l01-hangul-map",
+    "l02-vowels",
+    "l03-consonants",
+    "l04-first-sentences",
+    "l05-particles",
+    "l06-cafe",
+    "l07-location",
+    "l08-past",
+    "l09-connectors",
+    "l10-native-softeners",
+    "l11-shopping-price"
+  ];
+  progress.completedLessons = completedLessons;
+  progress.lessonScores = Object.fromEntries(completedLessons.map((id) => [id, 92]));
+  progress.ability = { ...(progress.ability ?? {}), script: 36, listening: 28, vocabulary: 22, grammar: 18, pragmatics: progress.ability?.pragmatics ?? 0, native: progress.ability?.native ?? 0 };
+  localStorage.setItem("kirina.progress.v2", JSON.stringify(progress));
+});
+await page.reload({ waitUntil: "networkidle" });
+await expectText(page, "前置课已经达标");
+await expectText(page, "已恢复这段材料的未完成草稿");
+const restoredMaterialDraft = await page.evaluate(() => ({
+  dictation: document.querySelector("textarea[placeholder*='听写至少']")?.value ?? "",
+  retell: document.querySelector("textarea[placeholder*='用韩语写']")?.value ?? "",
+  checkedSelfChecks: [...document.querySelectorAll("input[type='checkbox']")].filter((input) => input.checked).length
+}));
+if (restoredMaterialDraft.dictation !== "포장해 주세요.") issues.push(`material draft should restore dictation after reload, found ${restoredMaterialDraft.dictation}`);
+if (!restoredMaterialDraft.retell.includes("아이스 아메리카노")) issues.push(`material draft should restore retell after reload, found ${restoredMaterialDraft.retell}`);
+if (restoredMaterialDraft.checkedSelfChecks < 3) issues.push(`material draft should restore self-checks after reload, found ${restoredMaterialDraft.checkedSelfChecks}`);
+if (!(await page.getByRole("button", { name: "完成材料并加入 SRS" }).isEnabled())) issues.push("material completion should enable after prerequisites, dictation, retell, output evidence, and self-check");
+await page.getByRole("button", { name: "完成材料并加入 SRS" }).click();
+await expectText(page, "已完成并加入 SRS");
+const materialEvidenceAfterCompletion = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const outputCard = Object.values(srs.cards ?? {}).find((card) => card?.payload?.kind === "output" && card?.payload?.prompt?.includes("外带表达"));
+  return {
+    selfCheckCount: progress.materialEvidence?.["im-cafe-real-speed"]?.selfCheck?.length ?? 0,
+    dictation: progress.materialEvidence?.["im-cafe-real-speed"]?.dictation ?? "",
+    outputEntryId: progress.materialEvidence?.["im-cafe-real-speed"]?.outputEntryId ?? "",
+    outputAnswer: outputCard?.payload?.answer
+  };
+});
+if (materialEvidenceAfterCompletion.selfCheckCount !== 3) issues.push(`material completion should persist 3 self-check items, found ${materialEvidenceAfterCompletion.selfCheckCount}`);
+if (!materialEvidenceAfterCompletion.dictation.includes("포장해 주세요")) issues.push("material completion should persist dictation evidence");
+if (!materialEvidenceAfterCompletion.outputEntryId.startsWith("output-")) issues.push(`material completion should bind a concrete output entry id, found ${materialEvidenceAfterCompletion.outputEntryId}`);
+if (materialEvidenceAfterCompletion.outputAnswer !== "아이스 아메리카노 하나 포장해 주세요.") issues.push(`material completion should create output SRS for target rewrite, found ${materialEvidenceAfterCompletion.outputAnswer}`);
+await page.evaluate(() => {
+  const now = new Date().toISOString();
+  const otherId = "output-smoke-weekend";
+  const outputState = JSON.parse(localStorage.getItem("kirina.outputs.v1") ?? "{\"entries\":[]}");
+  outputState.entries = [
+    {
+      id: otherId,
+      materialId: "im-weekend-plan",
+      materialTitle: "约周末计划和改期",
+      mission: "写一段你拒绝某个时间但给出替代方案的韩语对话。",
+      draft: "토요일은 힘들 것 같아요. 일요일 점심은 어때요?",
+      weakPoint: "힘들 것 같아요",
+      targetRewrite: "토요일은 힘들 것 같아요.",
+      rubric: ["register"],
+      createdAt: now
+    },
+    ...(outputState.entries ?? [])
+  ];
+  localStorage.setItem("kirina.outputs.v1", JSON.stringify(outputState));
+  const srsState = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  srsState.cards = srsState.cards ?? {};
+  srsState.history = srsState.history ?? [];
+  srsState.cards[`output:${otherId}`] = {
+    id: `output:${otherId}`,
+    box: 0,
+    dueAt: Date.now(),
+    correct: 0,
+    wrong: 0,
+    lastSeenAt: null,
+    payload: {
+      kind: "output",
+      itemId: otherId,
+      prompt: "根据弱点重写一句更自然的韩语：拒绝太直接",
+      answer: "토요일은 힘들 것 같아요."
+    }
+  };
+  localStorage.setItem("kirina.srs.v2", JSON.stringify(srsState));
+});
+await page.getByRole("button", { name: "清除完成记录与档案" }).click();
+await expectText(page, "再次点击会同时移除本段完成记录");
+const outputStateAfterFirstClearClick = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const outputState = JSON.parse(localStorage.getItem("kirina.outputs.v1") ?? "{\"entries\":[]}");
+  return {
+    completed: progress.completedMaterials?.includes("im-cafe-real-speed") ?? false,
+    evidenceExists: Boolean(progress.materialEvidence?.["im-cafe-real-speed"]),
+    activeEntries: (outputState.entries ?? []).filter((entry) => entry?.materialId === "im-cafe-real-speed").length
+  };
+});
+if (!outputStateAfterFirstClearClick.completed) issues.push("first completed-material archive click should not remove completed material before confirmation");
+if (!outputStateAfterFirstClearClick.evidenceExists) issues.push("first completed-material archive click should not remove material evidence before confirmation");
+if (outputStateAfterFirstClearClick.activeEntries < 1) issues.push("first completed-material archive click should not clear output archive before confirmation");
+await page.getByRole("button", { name: "确认清除完成记录" }).click();
+await expectText(page, "还没有保存这段材料的输出");
+const outputStateAfterClear = await page.evaluate(() => {
+  const outputState = JSON.parse(localStorage.getItem("kirina.outputs.v1") ?? "{\"entries\":[]}");
+  const srsState = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const outputCards = Object.values(srsState.cards ?? {}).filter((card) => card?.payload?.kind === "output");
+  return {
+    completed: progress.completedMaterials?.includes("im-cafe-real-speed") ?? false,
+    evidenceExists: Boolean(progress.materialEvidence?.["im-cafe-real-speed"]),
+    activeEntries: (outputState.entries ?? []).filter((entry) => entry?.materialId === "im-cafe-real-speed").length,
+    otherEntries: (outputState.entries ?? []).filter((entry) => entry?.materialId === "im-weekend-plan").length,
+    activeCards: outputCards.filter((card) => card?.payload?.answer === "아이스 아메리카노 하나 포장해 주세요.").length,
+    otherCards: outputCards.filter((card) => card?.payload?.itemId === "output-smoke-weekend").length
+  };
+});
+if (outputStateAfterClear.completed) issues.push("confirmed archive clear should remove completed material status");
+if (outputStateAfterClear.evidenceExists) issues.push("confirmed archive clear should remove material evidence");
+if (outputStateAfterClear.activeEntries !== 0) issues.push(`clearing current archive should remove current material entries, found ${outputStateAfterClear.activeEntries}`);
+if (outputStateAfterClear.otherEntries !== 1) issues.push(`clearing current archive should keep other material entries, found ${outputStateAfterClear.otherEntries}`);
+if (outputStateAfterClear.activeCards !== 0) issues.push(`clearing current archive should remove current output SRS cards, found ${outputStateAfterClear.activeCards}`);
+if (outputStateAfterClear.otherCards !== 1) issues.push(`clearing current archive should keep other output SRS cards, found ${outputStateAfterClear.otherCards}`);
+
+await page.evaluate(() => {
+  window.__kirinaOriginalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function setItemWithOutputFailure(key, value) {
+    if (key === "kirina.outputs.v1") throw new DOMException("Quota exceeded", "QuotaExceededError");
+    return window.__kirinaOriginalSetItem.call(this, key, value);
+  };
+});
+await page.getByRole("textbox", { name: "输出草稿" }).fill("아이스 라테 하나 주세요.");
+await page.getByLabel("需要修正的弱点").fill("饮品表达");
+await page.getByLabel("送回复习的目标改写").fill("아이스 라테 하나 주세요.");
+await page.getByRole("button", { name: "保存输出" }).click();
+await expectText(page, "输出档案没有保存");
+const failedOutputState = await page.evaluate(() => {
+  Storage.prototype.setItem = window.__kirinaOriginalSetItem;
+  delete window.__kirinaOriginalSetItem;
+  const outputState = JSON.parse(localStorage.getItem("kirina.outputs.v1") ?? "{\"entries\":[]}");
+  const srsState = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
+  const activeOutputCards = Object.values(srsState.cards ?? {}).filter((card) => card?.payload?.kind === "output" && card?.payload?.answer === "아이스 라테 하나 주세요.").length;
+  const outputLabel = [...document.querySelectorAll("label")].find((label) => label.textContent?.includes("输出草稿"));
+  const draftInput = outputLabel?.querySelector("textarea");
+  return {
+    draft: draftInput?.value ?? "",
+    weakPoint: document.querySelector("input[placeholder*='拒绝']")?.value ?? "",
+    targetRewrite: document.querySelector("input[placeholder*='좋긴']")?.value ?? "",
+    activeEntries: (outputState.entries ?? []).filter((entry) => entry?.materialId === "im-cafe-real-speed").length,
+    activeOutputCards
+  };
+});
+if (failedOutputState.draft !== "아이스 라테 하나 주세요.") issues.push("failed output save should keep draft text");
+if (failedOutputState.weakPoint !== "饮品表达") issues.push("failed output save should keep weak point text");
+if (failedOutputState.targetRewrite !== "아이스 라테 하나 주세요.") issues.push("failed output save should keep target rewrite text");
+if (failedOutputState.activeEntries !== 0) issues.push(`failed output save should not create archive entries, found ${failedOutputState.activeEntries}`);
+if (failedOutputState.activeOutputCards !== 0) issues.push(`failed output save should not create output SRS cards, found ${failedOutputState.activeOutputCards}`);
+
+const viewportChecks = [
+  { width: 320, height: 720, label: "mobile-320" },
+  { width: 390, height: 844, label: "mobile-390" },
+  { width: 768, height: 960, label: "tablet-768" },
+  { width: 1440, height: 980, label: "desktop-1440" }
+];
+const mobileRoutes = [
+  ["/", "mobile-home.png"],
+  ["/path", "mobile-path.png"],
+  ["/self-study", "mobile-self-study.png"],
+  ["/hangul", "mobile-hangul.png"],
+  ["/vocabulary", "mobile-vocabulary.png"],
+  ["/grammar", "mobile-grammar.png"],
+  ["/native", "mobile-native.png"],
+  ["/immersion", "mobile-immersion.png"],
+  ["/review", "mobile-review.png"],
+  ["/mistakes", "mobile-mistakes.png"],
+  ["/quiz", "mobile-quiz.png"],
+  ["/learn/l06-cafe", "mobile-lesson-cafe.png"]
+];
+for (const viewport of viewportChecks) {
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+  for (const [route, screenshotName] of mobileRoutes) {
+    await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
+    if (viewport.width === 390) {
+      await warmLazyMedia(page);
+      await page.screenshot({ path: fileURLToPath(new URL(screenshotName, outDir)), fullPage: true });
+    }
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 2 ? { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth } : null;
+    });
+    if (overflow) issues.push(`${viewport.label} horizontal overflow on ${route}: ${JSON.stringify(overflow)}`);
+    const elementOverflow = await visibleElementOverflow(page);
+    if (elementOverflow.length) {
+      issues.push(`${viewport.label} clipped visible elements on ${route}: ${JSON.stringify(elementOverflow.slice(0, 8))}`);
+    }
+  }
+}
+
+await browser.close();
+
+if (issues.length) {
+  console.error(issues.join("\n"));
+  process.exit(1);
+}
+
+console.log("Browser smoke passed. Screenshots written to .browser-check/.");
+
+async function verifyLearningDataPanel(page, outDir, issues) {
+  await page.evaluate(() => {
+    const now = new Date().toISOString();
+    localStorage.setItem("kirina.profile.v2", JSON.stringify({
+      name: "Backup Smoke",
+      studyMode: "self",
+      selfStudyGoal: "foundation",
+      selfStudyIntensity: "steady",
+      selfStudyFocus: "balanced",
+      minutesGoal: 30,
+      romanization: "fade",
+      createdAt: now,
+      updatedAt: now
+    }));
+    localStorage.setItem("kirina.progress.v2", JSON.stringify({
+      completedLessons: ["l01-hangul-map"],
+      lessonScores: { "l01-hangul-map": 88 },
+      completedTasks: {},
+      ability: { script: 12, listening: 6, vocabulary: 0, grammar: 0, pragmatics: 0, native: 0 },
+      minutesGoal: 30,
+      updatedAt: now
+    }));
+    localStorage.setItem("kirina.unmanaged", "keep");
+  });
+
+  const download = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "导出", exact: true }).click()
+  ]).then(([download]) => download).catch((error) => {
+    issues.push(`learning data export did not start a download: ${error.message}`);
+    return null;
+  });
+  if (download && !/^kirina-korean-backup-/.test(download.suggestedFilename())) {
+    issues.push(`learning data export filename should be Kirina-scoped, found ${download.suggestedFilename()}`);
+  }
+
+  const invalidBackupPath = fileURLToPath(new URL("invalid-kirina-backup.json", outDir));
+  writeFileSync(invalidBackupPath, JSON.stringify({ version: 99, app: "kirina-korean", entries: {} }));
+  const fileChooser = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "导入", exact: true }).click()
+  ]).then(([chooser]) => chooser).catch((error) => {
+    issues.push(`learning data import did not open a file chooser: ${error.message}`);
+    return null;
+  });
+  if (fileChooser) {
+    await fileChooser.setFiles(invalidBackupPath);
+    await expectText(page, "文件无效");
+  }
+
+  await page.getByRole("button", { name: "存储", exact: true }).click();
+  await expectText(page, "已持久");
+
+  await page.getByRole("button", { name: "重置", exact: true }).click();
+  await page.getByRole("button", { name: "确认", exact: true }).click();
+  await expectText(page, "已重置");
+  const resetState = await page.evaluate(() => ({
+    profile: localStorage.getItem("kirina.profile.v2"),
+    progress: localStorage.getItem("kirina.progress.v2"),
+    srs: localStorage.getItem("kirina.srs.v2"),
+    outputs: localStorage.getItem("kirina.outputs.v1"),
+    unmanaged: localStorage.getItem("kirina.unmanaged")
+  }));
+  if (resetState.profile !== null || resetState.progress !== null || resetState.srs !== null || resetState.outputs !== null) {
+    issues.push("learning data reset should clear managed Kirina learning storage keys");
+  }
+  if (resetState.unmanaged !== "keep") issues.push("learning data reset should preserve unmanaged localStorage entries");
+}
+
+async function expectText(page, text) {
+  const found = await page
+    .getByText(text, { exact: false })
+    .first()
+    .waitFor({ state: "visible", timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!found) issues.push(`missing text: ${text}`);
+}
+
+async function visibleElementOverflow(page) {
+  return page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    const allowedOverflowAncestor = (element) => {
+      for (let node = element.parentElement; node; node = node.parentElement) {
+        const className = typeof node.className === "string" ? node.className : "";
+        if (className.includes("nav-scroll") || className.includes("overflow-x-auto") || className.includes("snap-x")) return true;
+        const style = window.getComputedStyle(node);
+        if ((style.overflowX === "auto" || style.overflowX === "scroll") && node.scrollWidth > node.clientWidth + 2) return true;
+      }
+      return false;
+    };
+    const selectorFor = (element) => {
+      const tag = element.tagName.toLowerCase();
+      const id = element.id ? `#${element.id}` : "";
+      const className = typeof element.className === "string" && element.className.trim()
+        ? `.${element.className.trim().split(/\s+/).slice(0, 3).join(".")}`
+        : "";
+      return `${tag}${id}${className}`;
+    };
+    return [...document.body.querySelectorAll("a,button,input,textarea,select,label,article,section,div")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 1 || rect.height <= 1) return null;
+        const style = window.getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+        if (allowedOverflowAncestor(element)) return null;
+        if (rect.left < -2 || rect.right > viewportWidth + 2) {
+          return {
+            selector: selectorFor(element),
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            viewportWidth
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  });
+}
+
+async function warmLazyMedia(page) {
+  await page.evaluate(async () => {
+    const step = Math.max(240, Math.floor(window.innerHeight * 0.72));
+    for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => window.setTimeout(resolve, 40));
+    }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForLoadState("networkidle").catch(() => {});
+}
