@@ -10,7 +10,8 @@ export const STORAGE_KEYS = {
   outputs: "kirina.outputs.v1",
   mistakes: "kirina.mistakes.v1",
   lessonSession: "kirina.lesson-session.v1",
-  drafts: "kirina.drafts.v1"
+  drafts: "kirina.drafts.v1",
+  speech: "kirina.speech.v1"
 };
 
 export function nowIso() {
@@ -145,7 +146,7 @@ function noop() {}
 export function defaultProfile(): UserProfile {
   return {
     name: "Learner",
-    studyMode: "self",
+    studyMode: "guided",
     selfStudyGoal: "foundation",
     selfStudyIntensity: "steady",
     selfStudyFocus: "balanced",

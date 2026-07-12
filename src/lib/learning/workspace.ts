@@ -2108,7 +2108,8 @@ export function normalizeUserProfile(input: Partial<UserProfile> | null | undefi
     selfStudyGoal: ["foundation", "travel", "media", "native"].includes(String(source.selfStudyGoal)) ? source.selfStudyGoal as UserProfile["selfStudyGoal"] : "foundation",
     selfStudyIntensity: ["light", "steady", "deep"].includes(String(source.selfStudyIntensity)) ? source.selfStudyIntensity as UserProfile["selfStudyIntensity"] : "steady",
     selfStudyFocus: ["balanced", "listening", "reading", "conversation"].includes(String(source.selfStudyFocus)) ? source.selfStudyFocus as UserProfile["selfStudyFocus"] : "balanced",
-    romanization: ["fade", "always", "hidden"].includes(String(source.romanization)) ? source.romanization as UserProfile["romanization"] : "fade"
+    romanization: ["fade", "always", "hidden"].includes(String(source.romanization)) ? source.romanization as UserProfile["romanization"] : "fade",
+    onboardedAt: typeof source.onboardedAt === "string" && source.onboardedAt.trim() ? source.onboardedAt : undefined
   };
 }
 

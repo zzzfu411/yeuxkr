@@ -10,6 +10,8 @@ const REVISION_SOURCE_PATTERN = /\.(tsx|ts|jsx|js|mjs|css)$/;
 export function buildOfflineRoutes(lessonItems = lessons) {
   const routes = {
     "/": "src/app/page.tsx",
+    "/onboarding": "src/app/onboarding/page.tsx",
+    "/settings": "src/app/settings/page.tsx",
     "/path": "src/app/path/page.tsx",
     "/self-study": "src/app/self-study/page.tsx",
     "/hangul": "src/app/hangul/page.tsx",

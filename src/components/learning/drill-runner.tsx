@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Volume2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { Button } from "@/components/ui/button";
+import { KoreanInput } from "@/components/korean/korean-input";
+import { hasKoreanText } from "@/lib/learning/evidence";
 import { mistakeCardId } from "@/lib/learning/ids";
 import { checkAnswer, type Question } from "@/lib/learning/quiz";
 import { recordMistake } from "@/lib/learning/srs";
@@ -71,8 +73,11 @@ export function DrillRunner({
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
   const emittedResultRef = useRef("");
+  const playedListenRef = useRef("");
+  const submitRef = useRef<() => void>(() => {});
   const question = questions[index];
   const existing = answers[index];
+  const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers]);
   const score = useMemo(() => {
     if (!answers.length) return 0;
     return Math.round((answers.filter((item) => item.correct).length / answers.length) * 100);
@@ -88,6 +93,101 @@ export function DrillRunner({
     emittedResultRef.current = resultSignature;
     onResult(score, answers);
   }, [answers, finished, onResult, resultSignature, score]);
+
+  useEffect(() => {
+    if (finished || !question || question.type !== "listen" || !question.speak) return;
+    if (answers[index]) return;
+    if (playedListenRef.current === question.id) return;
+    playedListenRef.current = question.id;
+    speakKorean(question.speak);
+  }, [answers, finished, index, question]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (finished || !question) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const isTextEntry =
+        tag === "TEXTAREA" ||
+        Boolean(target?.isContentEditable) ||
+        (tag === "INPUT" && !["radio", "checkbox", "button"].includes((target as HTMLInputElement).type));
+      if (isTextEntry) return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitRef.current();
+        return;
+      }
+      if (question.type !== "type" && !answers[index]) {
+        const choiceIndex = Number(event.key);
+        const choices = question.choices ?? [];
+        if (Number.isInteger(choiceIndex) && choiceIndex >= 1 && choiceIndex <= choices.length) {
+          event.preventDefault();
+          setValue(choices[choiceIndex - 1]);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [answers, finished, index, question]);
+
+  const submit = () => {
+    if (!question) return;
+    if (existing) {
+      if (index < questions.length - 1) {
+        moveToIndex(index + 1, answers, false);
+      } else {
+        setFinished(true);
+        emitProgress(index, answers, true);
+      }
+      return;
+    }
+    if (!value.trim()) return;
+    const answer = value;
+    const correct = checkAnswer(question, answer);
+    const next = [...answers];
+    const entry = { question, answer, correct };
+    next[index] = entry;
+    if (!correct && recordMistakes) {
+      const mistakeCard = recordMistake(mistakeCardId(question.id), {
+        kind: "mistake",
+        itemId: question.id,
+        prompt: question.prompt,
+        answer: question.answer
+      });
+      if (!mistakeCard) {
+        setSrsError("错题没有写入本地复习队列，请释放浏览器存储空间后再继续。");
+        return;
+      }
+      setSrsError("");
+    }
+    if (onAnswer?.(entry) === false) return;
+    setAnswers(next);
+    emitProgress(index, next, false);
+  };
+
+  const moveToIndex = (nextIndex: number, nextAnswers = answers, nextFinished = finished) => {
+    const clamped = Math.min(Math.max(0, nextIndex), Math.max(0, questions.length - 1));
+    setIndex(clamped);
+    setValue(nextAnswers[clamped]?.answer ?? "");
+    setFinished(nextFinished);
+    emitProgress(clamped, nextAnswers, nextFinished);
+  };
+
+  const emitProgress = (nextIndex: number, nextAnswers: AnswerEntry[], nextFinished: boolean) => {
+    onProgress?.({
+      index: nextIndex,
+      answers: nextAnswers.filter(Boolean).map((item) => ({
+        questionId: item.question.id,
+        answer: item.answer,
+        correct: item.correct
+      })),
+      finished: nextFinished
+    });
+  };
+
+  useEffect(() => {
+    submitRef.current = submit;
+  });
 
   if (!questions.length) {
     return (
@@ -134,67 +234,27 @@ export function DrillRunner({
     );
   }
 
-  const submit = () => {
-    if (existing) {
-      if (index < questions.length - 1) {
-        moveToIndex(index + 1, answers, false);
-      } else {
-        setFinished(true);
-        emitProgress(index, answers, true);
-      }
-      return;
-    }
-    const answer = value;
-    const correct = checkAnswer(question, answer);
-    const next = [...answers];
-    const entry = { question, answer, correct };
-    next[index] = entry;
-    if (!correct && recordMistakes) {
-      const mistakeCard = recordMistake(mistakeCardId(question.id), {
-        kind: "mistake",
-        itemId: question.id,
-        prompt: question.prompt,
-        answer: question.answer
-      });
-      if (!mistakeCard) {
-        setSrsError("错题没有写入本地复习队列，请释放浏览器存储空间后再继续。");
-        return;
-      }
-      setSrsError("");
-    }
-    if (onAnswer?.(entry) === false) return;
-    setAnswers(next);
-    emitProgress(index, next, false);
-  };
-
-  const moveToIndex = (nextIndex: number, nextAnswers = answers, nextFinished = finished) => {
-    const clamped = Math.min(Math.max(0, nextIndex), Math.max(0, questions.length - 1));
-    setIndex(clamped);
-    setValue(nextAnswers[clamped]?.answer ?? "");
-    setFinished(nextFinished);
-    emitProgress(clamped, nextAnswers, nextFinished);
-  };
-
-  const emitProgress = (nextIndex: number, nextAnswers: AnswerEntry[], nextFinished: boolean) => {
-    onProgress?.({
-      index: nextIndex,
-      answers: nextAnswers.filter(Boolean).map((item) => ({
-        questionId: item.question.id,
-        answer: item.answer,
-        correct: item.correct
-      })),
-      finished: nextFinished
-    });
-  };
-
   return (
     <article className={`rounded-[8px] border p-5 ${existing?.correct ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : existing ? "border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.72)]"}`}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Practice</p>
           <h2 className="mt-1 font-serif text-2xl font-black">练习 {index + 1} / {questions.length}</h2>
         </div>
         <div className="rounded-full bg-[rgba(23,63,115,0.08)] px-4 py-2 font-mono text-sm font-black text-[var(--ocean)]">{score}%</div>
+      </div>
+      <div
+        className="mb-5 h-1.5 overflow-hidden rounded-full bg-[rgba(24,28,27,0.08)]"
+        role="progressbar"
+        aria-label="练习进度"
+        aria-valuemin={0}
+        aria-valuemax={questions.length}
+        aria-valuenow={answeredCount}
+      >
+        <div
+          className="h-full rounded-full bg-[var(--brass)] transition-all duration-300"
+          style={{ width: `${Math.round((answeredCount / Math.max(1, questions.length)) * 100)}%` }}
+        />
       </div>
 
       <div className="min-h-72">
@@ -209,22 +269,41 @@ export function DrillRunner({
         </div>
 
         {question.type === "type" ? (
-          <label className="mt-6 grid gap-2 font-extrabold">
-            输入答案
-            <input
-              className="focus-ring min-h-12 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
-              value={existing?.answer ?? value}
-              disabled={!!existing}
-              onChange={(event) => setValue(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
+          hasKoreanText(question.answer) ? (
+            <div className="mt-6 grid gap-2 font-extrabold">
+              输入答案（可用屏幕韩文键盘）
+              <KoreanInput
+                value={existing?.answer ?? value}
+                onChange={setValue}
+                onSubmit={submit}
+                disabled={!!existing}
+                ariaLabel="输入答案"
+              />
+            </div>
+          ) : (
+            <label className="mt-6 grid gap-2 font-extrabold">
+              输入答案
+              <input
+                className="focus-ring min-h-12 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                value={existing?.answer ?? value}
+                disabled={!!existing}
+                onChange={(event) => setValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    submit();
+                  }
+                }}
+                autoComplete="off"
+              />
+            </label>
+          )
         ) : (
           <div className="mt-6 grid gap-2">
-            {(question.choices ?? []).map((choice) => (
+            {(question.choices ?? []).map((choice, choiceIndex) => (
               <label
                 key={choice}
-                className={`grid min-h-12 cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-center gap-3 rounded-[8px] border p-3 ${
+                className={`grid min-h-12 cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border p-3 ${
                   existing && choice === question.answer
                     ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
                     : existing && choice === existing.answer
@@ -234,6 +313,11 @@ export function DrillRunner({
               >
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
                 <span>{choice}</span>
+                {choiceIndex < 9 ? (
+                  <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
+                    {choiceIndex + 1}
+                  </kbd>
+                ) : null}
               </label>
             ))}
           </div>

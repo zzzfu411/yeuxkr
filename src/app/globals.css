@@ -214,6 +214,23 @@ img {
   display: none;
 }
 
+.hangul-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-solid);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.hangul-key:active {
+  transform: translateY(1px);
+  background: rgba(23, 63, 115, 0.08);
+}
+
 @media (max-width: 720px) {
   .app-main {
     padding: 0.9rem;

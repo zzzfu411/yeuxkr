@@ -4,15 +4,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { BookOpen, BrainCircuit, CircleAlert, Compass, GraduationCap, LibraryBig, MessagesSquare, NotebookTabs, Radio, RefreshCcw, Sparkles } from "lucide-react";
+import { BookOpen, BrainCircuit, CircleAlert, Compass, GraduationCap, LibraryBig, MessagesSquare, NotebookTabs, Radio, RefreshCcw, Settings2, Sparkles } from "lucide-react";
 import { PwaRegister } from "@/components/layout/pwa-register";
 import { LearningDataPanel } from "@/components/layout/learning-data-panel";
+import { SpeechStatusBanner } from "@/components/korean/speech-status";
 import { cn } from "@/lib/utils";
 
 const navGroups = [
   {
     label: "工作台",
-    items: [{ href: "/", label: "工作台", icon: Compass }]
+    items: [
+      { href: "/", label: "工作台", icon: Compass },
+      { href: "/settings", label: "设置", icon: Settings2 }
+    ]
   },
   {
     label: "规划",
@@ -113,6 +117,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LearningDataPanel />
         </div>
       </header>
+
+      <SpeechStatusBanner />
 
       <main id="main" className="app-main" tabIndex={-1}>{children}</main>
 

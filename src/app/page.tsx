@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, CircleAlert, Layers3, MapPinned, RefreshCcw, Settings2, TimerReset } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CircleAlert, GraduationCap, Layers3, MapPinned, RefreshCcw, Settings2, TimerReset } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { TaskCard } from "@/components/learning/task-card";
@@ -10,10 +10,14 @@ import { AbilityBars } from "@/components/learning/ability-bars";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { SectionHeading, Surface } from "@/components/ui/section";
+import { STORAGE_KEYS, useStorageRaw } from "@/lib/learning/storage";
 import { contentCounts, useLearningWorkspace } from "@/lib/learning/workspace";
 
 export default function HomePage() {
   const { workspace, srs, saveProfile, reset } = useLearningWorkspace();
+  const profileRaw = useStorageRaw(STORAGE_KEYS.profile);
+  const progressRaw = useStorageRaw(STORAGE_KEYS.progress);
+  const isFirstVisit = profileRaw === null && progressRaw === null;
   const [resetStatus, setResetStatus] = useState<"idle" | "success" | "error">("idle");
   const [modeStatus, setModeStatus] = useState<"idle" | "saved" | "error">("idle");
   const profile = workspace.profile;
@@ -33,6 +37,25 @@ export default function HomePage() {
 
   return (
     <div className="grid min-w-0 gap-5 md:gap-6">
+      {isFirstVisit ? (
+        <section className="grid gap-3 rounded-[8px] border border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <GraduationCap className="mt-1 h-6 w-6 shrink-0 text-[var(--celadon)]" aria-hidden="true" />
+            <div>
+              <h2 className="font-serif text-2xl font-black leading-tight">第一次学韩语？先花三分钟做入门设置。</h2>
+              <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
+                选好目标和每日时长、确认能听到韩语发音、学会用屏幕键盘打韩文，然后直接进入第一课。
+              </p>
+            </div>
+          </div>
+          <Button asChild size="lg" className="justify-self-start md:justify-self-end">
+            <Link href="/onboarding">
+              开始入门设置
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
+        </section>
+      ) : null}
       <section className="relative w-full min-w-0 max-w-full overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)]">
         <VisualPanel asset="hero" priority sizes="100vw" treatment="ambient" className="absolute inset-0 rounded-none border-0" />
         <div className="relative z-10 grid min-h-[31rem] min-w-0 gap-4 p-4 md:min-h-[35rem] md:p-6 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-end">

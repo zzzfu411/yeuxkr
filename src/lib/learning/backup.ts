@@ -6,6 +6,7 @@ import { getSrsStateFromRaw } from "./srs.ts";
 import { getLessonPracticeStateFromRaw } from "./lesson-session.ts";
 import { getLearningDraftStateFromRaw } from "./drafts.ts";
 import { normalizeLearningProgress, normalizeUserProfile } from "./workspace.ts";
+import { normalizeSpeechSettings } from "../speech.js";
 
 export const LEARNING_BACKUP_VERSION = 1;
 export const LEARNING_BACKUP_KEYS = Object.values(STORAGE_KEYS);
@@ -102,6 +103,7 @@ function normalizeStoredEntry(key: string, raw: string | null) {
   if (key === STORAGE_KEYS.outputs) return JSON.stringify(getOutputStateFromRaw(raw));
   if (key === STORAGE_KEYS.lessonSession) return JSON.stringify(getLessonPracticeStateFromRaw(raw));
   if (key === STORAGE_KEYS.drafts) return JSON.stringify(getLearningDraftStateFromRaw(raw));
+  if (key === STORAGE_KEYS.speech) return JSON.stringify(normalizeSpeechSettings(parseJson(raw, {})));
   if (key === STORAGE_KEYS.mistakes) return null;
   return null;
 }

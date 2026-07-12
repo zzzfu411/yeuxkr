@@ -70,7 +70,10 @@ export default function HangulPage() {
                   <Volume2 className="h-4 w-4" />
                 </button>
                 <div className="hangul-display text-5xl font-black md:text-6xl">{item.glyph}</div>
-                <p className="font-mono text-sm font-black text-[var(--ocean)]">{item.romanization} · /{item.ipa}/</p>
+                <p className="font-mono text-sm font-black text-[var(--ocean)]">
+                  {item.romanization} · /{item.ipa}/
+                  {item.parts ? <span className="ml-2 text-[var(--brass)]">{item.parts.join(" + ")}</span> : null}
+                </p>
                 <p className="text-sm leading-6 text-[var(--muted)]">{item.cue}</p>
                 <strong className="hangul-display text-2xl">{item.example}</strong>
                 <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>

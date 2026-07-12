@@ -19,6 +19,7 @@ export interface UserProfile {
   selfStudyFocus: StudyFocus;
   minutesGoal: number;
   romanization: "fade" | "always" | "hidden";
+  onboardedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

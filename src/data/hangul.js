@@ -18,6 +18,25 @@ export const hangulGroups = [
     ]
   },
   {
+    id: "vowels-compound",
+    title: "复合元音",
+    track: "sound",
+    summary: "复合元音由基础元音组合而成。没有它们，예요、회사、왜 这些高频字都拼不出来。",
+    items: [
+      { id: "v-ae", glyph: "ㅐ", romanization: "ae", ipa: "ɛ", cue: "ㅏ + ㅣ 合成，现代首尔话里和 ㅔ 几乎同音", example: "개", exampleMeaning: "狗", parts: ["ㅏ", "ㅣ"] },
+      { id: "v-e", glyph: "ㅔ", romanization: "e", ipa: "e", cue: "ㅓ + ㅣ 合成，比 ㅐ 略闭，口语中两者靠词汇区分", example: "네", exampleMeaning: "是；好的", parts: ["ㅓ", "ㅣ"] },
+      { id: "v-yae", glyph: "ㅒ", romanization: "yae", ipa: "jɛ", cue: "ㅑ + ㅣ，等于 y + ㅐ，出现频率低", example: "얘기", exampleMeaning: "聊天；话", parts: ["ㅑ", "ㅣ"] },
+      { id: "v-ye", glyph: "ㅖ", romanization: "ye", ipa: "je", cue: "ㅕ + ㅣ，等于 y + ㅔ；예요 就靠它", example: "예요", exampleMeaning: "是……（陈述句尾）", parts: ["ㅕ", "ㅣ"] },
+      { id: "v-wa", glyph: "ㅘ", romanization: "wa", ipa: "wa", cue: "ㅗ 滑向 ㅏ，像干脆的 wa", example: "과일", exampleMeaning: "水果", parts: ["ㅗ", "ㅏ"] },
+      { id: "v-wae", glyph: "ㅙ", romanization: "wae", ipa: "wɛ", cue: "ㅗ + ㅐ，口型从圆到开", example: "왜", exampleMeaning: "为什么", parts: ["ㅗ", "ㅐ"] },
+      { id: "v-oe", glyph: "ㅚ", romanization: "oe", ipa: "we", cue: "写作 ㅗ + ㅣ，但现代发音同 ㅞ", example: "회사", exampleMeaning: "公司", parts: ["ㅗ", "ㅣ"] },
+      { id: "v-wo", glyph: "ㅝ", romanization: "wo", ipa: "wʌ", cue: "ㅜ 滑向 ㅓ；韩元 원 就是它", example: "원", exampleMeaning: "韩元；圆", parts: ["ㅜ", "ㅓ"] },
+      { id: "v-we", glyph: "ㅞ", romanization: "we", ipa: "we", cue: "ㅜ + ㅔ，多见于外来词", example: "스웨터", exampleMeaning: "毛衣", parts: ["ㅜ", "ㅔ"] },
+      { id: "v-wi", glyph: "ㅟ", romanization: "wi", ipa: "wi", cue: "ㅜ 滑向 ㅣ，像法语 oui", example: "위", exampleMeaning: "上面；胃", parts: ["ㅜ", "ㅣ"] },
+      { id: "v-ui", glyph: "ㅢ", romanization: "ui", ipa: "ɰi", cue: "ㅡ 快速滑向 ㅣ；词首读 ui，词中常读 i，表示“的”时常读 e", example: "의사", exampleMeaning: "医生", parts: ["ㅡ", "ㅣ"] }
+    ]
+  },
+  {
     id: "consonants-basic",
     title: "基础辅音",
     track: "sound",
@@ -72,6 +91,8 @@ export const hangulGroups = [
 export const syllableLabs = [
   { pattern: "CV", blocks: ["ㄱ", "ㅏ"], result: "가", note: "辅音在左，竖元音在右。" },
   { pattern: "CV", blocks: ["ㄱ", "ㅗ"], result: "고", note: "横元音放在辅音下方。" },
+  { pattern: "CV", blocks: ["ㄱ", "ㅘ"], result: "과", note: "复合元音 ㅘ = ㅗ + ㅏ，横竖两部分包住辅音。" },
+  { pattern: "CV", blocks: ["ㅇ", "ㅢ"], result: "의", note: "ㅢ = ㅡ + ㅣ；ㅇ 在音节首不发音。" },
   { pattern: "CVC", blocks: ["ㅎ", "ㅏ", "ㄴ"], result: "한", note: "收音放在底部。" },
   { pattern: "CVCC", blocks: ["ㅇ", "ㅏ", "ㄹㄱ"], result: "읽", note: "双收音需要按词形和后续音变判断。" }
 ];
@@ -81,5 +102,10 @@ export const pronunciationPairs = [
   { id: "plain-tense-k", a: "가", b: "까", focus: "松音 ㄱ vs 紧音 ㄲ", tip: "까 不送气，但喉部更紧。" },
   { id: "eo-o", a: "어", b: "오", focus: "ㅓ vs ㅗ", tip: "오 圆唇，어 不圆唇且更靠后。" },
   { id: "eu-u", a: "으", b: "우", focus: "ㅡ vs ㅜ", tip: "우 圆唇，으 嘴唇放松。" },
-  { id: "s-si", a: "사", b: "시", focus: "ㅅ 遇 ㅣ 的音色变化", tip: "시 更接近 xi，不要读成 si。" }
+  { id: "s-si", a: "사", b: "시", focus: "ㅅ 遇 ㅣ 的音色变化", tip: "시 更接近 xi，不要读成 si。" },
+  { id: "ae-e", a: "개", b: "게", focus: "ㅐ vs ㅔ", tip: "现代口语两者几乎同音，靠词汇和拼写记忆区分。" },
+  { id: "ye-e", a: "예", b: "에", focus: "ㅖ vs ㅔ", tip: "예 前面有 y 滑音，에 直接发元音。" },
+  { id: "wa-o", a: "와", b: "오", focus: "ㅘ vs ㅗ", tip: "와 从圆唇滑向开口，오 保持圆唇不动。" },
+  { id: "oe-we", a: "외", b: "웨", focus: "ㅚ vs ㅞ", tip: "两者现代发音相同，都读 we，差别只在拼写。" },
+  { id: "ui-i", a: "의", b: "이", focus: "ㅢ vs ㅣ", tip: "의 先经过 ㅡ 再滑到 ㅣ，词中位置常弱化成 이。" }
 ];

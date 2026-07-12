@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { getNextLesson, lessons, milestones, UNLOCK_SCORE } from "../src/data/curriculum.js";
 import { grammarPoints } from "../src/data/grammar.js";
-import { hangulGroups } from "../src/data/hangul.js";
+import { hangulGroups, pronunciationPairs, syllableLabs } from "../src/data/hangul.js";
 import { vocab, vocabCategories, vocabLevels } from "../src/data/lexicon.js";
 import { nuanceSets } from "../src/data/nuance.js";
 import { pragmaticScenarios } from "../src/data/pragmatics.js";
@@ -280,6 +280,18 @@ for (const group of hangulGroups) {
   }
 }
 
+const hangulGlyphs = new Set(hangulGroups.flatMap((group) => group.items.map((item) => item.glyph)));
+for (const compoundVowel of ["ㅐ", "ㅔ", "ㅒ", "ㅖ", "ㅘ", "ㅙ", "ㅚ", "ㅝ", "ㅞ", "ㅟ", "ㅢ"]) {
+  assert(hangulGlyphs.has(compoundVowel), `hangul should teach compound vowel ${compoundVowel}`);
+}
+const compoundVowelGroup = hangulGroups.find((group) => group.id === "vowels-compound");
+assert(Boolean(compoundVowelGroup), "hangul should keep a dedicated compound vowel group");
+for (const item of compoundVowelGroup?.items ?? []) {
+  assert(Array.isArray(item.parts) && item.parts.length >= 2, `compound vowel ${item.id} should list its component parts`);
+}
+assert(pronunciationPairs.length >= 9, `pronunciation pairs should cover compound vowels too, found ${pronunciationPairs.length}`);
+assert(syllableLabs.some((lab) => ["ㅘ", "ㅙ", "ㅚ", "ㅝ", "ㅞ", "ㅟ", "ㅢ"].some((glyph) => lab.blocks.includes(glyph))), "syllable labs should demonstrate a compound vowel block");
+
 for (const scene of pragmaticScenarios) {
   assert(scene.lines?.length >= 2, `scenario ${scene.id} needs lines`);
   assert(scene.nativeMove, `scenario ${scene.id} needs nativeMove`);
@@ -411,6 +423,8 @@ assert(nativeRoadmapTotals.checkpoints >= 24, "native roadmap should preserve lo
 for (const file of [
   "src/app/layout.tsx",
   "src/app/page.tsx",
+  "src/app/onboarding/page.tsx",
+  "src/app/settings/page.tsx",
   "src/app/path/page.tsx",
   "src/app/self-study/page.tsx",
   "src/app/hangul/page.tsx",
@@ -421,6 +435,12 @@ for (const file of [
   "src/app/review/page.tsx",
   "src/app/mistakes/page.tsx",
   "src/app/quiz/page.tsx",
+  "src/components/korean/hangul-keyboard.tsx",
+  "src/components/korean/korean-input.tsx",
+  "src/components/korean/speech-status.tsx",
+  "src/components/korean/speech-settings.tsx",
+  "src/components/learning/onboarding-flow.tsx",
+  "src/lib/korean/jamo.ts",
   "public/manifest.webmanifest",
   "public/sw.js",
   "public/offline.html",
@@ -709,6 +729,18 @@ assert(lessonSessionSource.includes("kirina.lesson-session.v1") || learningStora
 assert(lessonSessionSource.includes("normalizeLessonPracticeSession") && lessonSessionSource.includes("lessonReviewCardId"), "lesson practice sessions should normalize against real lesson question ids");
 assert(drillRunnerSource.includes("initialAnswers") && drillRunnerSource.includes("onProgress") && drillRunnerSource.includes("buildInitialState"), "DrillRunner should support step resume and progress persistence");
 assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emittedResultRef"), "DrillRunner should expose an idempotent result hook so terminal quiz state can save before the next action");
+assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
+assert(drillRunnerSource.includes('role="progressbar"'), "DrillRunner should render a visible progress bar");
+assert(drillRunnerSource.includes("playedListenRef"), "DrillRunner should auto-play listen prompts once per question");
+const speechSource = readFileSync("src/lib/speech.js", "utf8");
+assert(speechSource.includes("kirina.speech.v1") && learningStorageSource.includes("kirina.speech.v1") && learningBackupSource.includes("normalizeSpeechSettings"), "speech settings key should be declared in speech.js, storage keys, and backup normalization");
+assert(speechSource.includes("ensureVoicesReady") && speechSource.includes("voiceschanged"), "speech should wait for voices to load before first playback");
+assert(speechSource.includes("getKoreanVoiceStatus") && speechSource.includes('"missing"'), "speech should detect a missing Korean voice pack");
+assert(appShellSource.includes("<SpeechStatusBanner"), "AppShell should surface the Korean voice status banner");
+assert(appShellSource.includes('"/settings"'), "AppShell should link to the settings page");
+const onboardingFlowSource = readFileSync("src/components/learning/onboarding-flow.tsx", "utf8");
+assert(onboardingFlowSource.includes("KoreanInput") && onboardingFlowSource.includes("speakKorean") && onboardingFlowSource.includes("onboardedAt"), "onboarding flow should cover keyboard practice, voice check, and persist onboardedAt");
+assert(onboardingFlowSource.includes('"/learn/l01-hangul-map"'), "onboarding flow should land learners on the first lesson");
 assert(lessonClientSource.includes("getLessonPracticeSession") && lessonClientSource.includes("saveLessonPracticeSession") && lessonClientSource.includes("clearLessonPracticeSession"), "lesson client should restore, persist, and clear in-progress lesson sessions");
 assert(lessonClientSource.includes("sessionSaveError") && lessonClientSource.includes("断点没有写入本地存储"), "lesson client should warn when in-progress resume state cannot be saved");
 assert(lessonClientSource.includes("sessionClearError") && lessonClientSource.includes("重试清理断点"), "lesson client should warn and retry when a saved lesson cannot clear stale resume state");
@@ -731,6 +763,7 @@ assert(homePage.includes("练习轨迹") && homePage.includes("workspace.stats.w
 assert(homePage.includes("saveProfile") && homePage.includes("handleStudyMode") && homePage.includes('aria-pressed={profile.studyMode === "guided"}') && homePage.includes('aria-pressed={profile.studyMode === "self"}'), "home page should let learners switch guided path and self-study mode directly");
 assert(homePage.includes("lg:hidden") && homePage.includes("hidden rounded-[8px]") && homePage.includes("lg:block"), "home page should keep the large workspace dashboard desktop-only");
 assert(homePage.includes('<LearningCompass workspace={workspace} active="workspace" condensed />'), "home page should use the condensed learning compass");
+assert(homePage.includes('"/onboarding"') && homePage.includes("isFirstVisit"), "home page should invite brand-new learners into onboarding");
 for (const [route, pageSource, requiresCompass] of [
   ["/hangul", hangulPage, false],
   ["/vocabulary", vocabularyPage, false],

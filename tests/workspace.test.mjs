@@ -393,7 +393,7 @@ test("resetLearningWorkspace clears profile, progress, SRS, and outputs together
   const outputs = JSON.parse(store.get(outputStorageKey));
   const lessonSession = JSON.parse(store.get(lessonSessionStorageKey));
   const drafts = JSON.parse(store.get(draftStorageKey));
-  assert.equal(profile.studyMode, "self");
+  assert.equal(profile.studyMode, "guided");
   assert.equal(profile.minutesGoal, 30);
   assert.equal(profile.selfStudyGoal, "foundation");
   assert.deepEqual(progress.completedLessons, []);
