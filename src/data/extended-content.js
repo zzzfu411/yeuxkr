@@ -120,7 +120,7 @@ export const extraLessons = [
     ],
     drills: [
       { type: "choice", prompt: "바빠서 못 갔어요 的原因是？", answer: "忙", choices: ["忙", "远", "贵", "冷"], explain: "바쁘다 -> 바빠서。" },
-      { type: "type", prompt: "因为下雨：비가 오___ 집에 있었어요.", answer: "아서", acceptable: ["아서"], explain: "오다 -> 와서，但题干保留 오，需要写 아서 作结构识别。" },
+      { type: "type", prompt: "因为下雨待在家：비가 ___ 집에 있었어요.（오다 + -아서）", answer: "와서", acceptable: ["와서"], explain: "오다 + -아서 → 와서：ㅗ 与 아 缩合成 와，不能写成 오아서。" },
       { type: "choice", prompt: "-기 때문에 常用于？", answer: "更明确的原因说明", choices: ["更明确的原因说明", "数量单位", "请求许可", "道歉结尾"], explain: "때문에 表示原因。"}
     ],
     unlocks: ["l17-phone-message"]

@@ -1,4 +1,4 @@
-const CACHE_NAME = "kirina-korean-next-5f4c0b3239";
+const CACHE_NAME = "kirina-korean-next-5b05247db4";
 const CACHE_PREFIX = "kirina-korean-next-";
 const NON_HASHED_ASSET_PREFIXES = ["/assets/"];
 

@@ -487,7 +487,7 @@ export function toggleNativeItem(itemId: string, fallbackProgress: LearningProgr
   return true;
 }
 
-export type NativeEvidenceInput = { listened?: boolean; retell?: string; transfer?: string };
+export type NativeEvidenceInput = { listened?: boolean; retell?: string; transfer?: string; updatedAt?: string };
 
 export function saveNativePracticeEvidence(itemId: string, evidence: NativeEvidenceInput, fallbackProgress: LearningProgress = defaultProgress()) {
   if (!nativeIdSet.has(itemId)) return false;
