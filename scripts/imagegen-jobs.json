@@ -1,0 +1,140 @@
+[
+  {
+    "id": "hero",
+    "file": "hero.png",
+    "size": "1536x1024",
+    "prompt": "Wide editorial hero still life for a premium Korean learning application. A real Seoul study desk seen at a shallow overhead angle: unlabeled transit-map fragments, tactile Korean paper, small sound-wave printouts, abstract syllable construction tiles, a celadon ceramic paperweight, deep ocean blue notebook edge, one cinnabar registration mark and restrained brass tools. The left half has calm pale negative space for large headline overlay; the right half carries the detailed objects. Cool hanji white, ink black, celadon green, deep ocean blue, tiny cinnabar and aged brass accents. Natural morning side light, crisp documentary photography, refined Korean editorial design, subtle paper grain, realistic materials, no people, no hands, no readable text, no letters, no logos, no watermark, no UI mockup, no beige-dominant palette, no bokeh, no gradient blobs."
+  },
+  {
+    "id": "workspace",
+    "file": "workspace.png",
+    "size": "1536x1024",
+    "prompt": "Premium editorial learning workspace still life for Korean study. Modular weekly planning slips, blank progress rails, a compact brass timer, abstract sound waveform cards, removable celadon tabs and an unlabeled Seoul route fragment arranged with operational clarity on cool white hanji. Dense but orderly, built for repeated daily work, not a lifestyle advertisement. Ink black, celadon, deep ocean blue, small cinnabar and brass accents, natural side light, realistic tactile paper and metal, high-end Korean magazine photography, no people, no hands, no readable text, no letters, no logos, no watermark, no UI screen, no beige-dominant palette, no bokeh."
+  },
+  {
+    "id": "path",
+    "file": "path.png",
+    "size": "1536x1024",
+    "prompt": "Seoul transit editorial route atlas for a Korean learning path. A folded unlabeled metropolitan map with five physical milestone markers connected by a fine ink route, each stage represented by distinct objects: carved sound block, conversation token, connector strips, audio spool, formal register seal. Cool hanji white background, ink black geometry, celadon green and deep ocean blue markers, one cinnabar endpoint, restrained aged brass pins. Precise overhead documentary still life, generous negative space, realistic paper fibers and shadows, no people, no hands, no readable text, no letters, no logos, no watermark, no fake interface, no beige-dominant palette."
+  },
+  {
+    "id": "selfStudy",
+    "file": "self-study.png",
+    "size": "1536x1024",
+    "prompt": "Self-directed Korean study planning system photographed as a refined editorial still life. Interchangeable blank weekly rhythm cards, goal compass, focus dial, small review deck and checkpoint clips laid on cool white hanji, showing freedom within a complete plan. Quiet operational design, crisp grid, celadon ruler, deep blue folder, cinnabar checkpoint, brass clip. Natural north-window side light, realistic premium stationery, no people, no hands, no readable text, no letters, no logos, no watermark, no UI mockup, no beige-dominant palette, no decorative blobs."
+  },
+  {
+    "id": "hangul",
+    "file": "hangul.png",
+    "size": "1536x1024",
+    "prompt": "Korean sound and writing laboratory in Seoul transit editorial style. Precision tracing grid without characters, modular wooden stroke pieces forming abstract square syllable architecture, mouth-position contour cards without labels, a thin paper strip reacting to airflow, celadon calibration tile and deep blue sound card. Scientific but warm, cool hanji white, ink black, celadon, ocean blue, tiny cinnabar and brass. Oblique natural side light, highly realistic materials, no people, no hands, no readable text, no actual letters, no logos, no watermark, no classroom clip art, no beige-dominant palette."
+  },
+  {
+    "id": "vocabulary",
+    "file": "vocabulary.png",
+    "size": "1536x1024",
+    "prompt": "Korean vocabulary field atlas as a sophisticated object taxonomy. Small real everyday objects from cafe, transit, home and weather arranged in labeled-looking but completely blank category trays: ceramic cup, transit token, key, folded umbrella, medicine packet without branding, clock face without numerals. Cool white paper base, ink dividers, celadon and deep ocean category tabs, minimal cinnabar and brass. Editorial museum-catalog photography, natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no stock-photo mood, no beige-dominant palette."
+  },
+  {
+    "id": "grammar",
+    "file": "grammar.png",
+    "size": "1536x1024",
+    "prompt": "Korean grammar workshop visualized with real physical sentence architecture. Blank modular paper strips interlock into subject, time, place, object and ending positions; transparent overlays show connection and contrast without any writing. Precise typographic grid, brass alignment markers, celadon connectors, deep ocean base rail and one cinnabar correction tab. Cool hanji white, crisp editorial documentary photography, natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no fake UI, no beige-dominant palette."
+  },
+  {
+    "id": "native",
+    "file": "native.png",
+    "size": "1536x1024",
+    "prompt": "Advanced Korean pragmatics and register desk in refined Seoul editorial style. Two dialogue positions represented by different stationery distances and materials, formal black seal beside a relaxed celadon note, layered translucent relation maps, subtle speech-turn tokens and a deep blue workplace folder. Mature, nuanced, socially aware, cool white hanji, ink black, celadon, ocean blue, tiny cinnabar and brass accents. Natural evening side light, realistic editorial still life, no people, no hands, no readable text, no letters, no logos, no watermark, no theatrical masks, no beige-dominant palette."
+  },
+  {
+    "id": "immersion",
+    "file": "immersion.png",
+    "size": "1536x1024",
+    "prompt": "Korean listening immersion lab as an elegant editorial still life. Studio headphones, compact field recorder, blank transcript cards, waveform strips, a dictation pencil, retelling sequence tokens and a celadon audio spool arranged as a repeatable listen-dictate-retell workflow. Cool hanji white, ink black, deep ocean blue equipment, celadon accents, tiny cinnabar cue and brass hardware. Natural side light, realistic premium materials, no people, no hands, no readable text, no letters, no logos, no watermark, no glowing screens, no beige-dominant palette."
+  },
+  {
+    "id": "quiz",
+    "file": "quiz.png",
+    "size": "1536x1024",
+    "prompt": "Cross-skill Korean transfer assessment table in Seoul transit editorial style. Sound tokens, abstract syllable blocks, everyday vocabulary objects, grammar connection strips and a brass timing dial converge at one central answer tray. Dense but extremely organized, like a professional testing instrument. Cool white hanji, ink black, celadon, deep ocean blue, one cinnabar decision marker, realistic natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no game-show style, no beige-dominant palette."
+  },
+  {
+    "id": "lesson",
+    "file": "lesson.png",
+    "size": "1536x1024",
+    "prompt": "General Korean lesson folio in premium Seoul editorial style. Four numbered-looking but completely blank teaching slips, objective tabs, an abstract syllable construction sheet, listening token and one active-production card arranged in a clear teach-practice-transfer sequence. Cool hanji white, ink black, celadon bookmark, deep ocean blue folio, tiny cinnabar and brass. Natural side light, realistic tactile stationery, no people, no hands, no readable text, no letters, no logos, no watermark, no beige-dominant palette."
+  },
+  {
+    "id": "review",
+    "file": "review.png",
+    "size": "1536x1024",
+    "prompt": "Spaced repetition review queue photographed as a refined Korean editorial system. A disciplined stack of blank memory cards moving along an interval timeline, brass date dial, celadon review tray, deep ocean archive box and one cinnabar due marker. Visual rhythm suggests repeated return over months, not a flashcard game. Cool hanji white, realistic paper and metal, natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no beige-dominant palette."
+  },
+  {
+    "id": "complete",
+    "file": "complete.png",
+    "size": "1536x1024",
+    "prompt": "Quiet completion state for a premium Korean learning application. A finished stack of study evidence bound with a celadon band, one restrained cinnabar seal impression without symbols, a brass clip and a deep blue next-stage tab, photographed on cool white hanji with generous negative space. Earned progress, calm confidence, editorial realism, natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no trophy, no confetti, no beige-dominant palette."
+  },
+  {
+    "id": "empty",
+    "file": "empty.png",
+    "size": "1536x1024",
+    "prompt": "Purposeful empty state in Seoul editorial style. An open cool-white paper tray holds a single blank seed card, one celadon listening token and a deep blue edge, with abundant clean space ready for future Korean study evidence. Subtle paper grain, one tiny brass registration pin, soft natural side light, realistic minimal still life, no people, no hands, no readable text, no letters, no logos, no watermark, no sad illustration, no beige-dominant palette."
+  },
+  {
+    "id": "iconBase",
+    "file": "icon-base.png",
+    "size": "1024x1024",
+    "prompt": "Square app icon base for Kirina Korean. A compact original geometric mark built from three interlocking square stroke modules suggesting a syllable block and a transit interchange, centered with generous safe margin. Ink black mark on cool hanji white, one celadon segment, one deep ocean segment and a tiny cinnabar registration square, subtle brass edge, flat tactile printmaking finish, high contrast at small size. No readable text, no letters, no logo imitation, no watermark, no gradients, no rounded app-icon mask, no beige-dominant palette."
+  },
+  {
+    "id": "lessonPronunciation",
+    "file": "lesson-pronunciation.png",
+    "size": "1536x1024",
+    "prompt": "Korean pronunciation lesson scene in Seoul transit editorial style. Three airflow experiments for plain, tense and aspirated consonants using thin paper flags, pressure rings and abstract sound blocks, plus a seven-stop final-consonant landing rail. Precise acoustic lab still life, cool hanji white, ink black, celadon, deep ocean blue, tiny cinnabar and brass, realistic natural side light, no people, no mouth close-up, no hands, no readable text, no letters, no logos, no watermark, no beige-dominant palette."
+  },
+  {
+    "id": "lessonCafe",
+    "file": "lesson-cafe.png",
+    "size": "1536x1024",
+    "prompt": "Korean cafe service language lesson as a sophisticated real counter still life. Ceramic cup, takeaway sleeve without branding, order token, quantity counter, card payment terminal with blank screen and a small dine-in versus takeaway split tray. Seoul cafe realism with operational clarity, cool white paper, ink black, celadon ceramic, deep ocean card, tiny cinnabar order marker and brass. Natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no stock-photo latte art, no beige-dominant palette."
+  },
+  {
+    "id": "lessonTransit",
+    "file": "lesson-transit.png",
+    "size": "1536x1024",
+    "prompt": "Korean subway and location language lesson in Seoul transit editorial style. Unlabeled metro interchange map, direction arrows, platform token, station-exit geometry, destination and action-location markers arranged as a clear route problem. Cool hanji white, ink black, celadon line, deep ocean line, cinnabar transfer point, brass pin. Realistic map-paper still life, natural side light, no people, no hands, no readable text, no letters, no station names, no logos, no watermark, no beige-dominant palette."
+  },
+  {
+    "id": "lessonTime",
+    "file": "lesson-time.png",
+    "size": "1536x1024",
+    "prompt": "Korean time, date and planning lesson as a refined editorial still life. Two contrasting counting systems represented by distinct token sets, a clock face without numerals, calendar grid without text, appointment rail and future-plan tabs. Cool hanji white, ink black, celadon date tokens, deep ocean planner, small cinnabar deadline and brass hands. Crisp natural side light, realistic materials, no people, no hands, no readable text, no letters, no logos, no watermark, no beige-dominant palette."
+  },
+  {
+    "id": "lessonHealth",
+    "file": "lesson-health.png",
+    "size": "1536x1024",
+    "prompt": "Korean health and pharmacy language lesson in calm clinical editorial style. Unbranded medicine packet, thermometer without digits, abstract body-location card, symptom timeline and polite request token on cool white hanji. Clean but human, ink black, celadon medical tray, deep ocean folder, tiny cinnabar symptom marker and brass clip. Natural side light, realistic still life, no people, no body photography, no hands, no readable text, no letters, no logos, no watermark, no hospital stock image, no beige-dominant palette."
+  },
+  {
+    "id": "lessonMedia",
+    "file": "lesson-media.png",
+    "size": "1536x1024",
+    "prompt": "Korean media listening and shadowing lesson in modern Seoul editorial style. Headphones, portable recorder, three-pass waveform strips, reaction-intensity tokens, blank subtitle frames and a replay dial arranged for listen-shadow-retell practice. Cool white hanji, ink black, deep ocean equipment, celadon strips, one cinnabar reaction cue and brass details. Realistic natural side light, no people, no hands, no readable text, no letters, no logos, no watermark, no neon entertainment collage, no beige-dominant palette."
+  },
+  {
+    "id": "lessonHonorific",
+    "file": "lesson-honorific.png",
+    "size": "1536x1024",
+    "prompt": "Korean workplace honorific and register lesson as a mature editorial still life. Formal black folder, completely blank visitor card, two seating-distance markers, respectful handoff tray without hands, a plain cinnabar stamp handle shown from the side with its stamp face fully hidden, an abstract telephone token without digits, and a layered relationship map made only of circles and lines. Cool hanji white, ink black, celadon courtesy marker, deep ocean workplace folder, restrained cinnabar and brass. Natural side light, realistic premium office materials. Absolutely no writing or writing-like marks anywhere: no seal characters, no calligraphy, no pseudo-characters, no readable text, no letters, no numerals, no logos, no watermark. No people, no hands, no corporate stock photo, no beige-dominant palette."
+  },
+  {
+    "id": "lessonOutput",
+    "file": "lesson-output.png",
+    "size": "1536x1024",
+    "prompt": "Korean output portfolio lesson in refined Seoul editorial style. A four-part opinion structure, retelling sequence rail, revision overlays, recording spool and evidence folio arranged from draft to revised final piece, all cards completely blank. Cool hanji white, ink black, celadon revision layers, deep ocean portfolio, one cinnabar correction mark and brass binding. Natural side light, realistic tactile materials, no people, no hands, no readable text, no letters, no logos, no watermark, no graduation imagery, no beige-dominant palette."
+  }
+]

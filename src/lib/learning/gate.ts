@@ -1,23 +1,64 @@
 "use client";
 
 import { grammarPoints } from "../../data/grammar.js";
-import { hangulGroups } from "../../data/hangul.js";
+import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
 import { vocab } from "../../data/lexicon.js";
 import { soundChangeRules } from "../../data/sound-changes.js";
-import { grammarQuestionId, hangulQuestionId, soundChangeQuestionId, vocabQuestionId } from "./ids.ts";
+import { grammarQuestionId, hangulQuestionId, pronunciationQuestionId, soundChangeQuestionId, vocabQuestionId } from "./ids.ts";
 import { buildDistractors, makeChoices, seededRandom, type Question } from "./quiz.ts";
 
 export const GATE_PASS_SCORE = 75;
 
-export type GateKind = "hangul" | "vocab" | "grammar" | "soundChange";
+export function hasSkippedGateAudio(answers: Array<{ skipped?: boolean; question?: { type?: string } }>) {
+  return answers.some((entry) => entry.skipped && (entry.question?.type === "listen" || entry.question?.type === "dictation"));
+}
+
+export type GateKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "soundChange";
 
 export function buildGateQuestions(kind: GateKind, itemId: string, seed = 1): Question[] {
   const random = seededRandom(seed);
   if (kind === "hangul") return buildHangulGate(itemId, random);
+  if (kind === "pronunciation") return buildPronunciationGate(itemId, random);
   if (kind === "vocab") return buildVocabGate(itemId, random);
   if (kind === "grammar") return buildGrammarGate(itemId, random);
   if (kind === "soundChange") return buildSoundChangeGate(itemId, random);
   return [];
+}
+
+function buildPronunciationGate(itemId: string, random: () => number): Question[] {
+  const pair = pronunciationPairs.find((entry: any) => entry.id === itemId);
+  if (!pair) return [];
+  const syllables = [...new Set(pronunciationPairs.flatMap((entry: any) => [entry.a, entry.b]))];
+  const otherFocus = pronunciationPairs.filter((entry: any) => entry.id !== itemId).map((entry: any) => entry.focus);
+  return [
+    {
+      id: `${pronunciationQuestionId(itemId)}:gate1`,
+      type: "listen",
+      prompt: "只听第一个音节，选出你听到的韩文。",
+      answer: pair.a,
+      choices: makeChoices(pair.a, syllables.filter((item) => item !== pair.a), 4, random),
+      explain: `${pair.a} / ${pair.b}：${pair.tip}`,
+      speak: pair.a
+    },
+    {
+      id: `${pronunciationQuestionId(itemId)}:gate2`,
+      type: "listen",
+      prompt: "只听第二个音节，选出你听到的韩文。",
+      answer: pair.b,
+      choices: makeChoices(pair.b, syllables.filter((item) => item !== pair.b), 4, random),
+      explain: `${pair.a} / ${pair.b}：${pair.tip}`,
+      speak: pair.b
+    },
+    {
+      id: `${pronunciationQuestionId(itemId)}:gate3`,
+      type: "choice",
+      prompt: `${pair.a} vs ${pair.b} 的训练重点是什么？`,
+      answer: pair.focus,
+      choices: makeChoices(pair.focus, otherFocus, 4, random),
+      explain: pair.tip,
+      speak: `${pair.a}. ${pair.b}`
+    }
+  ];
 }
 
 function buildHangulGate(itemId: string, random: () => number): Question[] {
@@ -43,7 +84,7 @@ function buildHangulGate(itemId: string, random: () => number): Question[] {
       answer: item.romanization,
       choices: makeChoices(item.romanization, otherRoman, 4, random),
       explain: item.cue,
-      speak: item.example
+      speak: item.sound
     },
     {
       id: `${hangulQuestionId(itemId)}:gate3`,
@@ -52,7 +93,7 @@ function buildHangulGate(itemId: string, random: () => number): Question[] {
       answer: item.glyph,
       choices: makeChoices(item.glyph, otherGlyphs, 4, random),
       explain: `${item.glyph}：${item.cue}`,
-      speak: item.example
+      speak: item.sound
     },
     {
       id: `${hangulQuestionId(itemId)}:gate4`,

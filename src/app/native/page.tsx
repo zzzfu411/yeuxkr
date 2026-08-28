@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Gauge, MessagesSquare, ShieldCheck, Sparkles, Volume2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, FilePenLine, Gauge, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
@@ -12,6 +12,7 @@ import { getCurrentInAppNativeStage, nativeRoadmapTotals } from "@/data/native-r
 import { nuanceSets } from "@/data/nuance";
 import { pragmaticScenarios } from "@/data/pragmatics";
 import { hasKoreanOutputRewrite, hasKoreanRetellEvidence } from "@/lib/learning/evidence";
+import { countSavedCollocationEvidence, useNativePortfolio, type NativePortfolioDraft, type NativePortfolioEntry } from "@/lib/learning/native-portfolio";
 import { speakKorean } from "@/lib/speech";
 import { countCheckpointCredits, countNativePracticeEvidence, useLearningWorkspace, type NativeEvidenceInput } from "@/lib/learning/workspace";
 
@@ -33,12 +34,13 @@ export default function NativePage() {
   const [showAll, setShowAll] = useState(false);
   const portfolioEvidence = {
     vocabulary: workspace.progress.learnedVocab.length,
+    collocations: countSavedCollocationEvidence(workspace.progress.learnedVocab),
     materials: workspace.stats.completedMaterials,
     outputTasks: workspace.stats.outputEntries,
     checkpoints: countCheckpointCredits(workspace.progress),
     native: countNativePracticeEvidence(workspace.progress)
   };
-  const { currentStage, longTermStage, inAppPortfolioComplete } = getCurrentInAppNativeStage(portfolioEvidence);
+  const { currentStage, inAppPortfolioComplete } = getCurrentInAppNativeStage(portfolioEvidence);
   const stageTargets = currentStage.deliverables;
   const nativeItems = useMemo(() => buildNativeItems(), []);
   const filteredItems = useMemo(() => {
@@ -63,6 +65,7 @@ export default function NativePage() {
   const nuanceItems = visibleItems.filter((item) => item.track === "nuance");
   const portfolioRows = [
     { label: "词汇入册", value: portfolioEvidence.vocabulary, target: stageTargets.vocabulary, href: "/vocabulary" },
+    { label: "已入册搭配", value: portfolioEvidence.collocations, target: stageTargets.collocations, href: "/vocabulary" },
     { label: "母语者表达", value: portfolioEvidence.native, target: stageTargets.native, href: "/native" },
     { label: "材料完成", value: portfolioEvidence.materials, target: stageTargets.materials, href: "/immersion" },
     { label: "输出档案", value: portfolioEvidence.outputTasks, target: stageTargets.outputTasks, href: "/immersion" },
@@ -109,6 +112,120 @@ export default function NativePage() {
         compact
       />
 
+      <section className="grid gap-4 border-y border-[var(--line)] py-5">
+        <SectionHeading
+          kicker="Rehearsal Console"
+          title="今日母语者切片：先排练一句真的会用的表达"
+          copy="搜索、筛选、播放、加入 SRS 都在这里完成。默认只给 6 张卡，是为了让你把每张都听、复述、换关系，而不是把高级表达当词条浏览。"
+          action={activeFilters.filter(Boolean).length ? (
+            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+              重置筛选
+            </Button>
+          ) : null}
+        />
+        <div className="grid gap-4">
+          <SearchField label="搜索表达" value={query} onChange={setQuery} placeholder="输入 韩语 / 中文 / 语气 / 场景 / 关系" />
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
+            <SegmentedFilter
+              label="训练轨道"
+              value={trackFilter}
+              options={trackOptions.map((item) => ({ ...item, label: item.id === "all" ? item.label : `${item.label} ${trackCounts[item.id] ?? 0}` }))}
+              onChange={setTrackFilter}
+            />
+            <SegmentedFilter
+              label="层级"
+              value={levelFilter}
+              options={levelOptions}
+              onChange={setLevelFilter}
+            />
+            <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
+          </div>
+          <FilterSummary count={filteredItems.length} filters={activeFilters} unit="expressions" />
+          {!focusedFilterActive ? (
+            <div className="grid gap-3 rounded-[8px] border border-[rgba(185,78,60,0.22)] bg-[rgba(185,78,60,0.07)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <span>
+                当前先显示 {visibleItems.length} 个今日母语者切片，混合场景语用和语气细差；每张卡都要听、复述、换一个关系场景再加入 SRS。熟悉后再展开剩余 {hiddenItemCount} 个表达。
+              </span>
+              {showAll || hiddenItemCount ? (
+                <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
+                  {showAll ? "收起到今日切片" : "展开全部表达"}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {!filteredItems.length ? (
+        <Surface>
+          <EmptyState title="没有匹配的母语者表达" copy="换一个搜索词，或重置轨道、层级和 SRS 筛选。" onAction={resetFilters} />
+        </Surface>
+      ) : null}
+
+      {pragmaticItems.length ? (
+        <section className="grid gap-4">
+          <SectionHeading kicker="Pragmatics" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
+          <div className="grid gap-4 xl:grid-cols-2">
+            {pragmaticItems.map((item) => (
+              <NativeCard
+                key={item.id}
+                item={item}
+                learned={learned.has(item.srsId)}
+                evidence={workspace.progress.nativeEvidence[item.srsId]}
+                hasError={srsErrorId === item.srsId}
+                hasEvidenceError={evidenceErrorId === item.srsId}
+                onToggle={() => toggleNativeSrs(item.srsId)}
+                onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {nuanceItems.length ? (
+        <section className="grid gap-4">
+          <SectionHeading kicker="Nuance" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
+          <div id="nuance" className="grid gap-4 xl:grid-cols-2">
+            {nuanceItems.map((item) => (
+              <NativeCard
+                key={item.id}
+                item={item}
+                learned={learned.has(item.srsId)}
+                evidence={workspace.progress.nativeEvidence[item.srsId]}
+                hasError={srsErrorId === item.srsId}
+                hasEvidenceError={evidenceErrorId === item.srsId}
+                onToggle={() => toggleNativeSrs(item.srsId)}
+                onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid gap-4">
+        <SectionHeading
+          kicker="Today"
+          title="今天让语气更自然"
+          copy="不要只收藏表达。每个动作都要回到材料、输出或复习。"
+        />
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {currentStage.todayActions.map((action, index) => (
+            <Link
+              key={`${currentStage.id}:${action.title}`}
+              href={action.href}
+              className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm"
+            >
+              <span className="mb-2 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
+                <Gauge className="h-4 w-4" />
+                Step {index + 1}
+              </span>
+              <strong className="block font-serif text-xl leading-tight">{action.title}</strong>
+              <span className="mt-2 block text-sm font-bold leading-6 text-[var(--muted)]">{action.task}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <ModuleHero
         kicker="Dialogue Theater"
         title="从“正确”到“合适”。"
@@ -130,7 +247,7 @@ export default function NativePage() {
               <h2 className="mt-2 font-serif text-3xl font-black leading-tight md:text-4xl">{currentStage.title}</h2>
               <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-[rgba(255,250,240,0.72)]">{currentStage.target}</p>
             </div>
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
               {portfolioRows.map((row) => (
                 <Link key={row.label} href={row.href} className="focus-ring rounded-[8px] border border-[rgba(255,250,240,0.16)] bg-[rgba(255,250,240,0.07)] p-3 transition hover:-translate-y-0.5">
                   <span className="font-mono text-[0.66rem] font-black uppercase text-[rgba(255,250,240,0.6)]">{row.label}</span>
@@ -145,7 +262,7 @@ export default function NativePage() {
           </div>
         </div>
 
-        <Surface className="grid content-between gap-4">
+        <div className="grid content-between gap-4 border-y border-[var(--line)] py-4">
           <div>
             <p className="eyebrow">Gate Meter</p>
             <div className="mt-3 flex items-end justify-between gap-3">
@@ -160,159 +277,341 @@ export default function NativePage() {
           </div>
           <div className="grid gap-2">
             {currentStage.gates.map((gate) => (
-              <div key={gate} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.58)] p-3">
+              <div key={gate} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-t border-[var(--line)] pt-3">
                 <ShieldCheck className="mt-0.5 h-4 w-4 text-[var(--ocean)]" />
                 <span className="text-sm font-bold leading-6 text-[var(--muted)]">{gate}</span>
               </div>
             ))}
           </div>
-        </Surface>
+        </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Surface>
-          <SectionHeading
-            kicker="Rehearsal Console"
-            title="今日母语者切片：先排练一句真的会用的表达"
-            copy="搜索、筛选、播放、加入 SRS 都在这里完成。默认只给 6 张卡，是为了让你把每张都听、复述、换关系，而不是把高级表达当词条浏览。"
-            action={activeFilters.filter(Boolean).length ? (
-              <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-                重置筛选
-              </Button>
-            ) : null}
-          />
-          <div className="grid gap-4">
-            <SearchField label="搜索表达" value={query} onChange={setQuery} placeholder="输入 韩语 / 中文 / 语气 / 场景 / 关系" />
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
-              <SegmentedFilter
-                label="训练轨道"
-                value={trackFilter}
-                options={trackOptions.map((item) => ({ ...item, label: item.id === "all" ? item.label : `${item.label} ${trackCounts[item.id] ?? 0}` }))}
-                onChange={setTrackFilter}
-              />
-              <SegmentedFilter
-                label="层级"
-                value={levelFilter}
-                options={levelOptions}
-                onChange={setLevelFilter}
-              />
-              <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
-            </div>
-            <FilterSummary count={filteredItems.length} filters={activeFilters} unit="expressions" />
-            {!focusedFilterActive ? (
-              <div className="grid gap-3 rounded-[8px] border border-[rgba(185,78,60,0.22)] bg-[rgba(185,78,60,0.07)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <span>
-                  当前先显示 {visibleItems.length} 个今日母语者切片，混合场景语用和语气细差；每张卡都要听、复述、换一个关系场景再加入 SRS。熟悉后再展开剩余 {hiddenItemCount} 个表达。
-                </span>
-                {showAll || hiddenItemCount ? (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                    {showAll ? "收起到今日切片" : "展开全部表达"}
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </Surface>
-
-        <Surface className="h-fit xl:sticky xl:top-24">
-          <SectionHeading
-            kicker="Today"
-            title="今天让语气更自然"
-            copy="不要只收藏表达。每个动作都要回到材料、输出或复习。"
-          />
-          <div className="grid gap-2">
-            {currentStage.todayActions.map((action, index) => (
-              <Link
-                key={`${currentStage.id}:${action.title}`}
-                href={action.href}
-                className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm"
-              >
-                <span className="mb-2 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
-                  <Gauge className="h-4 w-4" />
-                  Step {index + 1}
-                </span>
-                <strong className="block font-serif text-xl leading-tight">{action.title}</strong>
-                <span className="mt-2 block text-sm font-bold leading-6 text-[var(--muted)]">{action.task}</span>
-              </Link>
-            ))}
-          </div>
-        </Surface>
-      </section>
-
-      {!filteredItems.length ? (
-        <Surface>
-          <EmptyState title="没有匹配的母语者表达" copy="换一个搜索词，或重置轨道、层级和 SRS 筛选。" onAction={resetFilters} />
-        </Surface>
-      ) : null}
-
-      {pragmaticItems.length ? (
-        <Surface>
-          <SectionHeading kicker="Pragmatics" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
-          <div className="grid gap-4 xl:grid-cols-2">
-            {pragmaticItems.map((item) => (
-              <NativeCard
-                key={item.id}
-                item={item}
-                learned={learned.has(item.srsId)}
-                evidence={workspace.progress.nativeEvidence[item.srsId]}
-                hasError={srsErrorId === item.srsId}
-                hasEvidenceError={evidenceErrorId === item.srsId}
-                onToggle={() => toggleNativeSrs(item.srsId)}
-                onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
-              />
-            ))}
-          </div>
-        </Surface>
-      ) : null}
-
-      {nuanceItems.length ? (
-        <Surface>
-          <SectionHeading kicker="Nuance" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
-          <div id="nuance" className="grid gap-4 xl:grid-cols-2">
-            {nuanceItems.map((item) => (
-              <NativeCard
-                key={item.id}
-                item={item}
-                learned={learned.has(item.srsId)}
-                evidence={workspace.progress.nativeEvidence[item.srsId]}
-                hasError={srsErrorId === item.srsId}
-                hasEvidenceError={evidenceErrorId === item.srsId}
-                onToggle={() => toggleNativeSrs(item.srsId)}
-                onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
-              />
-            ))}
-          </div>
-        </Surface>
-      ) : null}
-
-      <Surface>
-        <SectionHeading
-          kicker="Native Portfolio"
-          title="练习之后，再把证据收进作品集。"
-          copy={`${inAppPortfolioComplete ? "站内阶段已跑通" : "当前站内阶段"}：${currentStage.band} · ${currentStage.title}。站内先完成可执行证据闭环；真正接近母语者的长期作品集会作为扩容目标单独保留。`}
-        />
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {portfolioRows.map((row) => (
-            <PortfolioMetric key={row.label} label={row.label} value={row.value} target={row.target} />
-          ))}
-        </div>
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="grid gap-2 rounded-[8px] border border-[rgba(183,135,63,0.36)] bg-[rgba(183,135,63,0.08)] p-4">
-            <p className="font-mono text-xs font-black uppercase text-[var(--brass)]">Quality Gates</p>
-            {currentStage.gates.map((gate) => (
-              <p key={gate} className="text-sm font-bold leading-6 text-[var(--muted)]">{gate}</p>
-            ))}
-          </div>
-          <div className="grid gap-2 rounded-[8px] border border-[rgba(23,63,115,0.22)] bg-[rgba(23,63,115,0.06)] p-4">
-            <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">Long-term portfolio target</p>
-            <p className="text-sm font-bold leading-6 text-[var(--muted)]">
-              下一轮站外扩容从 {longTermStage.band} 开始，长期路线仍保留 {nativeRoadmapTotals.vocabulary.toLocaleString()}+ 词、{nativeRoadmapTotals.native.toLocaleString()}+ 母语者表达、{nativeRoadmapTotals.materials.toLocaleString()}+ 材料、{nativeRoadmapTotals.outputTasks.toLocaleString()}+ 输出档案和 {nativeRoadmapTotals.checkpoints.toLocaleString()} 个检查点；这些属于站外扩容，不会冒充当前站内完成条件。
-            </p>
-          </div>
-        </div>
-      </Surface>
+      <LongTermNativePortfolio />
     </div>
   );
+}
+
+function LongTermNativePortfolio() {
+  const { state, summary, addEntry, reviseEntry, deleteEntry } = useNativePortfolio();
+  const [formKey, setFormKey] = useState(0);
+  const [showComposer, setShowComposer] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const metrics = [
+    { label: "外部作品", value: summary.entries, icon: FilePenLine },
+    { label: "学习时长", value: `${summary.learningMinutes} 分`, icon: Clock },
+    { label: "录音时长", value: `${summary.recordingMinutes} 分`, icon: Mic2 },
+    { label: "版本快照", value: summary.revisions, icon: History }
+  ];
+  const handleAdd = (draft: NativePortfolioDraft) => {
+    const saved = addEntry(draft);
+    setNotice(saved
+      ? { tone: "success", text: "作品集证据已保存在本机。" }
+      : { tone: "error", text: "作品没有保存，请检查必填内容或浏览器存储空间。" });
+    if (saved) {
+      setFormKey((value) => value + 1);
+      setShowComposer(false);
+    }
+    return saved;
+  };
+  const handleRevise = (entryId: string, draft: NativePortfolioDraft, note: string) => {
+    const saved = reviseEntry(entryId, draft, note);
+    setNotice(saved
+      ? { tone: "success", text: "修订已保存，上一版仍保留在版本记录中。" }
+      : { tone: "error", text: "修订没有保存，请检查内容或浏览器存储空间。" });
+    return saved;
+  };
+  const handleDelete = (entryId: string) => {
+    const deleted = deleteEntry(entryId);
+    setNotice(deleted
+      ? { tone: "success", text: "这条作品集证据及其修订记录已删除。" }
+      : { tone: "error", text: "删除没有完成，请检查浏览器存储状态。" });
+    return deleted;
+  };
+
+  return (
+    <section id="long-term-portfolio" className="grid gap-5 border-t border-[var(--line)] pt-6">
+      <SectionHeading
+        kicker="External Evidence Studio"
+        title="长期母语者路线作品集"
+        copy={`把站外材料、练习投入、导师反馈和作品版本留在同一条可复查记录里。长期扩容目标保留 ${nativeRoadmapTotals.vocabulary.toLocaleString()}+ 词、${nativeRoadmapTotals.collocations.toLocaleString()}+ 搭配、${nativeRoadmapTotals.materials.toLocaleString()}+ 材料和 ${nativeRoadmapTotals.outputTasks.toLocaleString()}+ 输出；这些不会冒充站内分数。`}
+        action={(
+          <Button type="button" variant={showComposer ? "ghost" : "primary"} size="sm" onClick={() => setShowComposer((value) => !value)}>
+            <Plus className="h-4 w-4" />
+            {showComposer ? "收起编辑器" : "录入新作品"}
+          </Button>
+        )}
+      />
+      <div className="grid border-y border-[var(--line)] md:grid-cols-4 md:divide-x md:divide-[var(--line)]">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <div key={metric.label} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-[var(--line)] px-3 py-4 last:border-b-0 md:border-b-0">
+              <Icon className="h-5 w-5 text-[var(--ocean)]" />
+              <div>
+                <strong className="block font-serif text-2xl leading-none">{metric.value}</strong>
+                <span className="mt-1 block font-mono text-xs font-black uppercase text-[var(--muted)]">{metric.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 border-l-4 border-[var(--brass)] bg-[rgba(183,135,63,0.08)] p-4">
+        <ShieldCheck className="mt-0.5 h-5 w-5 text-[var(--brass)]" />
+        <p className="text-sm font-bold leading-6 text-[var(--muted)]">
+          独立证据仓：这里保存的是长期作品集证据，不会写入上方站内能力分、C1 阶段进度或 SRS 完成数。
+        </p>
+      </div>
+      {notice?.tone === "error" ? <InlineAlert>{notice.text}</InlineAlert> : null}
+      {notice?.tone === "success" ? (
+        <p role="status" className="border-l-4 border-[var(--celadon)] bg-[rgba(79,140,118,0.08)] p-3 text-sm font-bold leading-6 text-[var(--muted)]">
+          {notice.text}
+        </p>
+      ) : null}
+      {showComposer ? <NativePortfolioForm key={formKey} onSubmit={handleAdd} onCancel={() => setShowComposer(false)} /> : null}
+      <div className="grid gap-3">
+        <div className="flex items-end justify-between gap-3 border-b border-[var(--line)] pb-3">
+          <div>
+            <p className="eyebrow">Saved works</p>
+            <h3 className="mt-1 font-serif text-2xl font-black">本地作品与修订记录</h3>
+          </div>
+          <span className="font-mono text-xs font-black text-[var(--muted)]">{state.entries.length} ITEMS</span>
+        </div>
+        {state.entries.length ? state.entries.map((entry) => (
+          <NativePortfolioRecord
+            key={entry.id}
+            entry={entry}
+            onRevise={handleRevise}
+            onDelete={handleDelete}
+          />
+        )) : (
+          <div className="border-y border-dashed border-[var(--line)] py-8 text-center">
+            <strong className="font-serif text-xl">还没有站外作品证据</strong>
+            <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">第一条记录会从外部材料来源和作品正文开始。</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function NativePortfolioForm({
+  entry,
+  onSubmit,
+  onCancel
+}: {
+  entry?: NativePortfolioEntry;
+  onSubmit: (draft: NativePortfolioDraft, revisionNote: string) => boolean;
+  onCancel?: () => void;
+}) {
+  const [draft, setDraft] = useState<NativePortfolioDraft>(() => entry ? draftFromEntry(entry) : emptyPortfolioDraft());
+  const [revisionNote, setRevisionNote] = useState("");
+  const [error, setError] = useState("");
+  const isRevision = Boolean(entry);
+  function updateDraft<Key extends keyof NativePortfolioDraft>(key: Key, value: NativePortfolioDraft[Key]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!draft.title.trim() || !draft.source.trim() || !draft.body.trim()) {
+      setError("请填写作品标题、外部材料来源和作品正文。");
+      return;
+    }
+    const saved = onSubmit(draft, revisionNote);
+    setError(saved ? "" : "本地写入失败，内容仍保留在表单中。");
+  };
+  const fieldClass = "focus-ring min-h-11 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-2 font-bold text-[var(--ink)] focus:border-[var(--ocean)]";
+
+  return (
+    <form className="grid gap-4 border-y border-[var(--line)] py-5" onSubmit={handleSubmit}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="eyebrow">{isRevision ? "Revision" : "New evidence"}</p>
+          <h3 className="mt-1 font-serif text-2xl font-black">{isRevision ? "保存一个新版本" : "录入一条站外作品证据"}</h3>
+        </div>
+        {onCancel ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>取消修订</Button>
+        ) : null}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+          作品标题 <span className="sr-only">必填</span>
+          <input className={fieldClass} value={draft.title} maxLength={240} required onChange={(event) => updateDraft("title", event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+          外部材料来源 <span className="sr-only">必填</span>
+          <input className={fieldClass} value={draft.source} maxLength={800} required placeholder="节目、文章、课程或导师任务" onChange={(event) => updateDraft("source", event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)] md:col-span-2">
+          来源链接（可选）
+          <input className={fieldClass} type="url" value={draft.sourceUrl} maxLength={1600} placeholder="https://" onChange={(event) => updateDraft("sourceUrl", event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+          学习时长（分钟）
+          <input className={fieldClass} type="number" inputMode="numeric" min={0} max={100000} value={draft.learningMinutes} onChange={(event) => updateDraft("learningMinutes", Number(event.target.value))} />
+        </label>
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+          录音时长（分钟）
+          <input className={fieldClass} type="number" inputMode="numeric" min={0} max={100000} value={draft.recordingMinutes} onChange={(event) => updateDraft("recordingMinutes", Number(event.target.value))} />
+        </label>
+      </div>
+      <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+        导师反馈
+        <textarea className={`${fieldClass} min-h-24 resize-y`} value={draft.mentorFeedback} maxLength={8000} onChange={(event) => updateDraft("mentorFeedback", event.target.value)} />
+      </label>
+      <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+        作品正文 <span className="sr-only">必填</span>
+        <textarea className={`${fieldClass} min-h-48 resize-y`} value={draft.body} lang="ko" spellCheck={false} maxLength={40000} required onChange={(event) => updateDraft("body", event.target.value)} />
+      </label>
+      {isRevision ? (
+        <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
+          本次修订说明
+          <input className={fieldClass} value={revisionNote} maxLength={600} placeholder="例如：根据导师反馈重写结尾" onChange={(event) => setRevisionNote(event.target.value)} />
+        </label>
+      ) : null}
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
+      <Button type="submit" variant="primary" size="sm" className="w-fit">
+        {isRevision ? <FilePenLine className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+        {isRevision ? "保存新版本" : "保存作品证据"}
+      </Button>
+    </form>
+  );
+}
+
+function NativePortfolioRecord({
+  entry,
+  onRevise,
+  onDelete
+}: {
+  entry: NativePortfolioEntry;
+  onRevise: (entryId: string, draft: NativePortfolioDraft, revisionNote: string) => boolean;
+  onDelete: (entryId: string) => boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const safeSourceUrl = safeExternalUrl(entry.sourceUrl);
+  const handleRevise = (draft: NativePortfolioDraft, revisionNote: string) => {
+    const saved = onRevise(entry.id, draft, revisionNote);
+    if (saved) setEditing(false);
+    return saved;
+  };
+  const handleDelete = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    if (onDelete(entry.id)) setConfirmDelete(false);
+  };
+
+  return (
+    <article className="grid gap-4 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">Updated {displayPortfolioDate(entry.updatedAt)}</p>
+          <h4 className="mt-2 break-words font-serif text-2xl font-black leading-tight">{entry.title}</h4>
+          {safeSourceUrl ? (
+            <a className="focus-ring mt-2 inline-flex max-w-full items-center gap-2 break-all text-sm font-bold text-[var(--ocean)] underline-offset-4 hover:underline" href={safeSourceUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              {entry.source}
+            </a>
+          ) : (
+            <p className="mt-2 break-words text-sm font-bold text-[var(--muted)]">来源：{entry.source}</p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => { setEditing((value) => !value); setConfirmDelete(false); }}>
+            <FilePenLine className="h-4 w-4" />
+            修订
+          </Button>
+          <Button type="button" variant={confirmDelete ? "primary" : "ghost"} size="sm" onClick={handleDelete}>
+            <Trash2 className="h-4 w-4" />
+            {confirmDelete ? "确认删除" : "删除"}
+          </Button>
+        </div>
+      </div>
+      {confirmDelete ? (
+        <p className="border-l-4 border-[var(--cinnabar)] bg-[rgba(185,78,60,0.08)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
+          再点一次会删除当前作品及全部版本记录。
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-[var(--line)] py-3 text-sm font-bold text-[var(--muted)]">
+        <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[var(--brass)]" />学习 {entry.learningMinutes} 分钟</span>
+        <span className="inline-flex items-center gap-2"><Mic2 className="h-4 w-4 text-[var(--cinnabar)]" />录音 {entry.recordingMinutes} 分钟</span>
+        <span className="inline-flex items-center gap-2"><History className="h-4 w-4 text-[var(--ocean)]" />{entry.revisions.length} 个版本</span>
+      </div>
+      {entry.mentorFeedback ? (
+        <div className="border-l-4 border-[var(--brass)] pl-3">
+          <span className="font-mono text-xs font-black uppercase text-[var(--brass)]">Mentor feedback</span>
+          <p className="mt-1 whitespace-pre-wrap text-sm font-bold leading-6 text-[var(--muted)]">{entry.mentorFeedback}</p>
+        </div>
+      ) : null}
+      <div>
+        <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">Current work</span>
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-[var(--ink)]" lang="ko">{entry.body}</p>
+      </div>
+      {editing ? (
+        <NativePortfolioForm entry={entry} onSubmit={handleRevise} onCancel={() => setEditing(false)} />
+      ) : null}
+      <div className="border-t border-[var(--line)] pt-3">
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowHistory((value) => !value)}>
+          <History className="h-4 w-4" />
+          {showHistory ? "收起版本记录" : `查看版本记录 ${entry.revisions.length}`}
+        </Button>
+        {showHistory ? (
+          <ol className="mt-3 grid gap-3">
+            {[...entry.revisions].reverse().map((revision) => (
+              <li key={revision.id} className="grid gap-2 border-t border-dashed border-[var(--line)] pt-3">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <strong className="text-sm">{revision.note}</strong>
+                  <span className="font-mono text-xs font-black text-[var(--muted)]">{displayPortfolioDate(revision.createdAt)}</span>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--muted)]" lang="ko">{revision.body}</p>
+                {revision.mentorFeedback ? <p className="text-xs font-bold leading-5 text-[var(--brass)]">导师反馈：{revision.mentorFeedback}</p> : null}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function emptyPortfolioDraft(): NativePortfolioDraft {
+  return {
+    title: "",
+    source: "",
+    sourceUrl: "",
+    learningMinutes: 0,
+    recordingMinutes: 0,
+    mentorFeedback: "",
+    body: ""
+  };
+}
+
+function draftFromEntry(entry: NativePortfolioEntry): NativePortfolioDraft {
+  return {
+    title: entry.title,
+    source: entry.source,
+    sourceUrl: entry.sourceUrl,
+    learningMinutes: entry.learningMinutes,
+    recordingMinutes: entry.recordingMinutes,
+    mentorFeedback: entry.mentorFeedback,
+    body: entry.body
+  };
+}
+
+function safeExternalUrl(input: string) {
+  if (!input) return "";
+  try {
+    const url = new URL(input);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function displayPortfolioDate(input: string) {
+  return Number.isFinite(Date.parse(input)) ? input.slice(0, 10) : "unknown";
 }
 
 function NativeCard({
@@ -342,7 +641,14 @@ function NativeCard({
   const visibleLines = showAllLines ? item.lines : item.lines.slice(0, 1);
   const hiddenLineCount = Math.max(0, item.lines.length - visibleLines.length);
   const evidenceComplete = listened && hasKoreanRetellEvidence(retell) && hasKoreanOutputRewrite(transfer);
-  const evidenceSaved = Boolean(evidence && evidenceComplete);
+  const evidenceSaved = Boolean(
+    evidence &&
+    evidenceComplete &&
+    evidence.listened === listened &&
+    evidence.retell.trim() === retell.trim() &&
+    evidence.transfer.trim() === transfer.trim()
+  );
+  const evidenceDirty = Boolean(evidence && evidenceComplete && !evidenceSaved);
   const handleToggle = () => {
     if (learned && !confirmRemove) {
       setConfirmRemove(true);
@@ -397,7 +703,7 @@ function NativeCard({
       {item.contrast.length ? (
         <div className="flex flex-wrap gap-2">
           {item.contrast.map((part) => (
-            <b key={part} className="hangul-display rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1">
+            <b key={part} className="hangul-display rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1" lang="ko">
               {part}
             </b>
           ))}
@@ -409,13 +715,13 @@ function NativeCard({
             key={line.ko}
             type="button"
             className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.76)] p-3 text-left transition hover:-translate-y-0.5"
-            onClick={() => speakKorean(line.ko)}
+            onClick={() => speakKorean(line.ko, { onstart: () => setListened(true) })}
           >
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-black text-[var(--ocean)]">
               <Volume2 className="h-4 w-4" />
               PLAY
             </span>
-            <strong className="hangul-display block text-xl">{line.ko}</strong>
+            <strong className="hangul-display block text-xl" lang="ko">{line.ko}</strong>
             <span className="mt-1 block text-sm text-[var(--muted)]">{line.zh}</span>
             <small className="mt-1 block leading-5 text-[var(--muted)]">{line.note}</small>
           </button>
@@ -436,18 +742,22 @@ function NativeCard({
               type="checkbox"
               className="h-4 w-4 accent-[var(--ocean)]"
               checked={listened}
-              onChange={(event) => setListened(event.target.checked)}
+              readOnly
+              aria-describedby={`native-listening-note-${item.id}`}
             />
-            已完整听过关键台词
+            已实际播放关键台词
           </label>
           <span className={`rounded-[8px] border px-2 py-1 font-mono text-[0.68rem] font-black uppercase ${evidenceSaved ? "border-[rgba(79,140,118,0.38)] bg-[rgba(79,140,118,0.1)] text-[var(--celadon)]" : "border-[rgba(183,135,63,0.36)] bg-[rgba(183,135,63,0.08)] text-[var(--brass)]"}`}>
-            {evidenceSaved ? "证据已入护照" : "证据未完成"}
+            {evidenceSaved ? "证据已入护照" : evidenceDirty ? "有未保存修改" : "证据未完成"}
           </span>
         </div>
+        <p id={`native-listening-note-${item.id}`} className="text-xs font-bold leading-5 text-[var(--muted)]">
+          点击上方任一句播放，语音真正开始后才会记录听辨步骤；手动勾选不计入证据。
+        </p>
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
           韩语复述
           <textarea
-            className="min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] outline-none focus:border-[var(--ocean)]"
+            className="focus-ring min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={retell}
             placeholder="用韩语复述这张卡的关系、场合或语气动作。"
             onChange={(event) => setRetell(event.target.value)}
@@ -456,7 +766,7 @@ function NativeCard({
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
           关系迁移
           <textarea
-            className="min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] outline-none focus:border-[var(--ocean)]"
+            className="focus-ring min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={transfer}
             placeholder="换成朋友/前辈/店员/同事等另一种关系，用韩语改写一句。"
             onChange={(event) => setTransfer(event.target.value)}
@@ -467,8 +777,8 @@ function NativeCard({
             母语者证据没有保存：需要勾选听辨，并填写两段可复查的韩语复述与关系迁移。
           </InlineAlert>
         ) : null}
-        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={!evidenceComplete} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
-          {evidenceSaved ? "更新护照证据" : "保存证据并加入 SRS"}
+        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={!evidenceComplete || evidenceSaved} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
+          {evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存证据并加入 SRS"}
         </Button>
       </div>
     </article>
@@ -570,30 +880,6 @@ function buildDailyNativeSlice(items: NativeItem[], limit: number) {
   }
 
   return selected;
-}
-
-function PortfolioMetric({ label, value, target }: { label: string; value: number; target: number }) {
-  const safeTarget = Math.max(1, target);
-  const percent = Math.min(100, Math.round((value / safeTarget) * 100));
-  return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3">
-      <div className="flex items-end justify-between gap-2">
-        <strong className="font-serif text-2xl font-black">{value.toLocaleString()}</strong>
-        <span className="font-mono text-xs font-black text-[var(--muted)]">/{target.toLocaleString()}</span>
-      </div>
-      <p className="mt-1 font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</p>
-      <div
-        className="mt-3 h-1.5 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]"
-        role="progressbar"
-        aria-label={`${label} 长期作品集进度`}
-        aria-valuemin={0}
-        aria-valuemax={target}
-        aria-valuenow={Math.min(value, target)}
-      >
-        <div className="h-full bg-[var(--celadon)]" style={{ width: `${percent}%` }} />
-      </div>
-    </div>
-  );
 }
 
 function buildRelationProfile(item: NativeItem) {

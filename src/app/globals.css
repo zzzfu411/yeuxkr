@@ -3,22 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Aptos", "Segoe UI", "Noto Sans KR", "Noto Sans CJK SC", sans-serif;
-  --font-serif: "Georgia", "Noto Serif KR", "Songti SC", serif;
+  --font-sans: "Noto Sans KR", "Malgun Gothic", "Aptos", "Noto Sans CJK SC", sans-serif;
+  --font-serif: "Nanum Myeongjo", "Noto Serif KR", "Songti SC", Georgia, serif;
   --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
-  --paper: #f3efe5;
-  --paper-deep: #e4ddcf;
-  --ink: #171b1a;
-  --muted: #69716d;
-  --line: rgba(24, 28, 27, 0.12);
-  --line-strong: rgba(24, 28, 27, 0.22);
-  --surface: rgba(255, 252, 246, 0.92);
-  --surface-solid: #fffdf7;
-  --celadon: #4f8c76;
-  --ocean: #173f73;
-  --cinnabar: #b94e3c;
-  --brass: #b7873f;
-  --plum: #775373;
+  --paper: #e9eeeb;
+  --paper-deep: #d4ddd7;
+  --ink: #151a19;
+  --muted: #5d6863;
+  --line: rgba(21, 26, 25, 0.13);
+  --line-strong: rgba(21, 26, 25, 0.26);
+  --surface: rgba(249, 251, 248, 0.92);
+  --surface-solid: #fbfcf9;
+  --celadon: #2f6e59;
+  --celadon-text: #245f4e;
+  --ocean: #153d68;
+  --cinnabar: #aa4636;
+  --brass: #805611;
+  --brass-text: #684707;
+  --plum: #6b516d;
   --radius: 8px;
 }
 
@@ -27,14 +29,11 @@
 }
 
 html {
-  min-width: 320px;
   min-height: 100%;
   background:
-    radial-gradient(circle at 14% 8%, rgba(183, 135, 63, 0.09), transparent 24%),
-    radial-gradient(circle at 88% 0%, rgba(79, 140, 118, 0.09), transparent 22%),
-    linear-gradient(90deg, rgba(23, 63, 115, 0.05) 1px, transparent 1px) 0 0 / 42px 42px,
-    linear-gradient(180deg, rgba(79, 140, 118, 0.05) 1px, transparent 1px) 0 0 / 42px 42px,
-    linear-gradient(135deg, var(--paper), #f1efe8 62%, var(--paper-deep));
+    linear-gradient(90deg, rgba(21, 61, 104, 0.055) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(180deg, rgba(63, 128, 106, 0.05) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(135deg, #f0f3f1, var(--paper) 62%, var(--paper-deep));
   color: var(--ink);
   font-family: var(--font-sans);
   letter-spacing: 0;
@@ -53,11 +52,11 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.26;
+  opacity: 0.18;
   background-image:
     linear-gradient(rgba(24, 28, 27, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(24, 28, 27, 0.04) 1px, transparent 1px);
-  background-size: 8px 8px;
+  background-size: 12px 12px;
   mask-image: linear-gradient(180deg, #000, transparent 76%);
 }
 
@@ -117,25 +116,23 @@ img {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 32%),
-    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(255, 250, 241, 0.88)),
+    linear-gradient(180deg, rgba(252, 253, 250, 0.97), rgba(244, 248, 245, 0.9)),
     var(--surface);
   box-shadow:
-    0 20px 48px rgba(24, 28, 27, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(18px);
+    0 12px 34px rgba(21, 26, 25, 0.075),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(14px);
 }
 
 .studio-panel {
   border: 1px solid rgba(24, 28, 27, 0.14);
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.76), transparent 30%),
-    linear-gradient(135deg, rgba(255, 251, 244, 0.98), rgba(255, 248, 236, 0.9) 52%, rgba(79, 140, 118, 0.08)),
+    linear-gradient(135deg, rgba(252, 253, 250, 0.98), rgba(243, 248, 245, 0.94) 58%, rgba(63, 128, 106, 0.1)),
     var(--surface);
   box-shadow:
-    0 24px 60px rgba(24, 28, 27, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    0 16px 44px rgba(21, 26, 25, 0.085),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .dark-slab {
@@ -144,10 +141,9 @@ img {
   background:
     linear-gradient(90deg, rgba(255, 250, 240, 0.05) 1px, transparent 1px),
     linear-gradient(180deg, rgba(255, 250, 240, 0.04) 1px, transparent 1px),
-    radial-gradient(circle at top left, rgba(255, 250, 240, 0.14), transparent 34%),
-    linear-gradient(135deg, rgba(26, 46, 44, 0.96), rgba(25, 56, 75, 0.94) 54%, rgba(58, 71, 67, 0.92)),
+    linear-gradient(135deg, rgba(24, 45, 41, 0.98), rgba(20, 49, 76, 0.96) 54%, rgba(61, 67, 65, 0.94)),
     var(--ink);
-  background-size: 28px 28px, 28px 28px, auto, auto;
+  background-size: 28px 28px, 28px 28px, auto;
   color: var(--surface-solid);
   box-shadow:
     0 18px 46px rgba(24, 28, 27, 0.14),
@@ -155,7 +151,7 @@ img {
 }
 
 .paper-rail {
-  background-color: rgba(255, 250, 240, 0.72);
+  background-color: rgba(247, 250, 247, 0.78);
   background-image:
     linear-gradient(rgba(23, 63, 115, 0.09) 1px, transparent 1px),
     linear-gradient(90deg, rgba(23, 63, 115, 0.07) 1px, transparent 1px);
@@ -174,8 +170,8 @@ img {
   margin: 0;
   padding: 0.36rem 0.62rem;
   border: 1px solid rgba(23, 63, 115, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.82);
+  border-radius: 6px;
+  background: rgba(249, 251, 248, 0.9);
   color: var(--ocean);
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -191,6 +187,11 @@ img {
 
 .focus-ring {
   outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ocean);
   outline-offset: 2px;
 }
 

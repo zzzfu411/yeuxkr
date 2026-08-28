@@ -1,0 +1,714 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import ts from "typescript";
+
+const JSX_RUNTIME = { jsx: createElement, jsxs: createElement, Fragment: Symbol("Fragment") };
+
+test("KoreanInput ignores Enter while an IME composition is active", () => {
+  const hooks = createHookHarness();
+  const document = { activeElement: null };
+  const { KoreanInput } = loadComponent("src/components/korean/korean-input.tsx", {
+    react: hooks.react,
+    "lucide-react": { Keyboard: "KeyboardIcon" },
+    "@/components/korean/hangul-keyboard": { HangulKeyboard: "HangulKeyboard" },
+    "@/lib/korean/jamo": createJamoMock(),
+    "@/lib/utils": { cn }
+  }, { document, window: createMediaWindow() });
+
+  let submissions = 0;
+  const props = { value: "answer", onChange() {}, onSubmit() { submissions += 1; } };
+  let tree = hooks.render(KoreanInput, props);
+  let input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  const inputControl = createInputControl("answer", document);
+  input.props.ref.current = inputControl;
+
+  const composingEnter = createKeyEvent("Enter", { isComposing: true });
+  input.props.onKeyDown(composingEnter);
+  assert.equal(submissions, 0);
+  assert.equal(composingEnter.prevented, false);
+
+  input.props.onCompositionStart();
+  const compositionRefEnter = createKeyEvent("Enter");
+  input.props.onKeyDown(compositionRefEnter);
+  assert.equal(submissions, 0);
+  assert.equal(compositionRefEnter.prevented, false);
+
+  input.props.onCompositionEnd({ currentTarget: inputControl });
+  const legacyImeEnter = createKeyEvent("Enter", { keyCode: 229 });
+  input.props.onKeyDown(legacyImeEnter);
+  assert.equal(submissions, 0);
+
+  tree = hooks.render(KoreanInput, props);
+  input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  const regularEnter = createKeyEvent("Enter");
+  input.props.onKeyDown(regularEnter);
+  assert.equal(submissions, 1);
+  assert.equal(regularEnter.prevented, true);
+});
+
+test("KoreanInput screen keys edit at the saved cursor or selection and restore focus", () => {
+  const hooks = createHookHarness();
+  const document = { activeElement: null };
+  const { KoreanInput } = loadComponent("src/components/korean/korean-input.tsx", {
+    react: hooks.react,
+    "lucide-react": { Keyboard: "KeyboardIcon" },
+    "@/components/korean/hangul-keyboard": { HangulKeyboard: "HangulKeyboard" },
+    "@/lib/korean/jamo": createJamoMock(),
+    "@/lib/utils": { cn }
+  }, { document, window: createMediaWindow() });
+
+  let value = "abcd";
+  const changed = [];
+  const makeProps = () => ({
+    value,
+    onChange(next) {
+      value = next;
+      changed.push(next);
+    }
+  });
+
+  let tree = hooks.render(KoreanInput, makeProps());
+  let input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  const inputControl = createInputControl(value, document);
+  input.props.ref.current = inputControl;
+  findElement(tree, (node) => node.type === "button" && node.props["aria-pressed"] === false).props.onClick();
+  tree = hooks.render(KoreanInput, makeProps());
+
+  input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  let keyboard = findElement(tree, (node) => node.type === "HangulKeyboard");
+  saveSelection(input, inputControl, document, 1, 3);
+  keyboard.props.onJamo("X");
+  assert.equal(changed.at(-1), "aXd");
+  commitControlledValue(hooks, KoreanInput, makeProps, inputControl);
+  assert.deepEqual(inputControl.lastSelection, [2, 2]);
+  assert.equal(document.activeElement, inputControl);
+
+  value = "abcd";
+  inputControl.value = value;
+  tree = hooks.render(KoreanInput, makeProps());
+  input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  keyboard = findElement(tree, (node) => node.type === "HangulKeyboard");
+  saveSelection(input, inputControl, document, 1, 3);
+  keyboard.props.onBackspace();
+  assert.equal(changed.at(-1), "ad");
+  commitControlledValue(hooks, KoreanInput, makeProps, inputControl);
+  assert.deepEqual(inputControl.lastSelection, [1, 1]);
+
+  value = "abcd";
+  inputControl.value = value;
+  tree = hooks.render(KoreanInput, makeProps());
+  input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  keyboard = findElement(tree, (node) => node.type === "HangulKeyboard");
+  saveSelection(input, inputControl, document, 2, 2);
+  keyboard.props.onBackspace();
+  assert.equal(changed.at(-1), "acd");
+  commitControlledValue(hooks, KoreanInput, makeProps, inputControl);
+  assert.deepEqual(inputControl.lastSelection, [1, 1]);
+
+  value = "abcd";
+  inputControl.value = value;
+  tree = hooks.render(KoreanInput, makeProps());
+  input = findElement(tree, (node) => node.type === "input" && node.props.lang === "ko");
+  keyboard = findElement(tree, (node) => node.type === "HangulKeyboard");
+  saveSelection(input, inputControl, document, 1, 3);
+  keyboard.props.onSpace();
+  assert.equal(changed.at(-1), "a d");
+  commitControlledValue(hooks, KoreanInput, makeProps, inputControl);
+  assert.deepEqual(inputControl.lastSelection, [2, 2]);
+  assert.ok(inputControl.focusCalls >= 4);
+});
+
+test("HangulKeyboard keeps 24px key tracks at 320px and contains narrower overflow", () => {
+  const hooks = createHookHarness();
+  const { HangulKeyboard } = loadComponent("src/components/korean/hangul-keyboard.tsx", {
+    react: hooks.react,
+    "lucide-react": { ArrowBigUp: "ShiftIcon", CornerDownLeft: "EnterIcon", Delete: "DeleteIcon" },
+    "@/lib/utils": { cn }
+  });
+  const tree = hooks.render(HangulKeyboard, { onJamo() {}, onBackspace() {}, onSpace() {} });
+  const rows = findElements(tree, (node) => typeof node.props?.style?.gridTemplateColumns === "string");
+  const firstRow = rows[0];
+
+  assert.match(tree.props.className, /max-w-full/);
+  assert.match(tree.props.className, /overflow-x-auto/);
+  assert.match(firstRow.props.style.gridTemplateColumns, /repeat\(10, minmax\(24px, 1fr\)\)/);
+  assert.match(firstRow.props.className, /gap-px/);
+  assert.ok(10 * 24 + 9 <= 320 - 2 * 14.4 - 2 * 4);
+
+  let prevented = false;
+  tree.props.onMouseDown({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+});
+
+test("AppShell stops active and voice-waiting speech when the pathname changes", () => {
+  const hooks = createHookHarness();
+  let pathname = "/";
+  let stops = 0;
+  let playing = true;
+  let waitingForVoice = true;
+  const icons = Object.fromEntries([
+    "BookOpen", "BrainCircuit", "CircleAlert", "Compass", "GraduationCap", "LibraryBig", "MessagesSquare",
+    "NotebookTabs", "Radio", "RefreshCcw", "Settings2", "Sparkles"
+  ].map((name) => [name, `${name}Icon`]));
+  const window = {
+    requestAnimationFrame() { return 1; },
+    cancelAnimationFrame() {},
+    matchMedia() { return { matches: false }; }
+  };
+  const { AppShell } = loadComponent("src/components/layout/app-shell.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "next/image": { default: "Image" },
+    "next/navigation": { usePathname: () => pathname },
+    "lucide-react": icons,
+    "@/components/layout/pwa-register": { PwaRegister: "PwaRegister" },
+    "@/components/layout/learning-data-panel": { LearningDataPanel: "LearningDataPanel" },
+    "@/components/korean/speech-status": { SpeechStatusBanner: "SpeechStatusBanner" },
+    "@/lib/speech": {
+      stopSpeech() {
+        stops += 1;
+        playing = false;
+        waitingForVoice = false;
+      }
+    },
+    "@/lib/utils": { cn }
+  }, { window });
+
+  hooks.render(AppShell, { children: "page" });
+  assert.equal(stops, 0);
+  pathname = "/settings";
+  hooks.render(AppShell, { children: "settings" });
+  assert.equal(stops, 1);
+  assert.equal(playing, false);
+  assert.equal(waitingForVoice, false);
+
+  playing = true;
+  waitingForVoice = true;
+  hooks.render(AppShell, { children: "same settings" });
+  assert.equal(stops, 1);
+  assert.equal(playing, true);
+  assert.equal(waitingForVoice, true);
+});
+
+test("SpeechSettings reports storage failure and keeps the last persisted controls", () => {
+  const hooks = createHookHarness();
+  let saveSucceeds = false;
+  const saves = [];
+  const window = {
+    addEventListener() {},
+    removeEventListener() {},
+    speechSynthesis: { addEventListener() {}, removeEventListener() {} }
+  };
+  const { SpeechSettings } = loadComponent("src/components/korean/speech-settings.tsx", {
+    react: hooks.react,
+    "lucide-react": { Volume2: "VolumeIcon" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/speech": {
+      ensureVoicesReady: () => ({ then() {} }),
+      getSpeechSettings: () => ({}),
+      listKoreanVoices: () => [],
+      saveSpeechSettings(settings) {
+        saves.push(settings);
+        return saveSucceeds;
+      },
+      speakKorean() {},
+      SPEECH_RATE_MIN: 0.6,
+      SPEECH_RATE_MAX: 1.1
+    }
+  }, { window });
+
+  let tree = hooks.render(SpeechSettings, {});
+  let select = findElement(tree, (node) => node.type === "select");
+  let range = findElement(tree, (node) => node.type === "input" && node.props.type === "range");
+  select.props.onChange({ target: { value: "voice-2" } });
+  tree = hooks.render(SpeechSettings, {});
+  select = findElement(tree, (node) => node.type === "select");
+  assert.equal(select.props.value, "");
+  assert.match(textContent(findElement(tree, (node) => node.props?.role === "alert")), /未能保存/);
+
+  range = findElement(tree, (node) => node.type === "input" && node.props.type === "range");
+  range.props.onChange({ target: { value: "0.96" } });
+  tree = hooks.render(SpeechSettings, {});
+  range = findElement(tree, (node) => node.type === "input" && node.props.type === "range");
+  assert.equal(range.props.value, 0.82);
+
+  saveSucceeds = true;
+  select = findElement(tree, (node) => node.type === "select");
+  select.props.onChange({ target: { value: "voice-2" } });
+  tree = hooks.render(SpeechSettings, {});
+  select = findElement(tree, (node) => node.type === "select");
+  assert.equal(select.props.value, "voice-2");
+  assert.equal(findElement(tree, (node) => node.props?.role === "alert"), null);
+  assert.equal(JSON.stringify(saves), JSON.stringify([{ voiceURI: "voice-2" }, { rate: 0.96 }, { voiceURI: "voice-2" }]));
+});
+
+test("shadowing recording releases the acquired stream when recorder construction or start fails", async () => {
+  for (const failure of ["constructor", "start"]) {
+    const hooks = createHookHarness();
+    const streams = [];
+    const recorders = [];
+
+    class FailingMediaRecorder {
+      constructor() {
+        this.state = "inactive";
+        this.mimeType = "audio/webm";
+        this.ondataavailable = null;
+        this.onstop = null;
+        recorders.push(this);
+        if (failure === "constructor") throw new Error("constructor failed");
+      }
+
+      start() {
+        if (failure === "start") throw new Error("start failed");
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+      }
+    }
+
+    const getUserMedia = async () => {
+      const track = { stops: 0, stop() { this.stops += 1; } };
+      const stream = { track, getTracks: () => [track] };
+      streams.push(stream);
+      return stream;
+    };
+    const { LessonTaskEvidencePanel } = loadLessonEvidencePanels(hooks, { MediaRecorder: FailingMediaRecorder, getUserMedia });
+    const props = createShadowingPanelProps();
+
+    let tree = hooks.render(LessonTaskEvidencePanel, props);
+    await findButton(tree, "开始录音").props.onClick();
+    tree = hooks.render(LessonTaskEvidencePanel, props);
+
+    assert.equal(streams[0].track.stops, 1, `${failure} failure must stop the acquired track`);
+    assert.equal(hooks.refs().includes(streams[0]), false, `${failure} failure must clear the stream ref`);
+    assert.equal(hooks.refs().some((value) => recorders.includes(value)), false, `${failure} failure must clear the recorder ref`);
+    assert.equal(recorders[0].ondataavailable, null);
+    assert.equal(recorders[0].onstop, null);
+    assert.equal(findButton(tree, "开始录音").props.disabled, false);
+
+    await findButton(tree, "开始录音").props.onClick();
+    hooks.render(LessonTaskEvidencePanel, props);
+    assert.equal(streams[1].track.stops, 1, `${failure} failure must remain retryable`);
+  }
+});
+
+test("external recording IDs cancel active shadowing and capstone recorders into a startable state", async (context) => {
+  await context.test("shadowing", async () => {
+    const hooks = createHookHarness();
+    const media = createActiveMediaHarness();
+    let saves = 0;
+    const { LessonTaskEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      MediaRecorder: media.MediaRecorder,
+      getUserMedia: media.getUserMedia,
+      recordingOverrides: { saveLearningRecording: async () => { saves += 1; return "unexpected"; } }
+    });
+    const initialProps = createShadowingPanelProps();
+
+    let tree = hooks.render(LessonTaskEvidencePanel, initialProps);
+    await findButton(tree, "开始录音").props.onClick();
+    tree = hooks.render(LessonTaskEvidencePanel, initialProps);
+    assert.ok(findButton(tree, "停止"));
+
+    const externalProps = createShadowingPanelProps({
+      evidence: {
+        kind: "shadowing",
+        text: "",
+        recordedSeconds: 8,
+        recordingId: "external-shadowing",
+        updatedAt: "2026-07-17T00:00:00.000Z"
+      }
+    });
+    hooks.render(LessonTaskEvidencePanel, externalProps);
+    await Promise.resolve();
+    tree = hooks.render(LessonTaskEvidencePanel, externalProps);
+
+    assert.equal(media.tracks[0].stops, 1);
+    assert.equal(media.recorders[0].stops, 1);
+    assert.equal(media.recorders[0].onstop, null);
+    assert.equal(saves, 0, "cancellation must not persist the partial recording");
+    assert.equal(hooks.refs().includes(media.streams[0]), false);
+    assert.equal(hooks.refs().includes(media.recorders[0]), false);
+    assert.equal(findButton(tree, "开始录音").props.disabled, false);
+  });
+
+  await context.test("capstone", async () => {
+    const hooks = createHookHarness();
+    const media = createActiveMediaHarness();
+    let clearedIntervals = 0;
+    const window = {
+      setInterval() { return 71; },
+      clearInterval(id) {
+        assert.equal(id, 71);
+        clearedIntervals += 1;
+      }
+    };
+    const { CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      MediaRecorder: media.MediaRecorder,
+      getUserMedia: media.getUserMedia,
+      window
+    });
+    const initialProps = createCapstonePanelProps();
+
+    let tree = hooks.render(CapstoneEvidencePanel, initialProps);
+    await findButton(tree, "开始录音").props.onClick();
+    tree = hooks.render(CapstoneEvidencePanel, initialProps);
+    assert.ok(findButton(tree, "停止录音"));
+
+    const externalProps = createCapstonePanelProps({
+      evidence: {
+        transcript: "",
+        weakPoint: "",
+        targetRewrite: "",
+        rubric: [],
+        recordedSeconds: 120,
+        recordingId: "external-capstone",
+        updatedAt: "2026-07-17T00:00:00.000Z"
+      }
+    });
+    hooks.render(CapstoneEvidencePanel, externalProps);
+    await Promise.resolve();
+    tree = hooks.render(CapstoneEvidencePanel, externalProps);
+
+    assert.equal(media.tracks[0].stops, 1);
+    assert.equal(media.recorders[0].stops, 1);
+    assert.equal(media.recorders[0].onstop, null);
+    assert.equal(clearedIntervals, 1);
+    assert.equal(hooks.refs().includes(media.streams[0]), false);
+    assert.equal(hooks.refs().includes(media.recorders[0]), false);
+    assert.equal(findButton(tree, "开始录音").props.disabled, false);
+  });
+});
+
+function loadLessonEvidencePanels(hooks, {
+  MediaRecorder,
+  getUserMedia,
+  window = { setInterval() { return 1; }, clearInterval() {} },
+  recordingOverrides = {}
+}) {
+  const pendingRecording = new Promise(() => {});
+  const icons = Object.fromEntries([
+    "ArrowLeft", "ArrowRight", "CheckCircle2", "LockKeyhole", "Mic", "Radio", "RefreshCcw", "Route", "Square", "Volume2"
+  ].map((name) => [name, `${name}Icon`]));
+  const imports = {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": icons,
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/korean/romanization-text": { RomanizationText: "RomanizationText" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/section": { SectionHeading: "SectionHeading", Surface: "Surface" },
+    "@/data/curriculum": {
+      getLessonPrerequisites: () => [],
+      getNextLesson: () => null,
+      isLessonMastered: () => false,
+      isLessonUnlocked: () => true,
+      normalizeTeachEntry: (value) => value,
+      UNLOCK_SCORE: 80
+    },
+    "@/lib/learning/capstone": {
+      CAPSTONE_LESSON_ID: "l30-native-capstone",
+      CAPSTONE_MIN_HANGUL: 120,
+      CAPSTONE_MIN_RECORDED_SECONDS: 120,
+      capstoneRecordingCheck: () => ({ passed: false }),
+      capstoneRubric: [],
+      capstoneSystemChecks: () => [],
+      countHangulCharacters: () => 0,
+      isValidCapstoneEvidence: () => false
+    },
+    "@/lib/learning/lesson-bridge": { buildLessonBridge: () => ({}) },
+    "@/lib/learning/lesson-assessment": { assessLessonAttempt: () => ({}) },
+    "@/lib/learning/lesson-evidence": {
+      checkLessonTaskEvidence: () => ({ ready: false, checks: [] }),
+      lessonCompletionTask: () => null
+    },
+    "@/lib/learning/lesson-session": {
+      clearLessonPracticeSession: () => true,
+      getLessonPracticeSession: () => null,
+      saveLessonPracticeSession: () => true
+    },
+    "@/lib/learning/quiz": { lessonQuestions: () => [] },
+    "@/lib/learning/recordings": {
+      deleteLearningRecording: async () => true,
+      loadLearningRecording: () => pendingRecording,
+      saveLearningRecording: async () => null,
+      ...recordingOverrides
+    },
+    "@/lib/learning/workspace": { ABILITY_LABELS: {}, useLearningWorkspace: () => ({}) },
+    "@/lib/speech": { speakKorean() {} }
+  };
+  return loadComponent("src/app/learn/[lessonId]/lesson-client.tsx", imports, {
+    Blob,
+    MediaRecorder,
+    URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
+    navigator: { mediaDevices: { getUserMedia } },
+    performance: { now: () => 1000 },
+    queueMicrotask,
+    window
+  }, (source) => source
+    .replace("function LessonTaskEvidencePanel", "export function LessonTaskEvidencePanel")
+    .replace("function CapstoneEvidencePanel", "export function CapstoneEvidencePanel"));
+}
+
+function createShadowingPanelProps(overrides = {}) {
+  return {
+    lessonId: "l22-media-shadowing",
+    task: { kind: "shadowing", title: "Shadowing", prompt: "Repeat the source", source: "안녕하세요" },
+    evidence: undefined,
+    onSave: () => true,
+    onInvalidateRecording: () => true,
+    ...overrides
+  };
+}
+
+function createCapstonePanelProps(overrides = {}) {
+  return {
+    evidence: null,
+    onSave: () => true,
+    onInvalidateRecording: () => true,
+    ...overrides
+  };
+}
+
+function createActiveMediaHarness() {
+  const tracks = [];
+  const streams = [];
+  const recorders = [];
+
+  class ActiveMediaRecorder {
+    constructor(stream) {
+      this.stream = stream;
+      this.state = "inactive";
+      this.mimeType = "audio/webm";
+      this.ondataavailable = null;
+      this.onstop = null;
+      this.stops = 0;
+      recorders.push(this);
+    }
+
+    start() {
+      this.state = "recording";
+    }
+
+    stop() {
+      this.stops += 1;
+      this.state = "inactive";
+      this.onstop?.();
+    }
+  }
+
+  return {
+    MediaRecorder: ActiveMediaRecorder,
+    getUserMedia: async () => {
+      const track = { stops: 0, stop() { this.stops += 1; } };
+      const stream = { getTracks: () => [track] };
+      tracks.push(track);
+      streams.push(stream);
+      return stream;
+    },
+    recorders,
+    streams,
+    tracks
+  };
+}
+
+function findButton(tree, label) {
+  const button = findElement(tree, (node) => node.type === "Button" && textContent(node).includes(label));
+  assert.ok(button, `Expected button containing ${label}`);
+  return button;
+}
+
+function loadComponent(file, imports, globals = {}, transformSource = (source) => source) {
+  const source = transformSource(readFileSync(file, "utf8"));
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+  }).outputText;
+  const moduleRecord = { exports: {} };
+  const context = {
+    module: moduleRecord,
+    exports: moduleRecord.exports,
+    require(id) {
+      if (id === "react/jsx-runtime") return JSX_RUNTIME;
+      if (id in imports) return imports[id];
+      throw new Error(`Unexpected component import: ${id}`);
+    },
+    ...globals
+  };
+  vm.runInNewContext(compiled, context, { filename: file });
+  return moduleRecord.exports;
+}
+
+function createHookHarness() {
+  const slots = [];
+  let cursor = 0;
+  let pendingEffects = [];
+
+  const scheduleEffect = (effect, dependencies) => {
+    const index = cursor;
+    cursor += 1;
+    const previous = slots[index];
+    if (!previous || !sameDependencies(previous.dependencies, dependencies)) {
+      pendingEffects.push({ index, effect, dependencies });
+    }
+  };
+
+  const react = {
+    useState(initialValue) {
+      const index = cursor;
+      cursor += 1;
+      if (!slots[index]) slots[index] = { value: typeof initialValue === "function" ? initialValue() : initialValue };
+      const setValue = (nextValue) => {
+        slots[index].value = typeof nextValue === "function" ? nextValue(slots[index].value) : nextValue;
+      };
+      return [slots[index].value, setValue];
+    },
+    useRef(initialValue) {
+      const index = cursor;
+      cursor += 1;
+      if (!slots[index]) slots[index] = { current: initialValue };
+      return slots[index];
+    },
+    useMemo(factory, dependencies) {
+      const index = cursor;
+      cursor += 1;
+      const previous = slots[index];
+      if (!previous || !sameDependencies(previous.dependencies, dependencies)) {
+        slots[index] = { value: factory(), dependencies };
+      }
+      return slots[index].value;
+    },
+    useEffect: scheduleEffect,
+    useLayoutEffect: scheduleEffect,
+    useSyncExternalStore(_subscribe, getSnapshot) {
+      cursor += 1;
+      return getSnapshot();
+    }
+  };
+
+  return {
+    react,
+    render(component, props) {
+      cursor = 0;
+      pendingEffects = [];
+      const tree = component(props);
+      for (const pending of pendingEffects) {
+        slots[pending.index]?.cleanup?.();
+        slots[pending.index] = {
+          dependencies: pending.dependencies,
+          cleanup: pending.effect() || undefined
+        };
+      }
+      return tree;
+    },
+    refs() {
+      return slots
+        .filter((slot) => slot && Object.prototype.hasOwnProperty.call(slot, "current"))
+        .map((slot) => slot.current);
+    }
+  };
+}
+
+function sameDependencies(previous, next) {
+  return Array.isArray(previous) && Array.isArray(next)
+    && previous.length === next.length
+    && previous.every((value, index) => Object.is(value, next[index]));
+}
+
+function createElement(type, props, key) {
+  return { type, key, props: props ?? {} };
+}
+
+function findElement(node, predicate) {
+  return findElements(node, predicate)[0] ?? null;
+}
+
+function findElements(node, predicate, matches = []) {
+  if (node == null || typeof node === "boolean") return matches;
+  if (Array.isArray(node)) {
+    for (const child of node) findElements(child, predicate, matches);
+    return matches;
+  }
+  if (typeof node !== "object") return matches;
+  if (predicate(node)) matches.push(node);
+  findElements(node.props?.children, predicate, matches);
+  return matches;
+}
+
+function textContent(node) {
+  if (node == null || typeof node === "boolean") return "";
+  if (Array.isArray(node)) return node.map(textContent).join("");
+  if (typeof node !== "object") return String(node);
+  return textContent(node.props?.children);
+}
+
+function cn(...values) {
+  return values.filter(Boolean).join(" ");
+}
+
+function createJamoMock() {
+  return {
+    backspaceJamo: (value) => value.slice(0, -1),
+    composeJamoInput: (value, jamo) => value + jamo,
+    QWERTY_TO_JAMO: { r: "R" }
+  };
+}
+
+function createMediaWindow() {
+  return {
+    matchMedia() {
+      return { matches: false, addEventListener() {}, removeEventListener() {} };
+    }
+  };
+}
+
+function createKeyEvent(key, { isComposing = false, keyCode = 0 } = {}) {
+  return {
+    key,
+    nativeEvent: { isComposing, keyCode },
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    prevented: false,
+    preventDefault() {
+      this.prevented = true;
+    }
+  };
+}
+
+function createInputControl(value, document) {
+  return {
+    value,
+    selectionStart: value.length,
+    selectionEnd: value.length,
+    lastSelection: [value.length, value.length],
+    focusCalls: 0,
+    focus() {
+      this.focusCalls += 1;
+      document.activeElement = this;
+    },
+    setSelectionRange(start, end) {
+      this.selectionStart = start;
+      this.selectionEnd = end;
+      this.lastSelection = [start, end];
+    }
+  };
+}
+
+function saveSelection(input, control, document, start, end) {
+  document.activeElement = control;
+  control.selectionStart = start;
+  control.selectionEnd = end;
+  input.props.onSelect({ currentTarget: control });
+  input.props.onBlur({ currentTarget: control });
+  document.activeElement = null;
+}
+
+function commitControlledValue(hooks, component, makeProps, control) {
+  control.value = makeProps().value;
+  return hooks.render(component, makeProps());
+}

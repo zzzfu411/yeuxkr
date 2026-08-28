@@ -8,6 +8,7 @@ import { BookOpen, BrainCircuit, CircleAlert, Compass, GraduationCap, LibraryBig
 import { PwaRegister } from "@/components/layout/pwa-register";
 import { LearningDataPanel } from "@/components/layout/learning-data-panel";
 import { SpeechStatusBanner } from "@/components/korean/speech-status";
+import { stopSpeech } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 
 const navGroups = [
@@ -47,11 +48,25 @@ const navGroups = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement | null>(null);
   const activeItemRef = useRef<HTMLAnchorElement | null>(null);
 
+  useEffect(() => () => {
+    stopSpeech();
+  }, [pathname]);
+
   useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    activeItemRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest", inline: "center" });
+    const frame = window.requestAnimationFrame(() => {
+      const nav = navRef.current;
+      const active = activeItemRef.current;
+      if (!nav || !active) return;
+      const navRect = nav.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      const activeCenter = nav.scrollLeft + activeRect.left - navRect.left + activeRect.width / 2;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      nav.scrollTo({ left: Math.max(0, activeCenter - nav.clientWidth / 2), behavior: reduceMotion ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   return (
@@ -63,9 +78,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         跳到正文
       </a>
-      <header className="sticky top-0 z-40 overflow-hidden border-b border-[var(--line)] bg-[rgba(243,239,229,0.82)] px-3 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[rgba(233,238,235,0.88)] px-3 py-3 backdrop-blur-xl">
         <div className="mx-auto grid w-full min-w-0 max-w-[1480px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-          <Link href="/" className="focus-ring flex min-w-0 items-center gap-3 rounded-[8px]">
+          <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-3 rounded-[8px]">
             <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-[8px] border border-[rgba(24,28,27,0.18)] bg-[var(--ink)] shadow-paper-sm">
               <Image
                 src="/assets/icon-192.png"
@@ -85,15 +100,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
 
-          <nav className="nav-scroll col-span-2 flex w-full min-w-0 max-w-full snap-x gap-3 overflow-x-auto lg:col-span-1 lg:justify-center" aria-label="主导航">
+          <LearningDataPanel />
+
+          <nav ref={navRef} className="nav-scroll order-3 col-span-2 flex w-full min-w-0 max-w-full snap-x justify-start gap-3 overflow-x-auto lg:order-2 lg:col-span-1" aria-label="主导航">
             {navGroups.map((group) => (
-              <div key={group.label} className="flex shrink-0 snap-center items-center gap-1 rounded-[8px] border border-[rgba(24,28,27,0.08)] bg-[rgba(255,250,240,0.44)] p-1">
+              <div key={group.label} className="flex shrink-0 snap-center items-center gap-1 rounded-[8px] border border-[rgba(24,28,27,0.08)] bg-[rgba(249,251,248,0.58)] p-1">
                 <span className="hidden px-2 font-mono text-[0.65rem] font-black uppercase text-[var(--muted)] xl:inline">
                   {group.label}
                 </span>
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                  const active = item.href === "/"
+                    ? pathname === "/"
+                    : item.href === "/path"
+                      ? pathname.startsWith("/path") || pathname.startsWith("/learn/")
+                      : pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}
@@ -114,7 +135,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          <LearningDataPanel />
         </div>
       </header>
 

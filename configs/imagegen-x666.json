@@ -1,0 +1,23 @@
+{
+  "url": "{{env:IMAGE_BASE_URL}}/images/generations",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer {{env:IMAGE_API_KEY}}",
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+  },
+  "body": {
+    "model": "{{model}}",
+    "prompt": "{{prompt}}",
+    "size": "{{size}}",
+    "quality": "{{var.quality}}",
+    "n": 1
+  },
+  "omit_empty": true,
+  "response": {
+    "image_path": "data.0.b64_json",
+    "image_encoding": "base64",
+    "url_path": "data.0.url"
+  }
+}

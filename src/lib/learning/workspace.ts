@@ -12,17 +12,21 @@ import { immersionMaterialHref, immersionMaterials } from "../../data/materials.
 import { buildSelfStudyPlan } from "../../data/self-study.js";
 import { proficiencyLevels, proficiencyMetrics } from "../../data/proficiency.js";
 import { hrefForStudyModule, moduleToAbility, studyModuleReadinessRequirement } from "./modules.js";
-import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasKoreanText as hasKoreanEvidenceText, mapFocusToAbilities } from "./evidence.ts";
+import { CAPSTONE_LESSON_ID, isValidCapstoneEvidence, normalizeCapstoneEvidence } from "./capstone.ts";
+import { hasKoreanContentOverlap, hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasKoreanText as hasKoreanEvidenceText, hasMaterialOutputEvidence, mapFocusToAbilities } from "./evidence.ts";
+import { assessLessonAttempt } from "./lesson-assessment.ts";
+import { checkLessonTaskEvidence, lessonCompletionTask, normalizeLessonTaskEvidence } from "./lesson-evidence.ts";
 import { defaultProfile, defaultProgress, nowIso, parseJson, readJson, STORAGE_KEYS, todayKey, useClientNow, useStorageRaw, writeJson } from "./storage.ts";
 import { addOutputEntry, clearOutputEntriesByMaterial, defaultOutputState, getOutputState, getOutputStateFromRaw, saveOutputState, type OutputEntry } from "./output.ts";
 import { applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
 import { defaultLessonPracticeState, getLessonPracticeState, saveLessonPracticeState } from "./lesson-session.ts";
 import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftState } from "./drafts.ts";
+import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
+import { clearLearningRecordings } from "./recordings.ts";
 import { summarizeMistakes } from "./mistakes.ts";
 import {
   TASK_IDS,
   abilityTaskId,
-  checkpointEvidenceEventId,
   checkpointTaskId,
   grammarCardId,
   grammarQuestionId,
@@ -52,9 +56,11 @@ import {
   soundChangeQuestionId,
   taskEventId,
   vocabCardId,
+  vocabClozeQuestionId,
+  vocabDictationQuestionId,
   vocabQuestionId
 } from "./ids.ts";
-import type { AbilityId, LearningProgress, LearningWorkspace, StudyTask, UserProfile } from "@/lib/learning/types";
+import type { AbilityId, CapstoneEvidence, LearningProgress, LearningWorkspace, StudyTask, UserProfile } from "@/lib/learning/types";
 
 const abilityLabels: Record<AbilityId, string> = {
   script: "韩文字母",
@@ -68,7 +74,7 @@ const abilityLabels: Record<AbilityId, string> = {
 export const ABILITY_LABELS = abilityLabels;
 
 const abilityIds = Object.keys(abilityLabels) as AbilityId[];
-const lessonIdSet = new Set(lessons.map((lesson: any) => lesson.id));
+const lessonIdSet: Set<string> = new Set(lessons.map((lesson: any) => String(lesson.id)));
 const hangulIdSet = new Set(hangulGroups.flatMap((group: any) => group.items.map((item: any) => item.id)));
 const vocabIdSet = new Set(vocab.map((item: any) => item.id));
 const grammarIdSet = new Set(grammarPoints.map((item: any) => item.id));
@@ -77,9 +83,10 @@ const nativeIdSet = new Set([
   ...nuanceSets.map((item: any) => `nuance:${item.id}`)
 ]);
 const materialIdSet = new Set(immersionMaterials.map((item) => item.id));
-const checkpointSignalPattern = /[0-9%％]|分|秒|正确率|准确率|录音|听写|复述|造句|句子|输出|自评|错误|弱点|修正|score|check/i;
+const checkpointSignalPattern = /正确率|准确率|录音|听写|复述|造句|句子|输出|自评|错误|弱点|修正|score|check/i;
+const checkpointMeasurementPattern = /\d+(?:\.\d+)?\s*(?:%|％|秒|分钟|分|题|个|句|词|次)/i;
 
-type SrsCardSnapshot = { id: string; previous: SrsCard | null };
+type SrsCardSnapshot = { id: string; previous: SrsCard | null; history: SrsState["history"] };
 type LessonReviewCardResult = string[] & { created: string[]; updated: string[]; previous: Record<string, SrsCard>; failed: boolean };
 type OutputEvidenceInput = number | { outputs: OutputEntry[]; srs: SrsState };
 type OutputArchiveInput = Omit<OutputEntry, "id" | "createdAt">;
@@ -97,6 +104,7 @@ export type LessonAnswerCommitEntry = {
     hint?: string;
   };
   correct: boolean;
+  skipped?: boolean;
 };
 
 export function useLearningWorkspace() {
@@ -133,24 +141,60 @@ export function useLearningWorkspace() {
     return commitLessonSession(lessonId, answers, score, progress);
   }, [progress]);
 
+  const saveCapstoneEvidence = useCallback((input: Omit<CapstoneEvidence, "updatedAt">, expectedRecordingId: string) => {
+    return saveCapstonePracticeEvidence(input, progress, expectedRecordingId);
+  }, [progress]);
+
+  const saveLessonTaskEvidence = useCallback((lessonId: string, input: unknown, expectedRecordingId: string) => {
+    return saveLessonTaskPracticeEvidence(lessonId, input, progress, expectedRecordingId);
+  }, [progress]);
+
+  const invalidateLessonTaskRecording = useCallback((lessonId: string, recordingId: string) => {
+    return invalidateLessonTaskRecordingEvidence(lessonId, recordingId, progress);
+  }, [progress]);
+
+  const invalidateCapstoneRecording = useCallback((recordingId: string) => {
+    return invalidateCapstoneRecordingEvidence(recordingId, progress);
+  }, [progress]);
+
   const toggleHangul = useCallback((itemId: string) => {
     return toggleHangulItem(itemId, progress);
+  }, [progress]);
+
+  const ensureHangul = useCallback((itemId: string) => {
+    return ensureHangulItemMastered(itemId, progress);
   }, [progress]);
 
   const togglePronunciation = useCallback((itemId: string) => {
     return togglePronunciationPair(itemId, progress);
   }, [progress]);
 
+  const ensurePronunciation = useCallback((itemId: string) => {
+    return ensurePronunciationPairMastered(itemId, progress);
+  }, [progress]);
+
   const toggleSoundChange = useCallback((ruleId: string) => {
     return toggleSoundChangeRule(ruleId, progress);
+  }, [progress]);
+
+  const ensureSoundChange = useCallback((ruleId: string) => {
+    return ensureSoundChangeRuleMastered(ruleId, progress);
   }, [progress]);
 
   const toggleVocab = useCallback((itemId: string) => {
     return toggleVocabItem(itemId, progress);
   }, [progress]);
 
+  const ensureVocab = useCallback((itemId: string) => {
+    return ensureVocabItemMastered(itemId, progress);
+  }, [progress]);
+
   const toggleGrammar = useCallback((itemId: string) => {
     return toggleGrammarPoint(itemId, progress);
+  }, [progress]);
+
+  const ensureGrammar = useCallback((itemId: string) => {
+    return ensureGrammarPointMastered(itemId, progress);
   }, [progress]);
 
   const toggleNative = useCallback((itemId: string) => {
@@ -208,11 +252,20 @@ export function useLearningWorkspace() {
     saveSelfStudyPlan,
     saveSelfStudyCheckpoint,
     completeLesson,
+    saveCapstoneEvidence,
+    saveLessonTaskEvidence,
+    invalidateLessonTaskRecording,
+    invalidateCapstoneRecording,
     toggleHangul,
+    ensureHangul,
     togglePronunciation,
+    ensurePronunciation,
     toggleSoundChange,
+    ensureSoundChange,
     toggleVocab,
+    ensureVocab,
     toggleGrammar,
+    ensureGrammar,
     toggleNative,
     saveNativeEvidence,
     completeMaterial,
@@ -321,7 +374,11 @@ export function applyCheckpointCompletion(progress: LearningProgress, checkpoint
   if (!cleanCheckpointId || !validateCheckpointEvidence(cleanEvidence) || !cleanAbilities.length) {
     return { next: current, completed: false };
   }
-  const alreadyCredited = Boolean(findCompletedCheckpointCredit(current, cleanCheckpointId));
+  const evidenceFingerprint = checkpointEvidenceFingerprint(cleanEvidence);
+  const reusesAnotherCheckpoint = Object.entries(current.checkpointEvidence).some(([id, previousEvidence]) => (
+    id !== cleanCheckpointId && checkpointEvidenceFingerprint(previousEvidence) === evidenceFingerprint
+  ));
+  if (reusesAnotherCheckpoint) return { next: current, completed: false };
   const set = new Set(current.completedCheckpoints);
   set.add(cleanCheckpointId);
   const next = {
@@ -332,9 +389,6 @@ export function applyCheckpointCompletion(progress: LearningProgress, checkpoint
   };
   markTaskDone(next, TASK_IDS.openSelfPlan);
   bumpStreak(next);
-  if (!alreadyCredited) {
-    recordAbilityEvent(next, checkpointEvidenceEventId(cleanCheckpointId), cleanAbilities, 3);
-  }
   return { next, completed: true };
 }
 
@@ -448,10 +502,11 @@ export function toggleVocabItem(itemId: string, fallbackProgress: LearningProgre
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
   const set = new Set(current.learnedVocab);
   let added = false;
-  const snapshots = [snapshotSrsCard(vocabCardId(itemId)), snapshotSrsCard(mistakeCardId(vocabQuestionId(itemId)))];
+  const removeIds = vocabRemovalCardIds(itemId);
+  const snapshots = removeIds.map(snapshotSrsCard);
   if (set.has(itemId)) {
     set.delete(itemId);
-    if (!removeExistingSrsCardsOrRollback(snapshots)) return false;
+    if (!removeCardsAndDerivedMistakesOrRollback(removeIds, snapshots)) return false;
   }
   else {
     added = true;
@@ -505,6 +560,45 @@ export function toggleGrammarPoint(itemId: string, fallbackProgress: LearningPro
   return true;
 }
 
+export function ensureHangulItemMastered(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  if (!hangulIdSet.has(itemId)) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  const cardId = hangulCardId(itemId);
+  if (!current.masteredHangul.includes(itemId)) return toggleHangulItem(itemId, current);
+  if (getSrsState().cards[cardId]) return true;
+  return Boolean(ensureCard(cardId, { kind: "hangul", itemId }));
+}
+
+export function ensurePronunciationPairMastered(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  if (!pronunciationPairs.some((item: any) => item.id === itemId)) return false;
+  if (getSrsState().cards[pronunciationCardId(itemId)]) return true;
+  return togglePronunciationPair(itemId, fallbackProgress);
+}
+
+export function ensureSoundChangeRuleMastered(ruleId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  if (!soundChangeRules.some((item: any) => item.id === ruleId)) return false;
+  if (getSrsState().cards[soundChangeCardId(ruleId)]) return true;
+  return toggleSoundChangeRule(ruleId, fallbackProgress);
+}
+
+export function ensureVocabItemMastered(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  if (!vocabIdSet.has(itemId)) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  const cardId = vocabCardId(itemId);
+  if (!current.learnedVocab.includes(itemId)) return toggleVocabItem(itemId, current);
+  if (getSrsState().cards[cardId]) return true;
+  return Boolean(ensureCard(cardId, { kind: "vocab", itemId }));
+}
+
+export function ensureGrammarPointMastered(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  if (!grammarIdSet.has(itemId)) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  const cardId = grammarCardId(itemId);
+  if (!current.learnedGrammar.includes(itemId)) return toggleGrammarPoint(itemId, current);
+  if (getSrsState().cards[cardId]) return true;
+  return Boolean(ensureCard(cardId, { kind: "grammar", itemId }));
+}
+
 export function toggleNativeItem(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
   if (!nativeIdSet.has(itemId)) return false;
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
@@ -539,7 +633,7 @@ export type NativeEvidenceInput = { listened?: boolean; retell?: string; transfe
 export function saveNativePracticeEvidence(itemId: string, evidence: NativeEvidenceInput, fallbackProgress: LearningProgress = defaultProgress()) {
   if (!nativeIdSet.has(itemId)) return false;
   const normalized = normalizeNativeEvidenceEntry(evidence);
-  if (!hasCompleteNativePracticeEvidence(normalized)) return false;
+  if (!hasCompleteNativePracticeEvidence(normalized, itemId)) return false;
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
   const learned = new Set(current.learnedNative);
   learned.add(itemId);
@@ -595,7 +689,7 @@ export function saveOutputArchiveEntry(input: OutputArchiveInput, fallbackProgre
   const draft = input.draft.trim();
   const weakPoint = input.weakPoint.trim();
   const targetRewrite = input.targetRewrite.trim();
-  if (!material || !draft || !weakPoint || !hasKoreanOutputRewrite(targetRewrite)) return null;
+  if (!material || !hasMaterialOutputEvidence({ ...input, draft, weakPoint, targetRewrite }, material)) return null;
 
   const entry = addOutputEntry({
     ...input,
@@ -620,8 +714,9 @@ export function completeMaterialEvidence(itemId: string, evidence?: { dictation?
   const selfCheck = normalizeMaterialSelfCheck(evidence?.selfCheck ?? current.materialEvidence[itemId]?.selfCheck, material);
   const outputEntryId = evidence?.outputEntryId?.trim() ?? current.materialEvidence[itemId]?.outputEntryId ?? "";
   const outputState = getOutputState();
-  const selectedOutput = outputState.entries.find((entry) => entry.materialId === itemId && entry.id === outputEntryId && hasKoreanOutputRewrite(entry.targetRewrite));
-  if (!material || !materialPrerequisitesMet(material, current) || !hasKoreanDictationEvidence(dictation, material.dictation) || !hasKoreanRetellEvidence(retell) || selfCheck.length < material.selfCheck.length || !selectedOutput) return false;
+  const selectedOutput = outputState.entries.find((entry) => entry.materialId === itemId && entry.id === outputEntryId && hasMaterialOutputEvidence(entry, material));
+  const sourceLines = material?.lines?.map((line) => line.ko) ?? [];
+  if (!material || !materialPrerequisitesMet(material, current) || !hasKoreanDictationEvidence(dictation, material.dictation) || !hasKoreanRetellEvidence(retell, sourceLines) || selfCheck.length < material.selfCheck.length || !selectedOutput) return false;
   const set = new Set(current.completedMaterials);
   set.add(itemId);
   const next = { ...current, completedMaterials: [...set], materialEvidence: { ...current.materialEvidence } };
@@ -672,10 +767,107 @@ export function completeMaterialEvidence(itemId: string, evidence?: { dictation?
   return true;
 }
 
-export function materialPrerequisitesMet(material: { recommendedLessons?: string[] } | null | undefined, progress: LearningProgress) {
-  if (!material?.recommendedLessons?.length) return true;
+export function saveCapstonePracticeEvidence(input: Omit<CapstoneEvidence, "updatedAt">, fallbackProgress: LearningProgress = defaultProgress(), expectedRecordingId?: string) {
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  if (expectedRecordingId !== undefined && (current.capstoneEvidence?.recordingId ?? "") !== expectedRecordingId.trim()) return false;
+  const evidence = normalizeCapstoneEvidence({ ...input, updatedAt: nowIso() });
+  if (!evidence || !isValidCapstoneEvidence(evidence)) return false;
+  return saveLearningProgress({ ...current, capstoneEvidence: evidence });
+}
+
+export function saveLessonTaskPracticeEvidence(lessonId: string, input: unknown, fallbackProgress: LearningProgress = defaultProgress(), expectedRecordingId?: string) {
+  const lesson = lessons.find((item: any) => item.id === lessonId);
+  const task = lessonCompletionTask(lesson);
+  const evidence = normalizeLessonTaskEvidence({ ...(isRecord(input) ? input : {}), updatedAt: nowIso() });
+  if (!task || !evidence || evidence.kind !== task.kind || !checkLessonTaskEvidence(task, evidence).ready) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  if (expectedRecordingId !== undefined && (current.lessonTaskEvidence[lessonId]?.recordingId ?? "") !== expectedRecordingId.trim()) return false;
+  return saveLearningProgress({
+    ...current,
+    lessonTaskEvidence: { ...current.lessonTaskEvidence, [lessonId]: evidence }
+  });
+}
+
+export function invalidateLessonTaskRecordingEvidence(lessonId: string, expectedRecordingId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  const recordingId = expectedRecordingId.trim();
+  if (!recordingId) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  const evidence = current.lessonTaskEvidence[lessonId];
+  if (evidence?.kind !== "shadowing" || evidence.recordingId !== recordingId) return false;
+  const lessonTaskEvidence = { ...current.lessonTaskEvidence };
+  delete lessonTaskEvidence[lessonId];
+  return revokeLessonMasteryAfterEvidenceLoss({ ...current, lessonTaskEvidence }, lessonId);
+}
+
+export function invalidateCapstoneRecordingEvidence(expectedRecordingId: string, fallbackProgress: LearningProgress = defaultProgress()) {
+  const recordingId = expectedRecordingId.trim();
+  if (!recordingId) return false;
+  const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
+  if (current.capstoneEvidence?.recordingId !== recordingId) return false;
+  return revokeLessonMasteryAfterEvidenceLoss({ ...current, capstoneEvidence: null }, CAPSTONE_LESSON_ID);
+}
+
+function revokeLessonMasteryAfterEvidenceLoss(progress: LearningProgress, lessonId: string) {
+  const current = normalizeLearningProgress(progress);
+  const retained = new Set(current.completedLessons);
+  retained.delete(lessonId);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const completedLessonId of [...retained]) {
+      const prerequisitesMet = getLessonPrerequisites(completedLessonId).every((item: any) => (
+        retained.has(item.id) && Number(current.lessonScores[item.id] ?? 0) >= UNLOCK_SCORE
+      ));
+      if (!prerequisitesMet) {
+        retained.delete(completedLessonId);
+        changed = true;
+      }
+    }
+  }
+
+  const invalidatedIds = current.completedLessons.filter((id) => !retained.has(id));
+  if (!invalidatedIds.length) return saveLearningProgress(current);
+  const next: LearningProgress = {
+    ...current,
+    completedLessons: current.completedLessons.filter((id) => retained.has(id)),
+    lessonScores: { ...current.lessonScores },
+    previewLessonScores: { ...current.previewLessonScores },
+    completedTasks: { ...current.completedTasks },
+    ability: { ...current.ability },
+    abilityEvents: { ...current.abilityEvents }
+  };
+  for (const invalidatedId of invalidatedIds) {
+    const previousScore = next.lessonScores[invalidatedId];
+    if (Number.isFinite(previousScore)) {
+      next.previewLessonScores[invalidatedId] = Math.max(next.previewLessonScores[invalidatedId] ?? 0, previousScore);
+    }
+    delete next.lessonScores[invalidatedId];
+    delete next.completedTasks[lessonTaskId(invalidatedId)];
+    removeAbilityEvent(next, lessonTaskId(invalidatedId), abilityIds);
+  }
+
+  const previousSrs = getSrsState();
+  const workingSrs = cloneSrsState(previousSrs);
+  const invalidatedSet = new Set(invalidatedIds);
+  const removedCardIds = new Set(Object.entries(workingSrs.cards)
+    .filter(([id, card]) => card.payload.kind === "lesson" && invalidatedSet.has(parseLessonReviewCardId(id)?.lessonId ?? ""))
+    .map(([id]) => id));
+  for (const cardId of removedCardIds) delete workingSrs.cards[cardId];
+  if (removedCardIds.size) workingSrs.history = workingSrs.history.filter((item) => !removedCardIds.has(item.id));
+
+  if (removedCardIds.size && !saveSrsState(workingSrs)) return false;
+  if (!saveLearningProgress(next)) {
+    if (removedCardIds.size) saveSrsState(previousSrs);
+    return false;
+  }
+  return true;
+}
+
+export function materialPrerequisitesMet(material: { requiredLessons?: string[]; recommendedLessons?: string[] } | null | undefined, progress: LearningProgress) {
+  const requiredLessons = material?.requiredLessons ?? material?.recommendedLessons ?? [];
+  if (!requiredLessons.length) return true;
   const completedIds = new Set(progress.completedLessons);
-  return material.recommendedLessons.every((lessonId) => isLessonMastered(lessonId, completedIds, progress.lessonScores));
+  return requiredLessons.every((lessonId) => isLessonMastered(lessonId, completedIds, progress.lessonScores));
 }
 
 export function clearMaterialArchiveEvidence(itemId: string, fallbackProgress: LearningProgress = defaultProgress()) {
@@ -775,14 +967,27 @@ export function countNativePracticeEvidence(progress: LearningProgress, scope: "
   return Object.entries(normalized.nativeEvidence).filter(([itemId, evidence]) => {
     if (scope === "pragmatics" && !itemId.startsWith("pragmatics:")) return false;
     if (scope === "nuance" && !itemId.startsWith("nuance:")) return false;
-    return hasCompleteNativePracticeEvidence(evidence);
+    return hasCompleteNativePracticeEvidence(evidence, itemId);
   }).length;
 }
 
-export function hasCompleteNativePracticeEvidence(evidence: NativeEvidenceInput | null | undefined) {
+export function hasCompleteNativePracticeEvidence(evidence: NativeEvidenceInput | null | undefined, itemId = "") {
+  const sources = nativeEvidenceSources(itemId);
   return Boolean(evidence?.listened) &&
-    hasKoreanRetellEvidence(evidence?.retell ?? "") &&
-    hasKoreanOutputRewrite(evidence?.transfer ?? "");
+    hasKoreanRetellEvidence(evidence?.retell ?? "", sources) &&
+    hasKoreanOutputRewrite(evidence?.transfer ?? "") &&
+    (!sources.length || hasKoreanContentOverlap(evidence?.transfer ?? "", sources));
+}
+
+function nativeEvidenceSources(itemId: string) {
+  if (itemId.startsWith("pragmatics:")) {
+    return pragmaticScenarios.find((item: any) => `pragmatics:${item.id}` === itemId)?.lines?.map((line: any) => line.ko) ?? [];
+  }
+  if (itemId.startsWith("nuance:")) {
+    const item = nuanceSets.find((entry: any) => `nuance:${entry.id}` === itemId);
+    return [...(item?.contrast ?? []), ...(item?.examples ?? []).map((example: any) => example.ko)];
+  }
+  return [];
 }
 
 export function findCompletedCheckpointCredit(progress: LearningProgress, checkpointId: string) {
@@ -810,7 +1015,8 @@ export function getValidOutputEntries(outputs: OutputEntry[] = getOutputState().
 export function hasValidOutputEvidence(entry: OutputEntry, srs: SrsState = getSrsState()) {
   const target = entry.targetRewrite || "";
   const card = srs.cards[outputCardId(entry.id)];
-  return hasKoreanOutputRewrite(target) && card?.payload.kind === "output" && card.payload.answer === target;
+  const material = immersionMaterials.find((item) => item.id === entry.materialId);
+  return Boolean(material && hasMaterialOutputEvidence(entry, material) && card?.payload.kind === "output" && card.payload.answer === target);
 }
 
 export function countValidMaterialEvidence(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }) {
@@ -828,7 +1034,8 @@ export function hasValidMaterialEvidence(progress: LearningProgress, materialId:
   const evidence = progress.materialEvidence[materialId];
   const material = immersionMaterials.find((item) => item.id === materialId);
   if (!material || !progress.completedMaterials.includes(materialId) || !evidence) return false;
-  if (!hasKoreanDictationEvidence(evidence.dictation, material.dictation) || !hasKoreanRetellEvidence(evidence.retell)) return false;
+  if (!materialPrerequisitesMet(material, progress)) return false;
+  if (!hasKoreanDictationEvidence(evidence.dictation, material.dictation) || !hasKoreanRetellEvidence(evidence.retell, material.lines.map((line) => line.ko))) return false;
   if (normalizeMaterialSelfCheck(evidence.selfCheck, material).length < material.selfCheck.length) return false;
   if (!srs.cards[materialCardId(materialId)] || srs.cards[materialCardId(materialId)].payload.kind !== "material") return false;
   const selectedOutput = outputs.find((entry) => entry.materialId === materialId && entry.id === evidence.outputEntryId);
@@ -906,6 +1113,7 @@ export function resetLearningWorkspace() {
   const previousOutputState = getOutputState();
   const previousLessonPractice = getLessonPracticeState();
   const previousDraftState = getLearningDraftState();
+  const previousNativePortfolio = normalizeNativePortfolioState(readJson(STORAGE_KEYS.nativePortfolio, defaultNativePortfolioState()));
   const rollbacks: Array<() => boolean> = [];
 
   if (!writeJson(STORAGE_KEYS.profile, defaultProfile())) return false;
@@ -941,6 +1149,13 @@ export function resetLearningWorkspace() {
   }
   rollbacks.push(() => saveLearningDraftState(previousDraftState));
 
+  if (!writeJson(STORAGE_KEYS.nativePortfolio, defaultNativePortfolioState())) {
+    rollbackStorageWrites(rollbacks);
+    return false;
+  }
+  rollbacks.push(() => writeJson(STORAGE_KEYS.nativePortfolio, previousNativePortfolio));
+
+  void clearLearningRecordings();
   return true;
 }
 
@@ -953,13 +1168,16 @@ export function applyTaskCompletion(progress: LearningProgress, task: StudyTask)
   return next;
 }
 
-export function applyLessonCompletion(progress: LearningProgress, lessonId: string, score = 0) {
+export function applyLessonCompletion(progress: LearningProgress, lessonId: string, score = 0, assessmentReady = true) {
   const current = normalizeLearningProgress(progress);
   const next = {
     ...current,
     completedLessons: [...current.completedLessons],
     lessonScores: { ...current.lessonScores },
-    previewLessonScores: { ...current.previewLessonScores }
+    previewLessonScores: { ...current.previewLessonScores },
+    lessonListeningEvidence: { ...current.lessonListeningEvidence },
+    lessonProductionEvidence: { ...current.lessonProductionEvidence },
+    lessonTaskEvidence: { ...current.lessonTaskEvidence }
   };
   if (!lessonIdSet.has(lessonId)) {
     return { next, previousScore: 0, canMasterCorePath: false, wasUnlocked: false, knownLesson: false };
@@ -970,7 +1188,7 @@ export function applyLessonCompletion(progress: LearningProgress, lessonId: stri
   const wasUnlocked = lessonIdSet.has(lessonId) && prerequisitesMet;
   if (wasUnlocked) next.lessonScores[lessonId] = Math.max(previousScore, score);
   else next.previewLessonScores[lessonId] = Math.max(next.previewLessonScores[lessonId] ?? 0, score);
-  const canMasterCorePath = wasUnlocked && (score >= UNLOCK_SCORE || current.completedLessons.includes(lessonId));
+  const canMasterCorePath = wasUnlocked && ((score >= UNLOCK_SCORE && assessmentReady) || current.completedLessons.includes(lessonId));
   if (canMasterCorePath) {
     if (!next.completedLessons.includes(lessonId)) next.completedLessons.push(lessonId);
   } else {
@@ -985,12 +1203,32 @@ export function completeLessonProgress(lessonId: string, score = 0, fallbackProg
 
 export function commitLessonSession(lessonId: string, answers: LessonAnswerCommitEntry[], score = 0, fallbackProgress: LearningProgress = defaultProgress()) {
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
-  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score);
+  if (lessonId === CAPSTONE_LESSON_ID && score >= UNLOCK_SCORE && !isValidCapstoneEvidence(current.capstoneEvidence)) return false;
+  const lesson = lessons.find((item: any) => item.id === lessonId);
+  const task = lessonCompletionTask(lesson);
+  if (score >= UNLOCK_SCORE && !checkLessonTaskEvidence(task, current.lessonTaskEvidence[lessonId]).ready) return false;
+  const assessment = answers.length
+    ? assessLessonAttempt(
+        { ...lesson, drills: (lesson?.drills ?? []).map((question: any, index: number) => ({ ...question, id: question.id ?? lessonReviewCardId(lessonId, index) })) },
+        answers as any,
+        score
+      )
+    : null;
+  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score, assessment?.corePassed ?? true);
   if (!knownLesson) return false;
+  const previousListeningEvidence = current.lessonListeningEvidence[lessonId] === true;
+  const hasListeningEvidence = answers.some((entry) => isAuditoryQuestion(entry.question) && !entry.skipped && entry.correct);
+  if (wasUnlocked && hasListeningFocus(lessonId)) {
+    next.lessonListeningEvidence[lessonId] = previousListeningEvidence || hasListeningEvidence;
+  }
+  if (wasUnlocked && assessment?.productionPassed) {
+    next.lessonProductionEvidence[lessonId] = true;
+  }
   if (wasUnlocked) bumpStreak(next);
-  if (wasUnlocked) bumpAbilityFromLesson(next, lessonId, previousScore, next.lessonScores[lessonId]);
+  if (wasUnlocked) bumpAbilityFromLesson(next, lessonId, previousScore, next.lessonScores[lessonId], previousListeningEvidence);
   if (wasUnlocked) {
     for (const entry of answers) {
+      if (entry.skipped) continue;
       recordPracticeItem(next, entry.question.id, entry.correct, "lesson");
     }
   }
@@ -1040,6 +1278,7 @@ export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean) {
   const current = previousSrs.cards[card.id];
   if (!current) return false;
   const at = Date.now();
+  if (current.dueAt > at || !sameReviewCardSnapshot(current, card)) return false;
   const graded = applyGradeToState(previousSrs, card.id, isCorrect, at);
   if (!graded) return false;
 
@@ -1051,6 +1290,18 @@ export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean) {
     return false;
   }
   return true;
+}
+
+function sameReviewCardSnapshot(current: SrsCard, submitted: SrsCard) {
+  return current.id === submitted.id &&
+    current.box === submitted.box &&
+    current.dueAt === submitted.dueAt &&
+    current.correct === submitted.correct &&
+    current.wrong === submitted.wrong &&
+    current.lastSeenAt === submitted.lastSeenAt &&
+    current.ease === submitted.ease &&
+    current.intervalDays === submitted.intervalDays &&
+    current.lapses === submitted.lapses;
 }
 
 type QuizAnswerCommitEntry = {
@@ -1067,6 +1318,7 @@ type QuizAnswerCommitEntry = {
     hint?: string;
   };
   correct: boolean;
+  skipped?: boolean;
 };
 
 export function applyQuizProgress(progress: LearningProgress, quizId: string, answers: QuizAnswerCommitEntry[], score: number) {
@@ -1074,12 +1326,13 @@ export function applyQuizProgress(progress: LearningProgress, quizId: string, an
   bumpStreak(next);
   next.completedTasks[TASK_IDS.quizMixed] = todayKey();
   markTaskDone(next, TASK_IDS.openQuiz);
-  answers.forEach((entry, index) => {
+  const scoredAnswers = answers.filter((entry) => !entry.skipped);
+  scoredAnswers.forEach((entry, index) => {
     recordAbilityEvent(next, quizQuestionEvidenceEventId(quizId, index, entry.question.id), mapQuestionToAbilities(entry.question.id), entry.correct ? 1 : 0);
     recordPracticeItem(next, entry.question.id, entry.correct, "quiz");
   });
-  const computedScore = answers.length ? Math.round((answers.filter((entry) => entry.correct).length / answers.length) * 100) : score;
-  const transferAbilities = [...new Set(answers.flatMap((entry) => mapQuestionToAbilities(entry.question.id)))];
+  const computedScore = scoredAnswers.length ? Math.round((scoredAnswers.filter((entry) => entry.correct).length / scoredAnswers.length) * 100) : score;
+  const transferAbilities = [...new Set(scoredAnswers.flatMap((entry) => mapQuestionToAbilities(entry.question.id)))];
   const transferDelta = computedScore >= 85 ? 2 : computedScore >= 65 ? 1 : 0;
   recordAbilityEvent(next, quizTransferEvidenceEventId(quizId), transferAbilities, transferDelta);
   return next;
@@ -1101,7 +1354,7 @@ export function commitQuizSession(quizId: string, answers: QuizAnswerCommitEntry
   const at = Date.now();
 
   answers.forEach((entry) => {
-    if (entry.correct) return;
+    if (entry.correct || entry.skipped) return;
     const id = mistakeCardId(entry.question.id);
     const current = workingSrs.cards[id] ?? {
       id,
@@ -1261,19 +1514,21 @@ function buildTaskPool(
 
   if (profile.studyMode === "self") {
     const reviewBlock = plan.dailyTemplate[0];
-    tasks.push({
-      id: TASK_IDS.openReviewRhythm,
-      kind: "review",
-      title: reviewBlock?.title ?? "复习",
-      detail: reviewBlock?.detail ?? "先处理 SRS 到期卡片，只复习已经学过的内容。",
-      href: "/review",
-      minutes: reviewBlock?.minutes ?? Math.min(10, profile.minutesGoal),
-      ability: plan.modules.slice(0, 2).map((module: any) => moduleToAbility(module.id)).filter(isAbilityId),
-      source: "self",
-      priority: 74,
-      lane: "self",
-      reason: "自学模式下，先把复习节奏固定为今天的第一块。"
-    });
+    if (dueCount > 0) {
+      tasks.push({
+        id: TASK_IDS.openReviewRhythm,
+        kind: "review",
+        title: reviewBlock?.title ?? "复习",
+        detail: reviewBlock?.detail ?? "先处理 SRS 到期卡片，只复习已经学过的内容。",
+        href: "/review",
+        minutes: reviewBlock?.minutes ?? Math.min(10, profile.minutesGoal),
+        ability: plan.modules.slice(0, 2).map((module: any) => moduleToAbility(module.id)).filter(isAbilityId),
+        source: "self",
+        priority: 74,
+        lane: "self",
+        reason: "自学模式下，先把已经到期的复习放回今天。"
+      });
+    }
     const selectedModules = selectSelfStudyModules(plan.modules, progress, 2, outputEvidence);
     for (const [index, studyModule] of selectedModules.entries()) {
       const ability = moduleToAbility(studyModule.id);
@@ -1634,13 +1889,15 @@ export function ensureLessonReviewCards(lessonId: string): LessonReviewCardResul
     const card = ensureCard(id, {
       kind: "lesson",
       itemId: id,
-      type: drill.type === "choice" || drill.type === "listen" || drill.type === "type" ? drill.type : "type",
+      type: normalizeLessonReviewQuestionType(drill.type),
       prompt: drill.prompt,
       answer: drill.answer,
       acceptable: Array.isArray(drill.acceptable) ? drill.acceptable : undefined,
       choices: Array.isArray(drill.choices) ? drill.choices : undefined,
       explain: drill.explain,
-      speak: drill.speak
+      speak: drill.speak,
+      clozeText: drill.clozeText,
+      hint: drill.hint
     });
     if (!card) {
       const partial = Object.assign(ids, { created, updated, previous, failed: true });
@@ -1673,17 +1930,22 @@ function addLessonReviewCardsToState(state: SrsState, lessonId: string) {
       correct: current?.correct ?? 0,
       wrong: current?.wrong ?? 0,
       lastSeenAt: current?.lastSeenAt ?? null,
+      ease: current?.ease,
+      intervalDays: current?.intervalDays,
+      lapses: current?.lapses,
       payload: {
         ...current?.payload,
         kind: "lesson",
         itemId: id,
-        type: drill.type === "choice" || drill.type === "listen" || drill.type === "type" ? drill.type : "type",
+        type: normalizeLessonReviewQuestionType(drill.type),
         prompt: drill.prompt,
         answer: drill.answer,
         acceptable: Array.isArray(drill.acceptable) ? drill.acceptable : undefined,
         choices: Array.isArray(drill.choices) ? drill.choices : undefined,
         explain: drill.explain,
-        speak: drill.speak
+        speak: drill.speak,
+        clozeText: drill.clozeText,
+        hint: drill.hint
       }
     };
     changed = true;
@@ -1700,7 +1962,7 @@ function addLessonMistakeCardsToState(state: SrsState, lessonId: string, answers
   const at = Date.now();
   let changed = false;
   for (const entry of answers) {
-    if (entry.correct || !validQuestionIds.has(entry.question.id) || !entry.question.prompt || !entry.question.answer) continue;
+    if (entry.correct || entry.skipped || !validQuestionIds.has(entry.question.id) || !entry.question.prompt || !entry.question.answer) continue;
     const id = mistakeCardId(entry.question.id);
     const current = state.cards[id];
     state.cards[id] = {
@@ -1737,29 +1999,26 @@ function emptyLessonReviewCards(): LessonReviewCardResult {
 }
 
 function snapshotSrsCard(id: string): SrsCardSnapshot {
-  const card = getSrsState().cards[id];
-  return { id, previous: card ? cloneSrsCard(card) : null };
+  const state = getSrsState();
+  const card = state.cards[id];
+  return { id, previous: card ? cloneSrsCard(card) : null, history: [...state.history] };
 }
 
 function rollbackSrsCardSnapshot(snapshot: SrsCardSnapshot) {
   const state = getSrsState();
   if (snapshot.previous) state.cards[snapshot.id] = cloneSrsCard(snapshot.previous);
   else delete state.cards[snapshot.id];
-  if (!snapshot.previous) state.history = state.history.filter((item) => item.id !== snapshot.id);
+  state.history = [...snapshot.history];
   saveSrsState(state);
 }
 
 function rollbackSrsCardSnapshots(snapshots: SrsCardSnapshot[]) {
   const state = getSrsState();
-  const removedIds = new Set<string>();
   for (const snapshot of snapshots) {
     if (snapshot.previous) state.cards[snapshot.id] = cloneSrsCard(snapshot.previous);
-    else {
-      delete state.cards[snapshot.id];
-      removedIds.add(snapshot.id);
-    }
+    else delete state.cards[snapshot.id];
   }
-  if (removedIds.size) state.history = state.history.filter((item) => !removedIds.has(item.id));
+  if (snapshots[0]) state.history = [...snapshots[0].history];
   saveSrsState(state);
 }
 
@@ -1810,6 +2069,21 @@ function pronunciationRemovalCardIds(itemId: string) {
   return [pronunciationCardId(itemId), mistakeCardId(pronunciationQuestionId(itemId))];
 }
 
+function vocabRemovalCardIds(itemId: string) {
+  return [
+    vocabCardId(itemId),
+    mistakeCardId(vocabQuestionId(itemId)),
+    mistakeCardId(vocabDictationQuestionId(itemId)),
+    mistakeCardId(vocabClozeQuestionId(itemId))
+  ];
+}
+
+function normalizeLessonReviewQuestionType(input: unknown): SrsCard["payload"]["type"] {
+  return input === "choice" || input === "listen" || input === "type" || input === "dictation" || input === "cloze" || input === "translate"
+    ? input
+    : "type";
+}
+
 function nativeRemovalCardIds(itemId: string) {
   const ids = [nativeCardId(itemId), mistakeCardId(nativeCardId(itemId))];
   const [scope, rawId] = itemId.split(":");
@@ -1842,11 +2116,31 @@ function cloneSrsState(state: SrsState): SrsState {
   };
 }
 
-function bumpAbilityFromLesson(progress: LearningProgress, lessonId: string, previousScore: number, nextScore: number) {
+function bumpAbilityFromLesson(progress: LearningProgress, lessonId: string, previousScore: number, nextScore: number, previousListeningEvidence = false) {
   const lesson = lessons.find((item: any) => item.id === lessonId);
   if (!lesson) return;
-  if (nextScore <= previousScore) return;
-  recordAbilityEvent(progress, lessonTaskId(lessonId), mapFocusToAbilities(lesson.focus), lessonAbilityDelta(nextScore));
+  const abilities = lessonAbilitiesWithEvidence(lesson, progress.lessonListeningEvidence[lessonId] === true);
+  if (nextScore > previousScore) {
+    recordAbilityEvent(progress, lessonTaskId(lessonId), abilities, lessonAbilityDelta(nextScore));
+    return;
+  }
+  if (!previousListeningEvidence && progress.lessonListeningEvidence[lessonId] === true) {
+    recordAbilityEvent(progress, lessonTaskId(lessonId), ["listening"], lessonAbilityDelta(nextScore));
+  }
+}
+
+function isAuditoryQuestion(question: LessonAnswerCommitEntry["question"]) {
+  return Boolean(question.speak && (question.type === "listen" || question.type === "dictation"));
+}
+
+function hasListeningFocus(lessonId: string) {
+  const lesson = lessons.find((item: any) => item.id === lessonId);
+  return Boolean(lesson && mapFocusToAbilities(lesson.focus).includes("listening"));
+}
+
+function lessonAbilitiesWithEvidence(lesson: any, hasListeningEvidence: boolean) {
+  const abilities = mapFocusToAbilities(lesson?.focus);
+  return hasListeningEvidence ? abilities : abilities.filter((ability) => ability !== "listening");
 }
 
 function lessonAbilityDelta(score: number) {
@@ -1872,8 +2166,17 @@ export function recordAbilityEvent(progress: LearningProgress, eventId: string, 
     }
   }
   if (!maxApplied) return 0;
-  progress.abilityEvents[eventId] = compactAbilityEventValue(nextEvent, cleanAbilities);
+  progress.abilityEvents[eventId] = needsExplicitAbilityDimensions(eventId)
+    ? nextEvent
+    : compactAbilityEventValue(nextEvent, cleanAbilities);
   return maxApplied;
+}
+
+function needsExplicitAbilityDimensions(eventId: string) {
+  return eventId.startsWith("lesson:") ||
+    eventId.startsWith("checkpoint:") ||
+    eventId.startsWith("task:") ||
+    (eventId.startsWith("quiz:") && eventId.endsWith(":transfer"));
 }
 
 export function recordPracticeItem(progress: LearningProgress, itemId: string, isCorrect: boolean, source: LearningProgress["practiceItems"][string]["lastSource"]) {
@@ -1959,7 +2262,11 @@ export function hasKoreanText(value: string) {
 
 export function validateCheckpointEvidence(evidence: string) {
   const clean = evidence.trim();
-  return clean.length >= 6 && (hasKoreanText(clean) || checkpointSignalPattern.test(clean));
+  return clean.length >= 6 && checkpointSignalPattern.test(clean) && checkpointMeasurementPattern.test(clean);
+}
+
+function checkpointEvidenceFingerprint(evidence: string) {
+  return evidence.normalize("NFKC").toLowerCase().replace(/[\s，,。.!！?？；;：:]+/g, "");
 }
 
 export function mapCardToAbilities(card: SrsCard): AbilityId[] {
@@ -2014,6 +2321,10 @@ function mapQuestionToAbilities(questionId: string): AbilityId[] {
   if (hasQuestionPrefix(questionId, "nativeNuance")) return ["native"];
   if (hasQuestionPrefix(questionId, "materialRetell")) return ["listening", "pragmatics", "native"];
   if (hasQuestionPrefix(questionId, "outputTransfer")) return ["grammar", "pragmatics", "native"];
+  if (hasCardPrefix(questionId, "hangul")) return ["script"];
+  if (hasCardPrefix(questionId, "pronunciation")) return ["listening"];
+  if (hasCardPrefix(questionId, "vocab")) return ["vocabulary"];
+  if (hasCardPrefix(questionId, "grammar")) return ["grammar"];
   if (hasCardPrefix(questionId, "output")) return ["grammar", "pragmatics", "native"];
   if (hasCardPrefix(questionId, "material")) return ["listening", "pragmatics", "native"];
   if (hasCardPrefix(questionId, "soundChange")) return ["listening"];
@@ -2022,18 +2333,10 @@ function mapQuestionToAbilities(questionId: string): AbilityId[] {
   return ["grammar"];
 }
 
-function countListeningSrsEvidence(outputEvidence: OutputEvidenceInput) {
-  if (typeof outputEvidence === "number") return 0;
-  return Object.values(outputEvidence.srs.cards).filter((card) => {
-    return card.payload.kind === "pronunciation" || card.payload.kind === "soundChange";
-  }).length;
-}
-
 function buildEvidenceBackedAbility(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }): Record<AbilityId, number> {
   const ability = defaultProgress().ability;
   addAbilityEvidence(ability, {
     script: progress.masteredHangul.length,
-    listening: countListeningSrsEvidence(outputEvidence) * 2,
     vocabulary: progress.learnedVocab.length,
     grammar: progress.learnedGrammar.length * 3,
     pragmatics: countNativePracticeEvidence(progress, "pragmatics") * 4,
@@ -2042,7 +2345,11 @@ function buildEvidenceBackedAbility(progress: LearningProgress, outputEvidence: 
   for (const lessonId of progress.completedLessons) {
     const lesson = lessons.find((item: any) => item.id === lessonId);
     if (!lesson) continue;
-    addAbilityEvidenceForIds(ability, mapFocusToAbilities(lesson.focus), lessonAbilityDelta(progress.lessonScores[lessonId] ?? UNLOCK_SCORE));
+    addAbilityEvidenceForIds(
+      ability,
+      lessonAbilitiesWithEvidence(lesson, progress.lessonListeningEvidence[lessonId] === true),
+      lessonAbilityDelta(progress.lessonScores[lessonId] ?? UNLOCK_SCORE)
+    );
   }
   const validMaterialEntries = countValidMaterialEvidence(progress, outputEvidence);
   addAbilityEvidence(ability, {
@@ -2063,7 +2370,11 @@ function buildEvidenceBackedAbility(progress: LearningProgress, outputEvidence: 
 function abilityFromEvents(events: LearningProgress["abilityEvents"] = {}) {
   const result: Partial<Record<AbilityId, number>> = {};
   for (const [eventId, value] of Object.entries(events)) {
-    const abilities = abilitiesForEventId(eventId);
+    if (isEntityBackedAbilityEvent(eventId) || eventId.startsWith("checkpoint:")) continue;
+    const explicitAbilities = isRecord(value)
+      ? abilityIds.filter((ability) => Number(value[ability] ?? 0) > 0)
+      : [];
+    const abilities = explicitAbilities.length ? explicitAbilities : abilitiesForEventId(eventId);
     if (!abilities.length) continue;
     const applied = normalizeAbilityEventValue(value, abilities);
     for (const ability of abilities) {
@@ -2074,25 +2385,33 @@ function abilityFromEvents(events: LearningProgress["abilityEvents"] = {}) {
 }
 
 function abilitiesForEventId(eventId: string): AbilityId[] {
-  if (eventId.startsWith("hangul:")) return ["script"];
   if (eventId.startsWith("pronunciation:")) return ["listening"];
   if (eventId.startsWith("soundChange:")) return ["listening"];
-  if (eventId.startsWith("vocab:")) return ["vocabulary"];
-  if (eventId.startsWith("grammar:")) return ["grammar"];
-  if (eventId.startsWith("nativeEvidence:pragmatics:")) return ["pragmatics"];
-  if (eventId.startsWith("nativeEvidence:nuance:")) return ["native"];
-  if (eventId.startsWith("material:")) {
-    const materialId = eventId.slice("material:".length);
-    const material = immersionMaterials.find((item) => item.id === materialId);
-    return mapFocusToAbilities(material?.focus);
-  }
-  if (eventId.startsWith("output:")) return ["grammar", "pragmatics", "native"];
-  if (eventId.startsWith("lesson:")) return mapLessonCardToAbilities(eventId);
   if (eventId.startsWith("review:")) {
     const cardId = eventId.slice("review:".length).split(":").slice(0, -1).join(":");
     return mapQuestionToAbilities(cardId.startsWith("mistake:") ? cardId.slice("mistake:".length) : cardId);
   }
+  if (eventId.startsWith("quiz:") && !eventId.endsWith(":transfer")) {
+    const questionId = questionIdFromQuizEvent(eventId);
+    return questionId ? mapQuestionToAbilities(questionId) : [];
+  }
   return [];
+}
+
+function isEntityBackedAbilityEvent(eventId: string) {
+  return eventId.startsWith("hangul:") ||
+    eventId.startsWith("vocab:") ||
+    eventId.startsWith("grammar:") ||
+    eventId.startsWith("nativeEvidence:") ||
+    eventId.startsWith("material:") ||
+    eventId.startsWith("output:") ||
+    eventId.startsWith("lesson:");
+}
+
+function questionIdFromQuizEvent(eventId: string) {
+  const prefixes = ["lesson:", "hq:", "pq:", "vq:", "gq:", "nq:", "mq:", "oq:", "scq:"];
+  const markerIndex = Math.max(...prefixes.map((prefix) => eventId.lastIndexOf(`:${prefix}`)));
+  return markerIndex >= 0 ? eventId.slice(markerIndex + 1) : "";
 }
 
 function addAbilityEvidence(ability: Record<AbilityId, number>, values: Partial<Record<AbilityId, number>>) {
@@ -2149,7 +2468,7 @@ function clearTaskDoneIfNoRemainingEvidence(progress: LearningProgress, taskId: 
 function hasRemainingAbilityTaskEvidence(progress: LearningProgress, taskId: string) {
   if (taskId === "ability:script") return progress.masteredHangul.length > 0;
   if (taskId === "ability:listening") {
-    return Object.values(getSrsState().cards).some((card) => card.payload.kind === "pronunciation");
+    return Object.values(getSrsState().cards).some((card) => card.payload.kind === "pronunciation" || card.payload.kind === "soundChange");
   }
   if (taskId === "ability:vocabulary") return progress.learnedVocab.length > 0;
   if (taskId === "ability:grammar") return progress.learnedGrammar.length > 0;
@@ -2174,16 +2493,39 @@ export function normalizeUserProfile(input: Partial<UserProfile> | null | undefi
   };
 }
 
-export function normalizeLearningProgress(input: Partial<LearningProgress> | null | undefined): LearningProgress {
+export function normalizeLearningProgress(
+  input: Partial<LearningProgress> | null | undefined,
+  options: { enforceRecordingEvidence?: boolean } = {}
+): LearningProgress {
   const fallback = defaultProgress();
   const source = isRecord(input) ? input : {};
   const lessonScores = normalizeLessonScores(source.lessonScores, source.completedLessons);
+  const lessonTaskEvidence = normalizeLessonTaskEvidenceRecord(source.lessonTaskEvidence);
+  const capstoneEvidence = normalizeCapstoneEvidence(source.capstoneEvidence);
+  const completedLessons = normalizeCompletedLessons(
+    source.completedLessons,
+    lessonScores,
+    lessonTaskEvidence,
+    capstoneEvidence,
+    options.enforceRecordingEvidence === true
+  );
   return {
     ...fallback,
     ...source,
-    completedLessons: normalizeCompletedLessons(source.completedLessons, lessonScores),
+    completedLessons,
     lessonScores,
     previewLessonScores: normalizeLessonScores(source.previewLessonScores),
+    lessonListeningEvidence: normalizeLessonListeningEvidence(
+      source.lessonListeningEvidence,
+      completedLessons,
+      !Object.prototype.hasOwnProperty.call(source, "lessonListeningEvidence")
+    ),
+    lessonProductionEvidence: normalizeLessonProductionEvidence(
+      source.lessonProductionEvidence,
+      completedLessons,
+      !Object.prototype.hasOwnProperty.call(source, "lessonProductionEvidence")
+    ),
+    lessonTaskEvidence,
     masteredHangul: filterKnownIds(source.masteredHangul, hangulIdSet),
     learnedVocab: filterKnownIds(source.learnedVocab, vocabIdSet),
     learnedGrammar: filterKnownIds(source.learnedGrammar, grammarIdSet),
@@ -2191,6 +2533,7 @@ export function normalizeLearningProgress(input: Partial<LearningProgress> | nul
     nativeEvidence: normalizeNativeEvidence(source.nativeEvidence),
     completedMaterials: filterKnownIds(source.completedMaterials, materialIdSet),
     materialEvidence: normalizeMaterialEvidence(source.materialEvidence),
+    capstoneEvidence,
     completedCheckpoints: normalizeStringIds(source.completedCheckpoints),
     checkpointEvidence: normalizeTextRecord(source.checkpointEvidence),
     completedTasks: normalizeCompletedTasks(source.completedTasks),
@@ -2211,7 +2554,7 @@ function normalizeNativeEvidence(input: unknown): LearningProgress["nativeEviden
     const itemId = rawId.trim();
     if (!nativeIdSet.has(itemId) || !isRecord(value)) continue;
     const evidence = normalizeNativeEvidenceEntry(value);
-    if (hasCompleteNativePracticeEvidence(evidence)) result[itemId] = evidence;
+    if (hasCompleteNativePracticeEvidence(evidence, itemId)) result[itemId] = evidence;
   }
   return result;
 }
@@ -2233,13 +2576,24 @@ function filterKnownIds(input: unknown, known: Set<string>) {
   return Array.isArray(input) ? [...new Set(input.map(String).filter((id) => known.has(id)))] : [];
 }
 
-function normalizeCompletedLessons(input: unknown, lessonScores: Record<string, number>) {
+function normalizeCompletedLessons(
+  input: unknown,
+  lessonScores: Record<string, number>,
+  lessonTaskEvidence: LearningProgress["lessonTaskEvidence"],
+  capstoneEvidence: CapstoneEvidence | null,
+  enforceRecordingEvidence: boolean
+) {
   const requested = new Set(filterKnownIds(input, lessonIdSet));
   const valid: string[] = [];
   const validSet = new Set<string>();
   for (const lesson of lessons) {
     if (!requested.has(lesson.id)) continue;
     if (Number(lessonScores[lesson.id] ?? 0) < UNLOCK_SCORE) continue;
+    if (enforceRecordingEvidence) {
+      const completionTask = lessonCompletionTask(lesson);
+      if (completionTask?.kind === "shadowing" && !checkLessonTaskEvidence(completionTask, lessonTaskEvidence[lesson.id]).ready) continue;
+      if (lesson.id === CAPSTONE_LESSON_ID && !isValidCapstoneEvidence(capstoneEvidence)) continue;
+    }
     const prerequisitesMet = getLessonPrerequisites(lesson.id).every((item: any) => {
       return validSet.has(item.id) && Number(lessonScores[item.id] ?? 0) >= UNLOCK_SCORE;
     });
@@ -2248,6 +2602,41 @@ function normalizeCompletedLessons(input: unknown, lessonScores: Record<string, 
     validSet.add(lesson.id);
   }
   return valid;
+}
+
+function normalizeLessonListeningEvidence(input: unknown, completedLessons: string[], assumeLegacyEvidence: boolean) {
+  const source = isRecord(input) ? input : {};
+  const result: Record<string, boolean> = {};
+  for (const lessonId of completedLessons) {
+    if (!hasListeningFocus(lessonId)) continue;
+    if (typeof source[lessonId] === "boolean") result[lessonId] = source[lessonId] === true;
+    else if (assumeLegacyEvidence) result[lessonId] = true;
+  }
+  return result;
+}
+
+function normalizeLessonProductionEvidence(input: unknown, completedLessons: string[], assumeLegacyEvidence: boolean) {
+  const source = isRecord(input) ? input : {};
+  const result: Record<string, boolean> = {};
+  for (const lessonId of completedLessons) {
+    if (typeof source[lessonId] === "boolean") result[lessonId] = source[lessonId] === true;
+    else if (assumeLegacyEvidence) result[lessonId] = true;
+  }
+  return result;
+}
+
+function normalizeLessonTaskEvidenceRecord(input: unknown): LearningProgress["lessonTaskEvidence"] {
+  const source = isRecord(input) ? input : {};
+  const result: LearningProgress["lessonTaskEvidence"] = {};
+  for (const [lessonId, value] of Object.entries(source)) {
+    const lesson = lessons.find((item: any) => item.id === lessonId);
+    const task = lessonCompletionTask(lesson);
+    const evidence = normalizeLessonTaskEvidence(value);
+    if (task && evidence && evidence.kind === task.kind && checkLessonTaskEvidence(task, evidence).ready) {
+      result[lessonId] = evidence;
+    }
+  }
+  return result;
 }
 
 function normalizeLessonScores(input: unknown, completedInput?: unknown) {

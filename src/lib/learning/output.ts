@@ -44,7 +44,7 @@ export function addOutputEntry(input: Omit<OutputEntry, "id" | "createdAt" | "ta
     id: `output-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: nowIso()
   };
-  return saveOutputState({ entries: [entry, ...state.entries].slice(0, 120) }) ? entry : null;
+  return saveOutputState({ entries: [entry, ...state.entries] }) ? entry : null;
 }
 
 export function clearOutputEntries() {
@@ -66,22 +66,27 @@ export function removeOutputEntry(entryId: string) {
 }
 
 function normalizeOutputState(input: Partial<OutputState> | null | undefined): OutputState {
+  const idCounts = new Map<string, number>();
   return {
     entries: Array.isArray(input?.entries)
       ? input.entries
           .filter((entry) => entry?.materialId && entry?.draft)
-          .map((entry) => ({
-            id: String(entry.id || `legacy-${entry.materialId}-${entry.createdAt ?? ""}`),
-            materialId: String(entry.materialId),
-            materialTitle: String(entry.materialTitle || entry.materialId),
-            mission: String(entry.mission || ""),
-            draft: String(entry.draft),
-            weakPoint: String(entry.weakPoint || ""),
-            targetRewrite: String(entry.targetRewrite || entry.weakPoint || ""),
-            rubric: Array.isArray(entry.rubric) ? entry.rubric.map(String) : [],
-            createdAt: String(entry.createdAt || FALLBACK_CREATED_AT)
-          }))
-          .slice(0, 120)
+          .map((entry) => {
+            const baseId = String(entry.id || `legacy-${entry.materialId}-${entry.createdAt ?? ""}`);
+            const occurrence = idCounts.get(baseId) ?? 0;
+            idCounts.set(baseId, occurrence + 1);
+            return {
+              id: occurrence ? `${baseId}-${occurrence + 1}` : baseId,
+              materialId: String(entry.materialId),
+              materialTitle: String(entry.materialTitle || entry.materialId),
+              mission: String(entry.mission || ""),
+              draft: String(entry.draft),
+              weakPoint: String(entry.weakPoint || ""),
+              targetRewrite: String(entry.targetRewrite || entry.weakPoint || ""),
+              rubric: Array.isArray(entry.rubric) ? entry.rubric.map(String) : [],
+              createdAt: String(entry.createdAt || FALLBACK_CREATED_AT)
+            };
+          })
       : []
   };
 }

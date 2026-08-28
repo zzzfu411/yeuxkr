@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { buildSelfStudyPlan } from "@/data/self-study";
 import type { DisplayVisualAssetId } from "@/data/visuals/assets";
 import { selectCompassPrimaryTask, selectCompassReviewTask, type CompassContext } from "@/lib/learning/compass";
-import { ABILITY_LABELS, countCheckpointCredits } from "@/lib/learning/workspace";
+import { ABILITY_LABELS, countCheckpointCredits, countNativePracticeEvidence } from "@/lib/learning/workspace";
 import type { LearningWorkspace } from "@/lib/learning/types";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +96,7 @@ export function LearningCompass({
   const mistakeStat = workspace.stats.mistakeCards ? `${workspace.stats.dueMistakes}/${workspace.stats.mistakeCards}` : "0";
   const weakLabels = workspace.abilityGaps.map((ability) => ABILITY_LABELS[ability]).join(" / ") || "暂无明显短板";
   const nextRequirements = workspace.proficiency.nextRequirements.slice(0, 4);
-  const nativeEvidence = workspace.progress.learnedNative.length + countCheckpointCredits(workspace.progress) + workspace.stats.outputEntries;
+  const nativeEvidence = countNativePracticeEvidence(workspace.progress) + countCheckpointCredits(workspace.progress) + workspace.stats.outputEntries;
 
   const tracks = [
     {

@@ -5,8 +5,10 @@ import { getOutputStateFromRaw } from "./output.ts";
 import { getSrsStateFromRaw } from "./srs.ts";
 import { getLessonPracticeStateFromRaw } from "./lesson-session.ts";
 import { getLearningDraftStateFromRaw } from "./drafts.ts";
+import { getNativePortfolioStateFromRaw } from "./native-portfolio.ts";
 import { normalizeLearningProgress, normalizeUserProfile } from "./workspace.ts";
 import { normalizeSpeechSettings } from "../speech.js";
+import { clearLearningRecordings } from "./recordings.ts";
 
 export const LEARNING_BACKUP_VERSION = 1;
 export const LEARNING_BACKUP_KEYS = Object.values(STORAGE_KEYS);
@@ -18,13 +20,17 @@ export interface LearningBackup {
   entries: Partial<Record<string, string>>;
 }
 
-export function createLearningBackup(now = Date.now()): LearningBackup {
+export function createLearningBackup(now = Date.now()): LearningBackup | null {
   const entries: LearningBackup["entries"] = {};
-  if (typeof window !== "undefined") {
-    for (const key of LEARNING_BACKUP_KEYS) {
-      const normalized = normalizeStoredEntry(key, readRawLearningStorage(key));
-      if (normalized !== null) entries[key] = normalized;
+  try {
+    if (typeof window !== "undefined") {
+      for (const key of LEARNING_BACKUP_KEYS) {
+        const normalized = normalizeStoredEntry(key, readRawLearningStorage(key));
+        if (normalized !== null) entries[key] = normalized;
+      }
     }
+  } catch {
+    return null;
   }
   return {
     version: LEARNING_BACKUP_VERSION,
@@ -38,20 +44,23 @@ export function parseLearningBackupText(input: string): LearningBackup | null {
   return normalizeLearningBackup(parseJson<Partial<LearningBackup>>(input, {}), { strictEntries: true });
 }
 
-export function restoreLearningBackup(input: LearningBackup) {
+/** Returns true only when both managed storage and recording blobs are replaced. */
+export async function restoreLearningBackup(input: LearningBackup): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const backup = normalizeLearningBackup(input);
   if (!backup) return false;
-  return applyLearningEntries(backup.entries);
+  return applyLearningEntriesAndClearRecordings(backup.entries);
 }
 
-export function resetLearningData() {
+/** Returns true only when both managed storage and recording blobs are cleared. */
+export async function resetLearningData(): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  return applyLearningEntries({});
+  return applyLearningEntriesAndClearRecordings({});
 }
 
 export function normalizeLearningBackup(input: Partial<LearningBackup> | null | undefined, options: { strictEntries?: boolean } = {}): LearningBackup | null {
-  if (!input || input.version !== LEARNING_BACKUP_VERSION || input.app !== "kirina-korean" || !input.entries || typeof input.entries !== "object") return null;
+  if (!input || input.version !== LEARNING_BACKUP_VERSION || input.app !== "kirina-korean" || !isPlainRecord(input.entries)) return null;
+  if (options.strictEntries && Object.keys(input.entries).some((key) => !LEARNING_BACKUP_KEYS.includes(key))) return null;
   const entries: LearningBackup["entries"] = {};
   for (const key of LEARNING_BACKUP_KEYS) {
     const raw = input.entries[key];
@@ -68,9 +77,23 @@ export function normalizeLearningBackup(input: Partial<LearningBackup> | null | 
   };
 }
 
-function applyLearningEntries(entries: Partial<Record<string, string>>) {
+function isPlainRecord(input: unknown): input is Record<string, unknown> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+  const prototype = Object.getPrototypeOf(input);
+  return prototype === Object.prototype || prototype === null;
+}
+
+async function applyLearningEntriesAndClearRecordings(entries: Partial<Record<string, string>>) {
   const snapshot = snapshotLearningStorage();
   if (!snapshot) return false;
+  if (!applyLearningEntries(entries, snapshot)) return false;
+  if (await clearLearningRecordings()) return true;
+
+  rollbackLearningStorage(snapshot);
+  return false;
+}
+
+function applyLearningEntries(entries: Partial<Record<string, string>>, snapshot: Record<string, string | null>) {
   try {
     for (const key of LEARNING_BACKUP_KEYS) {
       const value = entries[key];
@@ -98,14 +121,31 @@ function isValidStoredEntry(key: string, raw: string) {
 function normalizeStoredEntry(key: string, raw: string | null) {
   if (raw === null) return null;
   if (key === STORAGE_KEYS.profile) return JSON.stringify(normalizeUserProfile(parseJson(raw, defaultProfile())));
-  if (key === STORAGE_KEYS.progress) return JSON.stringify(normalizeLearningProgress(parseJson(raw, defaultProgress())));
+  if (key === STORAGE_KEYS.progress) {
+    const progress = normalizeLearningProgress(parseJson(raw, defaultProgress()));
+    return JSON.stringify(normalizeLearningProgress(withoutRecordingBlobs(progress), { enforceRecordingEvidence: true }));
+  }
   if (key === STORAGE_KEYS.srs) return JSON.stringify(getSrsStateFromRaw(raw));
   if (key === STORAGE_KEYS.outputs) return JSON.stringify(getOutputStateFromRaw(raw));
+  if (key === STORAGE_KEYS.nativePortfolio) return JSON.stringify(getNativePortfolioStateFromRaw(raw));
   if (key === STORAGE_KEYS.lessonSession) return JSON.stringify(getLessonPracticeStateFromRaw(raw));
   if (key === STORAGE_KEYS.drafts) return JSON.stringify(getLearningDraftStateFromRaw(raw));
   if (key === STORAGE_KEYS.speech) return JSON.stringify(normalizeSpeechSettings(parseJson(raw, {})));
   if (key === STORAGE_KEYS.mistakes) return null;
   return null;
+}
+
+function withoutRecordingBlobs(progress: ReturnType<typeof normalizeLearningProgress>) {
+  return {
+    ...progress,
+    capstoneEvidence: progress.capstoneEvidence
+      ? { ...progress.capstoneEvidence, recordedSeconds: 0, recordingId: "" }
+      : null,
+    lessonTaskEvidence: Object.fromEntries(Object.entries(progress.lessonTaskEvidence).map(([lessonId, evidence]) => [
+      lessonId,
+      evidence.kind === "shadowing" ? { ...evidence, recordedSeconds: 0, recordingId: undefined } : evidence
+    ]))
+  };
 }
 
 function snapshotLearningStorage() {

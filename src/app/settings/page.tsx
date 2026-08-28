@@ -9,9 +9,9 @@ import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 
 const ROMANIZATION_OPTIONS = [
-  { id: "fade", label: "先显示后淡出", copy: "帮你起步，但不长期依赖。" },
-  { id: "always", label: "始终显示", copy: "刚开始学字母时最省力。" },
-  { id: "hidden", label: "隐藏", copy: "逼自己直接读韩文。" }
+  { id: "fade", label: "起步后折叠", copy: "前 6 课直接显示，之后按需点开。" },
+  { id: "always", label: "始终显示", copy: "词汇和课程里一直保留读音提示。" },
+  { id: "hidden", label: "完全隐藏", copy: "只看韩文与 IPA，不显示罗马音。" }
 ] as const;
 
 export default function SettingsPage() {
@@ -119,7 +119,7 @@ export default function SettingsPage() {
             <SpeechSettings />
           </Surface>
           <Surface>
-            <SectionHeading kicker="Data" title="备份与迁移" copy="学习数据只存在本浏览器。换设备或清缓存前，用页面顶部的「导出」按钮保存备份文件，再用「导入」恢复。" />
+            <SectionHeading kicker="Data" title="备份与迁移" copy="学习数据只存在本浏览器。换设备或清缓存前，用页面顶部的「导出」按钮保存备份文件，再用「导入」恢复。麦克风录音不会写入备份，迁移后相关口语证据需要重新录制。" />
             <p className="flex items-center gap-2 text-sm font-bold text-[var(--muted)]">
               <Save className="h-4 w-4" aria-hidden="true" />
               顶部工具栏：导出 / 导入 / 存储 / 重置

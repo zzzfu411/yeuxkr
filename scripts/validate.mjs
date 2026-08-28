@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { getNextLesson, lessons, milestones, normalizeTeachEntry, UNLOCK_SCORE } from "../src/data/curriculum.js";
+import { getLessonPrerequisites, getNextLesson, lessons, milestones, normalizeTeachEntry, UNLOCK_SCORE } from "../src/data/curriculum.js";
 import { grammarPoints } from "../src/data/grammar.js";
 import { hangulGroups, pronunciationPairs, syllableLabs } from "../src/data/hangul.js";
 import { soundChangeRules } from "../src/data/sound-changes.js";
@@ -12,14 +12,18 @@ import { studyModes, selfStudyGoals, selfStudyIntensity, selfStudyFocus, buildSe
 import { proficiencyLevels, proficiencyMetrics } from "../src/data/proficiency.js";
 import { visualAssets } from "../src/data/visuals/assets.ts";
 import { visualAssetManifest } from "../src/data/visuals/manifest.ts";
+import { BUNDLED_SPEECH_ASSETS } from "../src/data/speech-assets.generated.js";
 import { isStudyModuleId, moduleToAbility, studyModuleDescriptors } from "../src/lib/learning/modules.js";
 import { buildMixedQuiz, buildProgressQuiz, buildReviewQuestions, lessonQuestions } from "../src/lib/learning/quiz.ts";
 import { lessonReviewCardId, materialCardId, outputCardId, outputTransferQuestionId } from "../src/lib/learning/ids.ts";
 import { hasKoreanText, mapFocusToAbilities, requiresKoreanOutput, unknownFocusTags } from "../src/lib/learning/evidence.ts";
 import { mapCardToAbilities, normalizeLearningProgress } from "../src/lib/learning/workspace.ts";
-import { buildOfflineRoutes, coreOfflineRevision, expectedOptionalAssetBlock } from "./sw-revision.mjs";
 
 const errors = [];
+const knownAppRoutes = new Set([
+  "/", "/onboarding", "/settings", "/path", "/self-study", "/hangul", "/vocabulary", "/grammar",
+  "/native", "/immersion", "/review", "/mistakes", "/quiz"
+]);
 
 function assert(condition, message) {
   if (!condition) errors.push(message);
@@ -122,9 +126,9 @@ const levelIds = new Set(vocabLevels.map((item) => item.id));
 const categoryIds = new Set(vocabCategories.map((item) => item.id));
 const knownStudyModules = new Set(Object.keys(studyModuleDescriptors));
 
-assert(lessons.length >= 30, `curriculum should have at least 30 lessons, found ${lessons.length}`);
-assert(vocab.length >= 88, `vocab should have at least 88 entries, found ${vocab.length}`);
-assert(grammarPoints.length >= 24, `grammar should have at least 24 points, found ${grammarPoints.length}`);
+assert(lessons.length >= 45, `curriculum should have at least 45 lessons, found ${lessons.length}`);
+assert(vocab.length >= 350, `vocab should have at least 350 entries, found ${vocab.length}`);
+assert(grammarPoints.length >= 40, `grammar should have at least 40 points, found ${grammarPoints.length}`);
 assert(pragmaticScenarios.length >= 10, `pragmatics should have at least 10 scenarios, found ${pragmaticScenarios.length}`);
 assert(nuanceSets.length >= 10, `nuance should have at least 10 sets, found ${nuanceSets.length}`);
 assert(immersionMaterials.length >= 16, `immersion should have at least 16 materials, found ${immersionMaterials.length}`);
@@ -133,9 +137,92 @@ assert(proficiencyLevels.length >= 6, `proficiency passport should have at least
 assert(nativeRoadmapStages.length >= 3, `native roadmap should have at least 3 expansion stages, found ${nativeRoadmapStages.length}`);
 assert(nativeRoadmapPrinciples.length >= 4, `native roadmap should explain learning principles, found ${nativeRoadmapPrinciples.length}`);
 
+const bundledSpeechEntries = Object.entries(BUNDLED_SPEECH_ASSETS);
+const speechManifestFile = "public/assets/audio/ko/manifest.json";
+let speechManifest = null;
+try {
+  speechManifest = JSON.parse(readFileSync(speechManifestFile, "utf8"));
+} catch {
+  assert(false, `bundled speech manifest should be readable JSON: ${speechManifestFile}`);
+}
+const manifestSpeechEntries = Array.isArray(speechManifest?.assets) ? speechManifest.assets : [];
+const manifestSpeechMap = new Map(manifestSpeechEntries.map((item) => [item?.text, item?.file]));
+const invalidSpeechPaths = bundledSpeechEntries.filter(([, asset]) => !/^\/assets\/audio\/ko\/[a-f0-9]{20}\.mp3$/.test(asset));
+const missingSpeechAssets = bundledSpeechEntries.filter(([, asset]) => !existsSync(`public${asset}`));
+const smallSpeechAssets = bundledSpeechEntries.filter(([, asset]) => {
+  const file = `public${asset}`;
+  return existsSync(file) && statSync(file).size <= 1024;
+});
+const invalidSpeechBytes = bundledSpeechEntries.filter(([, asset]) => {
+  const file = `public${asset}`;
+  if (!existsSync(file) || statSync(file).size <= 1024) return false;
+  const bytes = readFileSync(file);
+  const hasId3 = bytes.toString("ascii", 0, 3) === "ID3";
+  const hasMpegFrame = bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
+  return !hasId3 && !hasMpegFrame;
+});
+const mismatchedSpeechManifest = bundledSpeechEntries.filter(([text, asset]) => manifestSpeechMap.get(text) !== asset.split("/").at(-1));
+const invalidHangulSpeechAssets = hangulGroups.flatMap((group) => group.items).filter((item) => {
+  const asset = BUNDLED_SPEECH_ASSETS[item.sound];
+  if (!/^\/assets\/audio\/ko\/[a-f0-9]{20}\.mp3$/.test(asset ?? "")) return true;
+  const file = `public${asset}`;
+  return !existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0;
+});
+
+assert(bundledSpeechEntries.length >= 1000, `bundled speech corpus should cover at least 1000 Korean prompts, found ${bundledSpeechEntries.length}`);
+assert(manifestSpeechEntries.length === bundledSpeechEntries.length, `speech manifest should contain ${bundledSpeechEntries.length} assets, found ${manifestSpeechEntries.length}`);
+assert(!invalidSpeechPaths.length, `bundled speech has invalid asset paths: ${invalidSpeechPaths.slice(0, 5).map(([text]) => text).join(", ")}`);
+assert(!missingSpeechAssets.length, `bundled speech is missing ${missingSpeechAssets.length} MP3 files; first: ${missingSpeechAssets.slice(0, 5).map(([text]) => text).join(", ")}`);
+assert(!smallSpeechAssets.length, `bundled speech has ${smallSpeechAssets.length} empty or truncated MP3 files; first: ${smallSpeechAssets.slice(0, 5).map(([text]) => text).join(", ")}`);
+assert(!invalidSpeechBytes.length, `bundled speech has ${invalidSpeechBytes.length} invalid MP3 files; first: ${invalidSpeechBytes.slice(0, 5).map(([text]) => text).join(", ")}`);
+assert(!mismatchedSpeechManifest.length, `speech manifest disagrees with the runtime map for ${mismatchedSpeechManifest.length} entries`);
+assert(
+  !invalidHangulSpeechAssets.length,
+  `every Hangul sound should map to an existing nonempty MP3; invalid ${invalidHangulSpeechAssets.length}: ${invalidHangulSpeechAssets.slice(0, 15).map((item) => `${item.id}=${item.sound}`).join(", ")}`
+);
+
 const lessonOrders = [...lessons].sort((a, b) => a.order - b.order);
 for (let index = 0; index < lessonOrders.length; index += 1) {
   assert(lessonOrders[index].order === index + 1, `lesson order should be continuous at ${index + 1}`);
+}
+for (let index = 1; index < lessonOrders.length; index += 1) {
+  const lesson = lessonOrders[index];
+  const previousLesson = lessonOrders[index - 1];
+  const prerequisites = getLessonPrerequisites(lesson.id);
+  const prerequisiteIds = new Set(prerequisites.map((item) => item.id));
+  const explicitPrerequisites = lessons.filter((item) => item.order < lesson.order && item.unlocks?.includes(lesson.id));
+
+  assert(prerequisiteIds.has(previousLesson.id), `lesson ${lesson.id} should require previous lesson ${previousLesson.id}`);
+  assert(prerequisiteIds.size === prerequisites.length, `lesson ${lesson.id} prerequisites should be unique`);
+  for (const explicit of explicitPrerequisites) {
+    assert(prerequisiteIds.has(explicit.id), `lesson ${lesson.id} should preserve explicit prerequisite ${explicit.id}`);
+  }
+}
+for (const skippedOrder of [19, 22, 24, 34]) {
+  const skippedLesson = lessonOrders[skippedOrder - 1];
+  const successor = lessonOrders[skippedOrder];
+  assert(
+    getLessonPrerequisites(successor.id).some((item) => item.id === skippedLesson.id),
+    `lesson ${successor.id} should not allow skipping lesson ${skippedOrder} (${skippedLesson.id})`
+  );
+}
+
+const finalLesson = lessonOrders.at(-1);
+const finalPrerequisiteClosure = new Set();
+const pendingPrerequisites = finalLesson ? [finalLesson] : [];
+while (pendingPrerequisites.length) {
+  const lesson = pendingPrerequisites.pop();
+  for (const prerequisite of getLessonPrerequisites(lesson.id)) {
+    if (finalPrerequisiteClosure.has(prerequisite.id)) continue;
+    finalPrerequisiteClosure.add(prerequisite.id);
+    pendingPrerequisites.push(prerequisite);
+  }
+}
+for (const prerequisite of lessonOrders.slice(0, -1)) {
+  assert(
+    finalPrerequisiteClosure.has(prerequisite.id),
+    `mastering final lesson ${finalLesson?.id} should require prior lesson ${prerequisite.id}`
+  );
 }
 const milestoneOrder = new Map(milestones.map((item, index) => [item.id, index]));
 for (let index = 1; index < lessonOrders.length; index += 1) {
@@ -170,7 +257,11 @@ for (const lesson of lessons) {
   }
   assert(lesson.title && lesson.subtitle, `lesson ${lesson.id} missing title/subtitle`);
   assert(lesson.objectives?.length >= 2, `lesson ${lesson.id} needs objectives`);
-  assert(lesson.teach?.length >= 2, `lesson ${lesson.id} needs teach blocks`);
+  assert(lesson.duration >= 12 && lesson.duration <= 25, `lesson ${lesson.id} duration should be 12-25 minutes, found ${lesson.duration}`);
+  assert(lesson.teach?.length >= 4, `lesson ${lesson.id} needs at least 4 teach cards, found ${lesson.teach?.length}`);
+  assert(lesson.teach.every((entry) => typeof entry === "object" && entry !== null), `lesson ${lesson.id} teach entries should all use the object form`);
+  assert(lesson.teach.filter((entry) => typeof entry === "object" && entry?.speak).length >= 2, `lesson ${lesson.id} needs at least 2 teach cards with audio`);
+  assert(lesson.teach.some((entry) => typeof entry === "object" && entry?.examples?.length), `lesson ${lesson.id} needs at least 1 teach card with examples`);
   for (const rawTeach of lesson.teach ?? []) {
     const entry = normalizeTeachEntry(rawTeach);
     assert(typeof entry.body === "string" && entry.body.trim(), `lesson ${lesson.id} has a teach entry without body text`);
@@ -181,7 +272,11 @@ for (const lesson of lessons) {
       assert(hasKoreanText(example.ko) && example.zh, `lesson ${lesson.id} teach example needs Korean text and Chinese gloss`);
     }
   }
-  assert(lesson.drills?.length >= 2, `lesson ${lesson.id} needs drills`);
+  assert(lesson.drills?.length >= 6, `lesson ${lesson.id} needs at least 6 drills, found ${lesson.drills?.length}`);
+  assert(lesson.drills.filter((drill) => drill.type === "choice").length >= 2, `lesson ${lesson.id} needs at least 2 choice drills`);
+  assert(lesson.drills.some((drill) => drill.type === "listen" || drill.type === "dictation"), `lesson ${lesson.id} needs a listening drill (listen or dictation)`);
+  assert(lesson.drills.some((drill) => drill.type === "cloze"), `lesson ${lesson.id} needs a cloze drill`);
+  assert(lesson.drills.some((drill) => drill.type === "type" || drill.type === "translate"), `lesson ${lesson.id} needs a production drill (type or translate)`);
   for (const drill of lesson.drills) {
     assert(drill.prompt && drill.answer && drill.explain, `lesson ${lesson.id} has incomplete drill`);
     assert(["choice", "listen", "type", "dictation", "cloze", "translate"].includes(drill.type), `lesson ${lesson.id} drill "${drill.prompt}" has invalid type ${drill.type}`);
@@ -334,10 +429,10 @@ for (const rule of soundChangeRules) {
 const vocabIdSetForRefs = new Set(vocab.map((item) => item.id));
 const soundChangeRuleIds = new Set(soundChangeRules.map((rule) => rule.id));
 const grammarIdSetForRefs = new Set(grammarPoints.map((point) => point.id));
+const vocabCategoryCounts = {};
 for (const item of vocab) {
-  if (item.pos !== undefined) {
-    assert(Boolean(vocabPosLabels[item.pos]), `vocab ${item.id} has unknown pos ${item.pos}`);
-  }
+  vocabCategoryCounts[item.category] = (vocabCategoryCounts[item.category] ?? 0) + 1;
+  assert(Boolean(vocabPosLabels[item.pos]), `vocab ${item.id} needs a valid pos, found ${item.pos}`);
   for (const confusable of item.confusables ?? []) {
     assert(vocabIdSetForRefs.has(confusable), `vocab ${item.id} confusable ${confusable} does not exist`);
     assert(confusable !== item.id, `vocab ${item.id} lists itself as a confusable`);
@@ -349,7 +444,12 @@ for (const item of vocab) {
     assert(hasKoreanText(collocation.ko) && collocation.zh, `vocab ${item.id} collocation needs Korean text and Chinese gloss`);
   }
 }
+for (const category of vocabCategories) {
+  assert((vocabCategoryCounts[category.id] ?? 0) >= 12, `vocab category ${category.id} should have at least 12 entries, found ${vocabCategoryCounts[category.id] ?? 0}`);
+}
+assert(vocab.filter((item) => item.collocations?.length).length >= 90, `at least 90 vocab entries should carry collocations, found ${vocab.filter((item) => item.collocations?.length).length}`);
 for (const point of grammarPoints) {
+  assert(point.examples?.length >= 3, `grammar ${point.id} needs at least 3 examples, found ${point.examples?.length}`);
   for (const confusable of point.confusables ?? []) {
     assert(grammarIdSetForRefs.has(confusable), `grammar ${point.id} confusable ${confusable} does not exist`);
     assert(confusable !== point.id, `grammar ${point.id} lists itself as a confusable`);
@@ -376,6 +476,9 @@ for (const scene of pragmaticScenarios) {
 for (const set of nuanceSets) {
   assert(set.contrast?.length >= 2, `nuance ${set.id} needs contrast`);
   assert(set.examples?.[0]?.ko && set.examples?.[0]?.register, `nuance ${set.id} first example needs ko/register for review`);
+  assert(set.examples[0].distractors?.length >= 3, `nuance ${set.id} first example needs explicit, mutually exclusive quiz distractors`);
+  assert(!set.examples[0].distractors.includes(set.examples[0].register), `nuance ${set.id} distractors should not repeat the answer`);
+  assert(new Set(set.examples[0].distractors).size === set.examples[0].distractors.length, `nuance ${set.id} distractors should be unique`);
   const reviewCards = buildReviewQuestions([{
     id: `native:nuance:${set.id}`,
     box: 0,
@@ -509,8 +612,6 @@ for (const file of [
   "src/lib/learning/gate.ts",
   "src/data/sound-changes.js",
   "public/manifest.webmanifest",
-  "public/sw.js",
-  "public/offline.html",
   "public/assets/icon-192.png",
   "public/assets/icon-512.png",
   "public/assets/icon-maskable-192.png",
@@ -518,8 +619,6 @@ for (const file of [
 ]) {
   assert(existsSync(file), `missing required file ${file}`);
 }
-
-const offlineRoutes = buildOfflineRoutes();
 
 const manifest = JSON.parse(readFileSync("public/manifest.webmanifest", "utf8"));
 assert(manifest.name === "Kirina Korean", "manifest should keep app name");
@@ -531,8 +630,8 @@ assert(manifest.start_url === "/" && manifest.scope === "/", "manifest should st
 assert(manifest.display === "standalone", "manifest should install as standalone PWA");
 assert(Array.isArray(manifest.display_override) && manifest.display_override.includes("standalone"), "manifest display_override should retain standalone fallback");
 assert(manifest.orientation === "any", "manifest should not force a device orientation");
-assert(manifest.background_color === "#f3efe5", "manifest background should match warm paper shell");
-assert(manifest.theme_color === "#181c1b", "manifest theme color should match brand header");
+assert(manifest.background_color === "#e9eeeb", "manifest background should match the cool paper shell");
+assert(manifest.theme_color === "#151a19", "manifest theme color should match brand header");
 assert(Array.isArray(manifest.categories) && manifest.categories.includes("education"), "manifest should declare education category");
 assert(Array.isArray(manifest.icons) && manifest.icons.length >= 4, "manifest should include app icons");
 const manifestPurposeSizes = new Set();
@@ -559,7 +658,7 @@ for (const shortcut of manifest.shortcuts ?? []) {
   assert(shortcut.name?.trim(), "manifest shortcut should have a name");
   assertReadableUiText(shortcut.name, `manifest shortcut ${shortcut.url} name`);
   assert(shortcut.url?.startsWith("/"), `manifest shortcut ${shortcut.name} should use local URL`);
-  assert(offlineRoutes?.[shortcut.url] || shortcut.url === "/", `manifest shortcut ${shortcut.name} points to unknown route ${shortcut.url}`);
+  assert(knownAppRoutes.has(shortcut.url), `manifest shortcut ${shortcut.name} points to unknown route ${shortcut.url}`);
   assert(shortcut.description?.trim(), `manifest shortcut ${shortcut.name} should have description`);
   assertReadableUiText(shortcut.description, `manifest shortcut ${shortcut.name} description`);
   for (const icon of shortcut.icons ?? []) {
@@ -569,14 +668,16 @@ for (const shortcut of manifest.shortcuts ?? []) {
     assert(Boolean(declared && actual && actual.width === declared.width && actual.height === declared.height), `manifest shortcut icon ${icon.src} size mismatch`);
   }
 }
-assert(Array.isArray(manifest.screenshots) && manifest.screenshots.length >= 2, "manifest should include generated install screenshots");
+assert(Array.isArray(manifest.screenshots) && manifest.screenshots.length >= 2, "manifest should include real application install screenshots");
+const screenshotFormFactors = new Set();
 for (const screenshot of manifest.screenshots ?? []) {
   const declared = parseSquareSize(screenshot.sizes);
   const file = `public${screenshot.src}`;
   const actual = screenshot.type === "image/webp" ? webpDimensions(file) : screenshot.type === "image/png" ? pngDimensions(file) : null;
-  assert(screenshot.src?.startsWith("/assets/generated/"), `manifest screenshot ${screenshot.src} should use generated visual assets`);
+  assert(screenshot.src?.startsWith("/assets/screenshots/"), `manifest screenshot ${screenshot.src} should use captured application screenshots`);
   assert(["image/webp", "image/png"].includes(screenshot.type), `manifest screenshot ${screenshot.src} should be PNG or WebP`);
   assert(["wide", "narrow"].includes(screenshot.form_factor), `manifest screenshot ${screenshot.src} should declare form_factor`);
+  screenshotFormFactors.add(screenshot.form_factor);
   assert(screenshot.label?.trim(), `manifest screenshot ${screenshot.src} should have a label`);
   assertReadableUiText(screenshot.label, `manifest screenshot ${screenshot.src} label`);
   assert(Boolean(declared), `manifest screenshot ${screenshot.src} should declare dimensions`);
@@ -585,78 +686,17 @@ for (const screenshot of manifest.screenshots ?? []) {
     assert(actual.width === declared.width && actual.height === declared.height, `manifest screenshot ${screenshot.src} declares ${screenshot.sizes} but is ${actual.width}x${actual.height}`);
   }
 }
+assert(screenshotFormFactors.has("wide") && screenshotFormFactors.has("narrow"), "manifest should include both wide and narrow application screenshots");
 
-const sw = readFileSync("public/sw.js", "utf8");
 const pwaRegister = readFileSync("src/components/layout/pwa-register.tsx", "utf8");
-const swRevisionScript = readFileSync("scripts/sw-revision.mjs", "utf8");
-const checkSmokeScript = readFileSync("scripts/check-smoke.mjs", "utf8");
-assert(sw.includes("CORE_ASSETS"), "service worker should separate core offline assets");
-assert(sw.includes("OPTIONAL_ASSETS"), "service worker should separate optional offline assets");
-assert(sw.includes("async function addToCache"), "service worker should cache assets through a fault-tolerant helper");
-assert(sw.includes("async function precacheAssets"), "service worker should centralize precache strategy");
-assert(sw.includes("REQUIRED_CORE_ASSETS"), "service worker should keep a small hard-required install set");
-assert(sw.includes('const CACHE_PREFIX = "kirina-korean-next-"'), "service worker should scope cache cleanup to its own cache prefix");
-assert(sw.includes("key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME"), "service worker activate should not delete unrelated same-origin caches");
-assert(sw.includes("failedRequiredAssets"), "service worker should fail installation when required offline assets cannot cache");
-assert(sw.includes("Required offline assets failed to cache"), "service worker should surface required cache failures during install");
-assert(sw.includes("warmCoreResults") && sw.includes("cachedWarmCoreAssets"), "service worker should warm-cache routes and generated assets without aborting installation");
-assert(sw.includes("Promise.allSettled(warmCoreAssets"), "service worker warm core install should tolerate individual cache failures");
-assert(sw.includes("Promise.allSettled(OPTIONAL_ASSETS"), "service worker optional install should tolerate individual cache failures");
-assert(sw.includes("cachedOptionalAssets") && sw.includes("await precacheStaticDependencies(cache, cachedOptionalAssets)"), "service worker should cache static dependencies for successfully cached optional lesson routes");
-assert(!sw.includes("cache.addAll(STATIC_ASSETS)"), "service worker install should not fail optional cache on one missing asset");
-assert(sw.includes("function cacheResponse"), "service worker should centralize runtime cache writes");
-assert(sw.includes("NON_HASHED_ASSET_PREFIXES"), "service worker should distinguish non-hashed local assets");
-assert(sw.includes("function revalidateCachedResponse"), "service worker should revalidate non-hashed assets after cache hits");
-assert(sw.includes("function matchNavigationFallback"), "service worker should centralize offline navigation fallback");
-assert(sw.includes("caches.match(pathname)"), "service worker should match cached routes by pathname for App Router offline navigation");
-assert(sw.includes('url.pathname.startsWith("/_next/image")'), "service worker should cache Next image optimizer requests");
-assert(sw.includes('const NON_HASHED_ASSET_PREFIXES = ["/assets/"]'), "service worker should runtime-cache local visual assets");
-assert(sw.includes("if (isNonHashedAsset) event.waitUntil(revalidateCachedResponse(event.request))"), "service worker should stale-while-revalidate local visual assets");
-assert(sw.includes('event.data?.type === "SKIP_WAITING"') && sw.includes("event.waitUntil(self.skipWaiting())"), "service worker should activate waiting updates only after the app requests SKIP_WAITING");
-assert(swRevisionScript.includes("export function coreOfflineRevision") && swRevisionScript.includes("--write"), "service worker cache revision should be maintained by the shared sw-revision script");
-assert(swRevisionScript.includes("serviceWorkerRevisionSource") && swRevisionScript.includes("coreOfflineRevision(serviceWorkerCoreAssetBlock(swSource), offlineRoutes, swSource)"), "service worker cache revision should include normalized service worker strategy source");
-assert(swRevisionScript.includes("syncServiceWorkerOptionalAssets") && swRevisionScript.includes("expectedOptionalAssetBlock"), "service worker update script should generate optional lesson routes from curriculum data");
-assert(checkSmokeScript.includes('["scripts/sw-revision.mjs", "--check"]'), "check:smoke should verify the service worker revision before starting production smoke");
-assert(pwaRegister.includes("navigator.serviceWorker.ready"), "PWA registration should wait for service worker readiness");
-assert(pwaRegister.includes("updatefound"), "PWA registration should watch newly discovered service worker updates");
-assert(pwaRegister.includes("statechange"), "PWA registration should surface service worker install failures");
-assert(pwaRegister.includes("redundant"), "PWA registration should treat redundant installers as cache errors");
-assert(pwaRegister.includes("startInstallTimeout"), "PWA registration should scope install timeouts to pending installers");
-assert(pwaRegister.includes("installPending"), "PWA registration should track pending installers separately from old ready workers");
-assert(pwaRegister.includes("installFailed"), "PWA registration should remember failed installers");
-assert(pwaRegister.includes('"slow"') && pwaRegister.includes('setStatus("slow")'), "PWA registration should show slow installs without permanently failing them");
-assert(pwaRegister.includes("updateReady") && pwaRegister.includes("waitingWorkerRef"), "PWA registration should surface a visible ready-to-update state for installed waiting workers");
-assert(pwaRegister.includes("controllerchange") && pwaRegister.includes('postMessage({ type: "SKIP_WAITING" })'), "PWA registration should ask a waiting worker to activate and then reload on controller change");
-assert(pwaRegister.includes('if (next === "ready" && (installPending || installFailed || updatePending)) return;'), "PWA registration should not let old ready workers mask a pending, failed, or waiting update installer");
-assert(pwaRegister.includes('if (!installPending && !installFailed && !updatePending) finish("ready")'), "PWA registration ready promise should not override a failed or ready-to-update install");
-assert(/worker\.state === "activated"[\s\S]*?return;[\s\S]*?worker\.state === "redundant"[\s\S]*?return;[\s\S]*?startInstallTimeout\(\)/.test(pwaRegister), "PWA registration should not start install timeout for an already active worker");
-assert(/cache\.put\(request, copy\)\)\s*\.catch\(\(\) => \{\}\)/.test(sw), "service worker runtime cache writes should catch storage failures");
-assert(sw.includes("event.waitUntil(cacheResponse"), "service worker should keep runtime cache writes alive during fetch events");
-const coreAssetBlock = sw.match(/const CORE_ASSETS = \[([\s\S]*?)\];/)?.[1] ?? "";
-const optionalAssetBlock = sw.match(/const OPTIONAL_ASSETS = \[([\s\S]*?)\];/)?.[1] ?? "";
-const cacheName = sw.match(/const CACHE_NAME = "([^"]+)";/)?.[1] ?? "";
-const expectedOptionalBlock = expectedOptionalAssetBlock().match(/const OPTIONAL_ASSETS = \[([\s\S]*?)\];/)?.[1] ?? "";
-assert(cacheName.includes(coreOfflineRevision(coreAssetBlock, offlineRoutes)), "service worker cache name should include a revision derived from source and core offline assets");
-assert(optionalAssetBlock.trim() === expectedOptionalBlock.trim(), "service worker optional lesson route cache should be generated from curriculum data");
-assert(!optionalAssetBlock.includes(".png"), "service worker should not precache heavy PNG source assets during install");
-assert(!coreAssetBlock.includes("/assets/generated/icon-base.png"), "service worker should not precache heavy icon source assets during install");
-const allAssetBlock = `${coreAssetBlock}\n${optionalAssetBlock}`;
+assert(pwaRegister.includes("removeLegacyOfflineData"), "application should remove retired offline data on visit");
+assert(pwaRegister.includes('name.startsWith(LEGACY_OFFLINE_CACHE_PREFIX)'), "offline cleanup should stay scoped to Kirina cache names");
+assert(pwaRegister.includes('new URL(worker.scriptURL).pathname === "/sw.js"'), "offline cleanup should only unregister the retired Kirina worker");
+assert(!pwaRegister.includes('.register("/sw.js")'), "application must not register a new offline service worker");
 for (const stage of nativeRoadmapStages) {
   for (const action of stage.todayActions ?? []) {
-    assert(offlineRoutes[action.href] || action.href.startsWith("/learn/"), `native roadmap action ${action.title} links to unknown route ${action.href}`);
+    assert(knownAppRoutes.has(action.href) || action.href.startsWith("/learn/"), `native roadmap action ${action.title} links to unknown route ${action.href}`);
   }
-}
-const cachedAssets = [...allAssetBlock.matchAll(/"([^"]+)"/g)]
-  .map((match) => match[1])
-  .filter((value) => value.startsWith("/"))
-  .map((value) => offlineRoutes[value] ?? `public/${value.slice(1)}`);
-for (const asset of cachedAssets) {
-  assert(existsSync(asset), `service worker caches missing asset ${asset}`);
-}
-for (const route of Object.keys(offlineRoutes)) {
-  const isLessonRoute = route.startsWith("/learn/");
-  const block = isLessonRoute ? optionalAssetBlock : coreAssetBlock;
-  assert(block.includes(`"${route}"`), `service worker should precache ${isLessonRoute ? "optional lesson" : "core offline"} route ${route}`);
 }
 for (const file of listSourceFiles("scripts")) {
   const source = readFileSync(file, "utf8");
@@ -704,13 +744,6 @@ const expectedGeneratedFiles = new Set([...visualSourcePaths, ...visualDisplayPa
 for (const path of generatedFiles) {
   assert(expectedGeneratedFiles.has(path), `generated asset directory contains an orphan file ${path}`);
 }
-const coreWebpAssets = [...coreAssetBlock.matchAll(/"([^"]+\.webp)"/g)].map((match) => match[1]);
-for (const assetPath of [...visualDisplayPaths].filter((path) => path.endsWith(".webp"))) {
-  assert(coreAssetBlock.includes(`"${assetPath}"`), `service worker core cache should include visual display asset ${assetPath}`);
-}
-for (const cachedWebp of coreWebpAssets) {
-  assert(visualDisplayPaths.has(cachedWebp), `service worker caches generated webp not declared in visualAssets: ${cachedWebp}`);
-}
 const visualAssetIds = new Set(Object.keys(visualAssets));
 const manifestAssetIds = new Set(Object.keys(visualAssetManifest));
 for (const file of listSourceFiles("src")) {
@@ -734,11 +767,10 @@ for (const assetId of visualAssetIds) {
 
 const visualPanel = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
 const smokeBrowser = readFileSync("scripts/smoke-browser.mjs", "utf8");
-const smokeOffline = readFileSync("scripts/smoke-offline.mjs", "utf8");
-assert(visualPanel.includes("unoptimized"), "VisualPanel should serve local generated assets directly for offline consistency");
+assert(visualPanel.includes("unoptimized"), "VisualPanel should serve local generated assets directly and predictably");
 assert(visualPanel.includes("DisplayVisualAssetId") && !visualPanel.includes("asset: VisualAssetId"), "VisualPanel should not accept iconBase as a page display asset");
 assert(visualPanel.includes("manifestLabel") && visualPanel.includes('role={resolvedImageState.failed && !decorative ? "img" : undefined}'), "VisualPanel should render an accessible fallback when generated assets fail");
-assert(visualPanel.includes("saturate-[1.16]") && visualPanel.includes("rgba(243,239,229,0.08)_58%"), "VisualPanel ambient treatment should reveal generated hero assets instead of washing them out");
+assert(visualPanel.includes("saturate-[1.16]") && visualPanel.includes("rgba(233,238,235,0.08)_58%"), "VisualPanel ambient treatment should reveal generated hero assets with the cool editorial wash");
 assert(smokeBrowser.includes("desktop-1440") && smokeBrowser.includes("tablet-768") && smokeBrowser.includes("mobile-320"), "browser smoke should check layout overflow across mobile, tablet, and desktop widths");
 assert(smokeBrowser.includes("visibleElementOverflow") && smokeBrowser.includes("getBoundingClientRect"), "browser smoke should detect clipped visible elements hidden by overflow-x rules");
 assert(smokeBrowser.includes("verifyLearningDataPanel") && smokeBrowser.includes("learning data reset should preserve unmanaged localStorage entries") && smokeBrowser.includes("已持久"), "browser smoke should cover learning data export/import/reset/storage health controls");
@@ -746,8 +778,6 @@ assert(smokeBrowser.includes("home self-study mode switch should persist self") 
 assert(smokeBrowser.includes("self-study checkpoint should keep the record button disabled for weak evidence") && smokeBrowser.includes("需要可复查证据"), "browser smoke should cover weak self-study checkpoint evidence feedback");
 assert(smokeBrowser.includes("真实材料入口课程窗口") && smokeBrowser.includes("慢速新闻入口"), "browser smoke should cover focusing a path stage into the core course window");
 assert(smokeBrowser.includes('empty review state should expose "') && smokeBrowser.includes("积累词汇"), "browser smoke should cover empty review next-step actions");
-assert(smokeOffline.includes("Object.values(visualAssets)") && smokeOffline.includes(".src.endsWith(\".webp\")"), "offline smoke should check every declared generated WebP asset");
-assert(smokeOffline.includes("allLessonRoutes") && smokeOffline.includes("cache.match(route)"), "offline smoke should verify every lesson route is present in the service worker cache");
 const globalsCss = readFileSync("src/app/globals.css", "utf8");
 const appShellSource = readFileSync("src/components/layout/app-shell.tsx", "utf8");
 const learningDataPanelSource = readFileSync("src/components/layout/learning-data-panel.tsx", "utf8");
@@ -776,16 +806,17 @@ const workspaceSource = readFileSync("src/lib/learning/workspace.ts", "utf8");
 assert(globalsCss.includes(".editorial-shell > *") && globalsCss.includes("overflow-x: hidden"), "global shell should prevent top-level grid children from creating mobile horizontal overflow");
 assert(globalsCss.includes(".app-main") && globalsCss.includes("min-width: 0"), "main app container should be allowed to shrink on mobile");
 assert(globalsCss.includes(":where(.app-main .grid:not(.grid-flow-col))") && globalsCss.includes("grid-template-columns: minmax(0, 1fr)"), "single-column app grids should use a minmax track so mobile layouts are not clipped behind overflow-x");
-assert(globalsCss.includes("rgba(26, 46, 44, 0.96)") && globalsCss.includes("background-size: 28px 28px, 28px 28px, auto, auto"), "dark-slab should use a textured ink bridge instead of a flat black block");
-assert(appShellSource.includes("overflow-hidden border-b") && appShellSource.includes("grid-cols-[minmax(0,auto)_minmax(0,1fr)]"), "AppShell header should constrain mobile navigation inside the viewport");
-assert(appShellSource.includes("w-full min-w-0 max-w-full snap-x gap-3 overflow-x-auto"), "AppShell navigation should scroll internally without widening the document");
+assert(globalsCss.includes("rgba(24, 45, 41, 0.98)") && globalsCss.includes("background-size: 28px 28px, 28px 28px, auto"), "dark-slab should use a textured cool ink bridge instead of a flat black block");
+assert(appShellSource.includes("border-b border-[var(--line)]") && appShellSource.includes("grid-cols-[minmax(0,auto)_minmax(0,1fr)]"), "AppShell header should constrain mobile navigation inside the viewport");
+assert(appShellSource.includes("w-full min-w-0 max-w-full snap-x justify-start gap-3 overflow-x-auto"), "AppShell navigation should scroll internally without widening the document");
 assert(appShellSource.includes("<LearningDataPanel"), "AppShell should expose local learning data backup controls");
 assert(learningDataPanelSource.includes("createLearningBackup") && learningDataPanelSource.includes("restoreLearningBackup") && learningDataPanelSource.includes("resetLearningData"), "learning data panel should support export, import, and reset");
 assert(learningDataPanelSource.includes("requestLearningStoragePersistence") && learningDataPanelSource.includes("存储"), "learning data panel should expose a one-click storage persistence health check");
-assert(learningDataPanelSource.includes("col-span-2") && learningDataPanelSource.includes("overflow-x-auto"), "learning data panel should remain reachable on mobile without widening the document");
+assert(learningDataPanelSource.includes("order-2 col-span-1") && learningDataPanelSource.includes("lg:order-3") && learningDataPanelSource.includes("w-[min(20rem,calc(100vw-1.5rem))]") && learningDataPanelSource.includes("<details"), "learning data panel should share the mobile brand row and keep its menu inside the viewport");
 assert(learningStorageHealthSource.includes("navigator.storage") && learningStorageHealthSource.includes("persisted") && learningStorageHealthSource.includes("estimate") && learningStorageHealthSource.includes("空间紧"), "learning storage health should use StorageManager persistence and quota signals");
 assert(learningBackupSource.includes("LEARNING_BACKUP_VERSION") && learningBackupSource.includes("LEARNING_BACKUP_KEYS = Object.values(STORAGE_KEYS)"), "learning backup model should version and cover declared learning storage keys");
 assert(learningBackupSource.includes("rollbackLearningStorage") && learningBackupSource.includes("normalizeLearningBackup"), "learning backup restore should normalize imports and roll back failed writes");
+assert(learningBackupSource.includes("catch") && learningBackupSource.includes("return null"), "learning backup export should report denied storage reads without throwing into the UI");
 assert(learningBackupSource.includes("kirina:learning-batch"), "learning backup restore/reset should announce a batch refresh for pages with frozen queues");
 assert(learningBackupSource.includes("getLessonPracticeStateFromRaw"), "learning backup should preserve normalized in-progress lesson sessions");
 assert(learningStorageSource.includes("kirina.drafts.v1") && learningStorageSource.includes("drafts"), "learning storage should declare a managed draft key for long-form local work");
@@ -793,7 +824,7 @@ assert(learningBackupSource.includes("getLearningDraftStateFromRaw"), "learning 
 assert(learningDraftSource.includes("saveImmersionMaterialDraft") && learningDraftSource.includes("saveSelfStudyCheckpointDraft") && learningDraftSource.includes("normalizeLearningDraftState"), "learning drafts should normalize, save, and clear material and self-study checkpoint drafts");
 assert(workspaceSource.includes("defaultLearningDraftState") && workspaceSource.includes("saveLearningDraftState(previousDraftState)"), "workspace reset should clear long-form drafts and roll them back on failure");
 assert(lessonSessionSource.includes("kirina.lesson-session.v1") || learningStorageSource.includes("lessonSession"), "lesson practice sessions should use a declared storage key");
-assert(lessonSessionSource.includes("normalizeLessonPracticeSession") && lessonSessionSource.includes("lessonReviewCardId"), "lesson practice sessions should normalize against real lesson question ids");
+assert(lessonSessionSource.includes("normalizeLessonPracticeSession") && lessonSessionSource.includes("lessonQuestions") && lessonSessionSource.includes("checkAnswer"), "lesson practice sessions should normalize against current questions and recheck persisted answers");
 assert(drillRunnerSource.includes("initialAnswers") && drillRunnerSource.includes("onProgress") && drillRunnerSource.includes("buildInitialState"), "DrillRunner should support step resume and progress persistence");
 assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emittedResultRef"), "DrillRunner should expose an idempotent result hook so terminal quiz state can save before the next action");
 assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
@@ -818,7 +849,7 @@ assert(quizSource.includes("prioritizeWeakPracticeQuestions") && quizSource.incl
 assert(reviewPage.includes("kirina:learning-batch") && reviewPage.includes("StorageEvent") && reviewPage.includes("REVIEW_STORAGE_REFRESH_KEYS"), "review page should rebuild its frozen due queue after backup/reset or cross-tab storage changes");
 assert(reviewPage.includes('"kirina:learning"') && reviewPage.includes("reviewRefreshEventMatches") && reviewPage.includes("nextDueAt"), "review page should refresh empty queues for same-tab learning events and future due-card rollovers without disrupting an active queue");
 assert(pageHeaderSource.includes("compact = false"), "PageHeader should keep a compact variant for tool-like module pages");
-assert(pageHeaderSource.includes('compact ? "text-3xl md:text-5xl"'), "PageHeader compact variant should reduce hero-scale typography");
+assert(pageHeaderSource.includes('compact ? "text-4xl md:text-5xl"'), "PageHeader compact variant should preserve H1 hierarchy above module hero headings");
 assert(learningCompassSource.includes("function CompactMetric"), "LearningCompass condensed mode should keep compact evidence metrics");
 assert((learningCompassSource.match(/aria-current=\{track\.active \? "page" : undefined\}/g) ?? []).length >= 2, "LearningCompass active route cards should expose aria-current in condensed and full modes");
 assert(learningCompassSource.includes('className="mt-3 min-w-0 overflow-hidden"'), "LearningCompass condensed route strip should be clipped inside its card on mobile");
@@ -899,7 +930,7 @@ const outputTransferQuestions = buildProgressQuiz(
     materialEvidence: {
       [sampleMaterialId]: {
         dictation: "포장해 주세요.",
-        retell: "손님은 커피를 주문해요.",
+        retell: "아이스 아메리카노 하나 포장해 주세요. 손님은 음료와 포장 방식을 선택해서 주문했어요.",
         selfCheck: immersionMaterials[0].selfCheck,
         outputEntryId: sampleOutputId,
         updatedAt: "2026-06-09T00:00:00.000Z"
@@ -913,8 +944,8 @@ const outputTransferQuestions = buildProgressQuiz(
     materialId: sampleMaterialId,
     materialTitle: immersionMaterials[0].title,
     mission: immersionMaterials[0].outputMission,
-    draft: "아메리카노 주세요.",
-    weakPoint: "포장",
+    draft: "저는 카페에서 따뜻한 라테를 한 잔 마시고 싶어요.",
+    weakPoint: "外带表达还不稳定",
     targetRewrite: sampleTargetRewrite,
     rubric: [],
     createdAt: "2026-06-09T00:00:00.000Z"

@@ -30,7 +30,7 @@ test("lesson practice session saves and restores current step answers", () => {
 
   assert.equal(saveLessonPracticeSession("l01-hangul-map", {
     currentIndex: 1,
-    answers: [{ questionId: "lesson:l01-hangul-map:1", answer: "ㄱ + ㅏ", correct: true }],
+    answers: [{ questionId: "lesson:l01-hangul-map:1", answer: "ㄱ + ㅏ!", correct: false }],
     finished: false
   }), true);
 
@@ -38,7 +38,52 @@ test("lesson practice session saves and restores current step answers", () => {
   assert.equal(session.currentIndex, 1);
   assert.equal(session.answers.length, 1);
   assert.equal(session.answers[0].questionId, "lesson:l01-hangul-map:1");
+  assert.equal(session.answers[0].correct, true);
   assert.equal(session.finished, false);
+});
+
+test("lesson practice session rechecks stale persisted correct flags against current questions", () => {
+  const state = getLessonPracticeStateFromRaw(JSON.stringify({
+    sessions: {
+      "l01-hangul-map": {
+        lessonId: "l01-hangul-map",
+        currentIndex: 5,
+        answers: [
+          { questionId: "lesson:l01-hangul-map:1", answer: "ㄱ + ㅗ", correct: true },
+          { questionId: "lesson:l01-hangul-map:2", answer: "ㅎ", correct: true },
+          { questionId: "lesson:l01-hangul-map:3", answer: "가", correct: true },
+          { questionId: "lesson:l01-hangul-map:4", answer: "한", correct: true },
+          { questionId: "lesson:l01-hangul-map:5", answer: "ㄱ", correct: true },
+          { questionId: "lesson:l01-hangul-map:6", answer: "고", correct: true }
+        ],
+        finished: true,
+        updatedAt: "2026-07-06T00:00:00.000Z"
+      }
+    }
+  }));
+
+  const session = state.sessions["l01-hangul-map"];
+  assert.equal(session.finished, true);
+  assert.equal(session.answers.length, 6);
+  assert.equal(session.answers.every((answer) => answer.correct === false), true);
+});
+
+test("lesson practice session preserves a skipped audio step without inventing an answer", () => {
+  store.clear();
+
+  assert.equal(saveLessonPracticeSession("l01-hangul-map", {
+    currentIndex: 0,
+    answers: [{ questionId: "lesson:l01-hangul-map:1", answer: "", correct: false, skipped: true }],
+    finished: false
+  }), true);
+
+  const session = getLessonPracticeSession("l01-hangul-map");
+  assert.deepEqual(session.answers[0], {
+    questionId: "lesson:l01-hangul-map:1",
+    answer: "",
+    correct: false,
+    skipped: true
+  });
 });
 
 test("lesson practice session normalization keeps only contiguous answers", () => {

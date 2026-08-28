@@ -5,7 +5,7 @@ import { RefreshCcw, ShieldCheck, X } from "lucide-react";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { buildGateQuestions, GATE_PASS_SCORE, type GateKind } from "@/lib/learning/gate";
+import { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio, type GateKind } from "@/lib/learning/gate";
 
 export function MasteryGate({
   kind,
@@ -23,6 +23,7 @@ export function MasteryGate({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [attempt, setAttempt] = useState(1);
   const [lastScore, setLastScore] = useState<number | null>(null);
+  const [missingAudioEvidence, setMissingAudioEvidence] = useState(false);
   const seed = useMemo(() => hashSeed(`${kind}:${itemId}:${attempt}`), [attempt, itemId, kind]);
   const questions = useMemo(() => buildGateQuestions(kind, itemId, seed), [itemId, kind, seed]);
 
@@ -43,7 +44,11 @@ export function MasteryGate({
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
-      {lastScore !== null && lastScore < GATE_PASS_SCORE ? (
+      {missingAudioEvidence ? (
+        <InlineAlert>
+          这项掌握记录必须包含真实听辨。当前音频题被跳过，所以不会写入听力能力；安装韩语语音后再试。
+        </InlineAlert>
+      ) : lastScore !== null && lastScore < GATE_PASS_SCORE ? (
         <InlineAlert>
           上一轮 {lastScore} 分，还差一点。先听几遍、读一遍要点，再试一次。
         </InlineAlert>
@@ -53,12 +58,15 @@ export function MasteryGate({
         questions={questions}
         finishLabel="交卷"
         recordMistakes
-        onResult={(score) => {
+        onResult={(score, answers) => {
+          const blockedBySkippedAudio = hasSkippedGateAudio(answers);
           setLastScore(score);
-          if (score >= GATE_PASS_SCORE) onPassed();
+          setMissingAudioEvidence(blockedBySkippedAudio);
+          if (score >= GATE_PASS_SCORE && !blockedBySkippedAudio) onPassed();
         }}
-        resultAddon={({ score }) =>
-          score >= GATE_PASS_SCORE ? (
+        resultAddon={({ score, answers }) => {
+          const blockedBySkippedAudio = hasSkippedGateAudio(answers);
+          return score >= GATE_PASS_SCORE && !blockedBySkippedAudio ? (
             <p className="flex items-center gap-2 font-bold text-[var(--celadon)]">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               通过！已写入掌握记录和复习队列。
@@ -73,8 +81,8 @@ export function MasteryGate({
                 先回去复习
               </Button>
             </div>
-          )
-        }
+          );
+        }}
       />
     </div>
   );

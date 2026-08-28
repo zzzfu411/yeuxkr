@@ -23,7 +23,7 @@ import {
   vocabDictationQuestionId,
   vocabQuestionId
 } from "./ids.ts";
-import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence } from "./evidence.ts";
+import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "./evidence.ts";
 import { getOutputState, type OutputEntry } from "./output.ts";
 import { getSrsState, type SrsState } from "./srs.ts";
 import type { SrsCard } from "./srs.ts";
@@ -88,7 +88,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
           answer: item.romanization,
           choices: makeChoices(item.romanization, allHangul.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.romanization)),
           explain: `${item.glyph} ${item.cue}，例词 ${item.example}：${item.exampleMeaning}。`,
-          speak: item.example
+          speak: item.sound
         } satisfies Question;
       }
       if (card.payload.kind === "pronunciation") {
@@ -132,9 +132,14 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
       if (card.payload.kind === "mistake" && card.payload.prompt && card.payload.answer) {
         return {
           id: card.id,
-          type: "type",
+          type: card.payload.type ?? "type",
           prompt: card.payload.prompt,
           answer: card.payload.answer,
+          acceptable: card.payload.acceptable,
+          choices: card.payload.choices,
+          speak: card.payload.speak,
+          clozeText: card.payload.clozeText,
+          hint: card.payload.hint,
           explain: "这是之前答错过的题，重新写对后会延后复习。"
         } satisfies Question;
       }
@@ -147,7 +152,9 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
           acceptable: card.payload.acceptable,
           choices: card.payload.choices,
           explain: card.payload.explain ?? "这是课程里的核心练习。做对后会按间隔重复，直到真正稳住。",
-          speak: card.payload.speak
+          speak: card.payload.speak,
+          clozeText: card.payload.clozeText,
+          hint: card.payload.hint
         } satisfies Question;
       }
       if (card.payload.kind === "grammar") {
@@ -248,7 +255,7 @@ export function buildMixedQuiz(count = 10, seed = Date.now()): Question[] {
       answer: item.romanization,
       choices: makeChoices(item.romanization, group.items.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.romanization), 4, random),
       explain: item.cue,
-      speak: item.example
+      speak: item.sound
     }))
   );
   const vocabQuestions = vocab.map((item: any) => ({
@@ -306,7 +313,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
         answer: item.romanization,
         choices: makeChoices(item.romanization, group.items.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.romanization), 4, random),
         explain: item.cue,
-        speak: item.example
+        speak: item.sound
       }))
   );
   const vocabQuestions = vocab
@@ -386,7 +393,12 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
         type: "choice" as const,
         prompt: `${set.title}: ${example.ko} 的语气/用法是？`,
         answer: example.register,
-        choices: makeChoices(example.register, nuanceSets.flatMap((entry: any) => entry.examples.map((item: any) => item.register)).filter((item: string) => item !== example.register), 4, random),
+        choices: makeChoices(
+          example.register,
+          example.distractors ?? nuanceSets.flatMap((entry: any) => entry.examples.map((item: any) => item.register)).filter((item: string) => item !== example.register),
+          4,
+          random
+        ),
         explain: set.explanation,
         speak: example.ko
       }))
@@ -395,7 +407,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .filter((material) => validMaterials.has(material.id))
     .map((material): Question | null => {
       const retell = progress.materialEvidence[material.id]?.retell?.trim() ?? "";
-      if (!hasKoreanRetellEvidence(retell)) return null;
+      if (!hasKoreanRetellEvidence(retell, material.lines.map((line) => line.ko))) return null;
       return {
         id: materialRetellQuestionId(material.id),
         type: "type" as const,
@@ -411,8 +423,8 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .filter((entry) => validMaterials.has(entry.materialId))
     .filter((entry) => progress.materialEvidence[entry.materialId]?.outputEntryId === entry.id)
     .filter((entry) => {
-      const target = entry.targetRewrite || "";
-      return hasKoreanOutputRewrite(target) && srsState.cards[outputCardId(entry.id)]?.payload.kind === "output";
+      const material = immersionMaterials.find((item) => item.id === entry.materialId);
+      return hasMaterialOutputEvidence(entry, material) && srsState.cards[outputCardId(entry.id)]?.payload.kind === "output";
     })
     .slice(0, 12)
     .map((entry) => ({
@@ -434,12 +446,12 @@ function getValidQuizMaterialIds(progress: LearningProgress, outputEntries: Outp
     .filter((material) => {
       const evidence = progress.materialEvidence[material.id];
       if (!completedMaterialsHas(progress, material.id) || !evidence) return false;
-      if (!hasKoreanDictationEvidence(evidence.dictation, material.dictation) || !hasKoreanRetellEvidence(evidence.retell)) return false;
+      if (!hasKoreanDictationEvidence(evidence.dictation, material.dictation) || !hasKoreanRetellEvidence(evidence.retell, material.lines.map((line) => line.ko))) return false;
       if (!hasCompleteMaterialSelfCheck(evidence.selfCheck, material.selfCheck)) return false;
       if (srsState.cards[materialCardId(material.id)]?.payload.kind !== "material") return false;
       const output = outputEntries.find((entry) => entry.id === evidence.outputEntryId && entry.materialId === material.id);
       const target = output?.targetRewrite ?? "";
-      return Boolean(output && hasKoreanOutputRewrite(target) && srsState.cards[outputCardId(output.id)]?.payload.kind === "output" && srsState.cards[outputCardId(output.id)]?.payload.answer === target);
+      return Boolean(output && hasMaterialOutputEvidence(output, material) && srsState.cards[outputCardId(output.id)]?.payload.kind === "output" && srsState.cards[outputCardId(output.id)]?.payload.answer === target);
     })
     .map((material) => material.id);
 }

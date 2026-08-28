@@ -125,7 +125,7 @@ export const nativeRoadmapPrinciples = [
   "母语者路线必须保留长期作品集目标，不能被 30 节核心课伪装成终点。"
 ];
 
-const inAppEvidenceKeys = ["vocabulary", "native", "materials", "outputTasks", "checkpoints"];
+const inAppEvidenceKeys = ["vocabulary", "collocations", "native", "materials", "outputTasks", "checkpoints"];
 
 export function isNativeRoadmapStageComplete(stage, evidence = {}) {
   return inAppEvidenceKeys.every((key) => {

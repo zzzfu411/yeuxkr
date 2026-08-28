@@ -19,6 +19,14 @@ ASSET_NAMES = [
     "review.png",
     "empty.png",
     "complete.png",
+    "lesson-pronunciation.png",
+    "lesson-cafe.png",
+    "lesson-transit.png",
+    "lesson-time.png",
+    "lesson-health.png",
+    "lesson-media.png",
+    "lesson-honorific.png",
+    "lesson-output.png",
     "icon-base.png",
 ]
 WEBP_QUALITY = 86
@@ -42,7 +50,7 @@ def contain_resize(image, size, padding_ratio=0):
     src_w, src_h = image.size
     scale = min(safe_w / src_w, safe_h / src_h)
     resized = image.resize((round(src_w * scale), round(src_h * scale)), Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", size, (243, 239, 229))
+    canvas = Image.new("RGB", size, (233, 238, 235))
     left = (target_w - resized.width) // 2
     top = (target_h - resized.height) // 2
     canvas.paste(resized, (left, top))

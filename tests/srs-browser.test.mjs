@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const store = new Map();
 let blockWrites = false;
 const blockedWriteKeys = new Set();
+let srsWriteCount = 0;
 
 global.window = {
   localStorage: {
@@ -13,6 +14,7 @@ global.window = {
     },
     setItem(key, value) {
       if (key === "throw.write" || blockWrites || blockedWriteKeys.has(key)) throw new Error("blocked write");
+      if (key === "kirina.srs.v2") srsWriteCount += 1;
       store.set(key, value);
     }
   },
@@ -27,13 +29,17 @@ global.CustomEvent = class CustomEvent {
 
 const { readJson, writeJson } = await import("../src/lib/learning/storage.ts");
 const { ensureCard, getSrsState, gradeCard, recordMistake, removeCard, removeCardsByKind, saveSrsState, summarizeSrs } = await import("../src/lib/learning/srs.ts");
-const { ensureLessonReviewCards, gradeReviewCardAndProgress, persistOutputReview, rollbackLessonReviewCards } = await import("../src/lib/learning/workspace.ts");
+const { commitLessonSession, ensureLessonReviewCards, gradeReviewCardAndProgress, persistOutputReview, rollbackLessonReviewCards } = await import("../src/lib/learning/workspace.ts");
 const { defaultProgress, STORAGE_KEYS } = await import("../src/lib/learning/storage.ts");
+const { lessonQuestions } = await import("../src/lib/learning/quiz.ts");
 
 test("recordMistake increments repeated wrong answers and keeps card due", () => {
   store.clear();
+  srsWriteCount = 0;
   recordMistake("mistake:q1", { kind: "mistake", itemId: "q1", prompt: "p", answer: "a" });
+  assert.equal(srsWriteCount, 1);
   recordMistake("mistake:q1", { kind: "mistake", itemId: "q1", prompt: "p2", answer: "a2" });
+  assert.equal(srsWriteCount, 2);
 
   const card = getSrsState().cards["mistake:q1"];
   assert.equal(card.wrong, 2);
@@ -209,29 +215,64 @@ test("grading an existing review card does not create a derived mistake card", (
 
 test("completed lessons create idempotent lesson review cards", () => {
   store.clear();
+  const expectedIds = lessonQuestions("l01-hangul-map").map((question) => question.id);
 
   const firstResult = ensureLessonReviewCards("l01-hangul-map");
   const secondResult = ensureLessonReviewCards("l01-hangul-map");
 
-  assert.equal(firstResult.length, 3);
-  assert.deepEqual(firstResult.created, ["lesson:l01-hangul-map:1", "lesson:l01-hangul-map:2", "lesson:l01-hangul-map:3"]);
+  assert.equal(firstResult.length, expectedIds.length);
+  assert.deepEqual(firstResult.created, expectedIds);
   assert.deepEqual(firstResult.updated, []);
-  assert.equal(secondResult.length, 3);
+  assert.equal(secondResult.length, expectedIds.length);
   assert.deepEqual(secondResult.created, []);
-  assert.deepEqual(secondResult.updated, ["lesson:l01-hangul-map:1", "lesson:l01-hangul-map:2", "lesson:l01-hangul-map:3"]);
-  assert.deepEqual(Object.keys(secondResult.previous).sort(), ["lesson:l01-hangul-map:1", "lesson:l01-hangul-map:2", "lesson:l01-hangul-map:3"]);
+  assert.deepEqual(secondResult.updated, expectedIds);
+  assert.deepEqual(Object.keys(secondResult.previous).sort(), [...expectedIds].sort());
   rollbackLessonReviewCards(secondResult);
 
   const state = getSrsState();
   const cards = Object.values(state.cards).filter((card) => card.payload.kind === "lesson");
   const mistakeCards = Object.values(state.cards).filter((card) => card.payload.kind === "mistake");
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, expectedIds.length);
   assert.equal(mistakeCards.length, 0);
   assert.equal(state.cards["lesson:l01-hangul-map:1"].payload.prompt, "가 的结构是什么？");
   assert.equal(state.cards["lesson:l01-hangul-map:1"].payload.type, "choice");
   assert.deepEqual(state.cards["lesson:l01-hangul-map:1"].payload.choices, ["ㄱ + ㅏ", "ㄱ + ㅗ", "ㅇ + ㅏ", "ㅎ + ㅏ + ㄴ"]);
   assert.equal(state.cards["lesson:l01-hangul-map:3"].payload.answer, "고");
   assert.deepEqual(state.cards["lesson:l01-hangul-map:3"].payload.acceptable, ["고"]);
+  assert.equal(state.cards["lesson:l01-hangul-map:5"].payload.type, "cloze");
+  assert.equal(state.cards["lesson:l01-hangul-map:5"].payload.clozeText.includes("___"), true);
+  assert.equal(state.cards["lesson:l01-hangul-map:6"].payload.type, "dictation");
+  assert.equal(Boolean(state.cards["lesson:l01-hangul-map:6"].payload.speak), true);
+});
+
+test("repeating a completed lesson preserves mature scheduling fields", () => {
+  store.clear();
+  const cardId = "lesson:l01-hangul-map:1";
+  saveSrsState({
+    cards: {
+      [cardId]: {
+        id: cardId,
+        box: 6,
+        dueAt: Date.now() + 1000,
+        correct: 8,
+        wrong: 2,
+        lastSeenAt: Date.now(),
+        ease: 2.55,
+        intervalDays: 100,
+        lapses: 2,
+        payload: { kind: "lesson", itemId: cardId, prompt: "old", answer: "old" }
+      }
+    },
+    history: []
+  });
+  const progress = { ...defaultProgress(), completedLessons: ["l01-hangul-map"], lessonScores: { "l01-hangul-map": 90 } };
+  store.set(STORAGE_KEYS.progress, JSON.stringify(progress));
+
+  assert.equal(commitLessonSession("l01-hangul-map", [], 90, progress), true);
+  const card = getSrsState().cards[cardId];
+  assert.equal(card.ease, 2.55);
+  assert.equal(card.intervalDays, 100);
+  assert.equal(card.lapses, 2);
 });
 
 test("lesson review rollback removes only cards created in the failed attempt", () => {
@@ -246,7 +287,7 @@ test("lesson review rollback removes only cards created in the failed attempt", 
   }
 
   const newCards = ensureLessonReviewCards("l02-vowels");
-  assert.equal(newCards.created.length, 3);
+  assert.equal(newCards.created.length, lessonQuestions("l02-vowels").length);
   rollbackLessonReviewCards(newCards);
 
   state = getSrsState();

@@ -1,7 +1,7 @@
 {
   "name": "Kirina Korean",
   "short_name": "Kirina",
-  "description": "从零基础到母语者级韩语的自由学习工作台。",
+  "description": "从零基础到母语者级韩语的在线自由学习工作台。",
   "id": "/",
   "lang": "zh-CN",
   "dir": "ltr",
@@ -11,8 +11,8 @@
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "categories": ["education", "productivity"],
-  "background_color": "#f3efe5",
-  "theme_color": "#181c1b",
+  "background_color": "#e9eeeb",
+  "theme_color": "#151a19",
   "icons": [
     {
       "src": "/assets/icon-192.png",
@@ -79,25 +79,18 @@
   ],
   "screenshots": [
     {
-      "src": "/assets/generated/hero.webp",
-      "sizes": "1774x887",
-      "type": "image/webp",
+      "src": "/assets/screenshots/home-wide.png",
+      "sizes": "1440x980",
+      "type": "image/png",
       "form_factor": "wide",
-      "label": "Kirina Korean 学习工作台的路径、自学与复习总览"
+      "label": "Kirina Korean 桌面学习工作台与今日任务"
     },
     {
-      "src": "/assets/generated/self-study.webp",
-      "sizes": "1774x887",
-      "type": "image/webp",
-      "form_factor": "wide",
-      "label": "自学规划工作台与阶段路线"
-    },
-    {
-      "src": "/assets/generated/immersion.webp",
-      "sizes": "1774x887",
-      "type": "image/webp",
-      "form_factor": "wide",
-      "label": "真实材料沉浸训练与输出证据"
+      "src": "/assets/screenshots/home-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Kirina Korean 移动端今日任务与学习证据"
     }
   ]
 }

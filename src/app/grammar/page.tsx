@@ -18,7 +18,7 @@ const levelLabels: Record<string, string> = {
 };
 
 export default function GrammarPage() {
-  const { workspace, toggleGrammar } = useLearningWorkspace();
+  const { workspace, toggleGrammar, ensureGrammar } = useLearningWorkspace();
   const learned = useMemo(() => new Set(workspace.progress.learnedGrammar), [workspace.progress.learnedGrammar]);
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -62,9 +62,18 @@ export default function GrammarPage() {
   const toggleGrammarSrs = (pointId: string) => {
     if (toggleGrammar(pointId)) {
       setSrsErrorId((current) => (current === pointId ? "" : current));
-      return;
+      return true;
     }
     setSrsErrorId(pointId);
+    return false;
+  };
+  const ensureGrammarSrs = (pointId: string) => {
+    if (ensureGrammar(pointId)) {
+      setSrsErrorId((current) => (current === pointId ? "" : current));
+      return true;
+    }
+    setSrsErrorId(pointId);
+    return false;
   };
 
   return (
@@ -172,8 +181,7 @@ export default function GrammarPage() {
                       itemId={point.id}
                       title={point.title}
                       onPassed={() => {
-                        toggleGrammarSrs(point.id);
-                        setGateItemId("");
+                        if (ensureGrammarSrs(point.id)) setGateItemId("");
                       }}
                       onClose={() => setGateItemId("")}
                     />
@@ -199,7 +207,7 @@ export default function GrammarPage() {
                         <Volume2 className="h-4 w-4" />
                         PLAY
                       </span>
-                      <strong className="hangul-display block text-2xl">{example.ko}</strong>
+                      <strong className="hangul-display block text-2xl" lang="ko">{example.ko}</strong>
                       <span className="mt-1 block text-sm text-[var(--muted)]">{example.zh}</span>
                       <small className="mt-1 block leading-5 text-[var(--muted)]">{example.note}</small>
                     </button>

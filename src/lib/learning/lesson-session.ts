@@ -1,13 +1,13 @@
 "use client";
 
-import { lessons } from "../../data/curriculum.js";
-import { lessonReviewCardId } from "./ids.ts";
+import { checkAnswer, lessonQuestions, type Question } from "./quiz.ts";
 import { nowIso, parseJson, readJson, STORAGE_KEYS, writeJson } from "./storage.ts";
 
 export interface SerializedLessonAnswer {
   questionId: string;
   answer: string;
   correct: boolean;
+  skipped?: boolean;
 }
 
 export interface LessonPracticeSession {
@@ -21,13 +21,6 @@ export interface LessonPracticeSession {
 export interface LessonPracticeState {
   sessions: Record<string, LessonPracticeSession>;
 }
-
-const lessonQuestionIds: Map<string, string[]> = new Map(
-  lessons.map((lesson: any): [string, string[]] => [
-    lesson.id,
-    (lesson.drills ?? []).map((drill: any, index: number) => drill.id ?? lessonReviewCardId(lesson.id, index))
-  ])
-);
 
 export function defaultLessonPracticeState(): LessonPracticeState {
   return { sessions: {} };
@@ -76,11 +69,10 @@ export function normalizeLessonPracticeState(input: Partial<LessonPracticeState>
 }
 
 export function normalizeLessonPracticeSession(input: Partial<LessonPracticeSession> | null | undefined, lessonId: string): LessonPracticeSession | null {
-  const questionIds = lessonQuestionIds.get(lessonId);
-  if (!input || !questionIds?.length) return null;
-  const validQuestionIds = new Set(questionIds);
-  const answers = normalizeAnswers(input.answers, questionIds, validQuestionIds);
-  const questionCount = questionIds.length;
+  const questions = lessonQuestions(lessonId);
+  if (!input || !questions.length) return null;
+  const answers = normalizeAnswers(input.answers, questions);
+  const questionCount = questions.length;
   const maxResumeIndex = answers.length >= questionCount ? Math.max(0, questionCount - 1) : answers.length;
   const currentIndex = Math.min(clampIndex(input.currentIndex, questionCount), maxResumeIndex);
   const finished = Boolean(input.finished) && answers.length >= questionCount;
@@ -93,18 +85,26 @@ export function normalizeLessonPracticeSession(input: Partial<LessonPracticeSess
   };
 }
 
-function normalizeAnswers(input: unknown, questionIds: string[], validQuestionIds: Set<string>) {
+function normalizeAnswers(input: unknown, questions: Question[]) {
   if (!Array.isArray(input)) return [];
+  const questionsById = new Map(questions.map((question) => [question.id, question]));
   const byQuestion = new Map<string, SerializedLessonAnswer>();
   for (const item of input) {
     const questionId = typeof item?.questionId === "string" ? item.questionId : "";
     const answer = typeof item?.answer === "string" ? item.answer.trim() : "";
-    if (!validQuestionIds.has(questionId) || !answer) continue;
-    byQuestion.set(questionId, { questionId, answer, correct: Boolean(item.correct) });
+    const skipped = item?.skipped === true;
+    const question = questionsById.get(questionId);
+    if (!question || (!answer && !skipped)) continue;
+    byQuestion.set(
+      questionId,
+      skipped
+        ? { questionId, answer: "", correct: false, skipped: true }
+        : { questionId, answer, correct: checkAnswer(question, answer) }
+    );
   }
   const contiguous: SerializedLessonAnswer[] = [];
-  for (const questionId of questionIds) {
-    const answer = byQuestion.get(questionId);
+  for (const question of questions) {
+    const answer = byQuestion.get(question.id);
     if (!answer) break;
     contiguous.push(answer);
   }

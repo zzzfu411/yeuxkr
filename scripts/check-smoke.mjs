@@ -1,40 +1,50 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
 import { join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
+import { createServer } from "node:net";
+import next from "next";
 
-const port = process.env.KIRINA_SMOKE_PORT ?? "3108";
+const port = process.env.KIRINA_SMOKE_PORT ?? String(await findFreePort());
 const baseUrl = `http://127.0.0.1:${port}`;
 const env = {
   ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => typeof value === "string")),
   KIRINA_URL: baseUrl
 };
 
-await run(["scripts/sw-revision.mjs", "--check"]);
 assertFreshBuild();
 
-const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", port], {
-  stdio: ["ignore", "pipe", "pipe"],
-  env,
-  shell: false
-});
-let log = "";
-server.stdout.on("data", (chunk) => {
-  log += chunk.toString();
-});
-server.stderr.on("data", (chunk) => {
-  log += chunk.toString();
-});
+const app = next({ dev: false, dir: process.cwd(), hostname: "127.0.0.1", port: Number(port) });
+await app.prepare();
+const handler = app.getRequestHandler();
+const server = createHttpServer((request, response) => handler(request, response));
+await listen(server, Number(port));
 
 try {
   await waitReady();
   await run(["scripts/http-smoke.mjs", `--base=${baseUrl}`]);
   await run(["scripts/smoke-browser.mjs"]);
-  await run(["scripts/smoke-offline.mjs"]);
 } finally {
-  server.kill("SIGTERM");
-  await delay(1000);
-  if (server.exitCode === null) server.kill("SIGKILL");
+  await closeServer(server);
+  await app.close();
+}
+
+function listen(httpServer, serverPort) {
+  return new Promise((resolve, reject) => {
+    httpServer.once("error", reject);
+    httpServer.listen(serverPort, "127.0.0.1", () => {
+      httpServer.off("error", reject);
+      resolve();
+    });
+  });
+}
+
+function closeServer(httpServer) {
+  return new Promise((resolve) => {
+    httpServer.close(() => resolve());
+    httpServer.closeIdleConnections?.();
+    httpServer.closeAllConnections?.();
+  });
 }
 
 async function waitReady() {
@@ -44,10 +54,22 @@ async function waitReady() {
       const response = await fetch(baseUrl);
       if (response.ok) return;
     } catch {}
-    if (server.exitCode !== null) throw new Error(`server exited early\n${log}`);
-    await delay(500);
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`server not ready\n${log}`);
+  throw new Error("server not ready");
+}
+
+function findFreePort() {
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.unref();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const freePort = typeof address === "object" && address ? address.port : 0;
+      probe.close((error) => error ? reject(error) : resolve(freePort));
+    });
+  });
 }
 
 function run(args) {

@@ -49,29 +49,36 @@ export function SegmentedFilter({
   onChange: (value: string) => void;
   className?: string;
 }) {
-  const moveSelection = (currentIndex: number, direction: -1 | 1 | "first" | "last") => {
+  const moveSelection = (event: KeyboardEvent<HTMLButtonElement>, currentIndex: number, direction: -1 | 1 | "first" | "last") => {
     const nextIndex = direction === "first"
       ? 0
       : direction === "last"
         ? options.length - 1
         : (currentIndex + direction + options.length) % options.length;
     const next = options[nextIndex];
-    if (next) onChange(next.id);
+    if (!next) return;
+
+    const nextButton = event.currentTarget
+      .closest('[role="radiogroup"]')
+      ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+      .item(nextIndex);
+    onChange(next.id);
+    nextButton?.focus();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
-      moveSelection(index, 1);
+      moveSelection(event, index, 1);
     } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
-      moveSelection(index, -1);
+      moveSelection(event, index, -1);
     } else if (event.key === "Home") {
       event.preventDefault();
-      moveSelection(index, "first");
+      moveSelection(event, index, "first");
     } else if (event.key === "End") {
       event.preventDefault();
-      moveSelection(index, "last");
+      moveSelection(event, index, "last");
     }
   };
 
@@ -118,7 +125,7 @@ export function CheckboxFilter({
     <label
       className={cn(
         "focus-ring grid min-h-11 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-[8px] border px-3 text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)]",
-        checked ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)] text-[var(--celadon)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]",
+        checked ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)] text-[var(--celadon-text)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]",
         className
       )}
     >

@@ -23,7 +23,7 @@ export function PageHeader({
         <p className="eyebrow">{kicker}</p>
         <h1 className={cn(
           "mt-3 max-w-5xl font-serif font-black leading-[0.96] tracking-normal",
-          compact ? "text-3xl md:text-5xl" : "text-4xl md:text-6xl"
+          compact ? "text-4xl md:text-5xl" : "text-4xl md:text-6xl"
         )}>
           {title}
         </h1>
@@ -44,14 +44,16 @@ export function PageHeader({
 export function Surface({
   children,
   className,
+  id,
   variant = "panel"
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
   variant?: "panel" | "plain";
 }) {
   return (
-    <section className={cn(
+    <section id={id} className={cn(
       variant === "plain" ? "relative min-w-0" : "surface relative overflow-hidden p-4 md:p-5",
       className
     )}>
@@ -92,7 +94,7 @@ export function ModuleHero({
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(183,135,63,0.42),transparent)]" />
       <div className="paper-rail relative p-5 md:p-6">
         <p className="eyebrow">{kicker}</p>
-        <h2 className="mt-3 font-serif text-4xl font-black leading-[1.02]">{title}</h2>
+        <h2 className="mt-3 font-serif text-3xl font-black leading-[1.04] md:text-4xl">{title}</h2>
         {copy ? <p className="mt-3 max-w-2xl leading-7 text-[rgba(24,28,27,0.66)]">{copy}</p> : null}
         {children ? <div className="mt-5">{children}</div> : null}
       </div>

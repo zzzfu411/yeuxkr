@@ -26,10 +26,29 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface CapstoneEvidence {
+  transcript: string;
+  weakPoint: string;
+  targetRewrite: string;
+  rubric: string[];
+  recordedSeconds: number;
+  recordingId: string;
+  updatedAt: string;
+}
+
 export interface LearningProgress {
   completedLessons: string[];
   lessonScores: Record<string, number>;
   previewLessonScores: Record<string, number>;
+  lessonListeningEvidence: Record<string, boolean>;
+  lessonProductionEvidence: Record<string, boolean>;
+  lessonTaskEvidence: Record<string, {
+    kind: "paragraph" | "retell" | "shadowing";
+    text: string;
+    recordedSeconds: number;
+    recordingId?: string;
+    updatedAt: string;
+  }>;
   masteredHangul: string[];
   learnedVocab: string[];
   learnedGrammar: string[];
@@ -37,6 +56,7 @@ export interface LearningProgress {
   nativeEvidence: Record<string, { listened: boolean; retell: string; transfer: string; updatedAt: string }>;
   completedMaterials: string[];
   materialEvidence: Record<string, { dictation: string; retell: string; selfCheck: string[]; outputEntryId?: string; updatedAt: string }>;
+  capstoneEvidence: CapstoneEvidence | null;
   completedCheckpoints: string[];
   checkpointEvidence: Record<string, string>;
   completedTasks: Record<string, string>;

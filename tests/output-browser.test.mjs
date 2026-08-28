@@ -52,6 +52,21 @@ test("legacy output entries fall back from target rewrite to weak point", () => 
   assert.equal(getOutputState().entries[0].targetRewrite, "포장해 주세요");
 });
 
+test("legacy output id collisions are disambiguated so one SRS card cannot credit multiple works", () => {
+  store.clear();
+  store.set("kirina.outputs.v1", JSON.stringify({
+    entries: [
+      { materialId: "im-cafe-real-speed", draft: "첫 번째 작품입니다.", createdAt: "2026-06-09T00:00:00.000Z" },
+      { materialId: "im-cafe-real-speed", draft: "두 번째 작품입니다.", createdAt: "2026-06-09T00:00:00.000Z" }
+    ]
+  }));
+
+  const [first, second] = getOutputState().entries;
+  assert.equal(first.id, "legacy-im-cafe-real-speed-2026-06-09T00:00:00.000Z");
+  assert.equal(second.id, "legacy-im-cafe-real-speed-2026-06-09T00:00:00.000Z-2");
+  assert.notEqual(first.id, second.id);
+});
+
 test("output archive reports write failure instead of pretending to save", () => {
   store.clear();
   try {
@@ -109,6 +124,25 @@ test("output archive stores newest entry first and can be cleared", () => {
 
   clearOutputEntries();
   assert.deepEqual(getOutputState(), { entries: [] });
+});
+
+test("output archive preserves long-term portfolio entries beyond the old 120 item ceiling", () => {
+  store.clear();
+  const entries = Array.from({ length: 121 }, (_, index) => ({
+    id: `output-${index}`,
+    materialId: "im-cafe-real-speed",
+    materialTitle: "咖啡店情境点单",
+    mission: "mission",
+    draft: `아이스 아메리카노를 주문하고 카드로 계산해요 ${index}`,
+    weakPoint: "포장 표현",
+    targetRewrite: `아이스 아메리카노 하나 포장해 주세요 ${index}`,
+    rubric: ["structure"],
+    createdAt: "2026-06-09T00:00:00.000Z"
+  }));
+  store.set("kirina.outputs.v1", JSON.stringify({ entries }));
+
+  assert.equal(getOutputState().entries.length, 121);
+  assert.equal(getOutputState().entries.at(-1)?.id, "output-120");
 });
 
 test("output archive can remove one failed entry without clearing other work", () => {

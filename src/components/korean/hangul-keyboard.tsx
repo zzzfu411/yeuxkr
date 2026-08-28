@@ -61,17 +61,22 @@ export function HangulKeyboard({
 
   return (
     <div
-      className={cn("grid gap-1.5 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-2", className)}
+      className={cn("grid min-w-0 max-w-full gap-1.5 overflow-x-auto rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-1 min-[360px]:p-2", className)}
       role="group"
       aria-label="韩文屏幕键盘"
+      onMouseDown={(event) => event.preventDefault()}
     >
       {ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex justify-center gap-1.5">
+        <div
+          key={rowIndex}
+          className="mx-auto grid w-full max-w-[33rem] gap-px min-[360px]:gap-1 sm:gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${row.length + (rowIndex === 2 ? 2 : 0)}, minmax(24px, 1fr))` }}
+        >
           {rowIndex === 2 ? (
             <button
               type="button"
               className={cn(
-                "focus-ring hangul-key min-w-12 font-mono text-xs font-black uppercase",
+                "focus-ring hangul-key min-w-0 font-mono text-xs font-black uppercase",
                 shifted && "border-[rgba(23,63,115,0.4)] bg-[rgba(23,63,115,0.12)] text-[var(--ocean)]"
               )}
               aria-pressed={shifted}
@@ -85,7 +90,8 @@ export function HangulKeyboard({
             <button
               key={key.base}
               type="button"
-              className="focus-ring hangul-key hangul-display flex-1 text-lg font-black sm:max-w-12"
+              lang="ko"
+              className="focus-ring hangul-key hangul-display min-w-0 text-base font-black sm:text-lg"
               onClick={() => pressJamo(key)}
             >
               {shifted && key.shift ? key.shift : key.base}
@@ -94,7 +100,7 @@ export function HangulKeyboard({
           {rowIndex === 2 ? (
             <button
               type="button"
-              className="focus-ring hangul-key min-w-12"
+              className="focus-ring hangul-key min-w-0"
               aria-label="退格"
               onClick={onBackspace}
             >
@@ -103,8 +109,8 @@ export function HangulKeyboard({
           ) : null}
         </div>
       ))}
-      <div className="flex justify-center gap-1.5">
-        <button type="button" className="focus-ring hangul-key flex-1 max-w-64 font-mono text-xs font-black" onClick={onSpace}>
+      <div className="mx-auto grid w-full max-w-[33rem] grid-cols-[minmax(24px,1fr)_auto] gap-px min-[360px]:gap-1 sm:gap-1.5">
+        <button type="button" className="focus-ring hangul-key min-w-0 font-mono text-xs font-black" onClick={onSpace}>
           空格
         </button>
         {onSubmit ? (

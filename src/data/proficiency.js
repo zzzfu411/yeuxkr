@@ -28,10 +28,10 @@ export const proficiencyLevels = [
     id: "script-foundation",
     band: "A0+",
     title: "文字与声音对齐",
-    summary: "能拆音节块、读基础韩文，并开始听出元音和辅音差异。",
+    summary: "能拆音节块、读全部韩文字母（含复合元音），并开始听出音变前后的差异。",
     requirements: [
-      { metric: "lessons", target: 3 },
-      { metric: "hangul", target: 12 },
+      { metric: "lessons", target: 6 },
+      { metric: "hangul", target: 20 },
       { metric: "scriptAbility", target: 18 },
       { metric: "listeningAbility", target: 10 }
     ]
@@ -40,13 +40,13 @@ export const proficiencyLevels = [
     id: "survival-polite",
     band: "A1",
     title: "礼貌生存表达",
-    summary: "能完成问候、自我介绍、点单、问路和基础需求表达。",
+    summary: "能完成问候、自我介绍、数字与价格、点单、问路和基础需求表达。",
     requirements: [
-      { metric: "lessons", target: 7 },
-      { metric: "vocabulary", target: 18 },
-      { metric: "grammar", target: 3 },
+      { metric: "lessons", target: 13 },
+      { metric: "vocabulary", target: 40 },
+      { metric: "grammar", target: 8 },
       { metric: "materials", target: 2 },
-      { metric: "vocabularyAbility", target: 18 },
+      { metric: "vocabularyAbility", target: 40 },
       { metric: "pragmaticsAbility", target: 12 }
     ]
   },
@@ -54,14 +54,14 @@ export const proficiencyLevels = [
     id: "connected-daily",
     band: "A2",
     title: "日常连续表达",
-    summary: "能围绕过去、计划、许可、身体、邀请和简单原因组织连续句。",
+    summary: "能围绕过去、否定、请求、许可、身体、邀请和简单原因组织连续句。",
     requirements: [
-      { metric: "lessons", target: 20 },
-      { metric: "vocabulary", target: 40 },
-      { metric: "grammar", target: 12 },
+      { metric: "lessons", target: 26 },
+      { metric: "vocabulary", target: 90 },
+      { metric: "grammar", target: 16 },
       { metric: "materials", target: 4 },
       { metric: "checkpoints", target: 1 },
-      { metric: "grammarAbility", target: 35 }
+      { metric: "grammarAbility", target: 40 }
     ]
   },
   {
@@ -70,9 +70,9 @@ export const proficiencyLevels = [
     title: "真实材料入口",
     summary: "站内证据足以开始挑战慢速新闻、社交短评和观点段落，并做短复述与观点输出；这不是正式 CEFR 等级认证。",
     requirements: [
-      { metric: "lessons", target: 26 },
-      { metric: "vocabulary", target: 56 },
-      { metric: "grammar", target: 18 },
+      { metric: "lessons", target: 38 },
+      { metric: "vocabulary", target: 160 },
+      { metric: "grammar", target: 26 },
       { metric: "native", target: 8 },
       { metric: "materials", target: 8 },
       { metric: "checkpoints", target: 2 },
@@ -86,10 +86,10 @@ export const proficiencyLevels = [
     title: "母语者语用桥接",
     summary: "站内证据已覆盖关系、场合、语域和隐含态度的基础调节；这是进入高级作品集前的桥接层，不等同完整母语者水平。",
     requirements: [
-      { metric: "lessons", target: 30 },
+      { metric: "lessons", target: 45 },
       { metric: "capstone", target: 1 },
-      { metric: "vocabulary", target: 64 },
-      { metric: "grammar", target: 24 },
+      { metric: "vocabulary", target: 220 },
+      { metric: "grammar", target: 40 },
       { metric: "native", target: 16 },
       { metric: "materials", target: 12 },
       { metric: "outputs", target: 4 },

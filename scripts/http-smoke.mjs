@@ -1,5 +1,6 @@
 import { lessons } from "../src/data/curriculum.js";
 import { visualAssets } from "../src/data/visuals/assets.ts";
+import { BUNDLED_SPEECH_ASSETS } from "../src/data/speech-assets.generated.js";
 
 const baseArg = process.argv.find((arg) => arg.startsWith("--base="));
 const baseUrl = baseArg?.slice("--base=".length) ?? process.env.KIRINA_URL;
@@ -11,10 +12,12 @@ if (!baseUrl) {
 
 const manifestPath = "/manifest.webmanifest";
 const failures = [];
+const removedOfflinePaths = ["/sw.js", "/offline.html"];
 const manifest = await fetchJson(manifestPath);
 const manifestIconPaths = collectManifestIconPaths(manifest);
 const manifestImagePaths = collectManifestImagePaths(manifest);
 const shortcutPaths = collectShortcutPaths(manifest);
+const speechSamplePaths = ["가", "우유", "안녕하세요"].map((text) => BUNDLED_SPEECH_ASSETS[text]).filter(Boolean);
 
 const paths = [
   "/",
@@ -31,15 +34,15 @@ const paths = [
   ...lessons.map((lesson) => `/learn/${lesson.id}`),
   ...shortcutPaths,
   manifestPath,
-  "/sw.js",
-  "/offline.html",
   ...[...new Set(Object.values(visualAssets).flatMap((asset) => [asset.src, asset.source]))],
   ...manifestIconPaths,
-  ...manifestImagePaths
+  ...manifestImagePaths,
+  ...speechSamplePaths
 ];
 
 const imagePaths = paths.filter((path) => path.endsWith(".png") || path.endsWith(".webp"));
-const htmlPaths = paths.filter((path) => !path.endsWith(".png") && !path.endsWith(".js") && !path.endsWith(".webmanifest"));
+const audioPaths = paths.filter((path) => path.endsWith(".mp3"));
+const htmlPaths = paths.filter((path) => !path.endsWith(".png") && !path.endsWith(".webp") && !path.endsWith(".mp3") && !path.endsWith(".js") && !path.endsWith(".webmanifest"));
 
 for (const path of paths) {
   try {
@@ -52,11 +55,6 @@ for (const path of paths) {
       await validateManifest(manifest);
       continue;
     }
-    if (path === "/sw.js") {
-      const source = await response.text();
-      if (!source.includes("self.addEventListener(\"install\"") || !source.includes("self.addEventListener(\"fetch\"")) failures.push(`${path}: invalid service worker body`);
-      continue;
-    }
     if (imagePaths.includes(path)) {
       const bytes = new Uint8Array(await response.arrayBuffer());
       const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
@@ -65,14 +63,28 @@ for (const path of paths) {
       if (path.endsWith(".webp") && !isWebp) failures.push(`${path}: expected WebP bytes`);
       continue;
     }
+    if (audioPaths.includes(path)) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const hasId3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
+      const hasMpegFrame = bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
+      if ((!hasId3 && !hasMpegFrame) || bytes.length <= 1024) failures.push(`${path}: expected non-empty MP3 bytes`);
+      continue;
+    }
     if (htmlPaths.includes(path)) {
       const html = await response.text();
-      if (path === "/offline.html") {
-        if (!html.includes("<html") || !html.includes("离线状态")) failures.push(`${path}: invalid offline HTML`);
-      } else if (!html.includes("<html") || !html.includes("Kirina Korean") || html.includes("Yasashi Japanese")) {
+      if (!html.includes("<html") || !html.includes("Kirina Korean") || html.includes("Yasashi Japanese")) {
         failures.push(`${path}: invalid HTML route`);
       }
     }
+  } catch (error) {
+    failures.push(`${path}: ${error.cause?.code ?? error.message}`);
+  }
+}
+
+for (const path of removedOfflinePaths) {
+  try {
+    const response = await fetch(`${baseUrl}${path}`);
+    if (response.status !== 404) failures.push(`${path}: expected removed route to return 404, got ${response.status}`);
   } catch (error) {
     failures.push(`${path}: ${error.cause?.code ?? error.message}`);
   }
@@ -106,7 +118,7 @@ async function validateManifest(input) {
   if (input?.lang !== "zh-CN") failures.push(`${manifestPath}: should declare zh-CN language`);
   if (input?.display !== "standalone") failures.push(`${manifestPath}: display should be standalone`);
   if (!Array.isArray(input?.display_override) || !input.display_override.includes("standalone")) failures.push(`${manifestPath}: display_override should keep standalone fallback`);
-  if (input?.background_color !== "#f3efe5") failures.push(`${manifestPath}: background color should match app shell`);
+  if (input?.background_color !== "#e9eeeb") failures.push(`${manifestPath}: background color should match app shell`);
   if (!Array.isArray(input?.categories) || !input.categories.includes("education")) failures.push(`${manifestPath}: should declare education category`);
 
   const iconPurposes = new Set();
@@ -144,11 +156,13 @@ async function validateManifest(input) {
   }
 
   if (!Array.isArray(input?.screenshots) || input.screenshots.length < 2) failures.push(`${manifestPath}: should declare install screenshots`);
+  const screenshotFormFactors = new Set();
   for (const screenshot of input?.screenshots ?? []) {
     const dimensions = parseImageSizes(screenshot.sizes);
-    if (!screenshot.src?.startsWith("/assets/generated/")) failures.push(`${manifestPath}: screenshot ${screenshot.src} should use generated local assets`);
+    if (!screenshot.src?.startsWith("/assets/screenshots/")) failures.push(`${manifestPath}: screenshot ${screenshot.src} should use captured application assets`);
     if (!["image/png", "image/webp"].includes(screenshot.type)) failures.push(`${manifestPath}: screenshot ${screenshot.src} has unsupported type ${screenshot.type}`);
     if (!["wide", "narrow"].includes(screenshot.form_factor)) failures.push(`${manifestPath}: screenshot ${screenshot.src} needs form_factor`);
+    screenshotFormFactors.add(screenshot.form_factor);
     if (!screenshot.label) failures.push(`${manifestPath}: screenshot ${screenshot.src} needs a label`);
     if (screenshot.src && dimensions) {
       const bytes = await fetchBytes(screenshot.src);
@@ -158,6 +172,7 @@ async function validateManifest(input) {
       }
     }
   }
+  if (!screenshotFormFactors.has("wide") || !screenshotFormFactors.has("narrow")) failures.push(`${manifestPath}: should declare both wide and narrow install screenshots`);
 }
 
 function collectManifestIconPaths(input) {

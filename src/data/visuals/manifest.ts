@@ -12,8 +12,8 @@ export interface VisualAssetManifestEntry {
   derivative: "png-source-and-webp-display" | "png-source-and-pwa-icons";
 }
 
-const aesthetic = "Seoul Editorial Learning Atlas: premium Korean stationery, warm paper texture, abstract Hangul typography, celadon green, deep ocean blue, cinnabar red, brass details, preserve generous negative space for editorial layouts, no people, no watermark, no readable Chinese/English UI text.";
-const generatedAt = "2026-06-09";
+const aesthetic = "Seoul Transit Editorial: cool white hanji, ink black, celadon green, deep ocean blue, restrained cinnabar and brass, realistic domain objects, varied camera composition, no people, no watermark, no readable text or fabricated letters.";
+const generatedAt = "2026-07-15";
 
 export const visualAssetManifest: Record<VisualAssetId, VisualAssetManifestEntry> = Object.fromEntries(
   Object.values(visualAssets).map((asset) => [

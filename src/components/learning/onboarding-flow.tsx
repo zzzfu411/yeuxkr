@@ -147,12 +147,12 @@ export function OnboardingFlow() {
         <Surface>
           <h1 className="font-serif text-3xl font-black leading-tight">先确认你能听到韩语。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
-            听力练习靠系统的韩语语音朗读。点一下试听，如果听到自然的“안녕하세요”（annyeonghaseyo，你好）就没问题。
+            听力练习靠系统的韩语语音朗读。点一下试听，如果听到自然的“<span lang="ko">안녕하세요</span>”（你好）就没问题。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Button type="button" size="lg" onClick={() => speakKorean("안녕하세요")}>
               <Volume2 className="h-5 w-5" aria-hidden="true" />
-              试听 안녕하세요
+              试听 <span lang="ko">안녕하세요</span>
             </Button>
             {voiceStatus === "ready" ? (
               <span className="flex items-center gap-1 text-sm font-bold text-[var(--celadon)]">
@@ -188,8 +188,8 @@ export function OnboardingFlow() {
         <Surface>
           <h1 className="font-serif text-3xl font-black leading-tight">用屏幕键盘打出第一个韩文字。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
-            练习里会有输入题，不需要安装韩语输入法——点开“韩文键盘”，先按 <strong className="hangul-display">ㄱ</strong>，再按{" "}
-            <strong className="hangul-display">ㅏ</strong>，它们会自动拼成 <strong className="hangul-display">가</strong>（ga）。
+            练习里会有输入题，不需要安装韩语输入法。点开“韩文键盘”，先按 <strong className="hangul-display" lang="ko">ㄱ</strong>，再按{" "}
+            <strong className="hangul-display" lang="ko">ㅏ</strong>，它们会自动拼成 <strong className="hangul-display" lang="ko">가</strong>。完成这一步后才能进入第一课。
           </p>
           <div className="mt-5">
             <KoreanInput value={typed} onChange={setTyped} placeholder="目标：가" ariaLabel="试打韩文" />
@@ -210,9 +210,10 @@ export function OnboardingFlow() {
             <Button
               type="button"
               size="lg"
+              disabled={!typedTarget}
               onClick={() => finish("/learn/l01-hangul-map", { studyMode: "guided", selfStudyGoal: goal, minutesGoal: minutes })}
             >
-              {typedTarget ? "完成设置，开始第一课" : "跳过试打，直接开始第一课"}
+              完成设置，开始第一课
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>

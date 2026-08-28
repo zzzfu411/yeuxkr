@@ -84,9 +84,8 @@ test("makeChoices always includes the answer", () => {
 test("lessonQuestions gives stable ids to course drills", () => {
   const questions = lessonQuestions("l01-hangul-map");
 
-  assert.equal(questions.length, 3);
-  assert.equal(questions[0].id, "lesson:l01-hangul-map:1");
-  assert.equal(questions[2].id, lessonQuestionId("l01-hangul-map", 2));
+  assert.equal(questions.length > 0, true);
+  assert.equal(questions.every((question, index) => question.id === lessonQuestionId("l01-hangul-map", index)), true);
 });
 
 test("buildReviewQuestions supports lesson review cards", () => {
@@ -117,6 +116,25 @@ test("buildReviewQuestions supports lesson review cards", () => {
   assert.equal(questions[0].answer, "고");
   assert.deepEqual(questions[0].acceptable, ["고"]);
   assert.match(questions[0].explain, /横元音/);
+});
+
+test("Hangul review and progress questions play the target sound, not the example word", () => {
+  const review = buildReviewQuestions([{
+    id: "hangul:v-oe",
+    box: 0,
+    dueAt: Date.now(),
+    correct: 0,
+    wrong: 0,
+    lastSeenAt: null,
+    payload: { kind: "hangul", itemId: "v-oe" }
+  }]);
+  const progress = buildProgressQuiz({
+    ...defaultProgress(),
+    masteredHangul: ["v-oe"]
+  }, 10, 4);
+
+  assert.equal(review[0].speak, "외");
+  assert.equal(progress.find((question) => question.id === "hq:v-oe")?.speak, "외");
 });
 
 test("buildReviewQuestions supports mistake cards as typed repair prompts", () => {
@@ -266,7 +284,8 @@ test("buildProgressQuiz prioritizes weak practice items and completed lesson dri
 
   assert.equal(questions[0].id, lessonQuestionId);
   assert.equal(questions[1].id, vocabId);
-  assert.equal(questions.some((question) => question.id === grammarId), true);
+  assert.equal(questions.length, 4);
+  assert.equal(questions.slice(0, 2).some((question) => question.id === grammarId), false);
 });
 
 test("buildProgressQuiz only adds explicitly practiced pronunciation pairs", () => {
@@ -334,7 +353,7 @@ test("buildProgressQuiz includes learned native and material retell checks", () 
       materialId: "im-cafe-real-speed",
       materialTitle: "咖啡店真实语速点单",
       mission: "把点单句改写得更自然。",
-      draft: "아메리카노 주세요.",
+      draft: "저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요.",
       weakPoint: "外带表达不稳",
       targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
       rubric: ["naturalness"],
@@ -391,7 +410,7 @@ test("buildProgressQuiz includes output archive target rewrites", () => {
       materialId: "im-cafe-real-speed",
       materialTitle: "咖啡店真实语速点单",
       mission: "把点单句改写得更自然。",
-      draft: "아메리카노 주세요.",
+      draft: "저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요.",
       weakPoint: "外带表达不稳",
       targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
       rubric: ["naturalness"],
@@ -403,7 +422,7 @@ test("buildProgressQuiz includes output archive target rewrites", () => {
   assert.equal(Boolean(outputQuestion), true);
   assert.equal(outputQuestion.type, "type");
   assert.equal(outputQuestion.answer, "아이스 아메리카노 하나 포장해 주세요.");
-  assert.equal(outputQuestion.acceptable.includes("아메리카노 주세요."), true);
+  assert.equal(outputQuestion.acceptable.includes("저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요."), true);
   assert.match(outputQuestion.prompt, /外带表达不稳/);
 });
 
@@ -457,7 +476,7 @@ test("buildProgressQuiz uses the output currently bound to material evidence", (
       materialId: "im-cafe-real-speed",
       materialTitle: "咖啡店真实语速点单",
       mission: "当前输出",
-      draft: "아메리카노 주세요.",
+      draft: "저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요.",
       weakPoint: "外带表达不稳",
       targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
       rubric: ["naturalness"],
@@ -502,7 +521,7 @@ test("buildProgressQuiz rejects material evidence with forged self-check items",
       materialId: "im-cafe-real-speed",
       materialTitle: "咖啡店真实语速点单",
       mission: "把点单句改写得更自然。",
-      draft: "아메리카노 주세요.",
+      draft: "저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요.",
       weakPoint: "外带表达不稳",
       targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
       rubric: ["naturalness"],
@@ -524,7 +543,7 @@ test("buildProgressQuiz skips output archive entries without SRS evidence", () =
       materialId: "im-cafe-real-speed",
       materialTitle: "咖啡店真实语速点单",
       mission: "把点单句改写得更自然。",
-      draft: "아메리카노 주세요.",
+      draft: "저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요.",
       weakPoint: "外带表达不稳",
       targetRewrite: "아이스 아메리카노 하나 포장해 주세요.",
       rubric: ["naturalness"],

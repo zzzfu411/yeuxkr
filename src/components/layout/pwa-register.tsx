@@ -1,187 +1,219 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RefreshCcw } from "lucide-react";
+import { MonitorDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type PwaStatus = "checking" | "ready" | "unsupported" | "slow" | "error" | "updateReady" | "updating";
+const LEGACY_OFFLINE_CACHE_PREFIX = "kirina-korean-next-";
+const LEGACY_OFFLINE_RELOAD_KEY = "kirina.legacy-offline-reload.v1";
+
+type InstallStatus = "unavailable" | "available" | "prompting" | "accepted" | "installed";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+}
+
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+type ServiceWorkerContainerLike = Pick<ServiceWorkerContainer, "controller" | "getRegistrations">;
+type CacheStorageLike = Pick<CacheStorage, "keys" | "delete">;
+
+export function isStandaloneMode(browserWindow?: Window, browserNavigator?: Navigator) {
+  const currentWindow = browserWindow ?? (typeof window === "undefined" ? undefined : window);
+  const currentNavigator = (browserNavigator ?? (typeof navigator === "undefined" ? undefined : navigator)) as
+    | NavigatorWithStandalone
+    | undefined;
+
+  return Boolean(currentNavigator?.standalone || currentWindow?.matchMedia?.("(display-mode: standalone)").matches);
+}
+
+export function isIosSafari(browserNavigator?: Navigator) {
+  const currentNavigator = browserNavigator ?? (typeof navigator === "undefined" ? undefined : navigator);
+  if (!currentNavigator) return false;
+
+  const userAgent = currentNavigator.userAgent ?? "";
+  const isIosDevice = /iPad|iPhone|iPod/i.test(userAgent)
+    || (currentNavigator.platform === "MacIntel" && currentNavigator.maxTouchPoints > 1);
+  const isWebKit = /WebKit/i.test(userAgent);
+  return isIosDevice && isWebKit;
+}
+
+export async function removeLegacyOfflineData(
+  serviceWorkers?: ServiceWorkerContainerLike | null,
+  cacheStorage?: CacheStorageLike | null
+) {
+  let registrationsRemoved = 0;
+  let cachesRemoved = 0;
+
+  try {
+    const registrations = await serviceWorkers?.getRegistrations() ?? [];
+    const legacyRegistrations = registrations.filter(isLegacyOfflineRegistration);
+    const results = await Promise.all(legacyRegistrations.map((registration) => registration.unregister()));
+    registrationsRemoved = results.filter(Boolean).length;
+  } catch {
+    // Cleanup must never interrupt the learning interface.
+  }
+
+  try {
+    const cacheNames = await cacheStorage?.keys() ?? [];
+    const legacyCacheNames = cacheNames.filter((name) => name.startsWith(LEGACY_OFFLINE_CACHE_PREFIX));
+    const results = await Promise.all(legacyCacheNames.map((name) => cacheStorage?.delete(name)));
+    cachesRemoved = results.filter(Boolean).length;
+  } catch {
+    // Browser storage may be restricted; a later visit can retry cleanup.
+  }
+
+  return { registrationsRemoved, cachesRemoved };
+}
 
 export function PwaRegister() {
-  const [status, setStatus] = useState<PwaStatus>("checking");
-  const waitingWorkerRef = useRef<ServiceWorker | null>(null);
-  const refreshRequestedRef = useRef(false);
-  const fallbackReloadTimerRef = useRef<number>(0);
+  const [installStatus, setInstallStatus] = useState<InstallStatus>("unavailable");
+  const [showIosGuide, setShowIosGuide] = useState(false);
+  const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const installedRef = useRef(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) {
-      const timeout = window.setTimeout(() => setStatus("unsupported"), 0);
-      return () => {
-        window.clearTimeout(timeout);
-      };
-    }
-
-    let alive = true;
-    let installTimer = 0;
-    let installPending = false;
-    let installFailed = false;
-    let updatePending = false;
-
-    const clearInstallTimeout = () => {
-      if (!installTimer) return;
-      window.clearTimeout(installTimer);
-      installTimer = 0;
-    };
-
-    const startInstallTimeout = () => {
-      clearInstallTimeout();
-      installTimer = window.setTimeout(() => {
-        installTimer = 0;
-        if (installPending && alive) setStatus("slow");
-      }, 15000);
-    };
-
-    const finish = (next: PwaStatus) => {
-      if (!alive) return;
-      if (next === "ready" && (installPending || installFailed || updatePending)) return;
-      clearInstallTimeout();
-      setStatus(next);
-    };
-
-    const markUpdateReady = (worker: ServiceWorker) => {
-      if (!alive) return;
-      clearInstallTimeout();
-      installPending = false;
-      installFailed = false;
-      updatePending = true;
-      waitingWorkerRef.current = worker;
-      setStatus("updateReady");
-    };
-
-    const watchInstall = (worker: ServiceWorker | null) => {
-      if (!worker) return;
-
-      if (worker.state === "installed") {
-        if (navigator.serviceWorker.controller) markUpdateReady(worker);
-        else finish("ready");
+    const serviceWorkers = "serviceWorker" in navigator ? navigator.serviceWorker : null;
+    const cacheStorage = "caches" in window ? window.caches : null;
+    const cleanup = () => void removeLegacyOfflineData(serviceWorkers, cacheStorage).then(() => {
+      const controlledByLegacyWorker = isLegacyOfflineWorker(serviceWorkers?.controller ?? null);
+      if (!controlledByLegacyWorker) {
+        try {
+          window.sessionStorage.removeItem(LEGACY_OFFLINE_RELOAD_KEY);
+        } catch {
+          // Storage access is optional for cleanup.
+        }
         return;
       }
 
-      if (worker.state === "activated") {
-        installPending = false;
-        installFailed = false;
-        finish("ready");
-        return;
+      try {
+        if (window.sessionStorage.getItem(LEGACY_OFFLINE_RELOAD_KEY)) return;
+        window.sessionStorage.setItem(LEGACY_OFFLINE_RELOAD_KEY, "1");
+      } catch {
+        // A reload is still preferable when session storage is unavailable.
       }
-
-      if (worker.state === "redundant") {
-        installPending = false;
-        installFailed = true;
-        finish("error");
-        return;
-      }
-
-      installPending = true;
-      startInstallTimeout();
-      worker.addEventListener("statechange", () => {
-        if (worker.state === "installed") {
-          if (navigator.serviceWorker.controller) markUpdateReady(worker);
-          else finish("ready");
-          return;
-        }
-
-        if (worker.state === "activated") {
-          installPending = false;
-          installFailed = false;
-          finish("ready");
-        }
-
-        if (worker.state === "redundant") {
-          installPending = false;
-          installFailed = true;
-          finish("error");
-        }
-      });
-    };
-
-    const reloadOnControllerChange = () => {
-      if (!refreshRequestedRef.current || !alive) return;
-      refreshRequestedRef.current = false;
       window.location.reload();
+    });
+    const handleVisibility = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") cleanup();
     };
-
-    navigator.serviceWorker.addEventListener("controllerchange", reloadOnControllerChange);
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((registration) => {
-        watchInstall(registration.waiting ?? registration.installing ?? registration.active);
-        registration.addEventListener("updatefound", () => {
-          watchInstall(registration.installing);
-        });
-        registration.update().catch(() => {});
-        return navigator.serviceWorker.ready;
-      })
-      .then(() => {
-        if (!installPending && !installFailed && !updatePending) finish("ready");
-      })
-      .catch(() => {
-        finish("error");
-      });
-
+    cleanup();
+    window.addEventListener("focus", cleanup);
+    window.addEventListener("pageshow", cleanup);
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      alive = false;
-      clearInstallTimeout();
-      if (fallbackReloadTimerRef.current) window.clearTimeout(fallbackReloadTimerRef.current);
-      navigator.serviceWorker.removeEventListener("controllerchange", reloadOnControllerChange);
+      window.removeEventListener("focus", cleanup);
+      window.removeEventListener("pageshow", cleanup);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
-  const applyUpdate = () => {
-    const waitingWorker = waitingWorkerRef.current;
-    if (!waitingWorker) return;
-    refreshRequestedRef.current = true;
-    setStatus("updating");
-    waitingWorker.postMessage({ type: "SKIP_WAITING" });
-    if (fallbackReloadTimerRef.current) window.clearTimeout(fallbackReloadTimerRef.current);
-    fallbackReloadTimerRef.current = window.setTimeout(() => {
-      if (refreshRequestedRef.current) window.location.reload();
-    }, 5000);
+  useEffect(() => {
+    const displayModeQuery = window.matchMedia("(display-mode: standalone)");
+
+    const markInstalledIfStandalone = () => {
+      if (!isStandaloneMode(window, navigator)) return;
+      installedRef.current = true;
+      installPromptRef.current = null;
+      setInstallStatus("installed");
+      setShowIosGuide(false);
+    };
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      if (installedRef.current || isStandaloneMode(window, navigator)) return;
+      installPromptRef.current = event as BeforeInstallPromptEvent;
+      setInstallStatus("available");
+      setShowIosGuide(false);
+    };
+
+    const handleAppInstalled = () => {
+      installedRef.current = true;
+      installPromptRef.current = null;
+      setInstallStatus("installed");
+      setShowIosGuide(false);
+    };
+
+    markInstalledIfStandalone();
+    if (!installedRef.current) setShowIosGuide(isIosSafari(navigator));
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    displayModeQuery.addEventListener("change", markInstalledIfStandalone);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      displayModeQuery.removeEventListener("change", markInstalledIfStandalone);
+    };
+  }, []);
+
+  const promptInstall = async () => {
+    const installPrompt = installPromptRef.current;
+    if (!installPrompt || installStatus !== "available") return;
+
+    installPromptRef.current = null;
+    setInstallStatus("prompting");
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (installedRef.current) return;
+      if (installPromptRef.current) {
+        setInstallStatus("available");
+        return;
+      }
+      setInstallStatus(choice.outcome === "accepted" ? "accepted" : "unavailable");
+      if (choice.outcome === "dismissed") setShowIosGuide(isIosSafari(navigator));
+    } catch {
+      if (installedRef.current) return;
+      setInstallStatus(installPromptRef.current ? "available" : "unavailable");
+      setShowIosGuide(!installPromptRef.current && isIosSafari(navigator));
+    }
   };
 
-  if (status !== "error" && status !== "slow" && status !== "updateReady" && status !== "updating") return null;
+  if (installStatus === "available") {
+    return (
+      <div
+        className="fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between gap-3 rounded-[8px] border border-[rgba(23,63,115,0.28)] bg-[rgba(255,250,240,0.94)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-paper-sm backdrop-blur md:left-auto md:max-w-80"
+        role="status"
+        aria-live="polite"
+      >
+        <span>可添加桌面入口；课程内容仍需联网加载。</span>
+        <Button type="button" size="sm" onClick={promptInstall} className="shrink-0">
+          <MonitorDown className="h-4 w-4" aria-hidden="true" />
+          添加到桌面
+        </Button>
+      </div>
+    );
+  }
 
-  const isSlow = status === "slow";
-  const isUpdate = status === "updateReady" || status === "updating";
+  if (!showIosGuide || installStatus === "installed") return null;
 
   return (
     <div
-      className={`fixed bottom-3 left-3 right-3 z-50 rounded-[8px] border bg-[rgba(255,250,240,0.94)] px-3 py-2 text-xs font-bold leading-5 shadow-paper-sm backdrop-blur md:left-auto md:max-w-80 ${
-        isUpdate
-          ? "border-[rgba(23,63,115,0.28)] text-[var(--ocean)]"
-          : isSlow
-            ? "border-[rgba(183,135,63,0.42)] text-[var(--brass)]"
-            : "border-[rgba(185,78,60,0.42)] text-[var(--cinnabar)]"
-      }`}
-      role="alert"
+      className="fixed bottom-3 left-3 right-3 z-50 rounded-[8px] border border-[rgba(23,63,115,0.28)] bg-[rgba(255,250,240,0.94)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-paper-sm backdrop-blur md:left-auto md:max-w-80"
+      role="status"
       aria-live="polite"
     >
-      {isUpdate ? (
-        <div className="grid gap-2">
-          <div>
-            <p className="font-mono text-[0.66rem] font-black uppercase">Offline Pack</p>
-            <p className="mt-1 text-[var(--ink)]">
-              {status === "updating" ? "正在切换到新版离线包，页面会自动刷新。" : "新版离线学习包已经准备好，更新后会重新载入当前页面。"}
-            </p>
-          </div>
-          <Button type="button" size="sm" onClick={applyUpdate} disabled={status === "updating"} className="w-fit">
-            <RefreshCcw className="h-4 w-4" />
-            {status === "updating" ? "更新中" : "立即更新"}
-          </Button>
-        </div>
-      ) : isSlow ? (
-        "离线缓存仍在准备中，当前页面可继续使用；准备完成后会自动收起。"
-      ) : (
-        "离线缓存暂未准备好，请保持联网后刷新一次。"
-      )}
+      在浏览器中轻点“分享” → “添加到主屏幕”；课程内容仍需联网加载。
     </div>
   );
+}
+
+function isLegacyOfflineWorker(worker: ServiceWorker | null) {
+  if (!worker?.scriptURL) return false;
+  try {
+    return new URL(worker.scriptURL).pathname === "/sw.js";
+  } catch {
+    return false;
+  }
+}
+
+function isLegacyOfflineRegistration(registration: ServiceWorkerRegistration) {
+  try {
+    if (new URL(registration.scope).pathname !== "/") return false;
+  } catch {
+    return false;
+  }
+  return [registration.active, registration.installing, registration.waiting]
+    .some((worker) => isLegacyOfflineWorker(worker));
 }

@@ -1,11 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildGateQuestions, GATE_PASS_SCORE } = await import("../src/lib/learning/gate.ts");
+const { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
 
 test("gate pass score demands real mastery", () => {
   assert.equal(GATE_PASS_SCORE >= 75, true);
+});
+
+test("skipped listening or dictation blocks mastery for every gate kind", () => {
+  assert.equal(hasSkippedGateAudio([{ skipped: true, question: { type: "listen" } }]), true);
+  assert.equal(hasSkippedGateAudio([{ skipped: true, question: { type: "dictation" } }]), true);
+  assert.equal(hasSkippedGateAudio([{ skipped: true, question: { type: "choice" } }]), false);
+  assert.equal(hasSkippedGateAudio([{ skipped: false, question: { type: "listen" } }]), false);
 });
 
 test("hangul gate mixes listening, recognition, and keyboard production", () => {
@@ -20,6 +27,25 @@ test("hangul gate mixes listening, recognition, and keyboard production", () => 
   assert.equal(questions[3].answer, "아");
   assert.equal(questions[3].speak, "아");
   assert.equal(questions.every((question) => question.id.startsWith("hq:v-a:gate")), true);
+});
+
+test("hangul gate uses the letter sound except for explicit example-word tasks", () => {
+  const questions = buildGateQuestions("hangul", "v-oe", 7);
+
+  assert.equal(questions[0].prompt, "听例词，它练的是哪个字母？");
+  assert.equal(questions[0].speak, "회사");
+  assert.equal(questions[1].speak, "외");
+  assert.equal(questions[2].speak, "외");
+  assert.equal(questions[3].speak, "회사");
+});
+
+test("pronunciation gate requires two real listening decisions before SRS enrollment", () => {
+  const questions = buildGateQuestions("pronunciation", "plain-aspirated-k", 7);
+  assert.equal(questions.length, 3);
+  assert.deepEqual(questions.slice(0, 2).map((question) => question.type), ["listen", "listen"]);
+  assert.deepEqual(questions.slice(0, 2).map((question) => question.speak), ["가", "카"]);
+  assert.equal(questions.every((question) => question.choices.includes(question.answer)), true);
+  assert.equal(questions.every((question) => question.id.startsWith("pq:plain-aspirated-k:gate")), true);
 });
 
 test("vocab gate covers meaning, recognition, dictation, and production", () => {
@@ -68,4 +94,5 @@ test("gate questions are deterministic per seed and unknown items return nothing
   assert.equal(JSON.stringify(first) !== JSON.stringify(shifted), true);
   assert.deepEqual(buildGateQuestions("vocab", "missing-item", 1), []);
   assert.deepEqual(buildGateQuestions("hangul", "missing-item", 1), []);
+  assert.deepEqual(buildGateQuestions("pronunciation", "missing-item", 1), []);
 });

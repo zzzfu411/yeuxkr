@@ -137,8 +137,23 @@ export function ensureCard(id: string, payload: SrsCard["payload"]) {
 }
 
 export function recordMistake(id: string, payload: SrsCard["payload"]) {
-  if (!ensureCard(id, payload)) return null;
-  return gradeCard(id, false, payload);
+  const state = getSrsState();
+  const now = Date.now();
+  const current = state.cards[id];
+  state.cards[id] = current
+    ? { ...current, payload: { ...current.payload, ...payload } }
+    : {
+        id,
+        box: 0,
+        dueAt: now,
+        correct: 0,
+        wrong: 0,
+        lastSeenAt: null,
+        payload
+      };
+  const result = applyGradeToState(state, id, false, now, payload);
+  if (!result) return null;
+  return saveSrsState(result.state) ? result.card : null;
 }
 
 export function cardIntervalDays(card: Pick<SrsCard, "box" | "intervalDays">) {

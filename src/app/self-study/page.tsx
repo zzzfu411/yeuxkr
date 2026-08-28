@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CheckCircle2, Compass, ListChecks, Route, SlidersHorizontal, TimerReset } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
+import { TaskCard } from "@/components/learning/task-card";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { selfStudyFocus, selfStudyGoals, selfStudyIntensity, buildSelfStudyPlan, normalizeDailyMinutes } from "@/data/self-study";
@@ -26,6 +27,14 @@ export default function SelfStudyPage() {
   const minutesGoalText = minutesGoalDraft ?? String(baseDraft.minutesGoal);
   const planDraft = useMemo(() => ({ ...draft, minutesGoal: normalizeEditableMinutes(minutesGoalText, draft.minutesGoal) }), [draft, minutesGoalText]);
   const plan = useMemo(() => buildSelfStudyPlan(planDraft), [planDraft]);
+  const firstIncompleteCheckpointIndex = plan.checkpoints.findIndex((item: any, index: number) => {
+    const checkpointId = checkpointKey(plan.goal.id, plan.intensity.id, plan.focus.id, item.title, index);
+    return !findCompletedCheckpointCredit(workspace.progress, checkpointId);
+  });
+  const visibleCheckpointCount = firstIncompleteCheckpointIndex < 0 ? plan.checkpoints.length : firstIncompleteCheckpointIndex + 1;
+  const visibleCheckpoints = plan.checkpoints.slice(0, visibleCheckpointCount);
+  const hiddenCheckpointCount = plan.checkpoints.length - visibleCheckpoints.length;
+  const todayTasks = workspace.recommended.filter((task) => task.id !== "open:self-plan").slice(0, 3);
   const visibleRhythm = showFullRhythm ? plan.weeklyRhythm : plan.weeklyRhythm.filter((day: any) => day.active);
   const hiddenRhythmDays = Math.max(0, plan.weeklyRhythm.length - visibleRhythm.length);
 
@@ -84,14 +93,14 @@ export default function SelfStudyPage() {
       <ModuleHero
         kicker={`Current Plan · ${plan.intensity.title} · ${plan.focus.title}`}
         title={plan.goal.title}
-        copy={plan.goal.outcome}
+        copy={`${plan.goal.outcome} 当前投入约每周 ${plan.weeklyHours} 小时，周期按约 ${plan.goal.targetHours} 小时目标量动态估算。`}
         asset="selfStudy"
         imageSize="18rem"
         imageClassName="min-h-56 rounded-none border-t border-[var(--line)] lg:min-h-full lg:border-l lg:border-t-0"
       >
         <div className="grid gap-3">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <Mini icon={CalendarDays} label="周期" value={`${plan.durationWeeks} 周`} />
+            <Mini icon={CalendarDays} label="估算周期" value={formatPlanDuration(plan.durationWeeks)} />
             <Mini icon={TimerReset} label="每周" value={`${plan.weeklyHours} 小时`} />
             <Mini icon={ListChecks} label="每周天数" value={`${plan.intensity.daysPerWeek} 天`} />
             <Mini icon={Compass} label="每日" value={`${plan.minutesGoal} 分钟`} />
@@ -101,6 +110,19 @@ export default function SelfStudyPage() {
           </Button>
         </div>
       </ModuleHero>
+
+      <Surface>
+        <SectionHeading
+          kicker="Start Here"
+          title="今天先完成这三步"
+          copy="这些不是另一套任务。它们直接来自工作台推荐，并共用课程掌握、SRS、错题和能力证据。"
+        />
+        <div className="grid gap-3 lg:grid-cols-3">
+          {todayTasks.map((task) => (
+            <TaskCard key={task.id} task={task} compact />
+          ))}
+        </div>
+      </Surface>
 
       <LearningCompass workspace={workspace} active="self" condensed />
 
@@ -141,7 +163,7 @@ export default function SelfStudyPage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div id="planner" className="order-1 h-fit scroll-mt-24 lg:order-2 lg:sticky lg:top-24">
+        <div id="planner" className="order-1 h-fit scroll-mt-40 lg:order-2 lg:scroll-mt-28 lg:sticky lg:top-24">
           <Surface>
             <SectionHeading kicker="Planner" title="学习控制台" />
             <div className="grid gap-5">
@@ -213,7 +235,7 @@ export default function SelfStudyPage() {
             <SectionHeading
               kicker="Daily Template"
               title="每日执行模板"
-              copy="自学不是打开哪个页面都算学习。每一天都需要复习、新输入、主动输出和记录，四块合起来才会回到首页推荐。"
+              copy="复习、新输入、主动输出和记录共同组成每日建议；首页会依据你真正完成的课程、复习、材料、输出与检查点动态重排。"
             />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {plan.dailyTemplate.map((item: any) => (
@@ -283,10 +305,10 @@ export default function SelfStudyPage() {
               <SectionHeading
                 kicker="Checkpoints"
                 title="证据闸门"
-                copy="自学可以自由，但不能空口完成。每个检查点都要留下可复查证据，才会写入能力护照。"
+                copy="自学可以自由，但不能空口完成。检查点保存周度复盘与可复查记录；能力分仍只来自课程答题、SRS、真实材料和输出作品。"
               />
               <div className="grid gap-2">
-                {plan.checkpoints.map((item: any, index: number) => {
+                {visibleCheckpoints.map((item: any, index: number) => {
                   const checkpointId = checkpointKey(plan.goal.id, plan.intensity.id, plan.focus.id, item.title, index);
                   const completedCheckpointId = findCompletedCheckpointCredit(workspace.progress, checkpointId);
                   const completed = Boolean(completedCheckpointId);
@@ -304,7 +326,7 @@ export default function SelfStudyPage() {
                       <span>
                         <strong className="block">{item.title}</strong>
                         <span className="mt-1 block text-xs font-bold leading-5 text-[var(--muted)]">
-                          {checkpointAbilities(item, plan.modules).map((ability) => ABILITY_LABELS[ability]).join(" / ")}
+                          关联训练：{checkpointAbilities(item, plan.modules).map((ability) => ABILITY_LABELS[ability]).join(" / ")}
                         </span>
                       </span>
                     </div>
@@ -373,12 +395,28 @@ export default function SelfStudyPage() {
                 );
                 })}
               </div>
+              {hiddenCheckpointCount ? (
+                <details className="mt-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.5)] p-3">
+                  <summary className="cursor-pointer text-sm font-black text-[var(--muted)]">
+                    后续 {hiddenCheckpointCount} 个检查点将在当前项完成后顺序开放
+                  </summary>
+                  <ol className="mt-3 grid gap-2 text-sm font-bold leading-6 text-[var(--muted)]">
+                    {plan.checkpoints.slice(visibleCheckpointCount).map((item: any) => <li key={item.title}>{item.title}</li>)}
+                  </ol>
+                </details>
+              ) : null}
             </Surface>
           </section>
         </div>
       </section>
     </div>
   );
+}
+
+function formatPlanDuration(weeks: number) {
+  if (weeks < 104) return `${weeks} 周`;
+  const years = Math.round((weeks / 52) * 10) / 10;
+  return `约 ${years} 年`;
 }
 
 function draftFromProfile(profile: UserProfile) {

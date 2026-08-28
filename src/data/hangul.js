@@ -1,3 +1,11 @@
+const HANGUL_SOUND_BY_ID = {
+  "v-a": "아", "v-ya": "야", "v-eo": "어", "v-yeo": "여", "v-o": "오", "v-yo": "요", "v-u": "우", "v-yu": "유", "v-eu": "으", "v-i": "이",
+  "v-ae": "애", "v-e": "에", "v-yae": "얘", "v-ye": "예", "v-wa": "와", "v-wae": "왜", "v-oe": "외", "v-wo": "워", "v-we": "웨", "v-wi": "위", "v-ui": "의",
+  "c-g": "가", "c-n": "나", "c-d": "다", "c-r": "라", "c-m": "마", "c-b": "바", "c-s": "사", "c-ng": "아, 앙", "c-j": "자", "c-h": "하",
+  "c-kh": "카", "c-th": "타", "c-ph": "파", "c-ch": "차", "c-kk": "까", "c-tt": "따", "c-pp": "빠", "c-ss": "싸", "c-jj": "짜",
+  "b-k": "밖", "b-n": "문", "b-t": "옷", "b-l": "물", "b-m": "밤", "b-p": "밥", "b-ng": "강"
+};
+
 export const hangulGroups = [
   {
     id: "vowels-basic",
@@ -86,7 +94,10 @@ export const hangulGroups = [
       { id: "b-ng", glyph: "ㅇ", romanization: "ng", ipa: "ŋ", cue: "舌根鼻音", example: "강", exampleMeaning: "河" }
     ]
   }
-];
+].map((group) => ({
+  ...group,
+  items: group.items.map((item) => ({ ...item, sound: HANGUL_SOUND_BY_ID[item.id] ?? item.example }))
+}));
 
 export const syllableLabs = [
   { pattern: "CV", blocks: ["ㄱ", "ㅏ"], result: "가", note: "辅音在左，竖元音在右。" },

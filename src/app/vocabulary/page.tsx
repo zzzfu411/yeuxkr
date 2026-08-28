@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { MasteryGate } from "@/components/learning/mastery-gate";
+import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "@/data/lexicon";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean } from "@/lib/speech";
 
 export default function VocabularyPage() {
-  const { workspace, toggleVocab } = useLearningWorkspace();
+  const { workspace, toggleVocab, ensureVocab } = useLearningWorkspace();
   const learned = useMemo(() => new Set(workspace.progress.learnedVocab), [workspace.progress.learnedVocab]);
+  const romanizationScaffold = workspace.progress.completedLessons.length < 6;
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -62,9 +64,18 @@ export default function VocabularyPage() {
   const toggleVocabSrs = (itemId: string) => {
     if (toggleVocab(itemId)) {
       setSrsErrorId((current) => (current === itemId ? "" : current));
-      return;
+      return true;
     }
     setSrsErrorId(itemId);
+    return false;
+  };
+  const ensureVocabSrs = (itemId: string) => {
+    if (ensureVocab(itemId)) {
+      setSrsErrorId((current) => (current === itemId ? "" : current));
+      return true;
+    }
+    setSrsErrorId(itemId);
+    return false;
   };
 
   return (
@@ -166,10 +177,15 @@ export default function VocabularyPage() {
                     </span>
                   ) : null}
                 </span>
-                <h3 className="hangul-display text-3xl font-black md:text-4xl">{item.korean}</h3>
-                <p className="font-mono text-sm font-black text-[var(--ocean)]">{item.romanization}</p>
+                <h3 className="hangul-display text-3xl font-black md:text-4xl" lang="ko">{item.korean}</h3>
+                <RomanizationText
+                  text={item.romanization}
+                  preference={workspace.profile.romanization}
+                  scaffold={romanizationScaffold}
+                  className="font-mono text-sm font-black text-[var(--ocean)]"
+                />
                 <strong>{item.meaning}</strong>
-                <p className="hangul-display text-xl">{item.example}</p>
+                <p className="hangul-display text-xl" lang="ko">{item.example}</p>
                 <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
                 {item.soundChangeNote ? (
                   <p className="rounded-[8px] bg-[rgba(79,140,118,0.08)] p-2 text-xs font-bold leading-5 text-[var(--celadon)]">
@@ -180,7 +196,7 @@ export default function VocabularyPage() {
                   <div className="grid gap-1 text-sm leading-6">
                     {item.collocations.map((collocation: any) => (
                       <p key={collocation.ko}>
-                        <span className="hangul-display font-black">{collocation.ko}</span>
+                        <span className="hangul-display font-black" lang="ko">{collocation.ko}</span>
                         <span className="ml-2 text-[var(--muted)]">{collocation.zh}</span>
                       </p>
                     ))}
@@ -210,8 +226,7 @@ export default function VocabularyPage() {
                     itemId={item.id}
                     title={item.korean}
                     onPassed={() => {
-                      toggleVocabSrs(item.id);
-                      setGateItemId("");
+                      if (ensureVocabSrs(item.id)) setGateItemId("");
                     }}
                     onClose={() => setGateItemId("")}
                   />

@@ -1,26 +1,75 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Volume2 } from "lucide-react";
+import { CircleSlash2, Volume2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { Button } from "@/components/ui/button";
 import { KoreanInput } from "@/components/korean/korean-input";
+import { useKoreanVoiceStatus } from "@/components/korean/speech-status";
 import { hasKoreanText } from "@/lib/learning/evidence";
 import { mistakeCardId } from "@/lib/learning/ids";
 import { checkAnswer, type Question } from "@/lib/learning/quiz";
 import { recordMistake } from "@/lib/learning/srs";
-import { speakKorean } from "@/lib/speech";
+import {
+  speakKorean,
+  stopSpeech,
+  SPEECH_EVENT_NAME,
+  SPEECH_EVENT_PLAYBACK_ERROR,
+  SPEECH_EVENT_PLAYBACK_START
+} from "@/lib/speech";
+
+const INTERACTIVE_TARGET_SELECTOR = [
+  "button",
+  "a",
+  "summary",
+  "select",
+  'input[type="button"]',
+  'input[type="submit"]',
+  'input[type="reset"]',
+  'input[type="file"]',
+  '[role="button"]',
+  '[role="checkbox"]',
+  '[role="combobox"]',
+  '[role="grid"]',
+  '[role="gridcell"]',
+  '[role="link"]',
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[role="menubar"]',
+  '[role="menuitem"]',
+  '[role="menuitemcheckbox"]',
+  '[role="menuitemradio"]',
+  '[role="option"]',
+  '[role="radio"]',
+  '[role="radiogroup"]',
+  '[role="scrollbar"]',
+  '[role="searchbox"]',
+  '[role="separator"]',
+  '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="switch"]',
+  '[role="tab"]',
+  '[role="tablist"]',
+  '[role="textbox"]',
+  '[role="toolbar"]',
+  '[role="tree"]',
+  '[role="treegrid"]',
+  '[role="treeitem"]',
+  '[role][tabindex]:not([tabindex="-1"])'
+].join(", ");
 
 export interface AnswerEntry {
   question: Question;
   answer: string;
   correct: boolean;
+  skipped?: boolean;
 }
 
 export interface DrillRunnerSavedAnswer {
   questionId: string;
   answer: string;
   correct: boolean;
+  skipped?: boolean;
 }
 
 interface RunnerProgress {
@@ -66,25 +115,46 @@ export function DrillRunner({
   onResult?: (score: number, answers: AnswerEntry[]) => void;
   onFinish?: (score: number, answers: AnswerEntry[]) => void;
 }) {
+  const { status: voiceStatus } = useKoreanVoiceStatus();
   const initialState = useMemo(() => buildInitialState(questions, initialAnswers, initialIndex, initialFinished), [initialAnswers, initialFinished, initialIndex, questions]);
   const [index, setIndex] = useState(initialState.index);
   const [answers, setAnswers] = useState<AnswerEntry[]>(initialState.answers);
   const [value, setValue] = useState(initialState.value);
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
+  const [audioPlayback, setAudioPlayback] = useState<{ questionId: string; status: "pending" | "started" | "failed" }>({
+    questionId: "",
+    status: "pending"
+  });
   const emittedResultRef = useRef("");
   const playedListenRef = useRef("");
   const submitRef = useRef<() => void>(() => {});
+  const questionHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const question = questions[index];
   const existing = answers[index];
+  const audioQuestion = isAudioQuestion(question);
+  const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
+  const audioCheckPending = audioQuestion && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
+  const audioUnavailable = audioQuestion && (
+    voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
+  );
+  const previousViewRef = useRef({
+    questionId: question?.id ?? "",
+    answered: Boolean(existing),
+    finished
+  });
   const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers]);
+  const scoredAnswers = useMemo(() => answers.filter((item) => !item.skipped), [answers]);
+  const skippedCount = answers.length - scoredAnswers.length;
   const score = useMemo(() => {
-    if (!answers.length) return 0;
-    return Math.round((answers.filter((item) => item.correct).length / answers.length) * 100);
-  }, [answers]);
+    if (!scoredAnswers.length) return 0;
+    return Math.round((scoredAnswers.filter((item) => item.correct).length / scoredAnswers.length) * 100);
+  }, [scoredAnswers]);
   const resultSignature = useMemo(() => {
     if (!finished || !answers.length) return "";
-    return answers.map((entry) => `${entry.question.id}:${entry.correct ? "1" : "0"}:${entry.answer}`).join("|");
+    return answers.map((entry) => `${entry.question.id}:${entry.skipped ? "skip" : entry.correct ? "1" : "0"}:${entry.answer}`).join("|");
   }, [answers, finished]);
 
   useEffect(() => {
@@ -95,24 +165,58 @@ export function DrillRunner({
   }, [answers, finished, onResult, resultSignature, score]);
 
   useEffect(() => {
-    if (finished || !question || !question.speak) return;
+    if (finished || !question || !question.speak || voiceStatus !== "ready") return;
     if (question.type !== "listen" && question.type !== "dictation") return;
     if (answers[index]) return;
     if (playedListenRef.current === question.id) return;
     playedListenRef.current = question.id;
-    speakKorean(question.speak);
-  }, [answers, finished, index, question]);
+    let active = true;
+    const started = speakKorean(question.speak);
+    const playbackTimeout = window.setTimeout(() => {
+      if (!active) return;
+      setAudioPlayback((current) => current.questionId === question.id && current.status !== "pending"
+        ? current
+        : { questionId: question.id, status: "failed" });
+    }, 5000);
+    if (!started) {
+      queueMicrotask(() => {
+        if (active) setAudioPlayback({ questionId: question.id, status: "failed" });
+      });
+    }
+    return () => {
+      active = false;
+      window.clearTimeout(playbackTimeout);
+      stopSpeech();
+    };
+  }, [answers, finished, index, question, voiceStatus]);
+
+  useEffect(() => {
+    if (!audioQuestion || !question) return;
+    const syncPlayback = (event: Event) => {
+      const type = (event as CustomEvent<{ type?: string }>).detail?.type;
+      if (type === SPEECH_EVENT_PLAYBACK_START) {
+        setAudioPlayback({ questionId: question.id, status: "started" });
+      } else if (type === SPEECH_EVENT_PLAYBACK_ERROR) {
+        setAudioPlayback((current) => current.questionId === question.id && current.status === "started"
+          ? current
+          : { questionId: question.id, status: "failed" });
+      }
+    };
+    window.addEventListener(SPEECH_EVENT_NAME, syncPlayback);
+    return () => window.removeEventListener(SPEECH_EVENT_NAME, syncPlayback);
+  }, [audioQuestion, question]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (finished || !question) return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
+      const isInteractiveControl = Boolean(target?.closest(INTERACTIVE_TARGET_SELECTOR));
       const isTextEntry =
         tag === "TEXTAREA" ||
         Boolean(target?.isContentEditable) ||
         (tag === "INPUT" && !["radio", "checkbox", "button"].includes((target as HTMLInputElement).type));
-      if (isTextEntry) return;
+      if (event.defaultPrevented || isTextEntry || isInteractiveControl) return;
       if (event.key === "Enter") {
         event.preventDefault();
         submitRef.current();
@@ -173,6 +277,15 @@ export function DrillRunner({
     emitProgress(index, next, false);
   };
 
+  const skipAudioQuestion = () => {
+    if (!question || existing || !audioUnavailable) return;
+    const next = [...answers];
+    next[index] = { question, answer: "", correct: false, skipped: true };
+    setAnswers(next);
+    setSrsError("");
+    emitProgress(index, next, false);
+  };
+
   const moveToIndex = (nextIndex: number, nextAnswers = answers, nextFinished = finished) => {
     const clamped = Math.min(Math.max(0, nextIndex), Math.max(0, questions.length - 1));
     setIndex(clamped);
@@ -184,10 +297,11 @@ export function DrillRunner({
   const emitProgress = (nextIndex: number, nextAnswers: AnswerEntry[], nextFinished: boolean) => {
     onProgress?.({
       index: nextIndex,
-      answers: nextAnswers.filter(Boolean).map((item) => ({
-        questionId: item.question.id,
-        answer: item.answer,
-        correct: item.correct
+        answers: nextAnswers.filter(Boolean).map((item) => ({
+          questionId: item.question.id,
+          answer: item.answer,
+          correct: item.correct,
+          skipped: item.skipped
       })),
       finished: nextFinished
     });
@@ -196,6 +310,25 @@ export function DrillRunner({
   useEffect(() => {
     submitRef.current = submit;
   });
+
+  useEffect(() => {
+    const previous = previousViewRef.current;
+    const questionId = question?.id ?? "";
+
+    if (finished && !previous.finished) {
+      resultHeadingRef.current?.focus();
+    } else if (!finished && questionId !== previous.questionId) {
+      questionHeadingRef.current?.focus();
+    } else if (!finished && existing && !previous.answered) {
+      feedbackRef.current?.focus();
+    }
+
+    previousViewRef.current = {
+      questionId,
+      answered: Boolean(existing),
+      finished
+    };
+  }, [existing, finished, question?.id]);
 
   if (!questions.length) {
     return (
@@ -217,17 +350,22 @@ export function DrillRunner({
     return (
       <article className="overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.72)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
-          <div className="p-5">
+          <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
             <p className="eyebrow">Result</p>
-            <h2 className="mt-2 font-serif text-5xl font-black">{score}%</h2>
+            <h2 ref={resultHeadingRef} className="focus-ring mt-2 font-serif text-5xl font-black" tabIndex={-1}>{score}%</h2>
             <p className="mt-3 leading-7 text-[var(--muted)]">{score >= 85 ? "这组很稳，可以进入下一步。" : score >= 65 ? "已经有骨架了，把错题再听一遍会更扎实。" : "先不要急着推进，重做这一组更划算。"}</p>
+            {skippedCount ? (
+              <p className="mt-2 text-sm font-bold leading-6 text-[var(--brass-text)]">
+                {skippedCount} 道音频题因设备缺少韩语语音而跳过，未计入分数或听力证据。
+              </p>
+            ) : null}
           </div>
           <VisualPanel asset={score >= 65 ? "complete" : "review"} className="min-h-48 rounded-none border-0" />
         </div>
         <div className="mt-5 grid gap-2">
           {answers.map((entry) => (
             <div key={entry.question.id} className={`rounded-[8px] border-l-4 bg-[rgba(255,250,240,0.8)] p-3 text-sm ${entry.correct ? "border-[var(--celadon)]" : "border-[var(--cinnabar)]"}`}>
-              <strong>{entry.correct ? "对" : "错"}</strong> · {entry.question.prompt}
+              <strong>{entry.skipped ? "已跳过" : entry.correct ? "对" : "错"}</strong> · {entry.question.prompt}
             </div>
           ))}
         </div>
@@ -274,8 +412,8 @@ export function DrillRunner({
 
       <div className="min-h-72">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h3 className="font-serif text-3xl font-black leading-tight">{question.prompt}</h3>
-          {question.speak && question.type !== "dictation" ? (
+          <h3 ref={questionHeadingRef} className="focus-ring font-serif text-3xl font-black leading-tight" tabIndex={-1}>{question.prompt}</h3>
+          {question.speak && question.type !== "dictation" && voiceStatus === "ready" ? (
             <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(question.speak!)}>
               <Volume2 className="h-4 w-4" />
               听
@@ -283,7 +421,7 @@ export function DrillRunner({
           ) : null}
         </div>
 
-        {question.type === "dictation" && question.speak ? (
+        {question.type === "dictation" && question.speak && voiceStatus === "ready" ? (
           <div className="mt-6 flex flex-wrap gap-2">
             <Button type="button" onClick={() => speakKorean(question.speak!)}>
               <Volume2 className="h-4 w-4" />
@@ -295,8 +433,21 @@ export function DrillRunner({
           </div>
         ) : null}
 
+        {audioCheckPending ? (
+          <div className="mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(23,63,115,0.06)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
+            正在检查这台设备的韩语语音，确认后再开放作答。
+          </div>
+        ) : null}
+
+        {audioUnavailable && !existing ? (
+          <div className="mt-5 rounded-[8px] border border-[rgba(183,135,63,0.42)] bg-[rgba(183,135,63,0.09)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
+            <p>当前设备无法播放韩语，这道音频题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
+            <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补回这项证据。</p>
+          </div>
+        ) : null}
+
         {question.type === "cloze" && question.clozeText ? (
-          <p className="hangul-display mt-6 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-4 text-2xl leading-relaxed">
+          <p className="hangul-display mt-6 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-4 text-2xl leading-relaxed" lang="ko">
             {question.clozeText.split("___").map((segment, segmentIndex, segments) => (
               <span key={segmentIndex}>
                 {segment}
@@ -317,7 +468,7 @@ export function DrillRunner({
           </details>
         ) : null}
 
-        {usesTextEntry ? (
+        {!audioUnavailable && !audioCheckPending && usesTextEntry ? (
           hasKoreanText(question.answer) ? (
             <div className="mt-6 grid gap-2 font-extrabold">
               输入答案（可用屏幕韩文键盘）
@@ -338,7 +489,7 @@ export function DrillRunner({
                 disabled={!!existing}
                 onChange={(event) => setValue(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
                     event.preventDefault();
                     submit();
                   }
@@ -347,8 +498,9 @@ export function DrillRunner({
               />
             </label>
           )
-        ) : (
-          <div className="mt-6 grid gap-2">
+        ) : !audioUnavailable && !audioCheckPending ? (
+          <fieldset className="mt-6 grid gap-2">
+            <legend className="sr-only">{question.prompt}</legend>
             {(question.choices ?? []).map((choice, choiceIndex) => (
               <label
                 key={choice}
@@ -361,7 +513,7 @@ export function DrillRunner({
                 }`}
               >
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
-                <span>{choice}</span>
+                <span lang={hasKoreanText(choice) ? "ko" : undefined}>{choice}</span>
                 {choiceIndex < 9 ? (
                   <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
                     {choiceIndex + 1}
@@ -369,25 +521,32 @@ export function DrillRunner({
                 ) : null}
               </label>
             ))}
-          </div>
-        )}
+          </fieldset>
+        ) : null}
 
         {existing ? (
-          <div className="mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-3">
-            <strong>{existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
-            {question.type === "dictation" && !existing.correct ? (
+          <div
+            ref={feedbackRef}
+            className="focus-ring mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-3"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            tabIndex={-1}
+          >
+            <strong>{existing.skipped ? "已跳过：本题不计分，也不产生听力证据。" : existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
+            {question.type === "dictation" && !existing.correct && !existing.skipped ? (
               <DictationDiff expected={question.answer} actual={existing.answer} />
             ) : null}
             {question.type === "translate" && question.acceptable?.length ? (
-              <p className="mt-1 text-sm font-bold leading-6 text-[var(--celadon)]">
+              <p className="mt-1 text-sm font-bold leading-6 text-[var(--celadon-text)]">
                 可接受的表达：{[...new Set([question.answer, ...question.acceptable])].join(" / ")}
               </p>
             ) : null}
-            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{question.explain}</p>
+            {!existing.skipped ? <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{question.explain}</p> : null}
           </div>
         ) : null}
         {srsError ? (
-          <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+          <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]" role="alert">
             {srsError}
           </p>
         ) : null}
@@ -399,8 +558,17 @@ export function DrillRunner({
         }}>
           上一题
         </Button>
-        <Button type="button" onClick={submit} disabled={!existing && !value.trim()}>
-          {existing ? (index === questions.length - 1 ? finishLabel : "下一题") : "提交"}
+        <Button
+          type="button"
+          onClick={audioUnavailable && !existing ? skipAudioQuestion : submit}
+          disabled={audioCheckPending || (!audioUnavailable && !existing && !value.trim())}
+        >
+          {existing ? (index === questions.length - 1 ? finishLabel : "下一题") : audioUnavailable ? (
+            <>
+              <CircleSlash2 className="h-4 w-4" aria-hidden="true" />
+              跳过音频题
+            </>
+          ) : "提交"}
         </Button>
       </div>
     </article>
@@ -411,7 +579,7 @@ function DictationDiff({ expected, actual }: { expected: string; actual: string 
   const expectedChars = [...expected];
   const actualChars = [...actual];
   return (
-    <p className="hangul-display mt-2 text-2xl" aria-label="逐字对照">
+    <p className="hangul-display mt-2 text-2xl" aria-label="逐字对照" lang="ko">
       {expectedChars.map((char, charIndex) => (
         <span
           key={`${charIndex}-${char}`}
@@ -426,14 +594,15 @@ function DictationDiff({ expected, actual }: { expected: string; actual: string 
 
 function buildInitialState(questions: Question[], savedAnswers: DrillRunnerSavedAnswer[], initialIndex: number, initialFinished: boolean) {
   const byId = new Map(savedAnswers.map((item) => [item.questionId, item]));
-  const answers = questions
-    .map((question) => {
-      const saved = byId.get(question.id);
-      if (!saved?.answer) return undefined;
-      return { question, answer: saved.answer, correct: Boolean(saved.correct) };
-    })
-    .filter(Boolean) as AnswerEntry[];
-  const index = Math.min(Math.max(0, Math.trunc(Number(initialIndex) || 0)), Math.max(0, questions.length - 1));
+  const answers: AnswerEntry[] = [];
+  for (const question of questions) {
+    const saved = byId.get(question.id);
+    if (!saved || (!saved.answer && !saved.skipped)) break;
+    answers.push({ question, answer: saved.answer, correct: Boolean(saved.correct), skipped: Boolean(saved.skipped) });
+  }
+  const lastQuestionIndex = Math.max(0, questions.length - 1);
+  const furthestResumableIndex = initialFinished ? lastQuestionIndex : Math.min(answers.length, lastQuestionIndex);
+  const index = Math.min(Math.max(0, Math.trunc(Number(initialIndex) || 0)), furthestResumableIndex);
   const finished = Boolean(initialFinished) && answers.length >= questions.length;
   return {
     index,
@@ -441,4 +610,8 @@ function buildInitialState(questions: Question[], savedAnswers: DrillRunnerSaved
     value: answers[index]?.answer ?? "",
     finished
   };
+}
+
+function isAudioQuestion(question?: Question) {
+  return Boolean(question?.speak && (question.type === "listen" || question.type === "dictation"));
 }

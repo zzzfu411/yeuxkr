@@ -17,12 +17,21 @@ export interface ImmersionMaterial {
   dictation: string[];
   retellPrompts: string[];
   outputMission: string;
+  requiredLessons: string[];
   recommendedLessons: string[];
   selfCheck: string[];
 }
 
 export function immersionMaterialHref(materialId: string) {
   return `/immersion?material=${encodeURIComponent(materialId)}`;
+}
+
+export function getMissingMaterialPrerequisiteIds(
+  material: Pick<ImmersionMaterial, "requiredLessons">,
+  masteredLessonIds?: Iterable<string> | null
+) {
+  const mastered = new Set(masteredLessonIds ?? []);
+  return material.requiredLessons.filter((lessonId) => !mastered.has(lessonId));
 }
 
 export const immersionMaterials: ImmersionMaterial[] = [
@@ -44,6 +53,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["뭐 드릴까요?", "포장해 주세요.", "카드로 계산할게요."],
     retellPrompts: ["点了什么？", "有没有加糖浆？", "怎么付款？"],
     outputMission: "用韩语录/写一段你自己的咖啡店点单，必须包含饮品、数量、冷热、付款方式。",
+    requiredLessons: ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
     recommendedLessons: ["l06-cafe", "l11-shopping-price"],
     selfCheck: ["是否先说核心名词再说数量", "是否使用 주세요 或 드릴까요", "是否能不看中文复述交易流程"]
   },
@@ -65,6 +75,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["어디에서 타면 돼요?", "2호선으로 갈아타세요.", "세 정거장만 가면 돼요."],
     retellPrompts: ["目的地是哪一站？", "需要换乘哪条线？", "一共要坐几站？"],
     outputMission: "用韩语写一段问路对话：目的地、换乘路线、站数、感谢都要出现。",
+    requiredLessons: ["l37-numbers-counters", "l07-location", "l40-requests", "l09-connectors", "l12-time-plans", "l42-ability-obligation"],
     recommendedLessons: ["l07-location", "l12-time-plans"],
     selfCheck: ["是否说清楚 목적지", "是否能区分 타다 和 갈아타다", "是否用 주세요/감사합니다 保持礼貌"]
   },
@@ -86,6 +97,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["봉투 필요하세요?", "이것만 계산해 주세요.", "영수증도 같이 주세요."],
     retellPrompts: ["店员先问了什么？", "顾客买了多少东西？", "顾客要不要收据？"],
     outputMission: "用韩语写 4 句便利店结账：袋子、付款、收据和感谢。",
+    requiredLessons: ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
     recommendedLessons: ["l06-cafe", "l11-shopping-price"],
     selfCheck: ["是否能听出 봉투/영수증", "是否用 만 限定数量", "是否能自然回答 필요하세요"]
   },
@@ -107,6 +119,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["목이 아프고 기침이 조금 나요.", "어제 밤부터요.", "하루 세 번 드세요."],
     retellPrompts: ["顾客有什么症状？", "症状从什么时候开始？", "药应该怎么吃？"],
     outputMission: "用韩语写一段在药店说明症状的对话，包含症状、开始时间和服用频率。",
+    requiredLessons: ["l37-numbers-counters", "l09-connectors", "l16-because", "l18-health", "l19-family-honorific"],
     recommendedLessons: ["l18-health", "l16-because"],
     selfCheck: ["是否用 -고 连接症状", "是否说清楚 언제부터", "是否能听懂 하루 세 번"]
   },
@@ -122,14 +135,15 @@ export const immersionMaterials: ImmersionMaterial[] = [
     lines: [
       { ko: "예약하신 성함이 어떻게 되세요?", zh: "请问预约姓名是什么？", note: "성함 是姓名的敬语说法。" },
       { ko: "왕리 이름으로 예약했어요.", zh: "我用王丽的名字预约了。", note: "이름으로 예약하다 表示用某个名字预约。" },
-      { ko: "체크인은 세 시부터 가능하세요.", zh: "入住从三点开始可以办理。", note: "-부터 가능하다 表示从某时起可行。" },
+      { ko: "체크인은 세 시부터 가능합니다.", zh: "入住从三点开始可以办理。", note: "事物作主语时用 가능합니다，不给 체크인 添加主体敬语。" },
       { ko: "짐을 먼저 맡길 수 있을까요?", zh: "可以先寄放行李吗？", note: "맡길 수 있을까요 是礼貌请求。" }
     ],
-    dictation: ["예약하신 성함이 어떻게 되세요?", "세 시부터 가능하세요.", "짐을 먼저 맡길 수 있을까요?"],
+    dictation: ["예약하신 성함이 어떻게 되세요?", "세 시부터 가능합니다.", "짐을 먼저 맡길 수 있을까요?"],
     retellPrompts: ["预约用的名字是什么？", "几点可以入住？", "客人想先做什么？"],
     outputMission: "用韩语写一段入住对话：预约姓名、入住时间、寄放行李请求。",
+    requiredLessons: ["l07-location", "l38-time-date", "l08-past", "l13-permission", "l42-ability-obligation", "l27-honorific-register"],
     recommendedLessons: ["l07-location", "l13-permission"],
-    selfCheck: ["是否能说 이름으로 예약했어요", "是否听出 -부터 가능하세요", "是否用 수 있을까요 提请求"]
+    selfCheck: ["是否能说 이름으로 예약했어요", "是否听出 -부터 가능합니다", "是否用 수 있을까요 提请求"]
   },
   {
     id: "im-weekend-plan",
@@ -149,6 +163,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["시간 괜찮아요?", "조금 힘들 것 같아요.", "일요일 점심은 어때요?"],
     retellPrompts: ["谁提出邀请？", "为什么周六不行？", "最终约在什么时候？"],
     outputMission: "用韩语写一段你拒绝某个时间但给出替代方案的对话。",
+    requiredLessons: ["l38-time-date", "l16-because", "l20-invitation", "l10-native-softeners", "l28-soft-refusal"],
     recommendedLessons: ["l20-invitation", "l10-native-softeners"],
     selfCheck: ["是否先缓冲再拒绝", "是否给出理由", "是否提出替代时间"]
   },
@@ -163,12 +178,13 @@ export const immersionMaterials: ImmersionMaterial[] = [
     summary: "用标题、地点、动作和原因抓住新闻第一段，不逐词翻译。",
     lines: [
       { ko: "서울시는 여름 폭염에 대비해 그늘막을 추가로 설치한다고 발표했습니다.", zh: "首尔市宣布，为应对夏季酷暑，将追加设置遮阳设施。", note: "발표했습니다 是新闻报道高频谓词。" },
-      { ko: "시민들이 버스 정류장에서 더 안전하게 기다릴 수 있도록 하기 위한 조치입니다.", zh: "这是为了让市民能在公交站更安全地等待的措施。", note: "-도록 하기 위한 表示目的。" },
+      { ko: "시민들은 버스 정류장에서 더 안전하게 기다릴 수 있습니다.", zh: "市民可以在公交站更安全地等待。", note: "-(으)ㄹ 수 있습니다 用正式体说明可实现的结果。" },
       { ko: "전문가들은 작은 변화도 체감 온도를 낮추는 데 도움이 된다고 말했습니다.", zh: "专家表示，小变化也有助于降低体感温度。", note: "다고 말했습니다 是转述。" }
     ],
-    dictation: ["서울시는 발표했습니다.", "안전하게 기다릴 수 있도록", "도움이 된다고 말했습니다."],
+    dictation: ["서울시는 발표했습니다.", "안전하게 기다릴 수 있습니다.", "도움이 된다고 말했습니다."],
     retellPrompts: ["谁宣布了什么？", "措施的目的是什么？", "专家怎么看？"],
     outputMission: "用 3 句韩语复述这条新闻：主体、措施、原因/评价。",
+    requiredLessons: ["l39-hamnida", "l42-ability-obligation", "l43-adnominal", "l21-slow-news", "l25-retelling", "l26-indirect-speech"],
     recommendedLessons: ["l21-slow-news", "l25-retelling"],
     selfCheck: ["是否抓住主体和动作", "是否使用原因或目的结构", "是否能用自己的词复述而不是背原句"]
   },
@@ -190,6 +206,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["계속 깜빡거려요.", "확인 부탁드립니다.", "연락처를 남겨 주세요."],
     retellPrompts: ["哪里出了问题？", "为什么需要处理？", "如果不在家要怎么做？"],
     outputMission: "用韩语写一段维修请求：现象、风险、希望时间、无法见面时的安排。",
+    requiredLessons: ["l38-time-date", "l39-hamnida", "l13-permission", "l42-ability-obligation", "l16-because", "l17-phone-message", "l27-honorific-register"],
     recommendedLessons: ["l13-permission", "l17-phone-message"],
     selfCheck: ["是否说明从什么时候开始", "是否使用 부탁드립니다 降低强硬感", "是否提出可执行安排"]
   },
@@ -203,14 +220,15 @@ export const immersionMaterials: ImmersionMaterial[] = [
     focus: ["listening", "pragmatics", "grammar"],
     summary: "在电话里听懂可预约时段，说明不方便，并快速确认新时间。",
     lines: [
-      { ko: "오늘 오후 네 시에 진료 예약 가능하세요.", zh: "今天下午四点可以预约看诊。", note: "진료 예약 是医疗预约核心词。" },
+      { ko: "오늘 오후 네 시에 진료 예약이 가능합니다.", zh: "今天下午四点可以预约看诊。", note: "预约作主语时用 가능합니다；不对事物使用 -(으)시-。" },
       { ko: "제가 그 시간에는 회의가 있어서 어렵습니다.", zh: "我那个时间有会议，所以不太方便。", note: "-가 있어서 어렵습니다 是礼貌说明困难。" },
       { ko: "그럼 내일 오전 열 시는 어떠세요?", zh: "那明天上午十点怎么样？", note: "어떠세요 比 어때요 更正式。" },
       { ko: "네, 내일 오전 열 시로 예약 부탁드립니다.", zh: "好的，请帮我预约明天上午十点。", note: "-로 예약 表示预约到某个时段。" }
     ],
-    dictation: ["진료 예약 가능하세요.", "회의가 있어서 어렵습니다.", "열 시로 예약 부탁드립니다."],
+    dictation: ["진료 예약이 가능합니다.", "회의가 있어서 어렵습니다.", "열 시로 예약 부탁드립니다."],
     retellPrompts: ["原本给了几点？", "为什么那个时间不行？", "最终预约在什么时候？"],
     outputMission: "用韩语写一段电话预约：拒绝一个时段，并确认另一个时段。",
+    requiredLessons: ["l38-time-date", "l39-hamnida", "l13-permission", "l16-because", "l17-phone-message", "l18-health", "l27-honorific-register", "l28-soft-refusal"],
     recommendedLessons: ["l17-phone-message", "l18-health"],
     selfCheck: ["是否用正式语尾", "是否给出不方便的原因", "是否用 -로 예약 确认时间"]
   },
@@ -232,6 +250,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["괜찮은 사람?", "7시 이후면 가능해요.", "찾아보고 공유할게요."],
     retellPrompts: ["大家在协调什么？", "谁几点以后可以？", "谁负责找地点？"],
     outputMission: "用韩语写一段群聊：提出时间、说明自己可行时段、确认地点分工。",
+    requiredLessons: ["l07-location", "l38-time-date", "l09-connectors", "l12-time-plans", "l42-ability-obligation", "l20-invitation", "l23-social-posts"],
     recommendedLessons: ["l20-invitation", "l23-social-posts"],
     selfCheck: ["是否能使用轻松省略", "是否有 이후면/쯤 这样的弹性表达", "是否能自然承担下一步"]
   },
@@ -252,6 +271,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["강한 비가 내릴 것으로 예상됩니다.", "이용객이 늘어날 수 있습니다.", "조금 일찍 출발하는 것이 좋겠습니다."],
     retellPrompts: ["天气会怎样？", "哪个时段可能受影响？", "新闻建议怎么做？"],
     outputMission: "用 3 句韩语写一条生活天气提醒：天气、影响、建议行动。",
+    requiredLessons: ["l39-hamnida", "l09-connectors", "l42-ability-obligation", "l16-because", "l43-adnominal", "l21-slow-news"],
     recommendedLessons: ["l21-slow-news", "l16-because"],
     selfCheck: ["是否抓住时间和地区", "是否使用可能性表达", "是否能把建议说成正式语体"]
   },
@@ -272,6 +292,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["갈수록 몰입됐어요.", "진짜 자연스럽더라고요.", "살짝 아쉽긴 했지만"],
     retellPrompts: ["一开始感觉如何？", "后来为什么变好？", "最终是否推荐？"],
     outputMission: "用韩语写一条 2-3 句短评，包含一个让步和一个推荐/不推荐理由。",
+    requiredLessons: ["l08-past", "l09-connectors", "l22-media-shadowing", "l23-social-posts", "l24-opinion-paragraph"],
     recommendedLessons: ["l22-media-shadowing", "l23-social-posts"],
     selfCheck: ["是否用了情绪强度合适的副词", "是否有让步结构", "是否避免只有 좋다/재미있다 的单薄评价"]
   },
@@ -292,6 +313,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["전체적으로 방향은 좋은데", "더 잘 보일 것 같아요", "보내 드릴게요"],
     retellPrompts: ["先肯定了什么？", "指出了什么问题？", "提出了什么帮助？"],
     outputMission: "用韩语把一句直接批评改写成柔和反馈：先肯定，再观察，再建议。",
+    requiredLessons: ["l09-connectors", "l42-ability-obligation", "l27-honorific-register", "l10-native-softeners"],
     recommendedLessons: ["l27-honorific-register", "l10-native-softeners"],
     selfCheck: ["是否避免直接 틀렸어요", "是否使用 것 같아요/조금 等缓冲", "是否给出下一步而不只是评价"]
   },
@@ -306,14 +328,15 @@ export const immersionMaterials: ImmersionMaterial[] = [
     summary: "听出说话人如何先承认常见观点，再转向自己的立场和例子。",
     lines: [
       { ko: "많은 사람들이 쉬는 시간을 낭비라고 생각하지만, 저는 조금 다르게 봐요.", zh: "很多人把休息时间看作浪费，但我稍微有不同看法。", note: "다르게 봐요 表示从不同角度看。" },
-      { ko: "오히려 잠깐 멈췄을 때 중요한 문제가 더 잘 보일 때가 있거든요.", zh: "反而短暂停下来时，有时更能看清重要问题。", note: "오히려 和 -거든요 让解释更口语自然。" },
-      { ko: "그래서 저는 하루에 한 번은 일부러 아무 일정도 넣지 않으려고 해요.", zh: "所以我每天会刻意留一次什么安排都不放的时间。", note: "일부러 表示有意识地、故意地。" }
+      { ko: "오히려 잠깐 멈췄을 때 중요한 문제가 더 잘 보여요.", zh: "反而短暂停下来时，更能看清重要问题。", note: "오히려 表示结果和常见预想相反。" },
+      { ko: "그래서 저는 매일 일부러 아무 일정도 잡지 않고 쉬는 시간을 가지려고 해요.", zh: "所以我每天都会刻意留出一段不安排任何事情的休息时间。", note: "일부러 表示有意识地、刻意地。" }
     ],
-    dictation: ["조금 다르게 봐요.", "더 잘 보일 때가 있거든요.", "일부러 아무 일정도 넣지 않으려고 해요."],
+    dictation: ["조금 다르게 봐요.", "중요한 문제가 더 잘 보여요.", "일부러 아무 일정도 잡지 않고 쉬는 시간을 가지려고 해요."],
     retellPrompts: ["常见观点是什么？", "说话人为什么不同意？", "说话人具体怎么做？"],
     outputMission: "用韩语写 4 句观点独白：常见看法、你的不同意见、理由、自己的做法。",
+    requiredLessons: ["l09-connectors", "l45-desire-intent", "l43-adnominal", "l24-opinion-paragraph", "l26-indirect-speech", "l29-abstract-discussion"],
     recommendedLessons: ["l24-opinion-paragraph", "l29-abstract-discussion"],
-    selfCheck: ["是否先承接他人观点", "是否使用 오히려/거든요 解释立场", "是否给出个人例子"]
+    selfCheck: ["是否先承接他人观点", "是否使用 오히려 转换立场", "是否给出个人例子"]
   },
   {
     id: "im-news-comment-thread",
@@ -326,12 +349,13 @@ export const immersionMaterials: ImmersionMaterial[] = [
     summary: "练习在不同意见里保留边界，用“部分同意 + 条件 + 担忧”表达立场。",
     lines: [
       { ko: "취지는 이해하지만 실행 방식은 조금 더 논의가 필요해 보여요.", zh: "初衷我理解，但执行方式看起来还需要更多讨论。", note: "취지는 이해하지만 是降低对立的开头。" },
-      { ko: "특히 비용을 누가 부담할지 분명하지 않다는 점이 걱정돼요.", zh: "尤其是谁来承担费用这一点不明确，让人担心。", note: "-다는 점이 걱정돼요 把担忧名词化。" },
+      { ko: "특히 비용 부담이 분명하지 않아서 걱정돼요.", zh: "尤其是费用负担不明确，所以令人担心。", note: "-지 않아서 用已经学过的原因连接担忧。" },
       { ko: "그래도 방향 자체는 의미가 있다고 생각합니다.", zh: "不过方向本身我认为是有意义的。", note: "그래도 保留认可，避免全盘否定。" }
     ],
-    dictation: ["취지는 이해하지만", "분명하지 않다는 점이 걱정돼요.", "의미가 있다고 생각합니다."],
+    dictation: ["취지는 이해하지만", "비용 부담이 분명하지 않아서 걱정돼요.", "의미가 있다고 생각합니다."],
     retellPrompts: ["评论者同意什么？", "担心什么？", "最后保留了什么认可？"],
     outputMission: "用韩语写一条评论：先部分同意，再提出担忧，最后保留建设性态度。",
+    requiredLessons: ["l39-hamnida", "l09-connectors", "l16-because", "l43-adnominal", "l23-social-posts", "l24-opinion-paragraph", "l26-indirect-speech", "l29-abstract-discussion"],
     recommendedLessons: ["l23-social-posts", "l29-abstract-discussion"],
     selfCheck: ["是否避免绝对化", "是否把担忧说成 구체적인 점", "是否有 그래도/다만 这样的转折"]
   },
@@ -346,12 +370,13 @@ export const immersionMaterials: ImmersionMaterial[] = [
     summary: "把尖锐问题包装成确认、限定和补充问题，训练高级场合的关系管理。",
     lines: [
       { ko: "말씀하신 부분은 이해했는데, 한 가지 확인하고 싶은 점이 있습니다.", zh: "您说的部分我理解了，但有一点想确认。", note: "先承接再提问，减少对抗。" },
-      { ko: "자료가 서울 지역에 한정되어 있다면, 다른 지역에도 같은 결론을 적용할 수 있을까요?", zh: "如果资料限定在首尔地区，能否把同样结论应用到其他地区？", note: "-에 한정되어 있다면 是限定条件。" },
-      { ko: "혹시 그 부분에 대한 추가 분석 계획이 있으신지도 궁금합니다.", zh: "也想了解是否有关于这部分的追加分析计划。", note: "궁금합니다 让质疑变成学术询问。" }
+      { ko: "자료가 서울 지역에만 있습니다. 다른 지역에도 같은 결론을 적용할 수 있을까요?", zh: "资料只限于首尔地区。能否把同样结论应用到其他地区？", note: "先陈述限制，再用 수 있을까요 礼貌询问可否推广。" },
+      { ko: "혹시 그 부분에 대한 추가 분석 계획도 궁금합니다.", zh: "也想了解关于这部分的追加分析计划。", note: "혹시 和 궁금합니다 让追问保持礼貌。" }
     ],
-    dictation: ["확인하고 싶은 점이 있습니다.", "같은 결론을 적용할 수 있을까요?", "추가 분석 계획이 있으신지도 궁금합니다."],
+    dictation: ["확인하고 싶은 점이 있습니다.", "같은 결론을 적용할 수 있을까요?", "추가 분석 계획도 궁금합니다."],
     retellPrompts: ["提问者先做了什么缓冲？", "问题的条件是什么？", "最后追问了什么？"],
     outputMission: "用韩语把一个直接质疑改写成研讨会提问：承接、限定条件、礼貌追问。",
+    requiredLessons: ["l39-hamnida", "l09-connectors", "l42-ability-obligation", "l45-desire-intent", "l43-adnominal", "l27-honorific-register", "l29-abstract-discussion"],
     recommendedLessons: ["l27-honorific-register", "l29-abstract-discussion"],
     selfCheck: ["是否先承接对方观点", "是否用 조건절 限定问题", "是否避免 단정적인 반박"]
   },
@@ -372,6 +397,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     dictation: ["단어를 외우는 것보다", "맥락과 관계 속에서", "중요하다고 생각해요"],
     retellPrompts: ["作者的观点是什么？", "理由是什么？", "作者推荐什么过程？"],
     outputMission: "写 4 句韩语观点段：제 생각에는 + 왜냐하면 + 예를 들면 + 그래서。",
+    requiredLessons: ["l09-connectors", "l15-comparison", "l16-because", "l43-adnominal", "l24-opinion-paragraph", "l26-indirect-speech", "l30-native-capstone"],
     recommendedLessons: ["l24-opinion-paragraph", "l30-native-capstone"],
     selfCheck: ["是否有清楚观点", "是否有原因和例子", "是否使用至少一个名词化或转述结构"]
   }

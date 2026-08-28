@@ -1,5 +1,5 @@
 import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, lessons, UNLOCK_SCORE } from "../../data/curriculum.js";
-import { immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
+import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
 import { mapFocusToAbilities } from "./evidence.ts";
 import { lessonReviewCardId } from "./ids.ts";
 import type { AbilityId, LearningProgress } from "./types.ts";
@@ -21,7 +21,16 @@ export interface LessonBridge {
   abilities: AbilityId[];
   missingPrerequisites: Array<{ id: string; order: number; title: string }>;
   reviewCards: number;
-  transferMaterials: Array<{ id: string; title: string; level: string; minutes: number; completed: boolean; href: string }>;
+  transferMaterials: Array<{
+    id: string;
+    title: string;
+    level: string;
+    minutes: number;
+    completed: boolean;
+    available: boolean;
+    missingPrerequisiteIds: string[];
+    href: string;
+  }>;
   nextLesson: { id: string; order: number; title: string } | null;
   steps: LessonBridgeStep[];
 }
@@ -38,14 +47,19 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
   const abilities = mapFocusToAbilities(lesson.focus ?? []);
   const transferMaterials = immersionMaterials
     .filter((material) => material.recommendedLessons.includes(lesson.id))
-    .map((material) => ({
-      id: material.id,
-      title: material.title,
-      level: material.level,
-      minutes: material.minutes,
-      completed: validMaterialIds.has(material.id),
-      href: immersionMaterialHref(material.id)
-    }));
+    .map((material) => {
+      const missingPrerequisiteIds = getMissingMaterialPrerequisiteIds(material, completedIds);
+      return {
+        id: material.id,
+        title: material.title,
+        level: material.level,
+        minutes: material.minutes,
+        completed: validMaterialIds.has(material.id),
+        available: missingPrerequisiteIds.length === 0,
+        missingPrerequisiteIds,
+        href: immersionMaterialHref(material.id)
+      };
+    });
   const simulatedCompleted = new Set(progress.completedLessons);
   const simulatedScores = { ...progress.lessonScores };
   if (unlocked && score >= UNLOCK_SCORE) {
@@ -55,7 +69,10 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
   const next = getNextLesson(simulatedCompleted, simulatedScores);
   const nextLesson = next ? { id: next.id, order: next.order, title: next.title } : null;
   const reviewCards = (lesson.drills ?? []).filter((drill: any) => drill?.prompt && drill?.answer).length;
-  const dueMaterial = transferMaterials.find((material) => !material.completed) ?? transferMaterials[0] ?? null;
+  const dueMaterial = transferMaterials.find((material) => material.available && !material.completed)
+    ?? transferMaterials.find((material) => material.available)
+    ?? null;
+  const lockedMaterial = transferMaterials.find((material) => !material.available) ?? null;
 
   const steps: LessonBridgeStep[] = [
     {
@@ -71,7 +88,7 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
     {
       id: "lesson",
       label: "02",
-      title: mastered ? "课程已掌握" : unlocked ? "完成本课练习" : "仅记录预览分",
+      title: mastered ? "课程已达标" : unlocked ? "完成本课练习" : "仅记录预览分",
       detail: mastered
         ? `最高分 ${Number(progress.lessonScores[lesson.id] ?? 0)}%，复习卡已可进入 SRS。`
         : unlocked
@@ -83,29 +100,33 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
     {
       id: "review",
       label: "03",
-      title: mastered ? "送回复习" : unlocked ? "达标后生成整课复习" : "先不写入 SRS",
+      title: mastered ? "复习卡已生成" : unlocked ? "达标后生成整课复习" : "先不写入 SRS",
       detail: mastered
         ? reviewCards ? `${reviewCards} 个本课题目已经可以成为长期记忆材料，错题也会进入复习队列。` : "本课暂无可复习题目。"
         : unlocked
-          ? `达到 ${UNLOCK_SCORE}% 后才生成整课复习卡；未达标尝试只保留具体错题，避免把不稳内容伪装成已掌握。`
-          : "旁路预览不会写入错题或整课复习，避免把未满足先修的内容伪装成已掌握。",
+          ? `达到 ${UNLOCK_SCORE}% 后才生成整课复习卡；未达标尝试只保留具体错题，避免把不稳内容伪装成已达标。`
+          : "旁路预览不会写入错题或整课复习，避免把未满足先修的内容伪装成已达标。",
       href: mastered || (unlocked && score > 0) ? "/review" : `/learn/${lesson.id}`,
       done: mastered
     },
     {
       id: "transfer",
       label: "04",
-      title: dueMaterial ? mastered ? "迁移到真实材料" : "达标后迁移到材料" : mastered ? "等待材料迁移" : "达标后再迁移",
+      title: dueMaterial ? mastered ? "迁移到真实材料" : "达标后迁移到材料" : lockedMaterial ? "等待材料前置课" : mastered ? "等待材料迁移" : "达标后再迁移",
       detail: dueMaterial
         ? mastered
           ? `${dueMaterial.title} · ${dueMaterial.minutes} min，把本课知识放进听写、复述和输出。`
           : unlocked
             ? `先把本课达到 ${UNLOCK_SCORE}%，再用 ${dueMaterial.title} 做听写、复述和输出迁移。`
             : `补齐先修后，再用 ${dueMaterial.title} 做听写、复述和输出迁移。`
+        : lockedMaterial
+          ? mastered
+            ? `材料还需要先完成 ${lockedMaterial.missingPrerequisiteIds.length} 节前置课；当前不会跳进未解锁材料。`
+            : `先把本课达到 ${UNLOCK_SCORE}%，材料还需要完成 ${lockedMaterial.missingPrerequisiteIds.length} 节前置课；当前不会跳进未解锁材料。`
         : mastered
           ? "当前材料库暂未绑定这节课，可以回到路径查看后续路线，或用综合测验做跨模块检查。"
           : `本课达到 ${UNLOCK_SCORE}% 后，再进入后续路线或综合测验。`,
-      href: dueMaterial && mastered ? dueMaterial.href : mastered ? "/quiz" : `/learn/${lesson.id}`,
+      href: dueMaterial && mastered ? dueMaterial.href : mastered ? "/path" : `/learn/${lesson.id}`,
       done: Boolean(dueMaterial?.completed)
     }
   ];

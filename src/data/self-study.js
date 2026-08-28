@@ -18,6 +18,7 @@ export const selfStudyGoals = [
     id: "foundation",
     title: "打牢基础",
     durationWeeks: 12,
+    targetHours: 180,
     outcome: "能稳定读写韩文、完成日常礼貌句、进行 2-3 分钟自我介绍。",
     emphasis: ["script", "listening", "grammar", "vocabulary"]
   },
@@ -25,6 +26,7 @@ export const selfStudyGoals = [
     id: "travel",
     title: "旅行与生活",
     durationWeeks: 10,
+    targetHours: 240,
     outcome: "能处理点餐、交通、住宿、购物、求助和基础闲聊。",
     emphasis: ["vocabulary", "pragmatics", "listening", "grammar"]
   },
@@ -32,14 +34,16 @@ export const selfStudyGoals = [
     id: "media",
     title: "韩剧综艺理解",
     durationWeeks: 18,
+    targetHours: 800,
     outcome: "能听懂慢速材料和短片段关键词，开始积累口语反应和语气表达。",
     emphasis: ["listening", "vocabulary", "native", "pragmatics"]
   },
   {
     id: "native",
-    title: "母语者级表达",
+    title: "高级表达长期路线",
     durationWeeks: 36,
-    outcome: "能讨论抽象话题，理解语气、关系距离、隐含立场和真实材料语篇。",
+    targetHours: 2000,
+    outcome: "建立抽象讨论、语气与关系调节的长期作品集，持续向母语者水平推进。",
     emphasis: ["native", "pragmatics", "grammar", "vocabulary"]
   }
 ];
@@ -87,20 +91,23 @@ export function buildSelfStudyPlan(profile = {}) {
   const focus = selfStudyFocus.find((item) => item.id === profile.selfStudyFocus) ?? selfStudyFocus[0];
   const modules = mergeModules(foundationSpine, goal.emphasis, focus.modules).map((id) => ({ id, ...moduleMap[id] }));
   const minutes = normalizeDailyMinutes(profile.minutesGoal, intensity.minutes);
+  const rawWeeklyHours = (minutes * intensity.daysPerWeek) / 60;
+  const durationWeeks = Math.max(goal.durationWeeks, Math.ceil(goal.targetHours / Math.max(rawWeeklyHours, 0.1)));
+  const plannedGoal = { ...goal, durationWeeks };
   const dailyTemplate = buildDailyTemplate(minutes, intensity, modules);
 
   return {
-    goal,
+    goal: plannedGoal,
     intensity,
     focus,
     modules,
     minutesGoal: minutes,
-    durationWeeks: goal.durationWeeks,
-    weeklyHours: Math.round((minutes * intensity.daysPerWeek) / 60 * 10) / 10,
+    durationWeeks,
+    weeklyHours: Math.round(rawWeeklyHours * 10) / 10,
     dailyTemplate,
-    phases: buildPhases(goal, modules),
+    phases: buildPhases(plannedGoal, modules),
     weeklyRhythm: buildWeeklyRhythm(intensity, modules),
-    checkpoints: buildCheckpoints(goal, modules)
+    checkpoints: buildCheckpoints(plannedGoal, modules)
   };
 }
 
