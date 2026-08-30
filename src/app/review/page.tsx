@@ -197,7 +197,7 @@ function ReviewHeader() {
     <PageHeader
       kicker="Review"
       title="复习先于新课。"
-      copy="SRS 是按间隔重复出现的复习卡。答对会延后出现，答错会回到盒子 0（今天重新复习）。课程错题、韩文和词汇卡片都会进入这里。"
+      copy="SRS 是按间隔重复出现的复习卡。答对会延后出现；答错会提前下次复习，新卡回到盒子 0，成熟卡则缩短原有间隔。课程错题、韩文和词汇卡片都会进入这里。"
       compact
     >
       <Button asChild variant="secondary">
@@ -215,7 +215,7 @@ function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: 
     <ModuleHero
       kicker="SRS Status"
       title="到期先清掉，新的才稳。"
-      copy="复习队列只处理已经学过或自己送进来的材料；盒子数字越小，越需要近期照顾。答错回到盒子 0，答对再延后出现。"
+      copy="复习队列只处理已经学过或自己送进来的材料；盒子数字越小，越需要近期照顾。答错会降低盒号并缩短间隔，答对会延后出现。"
       asset="review"
     >
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

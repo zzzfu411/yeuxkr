@@ -159,7 +159,9 @@ export default function HangulPage() {
                       itemId={item.id}
                       title={item.glyph}
                       onPassed={() => {
-                        if (toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id))) setGateItemId("");
+                        const saved = toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id));
+                        if (saved) setGateItemId("");
+                        return saved;
                       }}
                       onClose={() => setGateItemId("")}
                     />
@@ -220,7 +222,9 @@ export default function HangulPage() {
                   itemId={pair.id}
                   title={`${pair.a} vs ${pair.b}`}
                   onPassed={() => {
-                    if (toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id))) setGateItemId("");
+                    const saved = toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id));
+                    if (saved) setGateItemId("");
+                    return saved;
                   }}
                   onClose={() => setGateItemId("")}
                 />
@@ -301,7 +305,9 @@ export default function HangulPage() {
                     itemId={rule.id}
                     title={rule.title}
                     onPassed={() => {
-                      if (toggleSrs(cardId, () => ensureSoundChange(rule.id))) setGateItemId("");
+                      const saved = toggleSrs(cardId, () => ensureSoundChange(rule.id));
+                      if (saved) setGateItemId("");
+                      return saved;
                     }}
                     onClose={() => setGateItemId("")}
                   />

@@ -6,10 +6,15 @@ const THEME_EVENT = "yeuxkr-theme";
 const THEME_KEY = "yeuxkr.theme";
 
 function subscribe(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== THEME_KEY || (event.newValue !== "light" && event.newValue !== "dark")) return;
+    document.documentElement.setAttribute("data-theme", event.newValue);
+    onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
   window.addEventListener(THEME_EVENT, onStoreChange);
   return () => {
-    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("storage", onStorage);
     window.removeEventListener(THEME_EVENT, onStoreChange);
   };
 }

@@ -91,7 +91,7 @@ export default function MistakesPage() {
           <SectionHeading
             kicker="Retrain"
             title="错题定向重练"
-            copy="做对会按间隔延后这张卡，做错会立即回到队首。练完这组再回到优先队列。"
+            copy="做对会按间隔延后这张卡，做错会缩短间隔并提前再现。练完这组再回到优先队列。"
             action={
               <Button type="button" variant="secondary" size="sm" onClick={() => setRetrainQuestions(null)}>
                 退出重练
