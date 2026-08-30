@@ -170,6 +170,7 @@ function ImmersionContent() {
   const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "材料闭环完成";
 
   useEffect(() => {
+    setActiveDraftReady(false);
     setSelectedMaterialId(requestedMaterialId);
   }, [requestedMaterialId]);
 
