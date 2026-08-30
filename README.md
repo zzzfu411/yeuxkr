@@ -1,30 +1,31 @@
 # Kirina Korean
 
-Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。当前设计方向是 **Seoul Editorial Learning Atlas**：成人学习、首尔编辑部感、纸本学习资产、韩文字形、青瓷绿、深海蓝、朱砂红和黄铜细节。
+Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。界面品牌是 **YEUX KR!**，标题为 **Kirina Korean | YEUX KR 韩语播放器**。产品形态是纸面上的韩语学习唱机：暖灰纸面、厚边框 Desk 导航、左栏 Now Playing、右侧今日歌单。路径、复习和真实材料共用同一条播放队列。
 
-![学习工作台](docs/screenshots/hero-workspace.png)
+![YEUX KR 播放器工作台](docs/screenshots/hero-desk.png)
 
-<p align="center"><em>学习工作台：路径推荐、到期复习和能力护照收在同一张今日地图上。</em></p>
+<p align="center"><em>Desk：YEUX KR! stamp、厚边框顶栏，以及左栏 Now Playing。下一步像当前曲一样常驻，黄键只给开播。</em></p>
 
 ### 产品界面
 
-| Hangul Studio | Immersion Lab |
+| Hangul Studio | Immersion / 材料 |
 |:---:|:---:|
 | ![韩文实验室](docs/screenshots/hangul.png) | ![情境材料](docs/screenshots/immersion.png) |
-| 韩文实验室：拆音节块、听对立，再把掌握项送进 SRS。 | 咖啡店真实语速：逐句听读、遮译文听写与复述检查。 |
+| 韩文实验室：拆音节块、听对立，再把掌握项送进 SRS。 | 材料轨：逐句听读、遮译文听写与复述检查，排进同一条播放队列。 |
 
 | 五阶段路径 | 间隔复习 |
 |:---:|:---:|
 | ![学习路径](docs/screenshots/path.png) | ![SRS 复习](docs/screenshots/review.png) |
-| 五阶段能力路线：从文字对齐走到母语者语用。 | 到期队列：韩文、词汇和错题进入同一套间隔复习。 |
+| Path：五阶段能力路线，从文字对齐走到母语者语用。 | 到期队列：韩文、词汇和错题进入同一套间隔复习。 |
 
 ![咖啡店点单课](docs/screenshots/lesson.png)
 
-<p align="center"><em>课程页：目标、讲解、听读和练习共用同一份进度证据。</em></p>
+<p align="center"><em>课程页仍是同一台唱机：目标、讲解、听读和练习共用进度证据，Now Playing 指向下一首。</em></p>
 
 ## 当前能力
 
 - Next.js 16 + React 19 + TypeScript + Tailwind。
+- 壳层是 **YEUX KR Player Desk**：顶栏 Desk 导航、左栏 Now Playing / 底栏迷你播放条、推荐任务排成播放队列。学习引擎（路径、SRS、工作台）不变。
 - Web App manifest 与图标位于 `public/`；课程始终联网加载，不注册 Service Worker 或离线学习包。
 - 学习方式支持“路径推荐”和“自由自学”，两者共用同一套进度、SRS、输出档案和能力护照。
 - `LearningWorkspace` 会综合课程进度、自学目标、能力短板和 SRS 到期状态，生成推荐任务和自由入口。
@@ -52,6 +53,8 @@ npm run check:smoke
 ```
 
 `check:smoke` 需要先执行 `npm run build`，然后会在测试进程内启动 Next production server，连续运行 HTTP 与浏览器 smoke，并在结束时关闭服务，不留下后台 Node 进程。
+
+README 顶部截图来自当前运行中的应用，可用 `KIRINA_URL=http://127.0.0.1:3000 npm run docs:screenshots` 在本机重拍。
 
 ## 结构
 
@@ -81,9 +84,9 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 图片资产
 
-当前视觉资产包括 hero、workspace、path、selfStudy、hangul、vocabulary、grammar、native、immersion、quiz、lesson、review、complete、empty。
+当前视觉资产包括 hero、workspace、path、selfStudy、hangul、vocabulary、grammar、native、immersion、quiz、lesson、review、complete、empty。这些是页面静物，不是界面 mock。
 
-生成美学约束：Seoul Editorial Learning Atlas、premium Korean stationery、warm paper texture、abstract Hangul typography、celadon green、deep ocean blue、cinnabar red、brass details；禁止人物、水印、UI 截图和可读中英文文本。
+生成美学约束：纸本韩文静物、warm paper texture、abstract Hangul typography；禁止人物、水印、UI 截图和可读中英文文本。应用壳层是 YEUX KR Player Desk（暖灰纸 + 厚边框播放器），不要把静物图做成旧 Seoul Editorial 界面。
 
 每张资产都需要：
 
