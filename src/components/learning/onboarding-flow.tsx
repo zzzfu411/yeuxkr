@@ -183,8 +183,7 @@ export function OnboardingFlow() {
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Button type="button" variant="secondary" size="lg" onClick={() => {
-              setHeardSample(true);
-              speakKorean("안녕하세요");
+              speakKorean("안녕하세요", { onstart: () => setHeardSample(true) });
             }}>
               <Volume2 className="h-5 w-5" aria-hidden="true" />
               试听 <span lang="ko">안녕하세요</span>

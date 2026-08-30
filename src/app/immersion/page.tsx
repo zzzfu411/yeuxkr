@@ -170,6 +170,10 @@ function ImmersionContent() {
   const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "材料闭环完成";
 
   useEffect(() => {
+    setSelectedMaterialId(requestedMaterialId);
+  }, [requestedMaterialId]);
+
+  useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;

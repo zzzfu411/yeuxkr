@@ -720,6 +720,10 @@ function LessonTaskEvidencePanel({
       recorder = activeRecorder;
       recorderRef.current = activeRecorder;
       chunksRef.current = [];
+      const replaceableRecordingId = recordingIdRef.current
+        && recordingIdRef.current !== savedRecordingIdRef.current
+        ? recordingIdRef.current
+        : "";
       activeRecorder.ondataavailable = (event) => {
         if (event.data.size) chunksRef.current.push(event.data);
       };
@@ -737,7 +741,7 @@ function LessonTaskEvidencePanel({
           setMessage("没有取得有效音频数据，请重新录音或使用听后复现。");
           return;
         }
-        const nextRecordingId = await saveLearningRecording(blob, "shadowing");
+        const nextRecordingId = await saveLearningRecording(blob, "shadowing", replaceableRecordingId);
         if (!nextRecordingId) {
           setRecordedSeconds(0);
           setRecordingId("");
@@ -748,7 +752,7 @@ function LessonTaskEvidencePanel({
           await deleteLearningRecording(nextRecordingId);
           return;
         }
-        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current) {
+        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
           void deleteLearningRecording(previousRecordingId);
         }
         recordingIdRef.current = nextRecordingId;
@@ -764,7 +768,6 @@ function LessonTaskEvidencePanel({
       if (recordingIdRef.current === savedRecordingIdRef.current) {
         draftBaseRecordingIdRef.current = savedRecordingIdRef.current;
       }
-      recordingIdRef.current = "";
       setRecordedSeconds(0);
       setRecordingId("");
       setRecording(true);
@@ -1045,6 +1048,10 @@ function CapstoneEvidencePanel({
       recorder = activeRecorder;
       recorderRef.current = activeRecorder;
       chunksRef.current = [];
+      const replaceableRecordingId = recordingIdRef.current
+        && recordingIdRef.current !== savedRecordingIdRef.current
+        ? recordingIdRef.current
+        : "";
       activeRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
@@ -1067,9 +1074,8 @@ function CapstoneEvidencePanel({
           return;
         }
 
-        const nextRecordingId = await saveLearningRecording(blob, "capstone");
+        const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
         if (!nextRecordingId) {
-          recordingIdRef.current = "";
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
           setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
           return;
@@ -1078,7 +1084,7 @@ function CapstoneEvidencePanel({
           await deleteLearningRecording(nextRecordingId);
           return;
         }
-        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current) {
+        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
           void deleteLearningRecording(previousRecordingId);
         }
         recordingIdRef.current = nextRecordingId;
@@ -1097,7 +1103,6 @@ function CapstoneEvidencePanel({
       if (recordingIdRef.current === savedRecordingIdRef.current) {
         draftBaseRecordingIdRef.current = savedRecordingIdRef.current;
       }
-      recordingIdRef.current = "";
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = "";
       setAudioUrl("");

@@ -229,7 +229,9 @@ export default function VocabularyPage() {
                     itemId={item.id}
                     title={item.korean}
                     onPassed={() => {
-                      if (ensureVocabSrs(item.id)) setGateItemId("");
+                      const saved = ensureVocabSrs(item.id);
+                      if (saved) setGateItemId("");
+                      return saved;
                     }}
                     onClose={() => setGateItemId("")}
                   />
