@@ -44,7 +44,7 @@ export default function MistakesPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Mistake Notebook"
+        kicker="오답 노트 · Mistake notebook"
         title="把反复出错的地方变成下一次的学习路线。"
         copy="错题本直接读取 SRS 里的错题卡：先处理到期和反复错的，再回到来源模块补结构。这里不是惩罚清单，而是把复习、测验和自学重新接起来的弱项地图。"
         compact
@@ -66,7 +66,7 @@ export default function MistakesPage() {
       </PageHeader>
 
       <ModuleHero
-        kicker="Weak Point Loop"
+        kicker="다시 보는 자리 · Return & repair"
         title={summary.total ? `${summary.due} 个到期，${summary.repeated} 个反复错。` : "暂时没有错题债。"}
         copy="每张错题都保留原题、正确答案、错误次数和间隔复习盒子。清掉到期项以后，再把反复错的知识点送回课程、词汇、语法或材料输入。"
         asset="review"
@@ -89,7 +89,7 @@ export default function MistakesPage() {
       {retrainQuestions ? (
         <Surface>
           <SectionHeading
-            kicker="Retrain"
+            kicker="다시 쓰기 · Retrain"
             title="错题定向重练"
             copy="做对会按间隔延后这张卡，做错会立即回到队首。练完这组再回到优先队列。"
             action={
@@ -119,7 +119,7 @@ export default function MistakesPage() {
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Surface>
             <SectionHeading
-              kicker="Priority Queue"
+              kicker="오늘의 순서 · Today's order"
               title="优先处理队列"
               copy="排序会优先看是否到期、错误次数、正确次数和盒子位置。越靠前，越值得今天先处理。"
               action={
@@ -147,7 +147,7 @@ export default function MistakesPage() {
 
           <aside className="grid h-fit gap-4 xl:sticky xl:top-24">
             <Surface>
-              <SectionHeading kicker="Repair Plan" title="三步修复方案" />
+              <SectionHeading kicker="세 장 · Three leaves" title="三步修复方案" />
               <div className="grid gap-3">
                 <PlanStep index={1} title="先清到期" detail="进入复习页，把已经到期的错题先重新写对，避免它们拖住新课输入。" href="/review" />
                 <PlanStep index={2} title="回到来源" detail="反复错的题不要只背答案，按来源回到词汇、语法、韩文结构或真实材料页补原理。" href="/path" />
@@ -156,7 +156,7 @@ export default function MistakesPage() {
             </Surface>
 
             <Surface>
-              <SectionHeading kicker="Hot Four" title="今天最该照看的 4 个点" />
+              <SectionHeading kicker="오늘의 네 점 · Four marks" title="今天最该照看的 4 个点" />
               <div>
                 {urgent.map((item, index) => (
                   <TrackRow
@@ -176,12 +176,13 @@ export default function MistakesPage() {
           </aside>
         </section>
       ) : (
-        <Surface>
-          <div className="grid overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="p-5">
-              <p className="eyebrow">Clean Slate</p>
-              <h2 className="mt-2 font-serif text-3xl font-black">当前没有可追踪错题。</h2>
-              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[var(--muted)]">
+        <Surface variant="plain">
+          <div className="studio-panel relative grid overflow-hidden md:grid-cols-[minmax(0,1fr)_18rem]">
+            <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+            <div className="paper-rail p-5 pt-8">
+              <p className="eyebrow">빈 장 · Clean leaf</p>
+              <h2 className="inkline mt-2 font-serif text-3xl font-normal">当前没有可追踪错题。</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                 继续做课程、测验或到期复习。答错的题会自动回收到这里，并按 SRS 的间隔规则安排下一次见面。
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -199,7 +200,7 @@ export default function MistakesPage() {
                 </Button>
               </div>
             </div>
-            <VisualPanel asset="empty" className="min-h-56 rounded-none border-0" />
+            <VisualPanel asset="empty" treatment="inset" className="min-h-56 border-0 shadow-none" />
           </div>
         </Surface>
       )}
@@ -209,9 +210,9 @@ export default function MistakesPage() {
 
 function MistakeMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-      <strong className="block font-serif text-3xl font-black leading-none">{value}</strong>
-      <span className="mt-1 block font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
+    <div className="border-t border-[var(--line)] bg-[var(--wash-1)] px-3 py-3 shadow-[inset_0_1px_0_var(--sheen)]">
+      <strong className="block font-serif text-3xl font-normal leading-none">{value}</strong>
+      <span className="mt-1 block font-[family-name:var(--font-script)] text-sm text-[var(--muted)]">{label}</span>
     </div>
   );
 }
@@ -248,7 +249,7 @@ function MistakeCard({
     >
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 font-mono text-[0.68rem] font-black uppercase ${item.due ? "bg-[var(--seal-soft)] text-[var(--cinnabar)]" : "bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"}`}>
+          <span className={`inline-flex items-center gap-1 border px-2.5 py-1 font-[family-name:var(--font-script)] text-xs ${item.due ? "border-[color-mix(in_srgb,var(--seal)_45%,var(--line))] bg-[var(--seal-soft)] text-[var(--cinnabar)]" : "border-[var(--line)] bg-[var(--wash-2)] text-[var(--ink-soft)]"}`}>
             {item.due ? <CircleAlert className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
             {item.statusLabel}
           </span>
@@ -258,7 +259,7 @@ function MistakeCard({
           <SmallStat label="对" value={item.correct} />
           <SmallStat label="盒" value={item.box} />
         </div>
-        <p className="text-xs font-bold leading-5 text-[var(--muted)]">{dueLabel(item, now)}</p>
+        <p className="border-l border-[var(--line-strong)] pl-3 text-xs leading-5 text-[var(--muted)]">{dueLabel(item, now)}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <Button type="button" size="sm" onClick={() => onRetrain(item.id)}>
             <Play className="h-4 w-4" />
@@ -282,9 +283,9 @@ function MistakeCard({
 
 function SmallStat({ label, value }: { label: string; value: number }) {
   return (
-    <span className="rounded-none border border-[var(--line)] bg-[var(--card)] px-2 py-1">
-      <strong className="block font-serif text-lg leading-none">{value}</strong>
-      <span className="font-mono text-[0.62rem] font-black uppercase text-[var(--muted)]">{label}</span>
+    <span className="border border-[var(--line)] bg-[var(--wash-1)] px-2 py-1 shadow-[inset_0_1px_0_var(--sheen)]">
+      <strong className="block font-serif text-lg font-normal leading-none">{value}</strong>
+      <span className="font-[family-name:var(--font-script)] text-xs text-[var(--muted)]">{label}</span>
     </span>
   );
 }

@@ -1,6 +1,8 @@
 # Kirina Korean
 
-Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。当前设计方向是 **Seoul Editorial Learning Atlas**：成人学习、首尔编辑部感、纸本学习资产、韩文字形、青瓷绿、深海蓝、朱砂红和黄铜细节。
+Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。界面属于 **YEUX KR 纸本家族**：以 yeuxark.com 的低饱和个人纸站为亲缘，把韩纸纤维、稀释墨、手写路标和克制朱印带进完整的韩语学习流程。它不是杂志式作品集、SaaS 仪表盘或音乐播放器桌面；路径、复习和材料被整理成一册可以长期使用的个人学习图集。
+
+视觉提供原纸、月白、淡青与夜墨四种纸色。正文使用 LXGW WenKai Screen，毛笔题签使用 Ma Shan Zheng，英文批注使用 Caveat，大型韩文与细读内容保留 Noto Serif KR；夜墨是带纤维和层次的深紫墨纸，而非纯黑屏幕。
 
 ![学习工作台](docs/screenshots/hero-workspace.png)
 
@@ -81,9 +83,11 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 图片资产
 
-当前视觉资产包括 hero、workspace、path、selfStudy、hangul、vocabulary、grammar、native、immersion、quiz、lesson、review、complete、empty。
+当前视觉资产仍登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的纸色叠印接入新纸面。新的韩纸静物 / 朱印插画应在 imagegen 可用时替换旧的 editorial 摄影，而不是热链库存图。
 
-生成美学约束：Seoul Editorial Learning Atlas、premium Korean stationery、warm paper texture、abstract Hangul typography、celadon green、deep ocean blue、cinnabar red、brass details；禁止人物、水印、UI 截图和可读中英文文本。
+生成美学约束：低饱和韩纸、石墨与水墨、可见纸纤维、充足留白、Hangul 活字 / 笔触、砚台静物、首尔街巷或咖啡馆淡彩，以及面积很小的褪色朱印。禁止 KAZAM / player-desk chrome、neo-brutal 黄块与热粉按钮、硬偏移阴影、鱼仔主角、水印、UI 截图和生成式可读乱码。
+
+页面通过连续纸面、grain、vignette、轻微 roughen、胶带角、日期行和柔和纸影组织内容，圆角约为 `3px`。所有图像与控件都必须同时适配原纸、月白、淡青和夜墨；视觉层可以重构，课程、SRS、quiz engine、workspace model、speech 和进度数据契约保持不变。
 
 每张资产都需要：
 

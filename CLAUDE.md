@@ -4,7 +4,7 @@
 
 这是一个 Next.js 在线学习应用，不再是无构建静态 SPA。项目目标是稳定、可维护，并保持与 Yasashi Japanese 不同的审美方向。
 
-当前视觉方向是 **YEUX KR Player Desk**：YeuxPage 的暖灰纸面 + KAZAM/163music 的厚边框播放器骨架。界面品牌 YEUX KR!，产品名仍是 Kirina Korean。纸面不发黄；黄块和红播放键只给控件；韩文大音节当作封面。详细约定见 `design/art-direction.md`。
+当前视觉方向是 **YEUX KR 纸本家族**：与 yeuxark.com 同一套低饱和纸站语言。产品名仍是 Kirina Korean。四种纸色（原纸 / 月白 / 淡青 / 夜墨），正文 LXGW WenKai Screen，题签 Ma Shan Zheng，英文 Caveat。不要回到 KAZAM 黄块、热粉播放键或 void 黑底。详细约定见 `design/art-direction.md`。
 
 ## 关键约定
 

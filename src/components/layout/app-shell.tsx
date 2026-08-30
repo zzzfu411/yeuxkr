@@ -77,19 +77,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="vignette" aria-hidden="true" />
       <a
         href="#main"
-        className="focus-ring fixed left-3 top-3 z-[90] -translate-y-20 border-[3px] border-[var(--border)] bg-[var(--ink)] px-4 py-2 text-sm font-black text-[var(--ink-inv)] shadow-[3px_3px_0_var(--shadow-color)] transition focus:translate-y-0"
+        className="focus-ring fixed left-3 top-3 z-[90] -translate-y-20 border border-[var(--line)] bg-[var(--paper-hi)] px-4 py-2 text-sm text-[var(--ink)] shadow-paper-sm transition focus:translate-y-0"
       >
         跳到正文
       </a>
       <div className="editorial-shell">
-        <header className="sticky top-0 z-40 border-b-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-xl">
-        <div className="mx-auto grid w-full min-w-0 max-w-[1480px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-          <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-3">
-            <span className="logo-mark">YEUX KR!</span>
+        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-md">
+        <div className="mx-auto grid w-full min-w-0 max-w-[1320px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+          <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-2.5">
+            <span className="seal-mark hidden h-8 w-8 text-sm sm:inline-grid" aria-hidden="true">기</span>
+            <span className="logo-mark">YEUX KR</span>
             <span className="leading-tight">
-              <strong className="hidden font-serif text-lg sm:block">Kirina Korean</strong>
-              <small className="hidden font-mono text-[0.68rem] font-black uppercase text-[var(--muted)] md:block">
-                paper player desk
+              <strong className="hidden font-serif text-base font-normal sm:block">Kirina Korean</strong>
+              <small className="hidden font-script text-[0.72rem] text-[var(--muted)] md:block">
+                한국어 · 韩语手帖
               </small>
             </span>
           </Link>
@@ -102,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav ref={navRef} className="nav-scroll order-3 col-span-2 flex w-full min-w-0 max-w-full snap-x justify-start gap-3 overflow-x-auto lg:order-2 lg:col-span-1" aria-label="主导航">
             {navGroups.map((group) => (
               <div key={group.label} className="top-tabs flex shrink-0 snap-center items-center">
-                <span className="hidden px-2 font-mono text-[0.65rem] font-black uppercase text-[var(--muted)] xl:inline">
+                <span className="hidden px-1 font-script text-[0.72rem] text-[var(--muted)] xl:inline">
                   {group.label}
                 </span>
                 {group.items.map((item) => {
@@ -139,10 +140,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main id="main" className="app-main" tabIndex={-1}>{children}</main>
       </div>
 
-      <footer className="border-t-[3px] border-[var(--border)] bg-[var(--card)] px-4 py-4">
-        <div className="mx-auto flex max-w-[1480px] flex-wrap justify-between gap-3 font-mono text-xs font-bold text-[var(--muted)]">
-          <span>Kirina Korean · YEUX KR</span>
-          <span>纸面唱机 · 路径队列 · 真实材料 · 本地进度</span>
+      <footer className="border-t border-[var(--line)] px-4 py-6">
+        <div className="mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 font-script text-sm text-[var(--muted)]">
+          <span className="inline-flex items-center gap-2"><span className="seal-mark h-7 min-h-7 min-w-7 text-xs" aria-hidden="true">한</span> Kirina Korean · YEUX KR</span>
+          <span>읽고 · 듣고 · 쓰다</span>
         </div>
         </footer>
       </div>

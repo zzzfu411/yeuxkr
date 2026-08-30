@@ -18,13 +18,13 @@ const config: Config = {
         script: ["var(--font-script)", "Caveat", "cursive"]
       },
       boxShadow: {
-        editorial: "4px 4px 0 var(--shadow-color)",
-        "paper-sm": "3px 3px 0 var(--shadow-color)",
-        brutal: "4px 4px 0 var(--shadow-color)",
-        "brutal-sm": "3px 3px 0 var(--shadow-color)"
+        editorial: "var(--shadow)",
+        "paper-sm": "var(--shadow-soft)",
+        brutal: "var(--shadow)",
+        "brutal-sm": "var(--shadow-soft)"
       },
       borderRadius: {
-        DEFAULT: "0px"
+        DEFAULT: "var(--radius)"
       }
     }
   },

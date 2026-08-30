@@ -25,30 +25,28 @@ const treatmentStyles: Record<
   }
 > = {
   paper: {
-    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal-sm",
-    image: "object-cover saturate-[1.08] contrast-[1.08]",
-    wash: "bg-[linear-gradient(140deg,rgba(249,251,248,0.06),rgba(63,128,106,0.03)_46%,rgba(21,61,104,0.06))]",
-    grid: "opacity-[0.06] [background-image:linear-gradient(rgba(24,28,27,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(24,28,27,0.1)_1px,transparent_1px)] [background-size:28px_28px]"
+    frame: "border border-[var(--line)] bg-[var(--paper-deep)] shadow-paper-sm",
+    image: "object-cover saturate-[0.72] contrast-[0.98]",
+    wash: "bg-[linear-gradient(145deg,var(--sheen),transparent_44%,var(--shade))]"
   },
   raw: {
-    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal-sm",
-    image: "object-cover contrast-[1.02]"
+    frame: "border border-[var(--line)] bg-[var(--paper-deep)] shadow-paper-sm",
+    image: "object-cover saturate-[0.78] contrast-[0.98]"
   },
   darkCaption: {
-    frame: "border-[3px] border-[var(--border)] bg-[var(--ink)] shadow-brutal",
-    image: "object-cover brightness-[0.82] saturate-[0.92]",
-    wash: "bg-[linear-gradient(180deg,rgba(24,28,27,0.02),rgba(24,28,27,0.5))]"
+    frame: "border border-[var(--line)] bg-[var(--paper-lo)] shadow-paper-sm",
+    image: "object-cover brightness-[0.86] saturate-[0.68]",
+    wash: "bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--ink)_32%,transparent))]"
   },
   inset: {
-    frame: "border-[3px] border-[var(--border)] bg-[var(--card)] shadow-brutal-sm",
-    image: "object-cover scale-[1.01] saturate-[1.08] contrast-[1.06]",
-    wash: "bg-[linear-gradient(135deg,rgba(249,251,248,0.06),rgba(63,128,106,0.03)_44%,rgba(21,61,104,0.05))]",
-    grid: "opacity-[0.06] [background-image:linear-gradient(rgba(24,28,27,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(24,28,27,0.08)_1px,transparent_1px)] [background-size:24px_24px]"
+    frame: "border border-[var(--line)] bg-[var(--card)] shadow-paper-sm",
+    image: "object-cover scale-[1.01] saturate-[0.7] contrast-[0.98]",
+    wash: "bg-[linear-gradient(135deg,var(--sheen),transparent_48%,var(--shade))]"
   },
   ambient: {
-    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal",
-    image: "object-cover brightness-[0.98] saturate-[1.16] contrast-[1.08]",
-    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--paper)_86%,transparent)_0%,color-mix(in_srgb,var(--paper)_52%,transparent)_28%,color-mix(in_srgb,var(--paper)_8%,transparent)_58%,transparent_100%)]"
+    frame: "border-0 bg-[var(--paper)] shadow-none",
+    image: "object-cover brightness-[0.98] saturate-[0.7] contrast-[0.96] mix-blend-multiply",
+    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--paper)_92%,transparent)_0%,color-mix(in_srgb,var(--paper)_56%,transparent)_32%,color-mix(in_srgb,var(--paper)_10%,transparent)_68%,transparent_100%)]"
   }
 };
 
@@ -122,8 +120,8 @@ export function VisualPanel({
           }}
         />
       ) : null}
-      <div className="pointer-events-none absolute inset-[0.6rem] rounded-[6px] border border-[rgba(255,250,240,0.34)] opacity-80 mix-blend-screen" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),transparent)]" />
+      {treatment !== "ambient" ? <span className="paper-tape left-6 top-[-7px]" aria-hidden="true" /> : null}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,var(--sheen),transparent)]" />
       {style.wash ? <div className={cn("pointer-events-none absolute inset-0", style.wash)} /> : null}
       {style.grid ? <div className={cn("pointer-events-none absolute inset-0", style.grid)} /> : null}
       {overlayClass ? <div className={cn("pointer-events-none absolute inset-0", overlayClass)} /> : null}

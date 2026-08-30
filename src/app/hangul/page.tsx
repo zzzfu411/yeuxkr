@@ -51,7 +51,7 @@ export default function HangulPage() {
       <PageHeader
         kicker="Hangul Studio"
         title="先听清楚，再把字形写进眼睛里。"
-        copy="韩文不是线性字母表，而是声音与字形压缩成音节块。这个页面像实验室：拆结构、听差异、把掌握项送进 SRS。"
+        copy="韩文不是线性字母表，而是声音与字形压缩成音节块。这一页像摊开的练习纸：拆结构、听差异、把掌握项送进 SRS。"
         compact
       />
 
@@ -63,19 +63,19 @@ export default function HangulPage() {
         title="先拆开音节块，再听它怎么发声。"
         copy="每个韩文字块都由初声、中声和可选终声压缩而成。罗马化只帮助查找，真正发音以字母位置、IPA 和播放音频为准。"
         asset="hangul"
-        imageClassName="min-h-80 rounded-none border-0"
+        imageClassName="min-h-80 border-0"
       >
         <div className="grid gap-3 md:grid-cols-2">
           {syllableLabs.map((lab: any) => (
             <button
               key={lab.result}
               type="button"
-              className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] p-4 text-left transition hover:-translate-y-0.5"
+              className="focus-ring rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4 text-left transition-colors hover:bg-[var(--wash-2)]"
               onClick={() => speakKorean(lab.result)}
               aria-label={`播放音节 ${lab.result}，结构 ${lab.blocks.join(" 加 ")}`}
             >
               <strong className="hangul-display block text-5xl" lang="ko">{lab.result}</strong>
-              <span className="mt-2 block font-mono text-xs font-black text-[var(--ocean)]" lang="ko">{lab.blocks.join(" + ")}</span>
+              <span className="mt-2 block font-mono text-xs font-medium text-[var(--ink-soft)]" lang="ko">{lab.blocks.join(" + ")}</span>
               <small className="mt-2 block leading-5 text-[var(--muted)]">{lab.note}</small>
             </button>
           ))}
@@ -106,16 +106,16 @@ export default function HangulPage() {
                 playLabel={`播放${soundRole} ${item.sound}`}
               >
                 <div className="grid gap-3">
-                  <div className="grid gap-1 font-mono text-sm font-black text-[var(--ocean)]">
+                  <div className="grid gap-1 font-mono text-sm font-medium text-[var(--ink-soft)]">
                     <RomanizationText
                       text={item.romanization}
                       preference={workspace.profile.romanization}
                       scaffold={romanizationScaffold}
-                      className="font-mono text-sm font-black text-[var(--ocean)]"
+                      className="font-mono text-sm font-medium text-[var(--ink-soft)]"
                     />
                     <span>
                       /{item.ipa}/
-                      {item.parts ? <span className="ml-2 text-[var(--brass)]" lang="ko">{item.parts.join(" + ")}</span> : null}
+                      {item.parts ? <span className="ml-2 text-[var(--ink-mute)]" lang="ko">{item.parts.join(" + ")}</span> : null}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -256,17 +256,17 @@ export default function HangulPage() {
                 onPlay={first ? () => speakKorean(first.speak) : undefined}
                 playLabel={first ? `播放 ${first.written}` : undefined}
               >
-                <p className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-2 font-mono text-xs font-black text-[var(--ocean)]">{rule.rule}</p>
+                <p className="rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-2 font-mono text-xs font-medium text-[var(--ink-soft)]">{rule.rule}</p>
                 <div className="mt-3 grid gap-2">
                   {rule.examples.map((example: any) => (
                     <button
                       key={example.written}
                       type="button"
-                      className="focus-ring flex items-center justify-between gap-2 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
+                      className="focus-ring flex items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--card)] p-2 text-left transition-colors hover:bg-[var(--wash-2)]"
                       onClick={() => speakKorean(example.speak)}
                       aria-label={`播放 ${example.written}，实际读作 ${example.spoken}，意思是${example.zh}`}
                     >
-                      <span className="hangul-display text-lg font-black" lang="ko">
+                      <span className="hangul-display text-lg font-normal" lang="ko">
                         {example.written}
                         <span className="mx-1 text-[var(--muted)]">→</span>
                         <span className="text-[var(--celadon)]">[{example.spoken}]</span>
