@@ -569,7 +569,7 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /useEffect\(\(\) => \{\s*setSelectedMaterialId\(requestedMaterialId\);\s*\}, \[requestedMaterialId\]\);/);
+  assert.match(source, /useEffect\(\(\) => \{\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*\}, \[requestedMaterialId\]\);/);
 });
 
 function loadLessonEvidencePanels(hooks, {
