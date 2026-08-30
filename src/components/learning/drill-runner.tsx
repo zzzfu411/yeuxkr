@@ -397,7 +397,7 @@ export function DrillRunner({
         <div className="border-[3px] border-[var(--border)] bg-[var(--yellow)] px-4 py-2 font-mono text-sm font-black text-[#1a1a2e]">{score}%</div>
       </div>
       <div
-        className="mb-5 h-2 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
+        className="mb-5 h-3 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
         role="progressbar"
         aria-label="练习进度"
         aria-valuemin={0}
@@ -463,7 +463,7 @@ export function DrillRunner({
 
         {question.type === "translate" && question.hint ? (
           <details className="mt-4 text-sm font-bold text-[var(--muted)]">
-            <summary className="cursor-pointer">需要提示？</summary>
+            <summary className="min-h-11 cursor-pointer py-3">需要提示？</summary>
             <p className="mt-1 leading-6">{question.hint}</p>
           </details>
         ) : null}
@@ -515,7 +515,7 @@ export function DrillRunner({
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
                 <span lang={hasKoreanText(choice) ? "ko" : undefined}>{choice}</span>
                 {choiceIndex < 9 ? (
-                  <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
+                  <kbd className="hidden rounded border border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_6%,transparent)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
                     {choiceIndex + 1}
                   </kbd>
                 ) : null}

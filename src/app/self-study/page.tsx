@@ -408,7 +408,7 @@ export default function SelfStudyPage() {
               </div>
               {hiddenCheckpointCount ? (
                 <details className="mt-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-                  <summary className="cursor-pointer text-sm font-black text-[var(--muted)]">
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-black text-[var(--muted)]">
                     后续 {hiddenCheckpointCount} 个检查点将在当前项完成后顺序开放
                   </summary>
                   <ol className="mt-3 grid gap-2 text-sm font-bold leading-6 text-[var(--muted)]">

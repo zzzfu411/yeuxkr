@@ -94,7 +94,7 @@ export function VisualPanel({
     >
       {resolvedImageState.failed ? (
         <>
-          <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(251,252,249,0.98),rgba(216,225,219,0.94))]" />
+          <div className="absolute inset-0 bg-[linear-gradient(140deg,var(--paper-hi),var(--paper-deep))]" />
           <div className="absolute inset-0 grid place-items-center p-5 text-center">
             <span className="max-w-56 rounded-none border border-[var(--line)] bg-[var(--card)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
               {item.manifestLabel}

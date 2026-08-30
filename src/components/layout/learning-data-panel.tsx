@@ -116,13 +116,13 @@ export function LearningDataPanel() {
           if (!(event.currentTarget as HTMLDetailsElement).open) setConfirmReset(false);
         }}
       >
-        <summary className="focus-ring inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 text-sm font-extrabold text-[var(--muted)] shadow-[3px_3px_0_var(--shadow-color)] transition hover:bg-[var(--yellow)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <summary className="learning-data-summary focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 text-sm font-extrabold text-[var(--muted)] shadow-[3px_3px_0_var(--shadow-color)] transition hover:bg-[var(--yellow)] hover:text-[#1a1a2e] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">学习数据</span>
-          {status !== "idle" ? <span className="font-mono text-[0.68rem] font-black text-[var(--celadon-text)]">{statusLabels[status]}</span> : null}
+          {status !== "idle" ? <span className="hidden font-mono text-[0.68rem] font-black text-[var(--celadon-text)] sm:inline">{statusLabels[status]}</span> : null}
           <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
-        <div className="absolute right-0 top-[calc(100%+0.55rem)] z-50 grid w-[min(20rem,calc(100vw-1.5rem))] gap-3 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] p-3 shadow-brutal backdrop-blur-xl">
+        <div className="absolute right-0 top-[calc(100%+0.55rem)] z-50 grid max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto overscroll-contain rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] p-3 shadow-brutal backdrop-blur-xl">
           <div>
             <p className="eyebrow">Local Data</p>
             <strong className="mt-1 block font-serif text-xl">备份与存储</strong>

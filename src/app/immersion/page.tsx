@@ -555,7 +555,7 @@ function ImmersionContent() {
                       播放听写句 {String(index + 1).padStart(2, "0")}
                     </Button>
                     <details className="mt-2 border-t border-[var(--line)] pt-2">
-                      <summary className="cursor-pointer text-xs font-black text-[var(--muted)]">写完后核对原句</summary>
+                      <summary className="min-h-11 cursor-pointer py-3 text-xs font-black text-[var(--muted)]">写完后核对原句</summary>
                       <strong className="hangul-display mt-2 block text-xl" lang="ko">{item}</strong>
                     </details>
                   </div>

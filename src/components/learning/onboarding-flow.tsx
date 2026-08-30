@@ -50,9 +50,9 @@ export function OnboardingFlow() {
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="eyebrow">Onboarding · 入门设置</p>
-        <ol className="flex gap-2" aria-label="设置进度">
+        <ol className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1 sm:w-auto sm:pb-0" aria-label="设置进度">
           {STEP_TITLES.map((title, index) => (
             <li
               key={title}
@@ -62,7 +62,7 @@ export function OnboardingFlow() {
                   ? "bg-[var(--ink)] text-[var(--surface-solid)]"
                   : index < step
                     ? "bg-[var(--green-soft)] text-[var(--celadon)]"
-                    : "bg-[rgba(24,28,27,0.06)] text-[var(--muted)]"
+                    : "bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] text-[var(--muted)]"
               }`}
             >
               {title}
@@ -174,7 +174,7 @@ export function OnboardingFlow() {
             </InlineAlert>
           ) : null}
           <details className="mt-4 text-sm text-[var(--muted)]">
-            <summary className="cursor-pointer font-bold">调整语音和语速</summary>
+            <summary className="min-h-11 cursor-pointer py-3 font-bold">调整语音和语速</summary>
             <SpeechSettings className="mt-3" />
           </details>
           <div className="mt-6 flex justify-between gap-3">

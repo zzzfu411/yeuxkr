@@ -228,13 +228,19 @@ export function LearningCompass({
                   )}
                 >
                   <span className="flex min-w-0 items-start justify-between gap-2">
-                    <span className="inline-flex min-w-0 items-center gap-1.5 font-mono text-[0.66rem] font-black uppercase leading-4 text-[var(--ocean)]">
+                    <span className={cn(
+                      "inline-flex min-w-0 items-center gap-1.5 font-mono text-[0.66rem] font-black uppercase leading-4",
+                      track.active ? "text-[var(--ink-inv)]" : "text-[var(--ocean)]"
+                    )}>
                       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span className="break-words">{track.label}</span>
                     </span>
                     <strong className="shrink-0 font-serif text-lg leading-none">{track.stat}</strong>
                   </span>
-                  <span className="mt-2 line-clamp-2 text-[0.72rem] font-bold leading-5 text-[var(--muted)]">{track.detail}</span>
+                  <span className={cn(
+                    "mt-2 line-clamp-2 text-[0.72rem] font-bold leading-5",
+                    track.active ? "text-[var(--ink-inv)] opacity-80" : "text-[var(--muted)]"
+                  )}>{track.detail}</span>
                 </Link>
               );
             })}
@@ -253,7 +259,7 @@ export function LearningCompass({
                     <span>{item.label}</span>
                     <span className="font-mono text-[var(--muted)]">{item.current}/{item.target}</span>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]">
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--track)]">
                     <div className="h-full bg-[var(--brass)]" style={{ width: `${Math.min(100, Math.round((item.current / item.target) * 100))}%` }} />
                   </div>
                 </div>
@@ -305,7 +311,7 @@ export function LearningCompass({
         </div>
         <div className="relative min-h-64">
           <VisualPanel asset={config.asset} priority={active === "workspace"} sizes="(max-width: 1024px) 100vw, 28rem" overlay="bottom" className="absolute inset-0 rounded-none border-0" />
-          <div className="absolute bottom-3 left-3 right-3 grid grid-cols-4 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--ink)] p-3 text-[var(--ink-inv)] shadow-brutal">
+          <div className="absolute bottom-3 left-3 right-3 grid grid-cols-2 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--ink)] p-3 text-[var(--ink-inv)] shadow-brutal sm:grid-cols-4">
             <CompassMetric label="课程" value={`${pathPercent}%`} />
             <CompassMetric label="材料" value={`${materialPercent}%`} />
             <CompassMetric label="输出" value={String(workspace.stats.outputEntries)} />
@@ -331,13 +337,19 @@ export function LearningCompass({
               )}
             >
               <span className="flex min-w-0 items-start justify-between gap-2">
-                <span className="inline-flex min-w-0 items-center gap-2 break-words font-mono text-xs font-black uppercase text-[var(--ocean)]">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
+                <span className={cn(
+                  "inline-flex min-w-0 items-center gap-2 break-words font-mono text-xs font-black uppercase",
+                  track.active ? "text-[var(--ink-inv)]" : "text-[var(--ocean)]"
+                )}>
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {track.label}
                 </span>
                 <strong className="shrink-0 font-serif text-xl leading-none">{track.stat}</strong>
               </span>
-              <span className="mt-3 text-sm font-bold leading-6 text-[var(--muted)]">{track.detail}</span>
+              <span className={cn(
+                "mt-3 text-sm font-bold leading-6",
+                track.active ? "text-[var(--ink-inv)] opacity-80" : "text-[var(--muted)]"
+              )}>{track.detail}</span>
             </Link>
           );
         })}
@@ -356,7 +368,7 @@ export function LearningCompass({
                   <span>{item.label}</span>
                   <span className="font-mono text-[var(--muted)]">{item.current}/{item.target}</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--track)]">
                   <div className="h-full bg-[var(--brass)]" style={{ width: `${Math.min(100, Math.round((item.current / item.target) * 100))}%` }} />
                 </div>
               </div>

@@ -218,7 +218,7 @@ html[data-theme="dark"] .grain {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  padding-bottom: 4.85rem;
+  padding-bottom: calc(4.85rem + env(safe-area-inset-bottom));
 }
 
 .editorial-shell > * {
@@ -363,8 +363,8 @@ html:not([data-theme]) .theme-toggle:hover {
 
 .theme-toggle {
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border: 3px solid var(--border);
   background: var(--card);
   box-shadow: var(--shadow-sm);
@@ -408,6 +408,7 @@ html[data-theme="dark"] .theme-toggle:hover {
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;
+  min-height: 44px;
 }
 
 .top-tabs a:first-child,
@@ -494,6 +495,8 @@ html[data-theme="dark"] .np-cover {
   text-align: center;
   line-height: 1.25;
   max-width: 100%;
+  width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .np-artist {
@@ -502,6 +505,8 @@ html[data-theme="dark"] .np-cover {
   color: var(--mild);
   text-align: center;
   line-height: 1.45;
+  width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .prog-wrap {
@@ -538,8 +543,8 @@ html[data-theme="dark"] .prog-fill {
 
 .np-controls a,
 .np-controls button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 3px solid var(--border);
   background: var(--card);
   color: var(--ink);
@@ -673,8 +678,8 @@ html[data-theme="dark"] .pl-item:hover {
 }
 
 .pl-play {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 3px solid var(--border);
   background: var(--red);
   color: #fff;
@@ -690,12 +695,16 @@ html[data-theme="dark"] .pl-item:hover {
 }
 
 :focus-visible {
-  outline: 2px solid var(--navy);
+  outline: 2px solid var(--ocean);
   outline-offset: 2px;
 }
 
 .focus-ring:focus-visible {
-  outline-color: var(--navy);
+  outline-color: var(--ocean);
+}
+
+.learning-data-summary::marker {
+  content: "";
 }
 
 .line-clamp-2 {
@@ -735,5 +744,11 @@ html[data-theme="dark"] .pl-item:hover {
 @media (max-width: 720px) {
   .app-main {
     padding: 0.85rem 0.8rem 5.5rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .hangul-key-row {
+    grid-template-columns: repeat(5, minmax(44px, 1fr)) !important;
   }
 }

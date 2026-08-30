@@ -81,7 +81,7 @@ export function SpeechStatusBanner() {
               : "未检测到韩语语音包；听力题会跳过且不计分。")}
             {!playbackError && status === "missing" ? (
               <details className="mt-1 font-normal text-[var(--ink)]">
-                <summary className="cursor-pointer font-bold">安装韩语语音包</summary>
+                <summary className="min-h-11 cursor-pointer py-3 font-bold">安装韩语语音包</summary>
                 <ul className="mt-1 list-disc pl-5">
                   <li>Windows：设置 → 时间和语言 → 语音 → 添加语音 → 한국어（韩语）。</li>
                   <li>macOS / iOS：设置 → 辅助功能 → 朗读内容 → 声音 → 添加韩语语音。</li>

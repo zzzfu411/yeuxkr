@@ -837,7 +837,7 @@ function LessonTaskEvidencePanel({
           </div>
           {task.kind === "retell" ? (
             <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-black">打开原文，听完后请合上</summary>
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-black">打开原文，听完后请合上</summary>
               <p className="hangul-display mt-3 text-lg font-bold leading-8" lang="ko">{task.source}</p>
             </details>
           ) : (
