@@ -569,7 +569,90 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /useEffect\(\(\) => \{\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*\}, \[requestedMaterialId\]\);/);
+  assert.match(source, /queueMicrotask\(\(\) => \{\s*if \(cancelled\) return;\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
+  assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
+});
+
+test("clearing an immersion archive cannot immediately recreate its live draft", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  const clearArchive = source.slice(source.indexOf("const clearActiveArchive"), source.indexOf("const finishMaterial"));
+  assert.match(clearArchive, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);\s*if \(!clearMaterialArchive/);
+  assert.match(clearArchive, /if \(draftCleared\) \{[\s\S]*setDictationEvidence\(""\);[\s\S]*setRetellEvidence\(""\);[\s\S]*setDraft\(""\);/);
+  assert.match(clearArchive, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
+});
+
+test("lesson pages remount lesson-scoped client state when the lesson ID changes", async () => {
+  const lessons = new Map([
+    ["lesson-a", { id: "lesson-a" }],
+    ["lesson-b", { id: "lesson-b" }]
+  ]);
+  const { default: LessonPage } = loadComponent("src/app/learn/[lessonId]/page.tsx", {
+    "next/navigation": { notFound() { throw new Error("not found"); } },
+    "@/data/curriculum": { getLessonById: (id) => lessons.get(id), lessons: [...lessons.values()] },
+    "./lesson-client": { LessonClient: "LessonClient" }
+  });
+
+  const first = await LessonPage({ params: Promise.resolve({ lessonId: "lesson-a" }) });
+  const second = await LessonPage({ params: Promise.resolve({ lessonId: "lesson-b" }) });
+  assert.equal(first.key, "lesson-a");
+  assert.equal(second.key, "lesson-b");
+});
+
+test("DrillRunner ignores speech events from outside its current audio question", () => {
+  const hooks = createHookHarness();
+  const listeners = new Map();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) ?? new Set();
+      entries.add(listener);
+      listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      listeners.get(type)?.delete(listener);
+    },
+    dispatchEvent(event) {
+      for (const listener of listeners.get(event.type) ?? []) listener(event);
+    }
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{ id: "dictation-1", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  assert.equal(speechCalls.length, 1);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.equal(listeners.has("kirina:speech"), false);
+
+  window.dispatchEvent({ type: "kirina:speech", detail: { type: "playback-start", text: "다른 문장" } });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
 });
 
 function loadLessonEvidencePanels(hooks, {

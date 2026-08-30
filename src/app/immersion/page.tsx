@@ -15,6 +15,7 @@ import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMate
 import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
+import { notifyNowPlayingLocationChange } from "@/lib/learning/player";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
@@ -170,8 +171,16 @@ function ImmersionContent() {
   const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "材料闭环完成";
 
   useEffect(() => {
-    setActiveDraftReady(false);
-    setSelectedMaterialId(requestedMaterialId);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setActiveDraftReady(false);
+      setSelectedMaterialId(requestedMaterialId);
+      notifyNowPlayingLocationChange();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [requestedMaterialId]);
 
   useEffect(() => {
@@ -290,6 +299,7 @@ function ImmersionContent() {
     setActiveDraftReady(false);
     setSelectedMaterialId(materialId);
     window.history.replaceState(null, "", immersionMaterialHref(materialId));
+    notifyNowPlayingLocationChange();
     resetMaterialWork();
   };
 
@@ -301,7 +311,11 @@ function ImmersionContent() {
       setMaterialError("");
       return;
     }
+    suppressDraftSaveRef.current = true;
+    setActiveDraftReady(false);
     if (!clearMaterialArchive(active.id)) {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
       setClearArchiveStatus("error");
       setMaterialError("本段完成记录与输出档案没有清除成功，请释放浏览器存储空间后再试。");
       return;
@@ -312,13 +326,28 @@ function ImmersionContent() {
       delete next[active.id];
       return next;
     });
-    setMaterialError(draftCleared ? "" : "本段完成记录已清除，但草稿断点没有清理成功；请稍后重试或手动清空当前输入。");
     setClearArchiveStatus("cleared");
     setClearArchiveConfirmId("");
-    setCheckedSelfCheckByMaterial((drafts) => {
-      const next = { ...drafts };
-      delete next[active.id];
-      return next;
+    if (draftCleared) {
+      setDictationEvidence("");
+      setRetellEvidence("");
+      setDraft("");
+      setWeakPoint("");
+      setTargetRewrite("");
+      setCheckedRubric([]);
+      setDraftRestoredFor("");
+      setSaveError("");
+      setDraftSaveError("");
+      setCheckedSelfCheckByMaterial((drafts) => {
+        const next = { ...drafts };
+        delete next[active.id];
+        return next;
+      });
+    }
+    setMaterialError(draftCleared ? "" : "本段完成记录已清除，但草稿断点没有清理成功；请释放浏览器存储空间后再试。当前输入仍保留在页面里。");
+    queueMicrotask(() => {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
     });
   };
 
