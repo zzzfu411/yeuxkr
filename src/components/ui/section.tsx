@@ -22,7 +22,7 @@ export function PageHeader({
       <div className="max-w-4xl">
         <p className="eyebrow">{kicker}</p>
         <h1 className={cn(
-          "mt-3 max-w-5xl font-serif font-black leading-[0.96] tracking-normal",
+          "mt-3 max-w-5xl font-serif font-black leading-[1.08] tracking-normal",
           compact ? "text-4xl md:text-5xl" : "text-4xl md:text-6xl"
         )}>
           {title}

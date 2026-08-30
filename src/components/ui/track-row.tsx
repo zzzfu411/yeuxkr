@@ -43,7 +43,7 @@ export function TrackRow({
         {kicker ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--ocean)]">{kicker}</span> : null}
         {completed ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--celadon)]">已掌握</span> : null}
       </span>
-      <strong className="block truncate font-serif text-xl font-black leading-tight">{title}</strong>
+      <strong className="line-clamp-2 block break-words font-serif text-xl font-black leading-tight">{title}</strong>
       {detail ? <span className="mt-0.5 line-clamp-2 block text-sm font-bold leading-5 text-[var(--muted)]">{detail}</span> : null}
     </>
   );
@@ -56,14 +56,14 @@ export function TrackRow({
         {onToggle ? (
           <button
             type="button"
-            className="min-w-0 py-1 text-left"
+            className="min-h-11 min-w-0 py-1 text-left"
             aria-expanded={expanded}
             onClick={onToggle}
           >
             {titleInner}
           </button>
         ) : href ? (
-          <Link href={href} className="min-w-0 py-1 text-left">
+          <Link href={href} className="min-h-11 min-w-0 py-1 text-left">
             {titleInner}
           </Link>
         ) : (

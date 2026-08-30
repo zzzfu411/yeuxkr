@@ -33,7 +33,7 @@ export function TaskCard({
             </span>
           ) : null}
         </div>
-        <h3 className={cn("truncate font-serif font-black leading-tight", compact ? "text-lg" : "text-xl")}>{task.title}</h3>
+        <h3 className={cn("line-clamp-2 break-words font-serif font-black leading-tight", compact ? "text-lg" : "text-xl")}>{task.title}</h3>
         <p className={cn("line-clamp-2 font-bold text-[var(--muted)]", compact ? "text-xs leading-5" : "text-sm leading-5")}>{task.detail}</p>
         {featured && task.reason ? <p className="mt-1 line-clamp-2 text-xs font-bold leading-5 text-[var(--muted)]">{task.reason}</p> : null}
       </div>

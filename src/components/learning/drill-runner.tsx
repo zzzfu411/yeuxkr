@@ -12,10 +12,7 @@ import { checkAnswer, type Question } from "@/lib/learning/quiz";
 import { recordMistake } from "@/lib/learning/srs";
 import {
   speakKorean,
-  stopSpeech,
-  SPEECH_EVENT_NAME,
-  SPEECH_EVENT_PLAYBACK_ERROR,
-  SPEECH_EVENT_PLAYBACK_START
+  stopSpeech
 } from "@/lib/speech";
 
 const INTERACTIVE_TARGET_SELECTOR = [
@@ -82,6 +79,24 @@ interface ResultContext {
   score: number;
   answers: AnswerEntry[];
   finish: () => void;
+}
+
+type AudioPlaybackState = { questionId: string; status: "pending" | "started" | "failed" };
+
+function playQuestionAudio(
+  question: Question,
+  setAudioPlayback: (next: AudioPlaybackState | ((current: AudioPlaybackState) => AudioPlaybackState)) => void,
+  rate?: number
+) {
+  if (!question.speak) return false;
+  const questionId = question.id;
+  return speakKorean(question.speak, {
+    ...(rate === undefined ? {} : { rate }),
+    onstart: () => setAudioPlayback({ questionId, status: "started" }),
+    onerror: () => setAudioPlayback((current) => current.questionId === questionId && current.status === "started"
+      ? current
+      : { questionId, status: "failed" })
+  });
 }
 
 export function DrillRunner({
@@ -171,7 +186,7 @@ export function DrillRunner({
     if (playedListenRef.current === question.id) return;
     playedListenRef.current = question.id;
     let active = true;
-    const started = speakKorean(question.speak);
+    const started = playQuestionAudio(question, setAudioPlayback);
     const playbackTimeout = window.setTimeout(() => {
       if (!active) return;
       setAudioPlayback((current) => current.questionId === question.id && current.status !== "pending"
@@ -189,22 +204,6 @@ export function DrillRunner({
       stopSpeech();
     };
   }, [answers, finished, index, question, voiceStatus]);
-
-  useEffect(() => {
-    if (!audioQuestion || !question) return;
-    const syncPlayback = (event: Event) => {
-      const type = (event as CustomEvent<{ type?: string }>).detail?.type;
-      if (type === SPEECH_EVENT_PLAYBACK_START) {
-        setAudioPlayback({ questionId: question.id, status: "started" });
-      } else if (type === SPEECH_EVENT_PLAYBACK_ERROR) {
-        setAudioPlayback((current) => current.questionId === question.id && current.status === "started"
-          ? current
-          : { questionId: question.id, status: "failed" });
-      }
-    };
-    window.addEventListener(SPEECH_EVENT_NAME, syncPlayback);
-    return () => window.removeEventListener(SPEECH_EVENT_NAME, syncPlayback);
-  }, [audioQuestion, question]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -397,7 +396,7 @@ export function DrillRunner({
         <div className="border-[3px] border-[var(--border)] bg-[var(--yellow)] px-4 py-2 font-mono text-sm font-black text-[#1a1a2e]">{score}%</div>
       </div>
       <div
-        className="mb-5 h-2 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
+        className="mb-5 h-3 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
         role="progressbar"
         aria-label="练习进度"
         aria-valuemin={0}
@@ -414,7 +413,7 @@ export function DrillRunner({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h3 ref={questionHeadingRef} className="focus-ring font-serif text-3xl font-black leading-tight" tabIndex={-1}>{question.prompt}</h3>
           {question.speak && question.type !== "dictation" && voiceStatus === "ready" ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(question.speak!)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => playQuestionAudio(question, setAudioPlayback)}>
               <Volume2 className="h-4 w-4" />
               听
             </Button>
@@ -423,11 +422,11 @@ export function DrillRunner({
 
         {question.type === "dictation" && question.speak && voiceStatus === "ready" ? (
           <div className="mt-6 flex flex-wrap gap-2">
-            <Button type="button" onClick={() => speakKorean(question.speak!)}>
+            <Button type="button" onClick={() => playQuestionAudio(question, setAudioPlayback)}>
               <Volume2 className="h-4 w-4" />
               播放
             </Button>
-            <Button type="button" variant="secondary" onClick={() => speakKorean(question.speak!, { rate: 0.62 })}>
+            <Button type="button" variant="secondary" onClick={() => playQuestionAudio(question, setAudioPlayback, 0.62)}>
               慢速重播
             </Button>
           </div>
@@ -463,7 +462,7 @@ export function DrillRunner({
 
         {question.type === "translate" && question.hint ? (
           <details className="mt-4 text-sm font-bold text-[var(--muted)]">
-            <summary className="cursor-pointer">需要提示？</summary>
+            <summary className="min-h-11 cursor-pointer py-3">需要提示？</summary>
             <p className="mt-1 leading-6">{question.hint}</p>
           </details>
         ) : null}
@@ -515,7 +514,7 @@ export function DrillRunner({
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
                 <span lang={hasKoreanText(choice) ? "ko" : undefined}>{choice}</span>
                 {choiceIndex < 9 ? (
-                  <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
+                  <kbd className="hidden rounded border border-[var(--line)] bg-[color-mix(in_srgb,var(--ink)_6%,transparent)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
                     {choiceIndex + 1}
                   </kbd>
                 ) : null}

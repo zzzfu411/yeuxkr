@@ -5,6 +5,27 @@ export type QueueTrack = Pick<StudyTask, "href" | "title" | "detail" | "minutes"
   completed?: boolean;
 };
 
+export const NOW_PLAYING_LOCATION_EVENT = "kirina:now-playing-location";
+
+export function getNowPlayingLocationSearch() {
+  return typeof window === "undefined" ? "" : window.location.search;
+}
+
+export function subscribeNowPlayingLocation(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(NOW_PLAYING_LOCATION_EVENT, onStoreChange);
+  window.addEventListener("popstate", onStoreChange);
+  return () => {
+    window.removeEventListener(NOW_PLAYING_LOCATION_EVENT, onStoreChange);
+    window.removeEventListener("popstate", onStoreChange);
+  };
+}
+
+export function notifyNowPlayingLocationChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(NOW_PLAYING_LOCATION_EVENT));
+}
+
 export function buildPlayQueue(workspace: LearningWorkspace, isFirstVisit: boolean): QueueTrack[] {
   if (isFirstVisit) return [ONBOARDING_TASK];
   const seen = new Set<string>();

@@ -51,7 +51,7 @@ export default function HomePage() {
           <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--paper)_92%,transparent),color-mix(in_srgb,var(--paper)_40%,transparent),transparent)] md:hidden" />
           <div className="relative flex w-full min-w-0 max-w-5xl flex-col justify-end self-end">
             <p className="eyebrow">오늘의 한국어 · {profile.minutesGoal} min</p>
-            <h1 className="mt-3 w-full max-w-4xl font-serif text-[2.4rem] font-black leading-[0.98] tracking-normal sm:text-5xl md:text-6xl">
+            <h1 className="mt-3 w-full max-w-4xl font-serif text-[2.4rem] font-black leading-[1.08] tracking-normal sm:text-5xl md:text-6xl">
               {isFirstVisit ? "从韩文字块开始，今天读出第一句。" : "把今天最值得的那一首按下去。"}
             </h1>
             <p className="mt-4 w-full max-w-2xl text-base font-bold leading-7 text-[var(--muted)] md:text-lg md:leading-8">
@@ -77,7 +77,7 @@ export default function HomePage() {
                 </Button>
               )}
             </div>
-            <div className="mt-4 grid w-full min-w-0 max-w-full grid-cols-4 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--card)_90%,transparent)] p-2 shadow-paper-sm backdrop-blur lg:hidden">
+            <div className="mt-4 grid w-full min-w-0 max-w-full grid-cols-2 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--card)_90%,transparent)] p-2 shadow-paper-sm backdrop-blur sm:grid-cols-4 lg:hidden">
               <MobileHeroMetric icon={BookOpenCheck} label="课程" value={`${workspace.stats.completedLessons}/${workspace.stats.totalLessons}`} />
               <MobileHeroMetric icon={TimerReset} label="到期" value={String(srs.due)} />
               <MobileHeroMetric icon={CircleAlert} label="错题" value={mistakeMetric} />

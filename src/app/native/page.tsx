@@ -287,7 +287,7 @@ export default function NativePage() {
                 {inAppPortfolioComplete ? "站内阶段已跑通" : "证据收集中"}
               </span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--track)]">
               <div className="h-full bg-[var(--celadon)]" style={{ width: `${stageProgress}%` }} />
             </div>
           </div>

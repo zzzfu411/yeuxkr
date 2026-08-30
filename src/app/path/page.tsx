@@ -467,7 +467,7 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
         <span className="shrink-0 font-mono">{value}%</span>
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]"
+        className="h-2 overflow-hidden rounded-full bg-[var(--track)]"
         role="progressbar"
         aria-label={`${label}：${detail}`}
         aria-valuemin={0}
@@ -480,5 +480,4 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
     </div>
   );
 }
-
 

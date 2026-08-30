@@ -97,7 +97,7 @@ export function SegmentedFilter({
               "focus-ring min-h-11 rounded-none border-[3px] px-3 text-sm font-extrabold transition",
               value === item.id
                 ? "border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)]"
-                : "border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--yellow)] hover:text-[var(--ink)]"
+                : "border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--yellow)] hover:text-[#1a1a2e]"
             )}
             onClick={() => onChange(item.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}

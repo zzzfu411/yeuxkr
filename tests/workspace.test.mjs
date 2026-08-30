@@ -13,6 +13,7 @@ import { getNextLesson, lessons, UNLOCK_SCORE } from "../src/data/curriculum.js"
 import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } from "../src/data/native-roadmap.js";
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
 import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
+import { buildGateQuestions } from "../src/lib/learning/gate.ts";
 import { ensureCard, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
 import { buildLessonBridge, lessonReviewCardIds, lessonsWithoutTransferMaterials } from "../src/lib/learning/lesson-bridge.ts";
 import { hangulQuestionId, lessonReviewCardId, materialCardId, materialRetellQuestionId, mistakeCardId, nativeCardId, outputCardId, outputTransferQuestionId, pronunciationCardId, pronunciationQuestionId, soundChangeCardId, vocabCardId, vocabClozeQuestionId, vocabDictationQuestionId, vocabQuestionId } from "../src/lib/learning/ids.ts";
@@ -2359,6 +2360,29 @@ test("removing Hangul and pronunciation practice clears derived mistake cards", 
   assert.equal(getSrsState().cards[pronunciationCardId(pairId)], undefined);
   assert.equal(getSrsState().cards[mistakeCardId(pronunciationQuestionId(pairId))], undefined);
   assert.equal(JSON.parse(store.get(progressStorageKey)).completedTasks["ability:listening"], undefined);
+});
+
+test("removing mastered items clears their mastery-gate mistake cards", () => {
+  store.clear();
+  const cases = [
+    { kind: "hangul", itemId: firstHangulId, toggle: toggleHangulItem },
+    { kind: "pronunciation", itemId: pronunciationPairs[0].id, toggle: togglePronunciationPair },
+    { kind: "soundChange", itemId: soundChangeRules[0].id, toggle: toggleSoundChangeRule },
+    { kind: "vocab", itemId: firstVocabId, toggle: toggleVocabItem },
+    { kind: "grammar", itemId: allGrammarIds[0], toggle: toggleGrammarPoint }
+  ];
+
+  for (const item of cases) {
+    assert.equal(item.toggle(item.itemId, defaultProgress()), true);
+    const gateMistakeIds = buildGateQuestions(item.kind, item.itemId).map((question) => mistakeCardId(question.id));
+    assert.ok(gateMistakeIds.length > 0);
+    for (const id of gateMistakeIds) {
+      ensureCard(id, { kind: "mistake", itemId: id.slice("mistake:".length), prompt: "Gate mistake", answer: "a" });
+    }
+
+    assert.equal(item.toggle(item.itemId, JSON.parse(store.get(progressStorageKey))), true);
+    for (const id of gateMistakeIds) assert.equal(getSrsState().cards[id], undefined);
+  }
 });
 
 test("removing self-study SRS items clears the matching ability task completion", () => {

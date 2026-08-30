@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         跳到正文
       </a>
       <div className="editorial-shell">
-        <header className="sticky top-0 z-40 border-b-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-xl">
+        <header className="sticky top-0 z-[46] border-b-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-xl">
         <div className="mx-auto grid w-full min-w-0 max-w-[1480px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
           <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-3">
             <span className="logo-mark">YEUX KR!</span>
