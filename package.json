@@ -18,7 +18,8 @@
     "smoke:http": "node scripts/http-smoke.mjs",
     "smoke:browser": "node scripts/smoke-browser.mjs",
     "check:smoke": "node scripts/check-smoke.mjs",
-    "check:all": "npm run check && npm run check:smoke"
+    "check:all": "npm run check && npm run check:smoke",
+    "docs:screenshots": "node scripts/capture-readme-screenshots.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
