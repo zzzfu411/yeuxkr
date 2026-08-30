@@ -1,54 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, DM_Sans, Ma_Shan_Zheng, Noto_Sans_KR, Noto_Sans_SC, Noto_Serif_KR } from "next/font/google";
+import "@fontsource-variable/caveat";
+import "@fontsource-variable/noto-serif-kr";
+import "@fontsource/ma-shan-zheng/chinese-simplified-400.css";
+import "@fontsource/ma-shan-zheng/latin-400.css";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-ui",
-  weight: ["400", "500", "600", "700", "800", "900"],
-  display: "swap"
-});
-
-const notoSansSc = Noto_Sans_SC({
-  subsets: ["latin"],
-  variable: "--font-sc",
-  weight: ["400", "500", "700", "900"],
-  display: "swap"
-});
-
-const notoSansKr = Noto_Sans_KR({
-  subsets: ["latin"],
-  variable: "--font-kr",
-  weight: ["400", "500", "700", "900"],
-  display: "swap"
-});
-
-const notoSerifKr = Noto_Serif_KR({
-  subsets: ["latin"],
-  variable: "--font-hangul",
-  weight: ["400", "700", "900"],
-  display: "swap"
-});
-
-const maShanZheng = Ma_Shan_Zheng({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: "400",
-  display: "swap"
-});
-
-const caveat = Caveat({
-  subsets: ["latin"],
-  variable: "--font-en",
-  weight: ["400", "600", "700"],
-  display: "swap"
-});
-
 export const metadata: Metadata = {
-  title: "Kirina Korean | YEUX KR 韩语播放器",
-  description: "纸面上的韩语学习唱机。路径、复习、真实材料共用同一条播放队列。",
+  title: "Kirina Korean | YEUX KR 韩语手帖",
+  description: "在纸上读、听、写韩语。课程、复习与真实材料收进同一本学习手帖。",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "Kirina Korean | YEUX KR",
+    description: "纸上的韩语学习手帖。",
+    images: [{ url: "/assets/generated/hero.webp", alt: "Kirina Korean paper study still life" }]
+  },
   icons: {
     icon: "/assets/icon-192.png",
     apple: "/assets/icon-192.png"
@@ -59,8 +25,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#facc15" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" }
+    { media: "(prefers-color-scheme: light)", color: "#d8d3cc" },
+    { media: "(prefers-color-scheme: dark)", color: "#2a2733" }
   ]
 };
 
@@ -69,16 +35,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="zh-CN"
       suppressHydrationWarning
-      className={`${dmSans.variable} ${notoSansSc.variable} ${notoSansKr.variable} ${notoSerifKr.variable} ${maShanZheng.variable} ${caveat.variable}`}
     >
       <head>
+        <link rel="preload" href="/assets/fonts/lxgw-wenkai-screen.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("yeuxkr.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`
+            __html: `(function(){try{var t=localStorage.getItem("yeuxkr.theme");if(t==="dark")t="ye";if(t==="light")t="yuan";if(!/^(yuan|yue|qing|ye)$/.test(t||""))t="yuan";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","yuan");}})();`
           }}
         />
       </head>
       <body>
+        <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}>
+          <filter id="roughen">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.014" numOctaves="2" seed="7" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
         <AppShell>{children}</AppShell>
       </body>
     </html>

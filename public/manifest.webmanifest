@@ -1,7 +1,7 @@
 {
   "name": "Kirina Korean",
   "short_name": "Kirina",
-  "description": "从零基础到母语者级韩语的在线自由学习工作台。",
+  "description": "纸上的韩语学习手帖：课程、复习、听写与真实材料。",
   "id": "/",
   "lang": "zh-CN",
   "dir": "ltr",
@@ -12,7 +12,7 @@
   "orientation": "any",
   "categories": ["education", "productivity"],
   "background_color": "#d8d3cc",
-  "theme_color": "#facc15",
+  "theme_color": "#d8d3cc",
   "icons": [
     {
       "src": "/assets/icon-192.png",
@@ -83,14 +83,14 @@
       "sizes": "1440x980",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Kirina Korean 桌面学习工作台与今日任务"
+      "label": "Kirina Korean 桌面纸张主题与今日学习"
     },
     {
       "src": "/assets/screenshots/home-narrow.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Kirina Korean 移动端今日任务与学习证据"
+      "label": "Kirina Korean 移动端纸张主题与今日学习"
     }
   ]
 }

@@ -394,10 +394,10 @@ export function DrillRunner({
           <p className="eyebrow">Practice</p>
           <h2 className="mt-1 font-serif text-2xl font-black">练习 {index + 1} / {questions.length}</h2>
         </div>
-        <div className="border-[3px] border-[var(--border)] bg-[var(--yellow)] px-4 py-2 font-mono text-sm font-black text-[#1a1a2e]">{score}%</div>
+        <div className="border border-[var(--line)] bg-[var(--paper-hi)] px-4 py-2 font-script text-sm text-[var(--ink-soft)]">{score}%</div>
       </div>
       <div
-        className="mb-5 h-2 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
+        className="mb-5 h-2 overflow-hidden border border-[var(--line)] bg-[var(--track)]"
         role="progressbar"
         aria-label="练习进度"
         aria-valuemin={0}
@@ -405,7 +405,7 @@ export function DrillRunner({
         aria-valuenow={answeredCount}
       >
         <div
-          className="h-full bg-[var(--yellow)] transition-all duration-300"
+          className="h-full bg-[var(--seal)] transition-all duration-300"
           style={{ width: `${Math.round((answeredCount / Math.max(1, questions.length)) * 100)}%` }}
         />
       </div>

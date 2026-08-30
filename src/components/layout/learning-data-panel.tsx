@@ -116,16 +116,17 @@ export function LearningDataPanel() {
           if (!(event.currentTarget as HTMLDetailsElement).open) setConfirmReset(false);
         }}
       >
-        <summary className="focus-ring inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 text-sm font-extrabold text-[var(--muted)] shadow-[3px_3px_0_var(--shadow-color)] transition hover:bg-[var(--yellow)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <summary className="focus-ring inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">学习数据</span>
-          {status !== "idle" ? <span className="font-mono text-[0.68rem] font-black text-[var(--celadon-text)]">{statusLabels[status]}</span> : null}
+          {status !== "idle" ? <span className={`font-script text-xs font-normal ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
           <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
-        <div className="absolute right-0 top-[calc(100%+0.55rem)] z-50 grid w-[min(20rem,calc(100vw-1.5rem))] gap-3 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] p-3 shadow-brutal backdrop-blur-xl">
+        <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid w-[min(20rem,calc(100vw-1.5rem))] gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
+          <span className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 -rotate-2 border-x border-dashed border-[var(--tape-edge)] bg-[var(--tape)] opacity-70" aria-hidden="true" />
           <div>
             <p className="eyebrow">Local Data</p>
-            <strong className="mt-1 block font-serif text-xl">备份与存储</strong>
+            <strong className="mt-1 block font-brush text-xl font-normal">备份与存储</strong>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button type="button" variant="secondary" size="sm" title="导出本地学习数据" onClick={exportData}>
@@ -136,7 +137,7 @@ export function LearningDataPanel() {
               <Upload className="h-4 w-4" />
               导入
             </Button>
-            <Button type="button" variant={confirmReset ? "primary" : "ghost"} size="sm" title="重置本地学习数据" onClick={() => void resetData()}>
+            <Button type="button" variant={confirmReset ? "danger" : "ghost"} size="sm" title="重置本地学习数据" onClick={() => void resetData()}>
               <RotateCcw className="h-4 w-4" />
               {confirmReset ? "确认重置" : "重置"}
             </Button>
@@ -145,17 +146,17 @@ export function LearningDataPanel() {
               保护存储
             </Button>
           </div>
-          <p className="text-xs font-bold leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品；麦克风录音不会导出，迁移后需重新录制相关证据。</p>
-          {confirmReset ? <p className="text-xs font-bold leading-5 text-[var(--cinnabar)]">再次点击会清空本机课程、复习卡、输出档案和录音。</p> : null}
+          <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品；麦克风录音不会导出，迁移后需重新录制相关证据。</p>
+          {confirmReset ? <p className="border-l-2 border-[var(--seal)] pl-2 text-xs font-normal leading-5 text-[var(--cinnabar)]">再次点击会清空本机课程、复习卡、输出档案和录音。</p> : null}
           <div className="flex min-h-6 flex-wrap gap-2" aria-live="polite">
             {status !== "idle" ? (
-              <span className="rounded-none border border-[var(--line)] bg-[var(--card)] px-2 py-1 font-mono text-[0.68rem] font-black uppercase text-[var(--muted)]" role="status">
+              <span className={`rounded-[var(--radius)] border px-2 py-1 font-script text-xs font-normal ${panelStatusClassName(status)}`} role="status">
                 {statusLabels[status]}
               </span>
             ) : null}
             {storageStatus === "checking" || storageHealth ? (
               <span
-                className={`rounded-none border px-2 py-1 font-mono text-[0.68rem] font-black uppercase ${storageHealthClassName(storageHealth)}`}
+                className={`rounded-[var(--radius)] border px-2 py-1 font-script text-xs font-normal ${storageHealthClassName(storageHealth)}`}
                 role="status"
                 title={storageHealth?.detail ?? "正在检查本地存储状态"}
               >
@@ -169,8 +170,20 @@ export function LearningDataPanel() {
   );
 }
 
+function panelStatusTextClassName(status: Exclude<PanelStatus, "idle">) {
+  if (status === "invalid" || status === "error") return "text-[var(--cinnabar)]";
+  return "text-[var(--celadon-text)]";
+}
+
+function panelStatusClassName(status: Exclude<PanelStatus, "idle">) {
+  if (status === "invalid" || status === "error") {
+    return "border-[color-mix(in_srgb,var(--seal)_56%,var(--line))] bg-[var(--seal-soft)] text-[var(--cinnabar)]";
+  }
+  return "border-[color-mix(in_srgb,var(--green)_42%,var(--line))] bg-[var(--green-soft)] text-[var(--celadon-text)]";
+}
+
 function storageHealthClassName(health: LearningStorageHealth | null) {
-  if (!health) return "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]";
+  if (!health) return "border-[var(--line)] bg-[var(--wash-1)] text-[var(--muted)]";
   if (health.status === "secure") return "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon-text)]";
   if (health.status === "critical" || health.status === "error") return "border-[var(--seal)] bg-[var(--seal-soft)] text-[var(--cinnabar)]";
   return "border-[rgba(197,148,77,0.42)] bg-[rgba(197,148,77,0.12)] text-[var(--brass-text)]";

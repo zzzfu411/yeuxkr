@@ -84,7 +84,7 @@ function ReviewContent() {
       <ReviewHeader />
 
       <Surface>
-        <SectionHeading kicker="Due Queue" title="到期队列" />
+        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
         {questions.length ? (
           <DrillRunner
             key={sessionKey}
@@ -105,9 +105,11 @@ function ReviewContent() {
             }}
           />
         ) : (
-          <div className="grid gap-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
-            <div>
-              <h2 className="font-serif text-3xl font-black">现在没有到期复习</h2>
+          <div className="studio-panel relative grid gap-4 overflow-hidden md:grid-cols-[minmax(0,1fr)_16rem]">
+            <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+            <div className="paper-rail p-5 pt-8">
+              <p className="eyebrow">오늘은 맑음 · Clear today</p>
+              <h2 className="inkline mt-2 font-serif text-3xl font-normal">现在没有到期复习</h2>
               <p className="mt-2 leading-7 text-[var(--muted)]">
                 {needsOnboardingFunnel(profile, progress)
                   ? "先完成入门，再把卡片送进复习队列。"
@@ -144,11 +146,11 @@ function ReviewContent() {
                 )}
               </div>
             </div>
-            <VisualPanel asset="empty" className="min-h-52" />
+            <VisualPanel asset="empty" treatment="inset" className="min-h-52 border-0 shadow-none" />
           </div>
         )}
         {reviewError ? (
-          <p className="mt-4 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+          <p className="mt-4 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] px-4 py-3 text-sm leading-6 text-[var(--cinnabar)]" role="alert">
             {reviewError}
           </p>
         ) : null}
@@ -178,13 +180,15 @@ function ReviewLoading() {
     <div className="grid gap-6">
       <ReviewHeader />
       <Surface>
-        <SectionHeading kicker="Due Queue" title="到期队列" />
-        <div className="grid gap-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
-          <div>
-            <h2 className="font-serif text-3xl font-black">正在读取本机复习队列</h2>
+        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
+        <div className="studio-panel relative grid gap-4 overflow-hidden md:grid-cols-[minmax(0,1fr)_16rem]">
+          <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+          <div className="paper-rail p-5 pt-8">
+            <p className="eyebrow">잠시 · A quiet moment</p>
+            <h2 className="inkline mt-2 font-serif text-3xl font-normal">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
           </div>
-          <VisualPanel asset="review" decorative className="min-h-52" />
+          <VisualPanel asset="review" decorative treatment="inset" className="min-h-52 border-0 shadow-none" />
         </div>
       </Surface>
       <ReviewStatusHero srs={{ total: 0, due: 0, mature: 0, shaky: 0 }} />
@@ -195,7 +199,7 @@ function ReviewLoading() {
 function ReviewHeader() {
   return (
     <PageHeader
-      kicker="Review"
+      kicker="복습 · Review"
       title="复习先于新课。"
       copy="SRS 是按间隔重复出现的复习卡。答对会延后出现，答错会回到盒子 0（今天重新复习）。课程错题、韩文和词汇卡片都会进入这里。"
       compact
@@ -213,7 +217,7 @@ function ReviewHeader() {
 function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: number; shaky: number } }) {
   return (
     <ModuleHero
-      kicker="SRS Status"
+      kicker="간격 기록 · SRS notes"
       title="到期先清掉，新的才稳。"
       copy="复习队列只处理已经学过或自己送进来的材料；盒子数字越小，越需要近期照顾。答错回到盒子 0，答对再延后出现。"
       asset="review"
@@ -230,9 +234,9 @@ function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: 
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-      <strong className="block font-serif text-2xl font-black">{value}</strong>
-      <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
+    <div className="border-t border-[var(--line)] bg-[var(--wash-1)] px-3 py-3 shadow-[inset_0_1px_0_var(--sheen)]">
+      <strong className="block font-serif text-2xl font-normal">{value}</strong>
+      <span className="font-[family-name:var(--font-script)] text-sm text-[var(--muted)]">{label}</span>
     </div>
   );
 }

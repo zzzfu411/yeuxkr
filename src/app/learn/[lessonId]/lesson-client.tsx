@@ -117,8 +117,8 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid overflow-hidden rounded-none border border-[var(--line)] lg:grid-cols-[minmax(0,1fr)_28rem]">
-        <div className="bg-[var(--card)] p-5 md:p-6">
+      <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_28rem]">
+        <div className="paper-rail p-5 md:p-6">
           <Button asChild variant="ghost" size="sm">
             <Link href="/path">
               <ArrowLeft className="h-4 w-4" />
@@ -128,13 +128,13 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <p className="eyebrow mt-5">
             Lesson {lesson.order} · {lesson.duration} min
           </p>
-          <h1 className="mt-2 max-w-4xl font-serif text-4xl font-black leading-tight md:text-6xl">
+          <h1 className="inkline mt-2 max-w-4xl font-serif text-4xl font-normal leading-tight md:text-6xl">
             {lesson.title}
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-[var(--muted)]">{lesson.subtitle}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {lesson.focus.map((item: string) => (
-              <span key={item} className="rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-sm font-bold">
+              <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] px-3 py-1 text-sm font-medium">
                 {item}
               </span>
             ))}
@@ -153,19 +153,19 @@ export function LessonClient({ lesson }: { lesson: any }) {
             )}
           </Button>
           {completed ? (
-            <div className="mt-5 w-fit rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold text-[var(--celadon)]">
+            <div className="mt-5 w-fit rounded-[var(--radius)] border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-medium text-[var(--celadon)]">
               本课已完成，当前最高分 {workspace.progress.lessonScores[lesson.id] ?? 0}%。
             </div>
           ) : null}
           {needsOnboarding ? (
-            <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass)]">
+            <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
               还没完成三分钟入门。先确认目标和韩文输入，第一课才会写入核心路径。
               <Link href="/onboarding" className="ml-2 underline decoration-2 underline-offset-2">
                 去入门
               </Link>
             </div>
           ) : !unlocked ? (
-            <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass)]">
+            <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
               这是旁路预览：
               {missingPrerequisites.length
                 ? `核心路径建议先把 ${missingPrerequisites.map((item: any) => item.title).join("、")} 达到 ${UNLOCK_SCORE}%。`
@@ -177,7 +177,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             </div>
           ) : null}
         </div>
-        <VisualPanel asset={getLessonVisualAsset(lesson.id)} priority sizes="(max-width: 1024px) 100vw, 28rem" className="min-h-56 rounded-none border-0 md:min-h-80" />
+        <VisualPanel asset={getLessonVisualAsset(lesson.id)} priority sizes="(max-width: 1024px) 100vw, 28rem" className="min-h-56 border-0 md:min-h-80" />
       </section>
 
       <div id="lesson-content" className="grid scroll-mt-40 gap-5 lg:scroll-mt-28 lg:grid-cols-[24rem_minmax(0,1fr)]">
@@ -185,16 +185,16 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <p className="eyebrow">Objectives</p>
           <div className="mt-4 grid gap-2">
             {lesson.objectives.map((item: string) => (
-              <span key={item} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-sm font-bold leading-6">
+              <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-3 text-sm font-medium leading-6">
                 {item}
               </span>
             ))}
           </div>
-          <div className="mt-5 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
-            <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">能力证据</p>
+          <div className="mt-5 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3">
+            <p className="eyebrow">能力证据</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {bridge.abilities.map((ability) => (
-                <span key={ability} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2 py-1 text-xs font-black text-[var(--ocean)]">
+                <span key={ability} className="border-b border-[var(--line)] px-2 py-1 text-xs font-medium text-[var(--ink-soft)]">
                   {ABILITY_LABELS[ability]}
                 </span>
               ))}
@@ -226,7 +226,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                       text={entry.romanization}
                       preference={workspace.profile.romanization}
                       scaffold={romanizationScaffold}
-                      className="font-mono text-xs font-black text-[var(--ocean)]"
+                      className="font-mono text-xs font-medium text-[var(--ink-soft)]"
                     />
                     {entry.examples?.length ? (
                       <div className="grid gap-1.5">
@@ -234,13 +234,13 @@ export function LessonClient({ lesson }: { lesson: any }) {
                           <button
                             key={example.ko}
                             type="button"
-                            className="focus-ring flex flex-wrap items-baseline gap-2 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
+                            className="focus-ring flex flex-wrap items-baseline gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--card)] p-2 text-left transition-colors hover:bg-[var(--wash-2)]"
                             onClick={() => speakKorean(example.ko)}
                             aria-label={`播放 ${example.ko}`}
                           >
-                            <span className="hangul-display text-lg font-black" lang="ko">{example.ko}</span>
+                            <span className="hangul-display text-lg font-normal" lang="ko">{example.ko}</span>
                             <span className="text-sm text-[var(--muted)]">{example.zh}</span>
-                            {example.note ? <span className="text-xs font-bold text-[var(--brass)]">{example.note}</span> : null}
+                            {example.note ? <span className="text-xs font-medium text-[var(--ink-mute)]">{example.note}</span> : null}
                           </button>
                         ))}
                       </div>
@@ -271,9 +271,9 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
           <Surface>
             {needsOnboarding ? (
-              <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                 <div>
-                  <strong className="font-serif text-2xl font-black">先完成三分钟入门</strong>
+                  <strong className="font-serif text-2xl font-normal">先完成三分钟入门</strong>
                   <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
                     确认目标和韩文输入后，第一课才会写入核心路径。
                   </p>
@@ -288,17 +288,17 @@ export function LessonClient({ lesson }: { lesson: any }) {
             ) : (
               <>
             {restoredSession && restoredSession.answers.length ? (
-              <div className="mb-4 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--muted)]">
+              <div className="mb-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--muted)]">
                 已恢复上次练习：第 {restoredSession.currentIndex + 1} 题，已保存 {restoredSession.answers.length}/{questions.length} 个回答。完成保存后会自动清除这个断点。
               </div>
             ) : null}
             {sessionSaveError ? (
-              <div className="mb-4 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+              <div className="mb-4 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-medium leading-6 text-[var(--seal-ink)]">
                 本次练习断点没有写入本地存储。你可以继续完成本页，但刷新或离开后可能无法恢复到当前题；请释放浏览器存储空间后再继续长期学习。
               </div>
             ) : null}
             {sessionClearError ? (
-              <div className="mb-4 grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                 <span>成绩已经写入进度，但本课断点没有清理成功。刷新后可能还会恢复旧练习，请释放浏览器存储空间后重试清理。</span>
                 <Button type="button" variant="secondary" size="sm" onClick={retryClearLessonSession}>
                   重试清理断点
@@ -428,8 +428,8 @@ function LessonResultActions({
 }) {
   if (saveError) {
     return (
-      <div className="grid gap-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-4">
-        <strong className="font-serif text-2xl font-black text-[var(--cinnabar)]">成绩没有写入本地进度</strong>
+      <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-4">
+        <strong className="font-serif text-2xl font-normal text-[var(--seal-ink)]">成绩没有写入本地进度</strong>
         <p className="text-sm font-bold leading-6 text-[var(--muted)]">
           请释放浏览器存储空间或关闭隐私限制后再试。页面不会离开，避免误以为已经完成。
         </p>
@@ -443,9 +443,9 @@ function LessonResultActions({
   if (savedScore === null) {
     if (score >= UNLOCK_SCORE && !completionGateReady) {
       return (
-        <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <strong className="font-serif text-2xl font-black">固定题已达标，还差{completionGateLabel ?? "本课作品"}</strong>
+            <strong className="font-serif text-2xl font-normal">固定题已达标，还差{completionGateLabel ?? "本课作品"}</strong>
             <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">先完成并保存作品证据，本课才会写入核心路径。</p>
           </div>
           {completionGateHref ? (
@@ -458,9 +458,9 @@ function LessonResultActions({
     }
     if (score >= UNLOCK_SCORE && !assessment.corePassed) {
       return (
-        <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <strong className="font-serif text-2xl font-black">总分达标，分项还没过</strong>
+            <strong className="font-serif text-2xl font-normal">总分达标，分项还没过</strong>
             <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">{lessonAssessmentMessage(assessment)}</p>
           </div>
           <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>保存本次结果</Button>
@@ -476,9 +476,9 @@ function LessonResultActions({
 
   if (!corePathSaved) {
     return (
-      <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+      <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
         <div>
-          <strong className="font-serif text-2xl font-black">{unlocked ? "成绩已保存，但还未达标" : "预览成绩已保存"}</strong>
+          <strong className="font-serif text-2xl font-normal">{unlocked ? "成绩已保存，但还未达标" : "预览成绩已保存"}</strong>
           <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
             {unlocked
               ? `${lessonAssessmentMessage(assessment)} 核心路径需要总分与分项同时达标，才会生成整课复习卡并解锁下一课。`
@@ -510,9 +510,9 @@ function LessonResultActions({
   const reviewFirst = dueCount > 0;
   const libraryFirst = Boolean(libraryHref);
   return (
-    <div className="grid gap-3 rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+    <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--green)] bg-[var(--green-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div>
-        <strong className="font-serif text-2xl font-black">{unlocked ? "课程成绩已保存" : "预览成绩已保存"}</strong>
+        <strong className="font-serif text-2xl font-normal">{unlocked ? "课程成绩已保存" : "预览成绩已保存"}</strong>
         <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
           {unlocked
             ? reviewFirst
@@ -824,9 +824,9 @@ function LessonTaskEvidencePanel({
       <p className="max-w-3xl leading-7 text-[var(--muted)]">{task.prompt}</p>
 
       {task.source ? (
-        <div className="mt-4 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-4">
+        <div className="mt-4 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <strong className="font-mono text-xs uppercase text-[var(--ocean)]">Practice Source</strong>
+            <strong className="eyebrow">Practice Source · 原文</strong>
             <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(task.source!)}>
               <Volume2 className="h-4 w-4" aria-hidden="true" />
               播放
@@ -834,17 +834,17 @@ function LessonTaskEvidencePanel({
           </div>
           {task.kind === "retell" ? (
             <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-black">打开原文，听完后请合上</summary>
+              <summary className="cursor-pointer text-sm font-medium">打开原文，听完后请合上</summary>
               <p className="hangul-display mt-3 text-lg font-bold leading-8" lang="ko">{task.source}</p>
             </details>
           ) : (
-            <p className="hangul-display mt-3 text-xl font-black leading-8" lang="ko">{task.source}</p>
+            <p className="hangul-display mt-3 text-xl font-normal leading-8" lang="ko">{task.source}</p>
           )}
         </div>
       ) : null}
 
       {task.kind === "shadowing" ? (
-        <div className="mt-4 grid gap-3 rounded-none border border-[var(--line)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="mt-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
             <strong>最后一轮录音</strong>
             <p className="mt-1 text-sm font-bold text-[var(--muted)]">
@@ -866,10 +866,10 @@ function LessonTaskEvidencePanel({
         </div>
       ) : null}
 
-      <label className="mt-4 grid gap-2 text-sm font-black">
+      <label className="mt-4 grid gap-2 text-sm font-semibold">
         {task.kind === "shadowing" ? "无法录音时：听后凭记忆复现整句" : task.kind === "retell" ? "你的韩语复述" : "你的韩语段落"}
         <textarea
-          className="focus-ring hangul-display min-h-40 w-full resize-y rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-4 text-lg font-bold leading-8"
+          className="focus-ring hangul-display min-h-40 w-full resize-y rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-4 text-lg font-normal leading-8"
           value={text}
           lang="ko"
           spellCheck={false}
@@ -878,7 +878,7 @@ function LessonTaskEvidencePanel({
         />
       </label>
 
-      <div className="mt-4 grid gap-2 rounded-none border border-[var(--line)] bg-[var(--green-soft)] p-4">
+      <div className="mt-4 grid gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--green-soft)] p-4">
         {check.checks.map((item) => (
           <span key={item.id} className={`flex items-center gap-2 text-sm font-bold ${item.passed ? "text-[var(--celadon-text)]" : "text-[var(--muted)]"}`}>
             {item.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4 rounded-full border border-[var(--line-strong)]" aria-hidden="true" />}
@@ -888,7 +888,7 @@ function LessonTaskEvidencePanel({
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button type="button" onClick={save} disabled={!check.ready}>保存作品</Button>
-        {saved ? <span className="text-sm font-black text-[var(--celadon-text)]">已保存有效证据</span> : null}
+        {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">已保存有效证据</span> : null}
         {message ? <span className="text-sm font-bold text-[var(--muted)]" role="status">{message}</span> : null}
       </div>
     </Surface>
@@ -1164,18 +1164,18 @@ function CapstoneEvidencePanel({
   };
 
   return (
-    <Surface className="border-[var(--border)]" >
+    <Surface className="border-[var(--line)]">
       <div id="capstone-evidence" className="scroll-mt-40 lg:scroll-mt-28">
         <SectionHeading
           kicker="Capstone Evidence"
           title="保存终课作品，再确认达标"
           copy="固定题只能检查结构识别。终课还必须留下至少两分钟的真实口语录音、可复查的韩语输出稿、弱点和目标改写，才能成为作品证据。"
         />
-        <div className="mb-4 grid gap-3 rounded-none border border-[var(--line-strong)] bg-[var(--seal-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--seal-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <strong>两分钟真实口语录音</strong>
-              <span className={`flex items-center gap-1.5 text-xs font-black ${recordingCheck.passed ? "text-[var(--celadon-text)]" : "text-[var(--cinnabar)]"}`}>
+              <span className={`flex items-center gap-1.5 text-xs font-semibold ${recordingCheck.passed ? "text-[var(--celadon-text)]" : "text-[var(--seal-ink)]"}`}>
                 {recordingCheck.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <Radio className="h-4 w-4" aria-hidden="true" />}
                 {recordingCheck.passed ? "时长已达标" : `至少 ${CAPSTONE_MIN_RECORDED_SECONDS} 秒`}
               </span>
@@ -1203,10 +1203,10 @@ function CapstoneEvidencePanel({
           )}
         </div>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
-          <label className="grid gap-2 text-sm font-extrabold">
+          <label className="grid gap-2 text-sm font-semibold">
             两分钟结构化输出稿
             <textarea
-              className="focus-ring min-h-72 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
+              className="focus-ring min-h-72 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-3 leading-7"
               value={draft.transcript}
               lang="ko"
               spellCheck={false}
@@ -1219,8 +1219,8 @@ function CapstoneEvidencePanel({
             <span className="text-xs font-bold text-[var(--muted)]">韩文字符 {hangulCount}/{CAPSTONE_MIN_HANGUL}，建议先口述录音，再把实际表达转写到这里。</span>
           </label>
           <div className="grid content-start gap-3">
-            <div className="grid gap-1.5 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
-              <strong className="font-mono text-xs uppercase text-[var(--ocean)]">系统结构检查</strong>
+            <div className="grid gap-1.5 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3">
+              <strong className="eyebrow">系统结构检查</strong>
               {systemChecks.map((check) => (
                 <span key={check.id} className={`flex items-center gap-2 text-xs font-bold ${check.passed ? "text-[var(--celadon-text)]" : "text-[var(--muted)]"}`}>
                   {check.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4 rounded-full border border-[var(--line-strong)]" aria-hidden="true" />}
@@ -1232,7 +1232,7 @@ function CapstoneEvidencePanel({
               {capstoneRubric.map((item) => {
                 const checked = draft.rubric.includes(item.id);
                 return (
-                  <label key={item.id} className={`focus-ring grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-none border p-3 text-sm font-bold ${checked ? "border-[var(--green)] bg-[var(--green-soft)]" : "border-[var(--line)] bg-[var(--surface-solid)]"}`}>
+                  <label key={item.id} className={`focus-ring grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border p-3 text-sm font-medium ${checked ? "border-[var(--green)] bg-[var(--green-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
                     <input className="sr-only" type="checkbox" checked={checked} onChange={() => toggleRubric(item.id)} />
                     <span className={`grid h-6 w-6 place-items-center rounded-[6px] border ${checked ? "border-[var(--celadon)] bg-[var(--celadon)] text-white" : "border-[var(--line-strong)]"}`}>
                       {checked ? <CheckCircle2 className="h-4 w-4" /> : null}
@@ -1242,10 +1242,10 @@ function CapstoneEvidencePanel({
                 );
               })}
             </div>
-            <label className="grid gap-2 text-sm font-extrabold">
+            <label className="grid gap-2 text-sm font-semibold">
               当前最需要修正的弱点
               <input
-                className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                className="focus-ring min-h-11 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] px-3"
                 value={draft.weakPoint}
                 onChange={(event) => {
                   setStatus("idle");
@@ -1254,10 +1254,10 @@ function CapstoneEvidencePanel({
                 placeholder="例如：理由展开太短，转折仍像中文"
               />
             </label>
-            <label className="grid gap-2 text-sm font-extrabold">
+            <label className="grid gap-2 text-sm font-semibold">
               送回复习的目标改写
               <textarea
-                className="focus-ring min-h-24 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
+                className="focus-ring min-h-24 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-3 leading-7"
                 value={draft.targetRewrite}
                 lang="ko"
                 spellCheck={false}
@@ -1308,15 +1308,15 @@ function LessonBridgePanel({
           <Link
             key={step.id}
             href={step.href}
-            className={`focus-ring grid min-h-36 rounded-none border p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm ${
+            className={`focus-ring grid min-h-36 rounded-[var(--radius)] border p-3 transition-colors hover:bg-[var(--wash-2)] ${
               step.done
                 ? "border-[var(--green)] bg-[var(--green-soft)]"
                 : "border-[var(--line)] bg-[var(--card)]"
             }`}
           >
             <span className="flex items-start justify-between gap-2">
-              <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{step.label}</span>
-              {step.done ? <CheckCircle2 className="h-4 w-4 text-[var(--celadon)]" /> : step.id === "prerequisite" ? <LockKeyhole className="h-4 w-4 text-[var(--brass)]" /> : <ArrowRight className="h-4 w-4 text-[var(--muted)]" />}
+              <span className="font-script text-sm font-normal text-[var(--ink-mute)]">{step.label}</span>
+              {step.done ? <CheckCircle2 className="h-4 w-4 text-[var(--celadon)]" /> : step.id === "prerequisite" ? <LockKeyhole className="h-4 w-4 text-[var(--ink-mute)]" /> : <ArrowRight className="h-4 w-4 text-[var(--muted)]" />}
             </span>
             <strong className="mt-3 font-serif text-xl leading-tight">{step.title}</strong>
             <span className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">{step.detail}</span>
@@ -1324,16 +1324,16 @@ function LessonBridgePanel({
         ))}
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-4">
-          <p className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
+        <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4">
+          <p className="eyebrow inline-flex items-center gap-2">
             <RefreshCcw className="h-4 w-4" />
             复习产物
           </p>
           <strong className="mt-2 block font-serif text-3xl">{bridge.reviewCards}</strong>
           <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">本课可进入 SRS 的题目数。错题会先进入错题卡，达标课程会生成整课复习卡。</p>
         </div>
-        <div className="rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4">
-          <p className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--brass)]">
+        <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4">
+          <p className="eyebrow inline-flex items-center gap-2">
             <Radio className="h-4 w-4" />
             真实材料迁移
           </p>
@@ -1344,7 +1344,7 @@ function LessonBridgePanel({
                   <Link
                     key={material.id}
                     href={material.href}
-                    className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-bold transition hover:bg-[var(--surface-solid)]"
+                    className="focus-ring rounded-[var(--radius)] border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-2)]"
                   >
                     {material.completed ? "已完成 · " : ""}
                     {material.title}
@@ -1354,14 +1354,14 @@ function LessonBridgePanel({
                   <div
                     key={material.id}
                     aria-disabled="true"
-                    className="grid gap-1 rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-bold text-[var(--muted)]"
+                    className="grid gap-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-medium text-[var(--muted)]"
                   >
                     <span className="inline-flex items-center gap-2 text-[var(--ink)]">
-                      <LockKeyhole className="h-4 w-4 text-[var(--brass)]" />
+                      <LockKeyhole className="h-4 w-4 text-[var(--ink-mute)]" />
                       {material.title}
                       <span className="font-mono text-xs text-[var(--muted)]">{material.minutes} min</span>
                     </span>
-                    <span className="font-mono text-xs font-black uppercase text-[var(--brass)]">
+                    <span className="font-mono text-xs font-medium text-[var(--ink-mute)]">
                       {!bridge.mastered ? "达标后解锁材料迁移" : `还需 ${material.missingPrerequisiteIds.length} 节材料前置课`}
                     </span>
                   </div>
@@ -1377,8 +1377,8 @@ function LessonBridgePanel({
           )}
         </div>
       </div>
-      <div className="mt-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-4">
-        <p className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
+      <div className="mt-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4">
+        <p className="eyebrow inline-flex items-center gap-2">
           <Route className="h-4 w-4" />
           当前路径状态
         </p>

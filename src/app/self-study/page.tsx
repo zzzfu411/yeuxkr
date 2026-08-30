@@ -135,11 +135,11 @@ export default function SelfStudyPage() {
 
       <section className="grid gap-3 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div className="dark-slab grid gap-4 p-5 md:grid-cols-[auto_minmax(0,1fr)]">
-          <div className="hidden h-full w-12 place-items-center rounded-none border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase tracking-normal text-[rgba(255,250,240,0.74)] md:grid">
+          <div className="hidden h-full w-12 place-items-center rounded-none border border-[var(--line)] bg-[var(--wash-1)] font-mono text-xs font-black uppercase tracking-normal text-[var(--ink-soft)] md:grid">
             <span className="vertical-text">Mode</span>
           </div>
           <div className="grid gap-3">
-            <p className="eyebrow text-[rgba(255,250,240,0.74)]">Choice Architecture</p>
+            <p className="eyebrow text-[var(--ink-soft)]">Choice Architecture</p>
             <h2 className="font-serif text-3xl font-black leading-tight md:text-4xl">两种学习方式，共用同一份证据。</h2>
             <div className="grid gap-3 md:grid-cols-2">
               <ModeCard active={draft.studyMode === "guided"} title="按路径学习" detail="主线课负责先后顺序，适合零基础一路推进；自学设置仍会影响复习和弱项排序。" />
@@ -503,13 +503,13 @@ function planCheckpointAbilities(modules: Array<{ id: string }>): AbilityId[] {
 
 function ModeCard({ active, title, detail }: { active: boolean; title: string; detail: string }) {
   return (
-    <div className={`rounded-none border p-4 ${active ? "border-[rgba(255,250,240,0.42)] bg-[rgba(255,250,240,0.16)]" : "border-[rgba(255,250,240,0.14)] bg-[rgba(255,250,240,0.06)]"}`}>
-      <span className="mb-3 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[rgba(255,250,240,0.72)]">
-        <CheckCircle2 className={`h-4 w-4 ${active ? "text-[var(--celadon)]" : "text-[rgba(255,250,240,0.38)]"}`} />
+    <div className={`rounded-none border p-4 ${active ? "border-[var(--line-strong)] bg-[var(--wash-2)]" : "border-[var(--line)] bg-[var(--wash-1)]"}`}>
+      <span className="mb-3 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--muted)]">
+        <CheckCircle2 className={`h-4 w-4 ${active ? "text-[var(--celadon)]" : "text-[var(--ink-faint)]"}`} />
         {active ? "当前模式" : "可随时切换"}
       </span>
       <strong className="block font-serif text-2xl leading-tight">{title}</strong>
-      <p className="mt-2 text-sm font-bold leading-6 text-[rgba(255,250,240,0.68)]">{detail}</p>
+      <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">{detail}</p>
     </div>
   );
 }

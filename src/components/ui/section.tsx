@@ -22,7 +22,7 @@ export function PageHeader({
       <div className="max-w-4xl">
         <p className="eyebrow">{kicker}</p>
         <h1 className={cn(
-          "mt-3 max-w-5xl font-serif font-black leading-[0.96] tracking-normal",
+          "inkline mt-3 max-w-5xl font-serif font-normal leading-[1.08] tracking-normal",
           compact ? "text-4xl md:text-5xl" : "text-4xl md:text-6xl"
         )}>
           {title}
@@ -91,10 +91,10 @@ export function ModuleHero({
 }) {
   return (
     <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.44fr)]">
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-[3px] bg-[var(--yellow)]" />
-      <div className="paper-rail relative p-5 md:p-6">
+      <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+      <div className="paper-rail relative p-5 pt-8 md:p-7 md:pt-9">
         <p className="eyebrow">{kicker}</p>
-        <h2 className="mt-3 font-serif text-3xl font-black leading-[1.04] md:text-4xl">{title}</h2>
+        <h2 className="mt-3 font-serif text-3xl font-normal leading-[1.12] md:text-4xl">{title}</h2>
         {copy ? <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">{copy}</p> : null}
         {children ? <div className="mt-5">{children}</div> : null}
       </div>
@@ -128,7 +128,7 @@ export function SectionHeading({
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
         {kicker ? <p className="eyebrow">{kicker}</p> : null}
-        <h2 className="mt-2 font-serif text-2xl font-black leading-tight">{title}</h2>
+        <h2 className="inkline mt-2 font-serif text-2xl font-normal leading-tight">{title}</h2>
         {copy ? <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p> : null}
       </div>
       {action}

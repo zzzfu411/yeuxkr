@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, CircleAlert, Layers3, MapPinned, RefreshCcw, Settings2, TimerReset } from "lucide-react";
+import { ArrowRight, MapPinned, RefreshCcw, Settings2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { TaskCard } from "@/components/learning/task-card";
@@ -14,7 +14,7 @@ import { needsOnboardingFunnel, ONBOARDING_TASK } from "@/lib/learning/compass";
 import { contentCounts, useLearningWorkspace } from "@/lib/learning/workspace";
 
 export default function HomePage() {
-  const { workspace, srs, saveProfile } = useLearningWorkspace();
+  const { workspace, saveProfile } = useLearningWorkspace();
   const isFirstVisit = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const [resetStatus, setResetStatus] = useState<"idle" | "success" | "error">("idle");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -24,7 +24,6 @@ export default function HomePage() {
   const heroAction = isFirstVisit
     ? { href: "/onboarding", title: "完成三分钟入门设置", detail: "选目标、试听韩语并完成键盘检查。", minutes: 3 }
     : primary;
-  const mistakeMetric = workspace.stats.mistakeCards ? `${workspace.stats.dueMistakes}/${workspace.stats.mistakeCards}` : "0";
   const handleStudyMode = (studyMode: "guided" | "self") => {
     setConfirmReset(false);
     if (profile.studyMode === studyMode) {
@@ -45,66 +44,42 @@ export default function HomePage() {
 
   return (
     <div className="grid min-w-0 gap-5 md:gap-6">
-      <section className="relative w-full min-w-0 max-w-full overflow-hidden rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] shadow-brutal">
+      <section className="relative w-full min-w-0 max-w-full overflow-hidden border-b border-[var(--line)]">
         <VisualPanel asset="hero" priority sizes="100vw" treatment="ambient" className="absolute inset-0 rounded-none border-0" />
-        <div className="relative z-10 grid min-h-[24rem] min-w-0 gap-4 p-4 md:min-h-[28rem] md:p-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--paper)_92%,transparent),color-mix(in_srgb,var(--paper)_40%,transparent),transparent)] md:hidden" />
-          <div className="relative flex w-full min-w-0 max-w-5xl flex-col justify-end self-end">
+        <div className="relative z-10 flex min-h-[34rem] items-end p-5 pb-10 md:min-h-[38rem] md:p-10 md:pb-12">
+          <div className="relative flex w-full max-w-2xl flex-col justify-end">
             <p className="eyebrow">오늘의 한국어 · {profile.minutesGoal} min</p>
-            <h1 className="mt-3 w-full max-w-4xl font-serif text-[2.4rem] font-black leading-[0.98] tracking-normal sm:text-5xl md:text-6xl">
-              {isFirstVisit ? "从韩文字块开始，今天读出第一句。" : "把今天最值得的那一首按下去。"}
+            <h1 className="inkline mt-3 w-fit max-w-full font-serif text-5xl font-normal leading-[1.04] tracking-normal md:text-6xl">
+              Kirina Korean
             </h1>
-            <p className="mt-4 w-full max-w-2xl text-base font-bold leading-7 text-[var(--muted)] md:text-lg md:leading-8">
-              {isFirstVisit
-                ? "先确认发音与韩文输入，再进入第一课。路径和自学共用同一条播放队列、复习和能力证据。"
-                : "到期复习、下一课、短板和真实材料已经排进歌单；听完一首，下一首自动顶上。"}
-            </p>
+            <p className="hangul-display mt-2 text-xl text-[var(--ink-soft)]" lang="ko">오늘, 한 장의 한국어.</p>
+            {heroAction ? (
+              <div className="mt-6 max-w-xl border-l border-[var(--seal)] pl-4">
+                <p className="font-script text-sm text-[var(--muted)]">Next · {heroAction.minutes} min</p>
+                <p className="mt-1 font-serif text-2xl leading-tight">{heroAction.title}</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{heroAction.detail}</p>
+              </div>
+            ) : null}
             <div className="mt-6 flex w-full min-w-0 flex-wrap gap-3">
               {heroAction ? (
                 <Button asChild size="lg">
                   <Link href={heroAction.href}>
-                    ▶ 播放：{heroAction.title}
+                    开始今日一页
                     <ArrowRight className="h-5 w-5" />
                   </Link>
                 </Button>
               ) : null}
               {isFirstVisit ? null : (
-                <Button asChild variant="secondary" size="lg">
+                <Button asChild variant="ghost" size="lg">
                   <Link href="/self-study">
                     <Settings2 className="h-5 w-5" />
-                    调整学习方式
+                    调整节奏
                   </Link>
                 </Button>
               )}
             </div>
-            <div className="mt-4 grid w-full min-w-0 max-w-full grid-cols-4 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--card)_90%,transparent)] p-2 shadow-paper-sm backdrop-blur lg:hidden">
-              <MobileHeroMetric icon={BookOpenCheck} label="课程" value={`${workspace.stats.completedLessons}/${workspace.stats.totalLessons}`} />
-              <MobileHeroMetric icon={TimerReset} label="到期" value={String(srs.due)} />
-              <MobileHeroMetric icon={CircleAlert} label="错题" value={mistakeMetric} />
-              <MobileHeroMetric icon={Layers3} label="输出" value={String(workspace.stats.outputEntries)} />
-            </div>
           </div>
-
-          <aside className="hidden rounded-none border-[3px] border-[var(--border)] bg-[color-mix(in_srgb,var(--card)_92%,transparent)] p-4 shadow-editorial backdrop-blur-xl lg:block">
-            <p className="eyebrow">Now Playing</p>
-            <h2 className="mt-2 font-serif text-2xl font-black">{workspace.modeLabel}</h2>
-            {heroAction ? (
-              <Link
-                href={heroAction.href}
-                className="focus-ring mt-4 grid gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] p-3 transition hover:-translate-x-px hover:-translate-y-px"
-              >
-                <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">Next · {heroAction.minutes} min</span>
-                <strong className="font-serif text-2xl leading-tight">{heroAction.title}</strong>
-                <span className="text-xs font-bold leading-5 text-[var(--muted)]">{heroAction.detail}</span>
-              </Link>
-            ) : null}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <DashboardMetric icon={BookOpenCheck} label="课程" value={`${workspace.stats.completedLessons}/${workspace.stats.totalLessons}`} />
-              <DashboardMetric icon={TimerReset} label="到期" value={String(srs.due)} />
-              <DashboardMetric icon={CircleAlert} label="错题" value={mistakeMetric} />
-              <DashboardMetric icon={Layers3} label="输出" value={String(workspace.stats.outputEntries)} />
-            </div>
-          </aside>
+          <span className="seal-mark absolute bottom-8 right-6 hidden h-14 w-14 text-lg md:inline-grid" aria-hidden="true">한글</span>
         </div>
       </section>
 
@@ -112,9 +87,9 @@ export default function HomePage() {
 
       <section>
         <SectionHeading
-          kicker="Queue"
-          title="今日歌单"
-          copy={isFirstVisit ? "先完成三分钟入门，确认目标和韩文输入后再进第一课。" : "先播第一首；播完后，推荐会根据到期复习、主线位置和真实弱点重新排队。"}
+          kicker="오늘 · Today"
+          title="今日一页"
+          copy={isFirstVisit ? "先完成三分钟入门，确认目标和韩文输入后再进第一课。" : "从最该处理的一项开始；完成后，今日顺序会按复习、主线和短板重新整理。"}
         />
         <div className="grid gap-0">
           {(isFirstVisit ? [ONBOARDING_TASK] : workspace.recommended).map((task, index) => (
@@ -130,9 +105,9 @@ export default function HomePage() {
             title="能力护照"
             copy="护照只承认证据已经覆盖的能力。当前内容库能证明从零基础到真实材料入口和 C1 预备桥接，真正接近母语者还需要长期作品集扩容。"
           />
-          <div className="grid gap-3 rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] p-4">
-            <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{workspace.proficiency.current.band}</span>
-            <h3 className="font-serif text-3xl font-black leading-tight">{workspace.proficiency.current.title}</h3>
+          <div className="grid gap-3 rounded-none border border-[var(--line)] bg-[var(--wash-1)] p-4">
+            <span className="eyebrow">{workspace.proficiency.current.band}</span>
+            <h3 className="font-serif text-3xl leading-tight">{workspace.proficiency.current.title}</h3>
             <p className="text-sm font-bold leading-6 text-[var(--muted)]">{workspace.proficiency.current.summary}</p>
           </div>
         </Surface>
@@ -184,7 +159,7 @@ export default function HomePage() {
               ) : null}
               {modeStatus === "saved" ? (
                 <p className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6 text-[var(--celadon)]">
-                  {isFirstVisit ? "学习模式已记下。完成入门后，首页会按这个节奏排歌单。" : "学习模式已更新，首页推荐会按新的节奏重新排序。"}
+                  {isFirstVisit ? "学习模式已记下。完成入门后，首页会按这个节奏整理今日页。" : "学习模式已更新，首页推荐会按新的节奏重新排序。"}
                 </p>
               ) : null}
               {confirmReset ? (
@@ -192,10 +167,6 @@ export default function HomePage() {
                   再点一次将清空学习偏好、课程进度、SRS、错题、输出、草稿、录音引用和母语作品集；此操作无法撤销。
                 </p>
               ) : null}
-              <div className="grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-sm font-bold leading-6 text-[var(--muted)]">
-                <span>首页只保留一个主动作和一个总览，不再重复开三次场。</span>
-                <span>路径、自学、复习、材料和母语者桥接共用同一组证据。</span>
-              </div>
             </div>
             <VisualPanel asset="path" sizes="(max-width: 768px) 100vw, 14rem" treatment="inset" objectPosition="center" className="min-h-48 rounded-none border-0" />
           </div>
@@ -243,31 +214,11 @@ export default function HomePage() {
   );
 }
 
-function MobileHeroMetric({ icon: Icon, label, value }: { icon: typeof BookOpenCheck; label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-none border-2 border-[var(--border)] bg-[var(--card)] p-2">
-      <Icon className="mb-2 h-3.5 w-3.5 text-[var(--ocean)]" aria-hidden="true" />
-      <strong className="block truncate font-serif text-lg font-black leading-none">{value}</strong>
-      <span className="mt-1 block truncate font-mono text-[0.62rem] font-black uppercase text-[var(--muted)]">{label}</span>
-    </div>
-  );
-}
-
-function DashboardMetric({ icon: Icon, label, value }: { icon: typeof BookOpenCheck; label: string; value: string }) {
-  return (
-    <div className="rounded-none border-2 border-[var(--border)] bg-[var(--card)] p-3">
-      <Icon className="mb-3 h-4 w-4 text-[var(--ocean)]" aria-hidden="true" />
-      <strong className="block truncate font-serif text-2xl font-black leading-none">{value}</strong>
-      <span className="mt-1 block font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
-    </div>
-  );
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="surface p-3">
-      <strong className="block font-serif text-2xl font-black">{value}</strong>
-      <span className="break-words font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
+    <div className="border-t border-[var(--line)] p-3">
+      <strong className="block font-serif text-2xl font-normal">{value}</strong>
+      <span className="break-words font-script text-xs text-[var(--muted)]">{label}</span>
     </div>
   );
 }

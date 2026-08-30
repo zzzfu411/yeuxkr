@@ -21,12 +21,12 @@ export function SearchField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-extrabold">
+    <label className="grid gap-2 text-sm font-normal text-[var(--ink-soft)]">
       {label}
       <span className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <input
-          className="focus-ring min-h-12 w-full rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-10 text-base"
+          className="focus-ring min-h-11 w-full rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_62%,transparent)] px-10 text-base text-[var(--ink)] shadow-[inset_0_1px_0_var(--sheen)] transition placeholder:text-[var(--ink-faint)] hover:border-[var(--line-strong)]"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
@@ -84,7 +84,7 @@ export function SegmentedFilter({
 
   return (
     <fieldset className={className}>
-      <legend className="mb-2 text-sm font-extrabold">{label}</legend>
+      <legend className="mb-2 text-sm font-normal text-[var(--ink-soft)]">{label}</legend>
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
         {options.map((item, index) => (
           <button
@@ -94,10 +94,10 @@ export function SegmentedFilter({
             aria-checked={value === item.id}
             tabIndex={value === item.id ? 0 : -1}
             className={cn(
-              "focus-ring min-h-11 rounded-none border-[3px] px-3 text-sm font-extrabold transition",
+              "focus-ring min-h-10 rounded-[var(--radius)] border px-3 text-sm font-normal transition",
               value === item.id
-                ? "border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)]"
-                : "border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--yellow)] hover:text-[var(--ink)]"
+                ? "border-[var(--line-strong)] bg-[var(--wash-3)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--ink-soft)]"
+                : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)]"
             )}
             onClick={() => onChange(item.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
@@ -124,12 +124,14 @@ export function CheckboxFilter({
   return (
     <label
       className={cn(
-        "focus-ring grid min-h-11 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-none border-[3px] px-3 text-sm font-extrabold focus-within:border-[var(--navy)]",
-        checked ? "border-[var(--border)] bg-[var(--green-soft)] text-[var(--celadon-text)]" : "border-[var(--border)] bg-[var(--card)]",
+        "focus-ring grid min-h-10 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border px-3 text-sm font-normal transition focus-within:border-[var(--line-strong)]",
+        checked
+          ? "border-[var(--line-strong)] bg-[var(--wash-3)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--ink-soft)]"
+          : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)]",
         className
       )}
     >
-      <input className="h-4 w-4 accent-[var(--celadon)]" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input className="h-4 w-4 accent-[var(--ink-soft)]" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
       {label}
     </label>
   );
@@ -146,12 +148,12 @@ export function FilterSummary({
 }) {
   const activeFilters = filters.filter(Boolean) as string[];
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-[var(--muted)]">
-      <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">
+    <div className="flex flex-wrap items-center gap-2 text-sm font-normal text-[var(--muted)]">
+      <span className="font-script text-sm font-normal text-[var(--ink-soft)]">
         {count} {unit}
       </span>
       {activeFilters.map((item) => (
-        <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2.5 py-1 text-xs font-black text-[var(--ocean)]">
+        <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] px-2.5 py-1 text-xs font-normal text-[var(--ink-soft)]">
           {item}
         </span>
       ))}
@@ -173,10 +175,10 @@ export function EmptyState({
   onAction: () => void;
 }) {
   return (
-    <div className="grid gap-4 p-1 md:grid-cols-[minmax(0,1fr)_15rem] md:items-center">
+    <div className="grid gap-5 p-1 md:grid-cols-[minmax(0,1fr)_15rem] md:items-center">
       <div>
         <p className="eyebrow">No Match</p>
-        <h2 className="mt-1 font-serif text-2xl font-black">{title}</h2>
+        <h2 className="mt-1 font-brush text-2xl font-normal">{title}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p>
         <Button className="mt-4 w-fit" type="button" variant="secondary" onClick={onAction}>
           {actionLabel}

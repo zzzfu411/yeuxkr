@@ -254,21 +254,21 @@ export default function NativePage() {
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="dark-slab grid gap-4 p-5 md:grid-cols-[auto_minmax(0,1fr)]">
-          <div className="hidden h-full w-12 place-items-center rounded-none border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase text-[rgba(255,250,240,0.74)] md:grid">
+          <div className="hidden h-full w-12 place-items-center rounded-none border border-[var(--line)] bg-[var(--wash-1)] font-mono text-xs font-black uppercase text-[var(--ink-soft)] md:grid">
             <span className="vertical-text">Portfolio</span>
           </div>
           <div className="grid gap-4">
             <div>
-              <p className="eyebrow text-[rgba(255,250,240,0.74)]">{currentStage.band}</p>
+              <p className="eyebrow text-[var(--ink-soft)]">{currentStage.band}</p>
               <h2 className="mt-2 font-serif text-3xl font-black leading-tight md:text-4xl">{currentStage.title}</h2>
-              <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-[rgba(255,250,240,0.72)]">{currentStage.target}</p>
+              <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-[var(--muted)]">{currentStage.target}</p>
             </div>
             <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
               {portfolioRows.map((row) => (
-                <Link key={row.label} href={row.href} className="focus-ring rounded-none border border-[rgba(255,250,240,0.16)] bg-[rgba(255,250,240,0.07)] p-3 transition hover:-translate-y-0.5">
-                  <span className="font-mono text-[0.66rem] font-black uppercase text-[rgba(255,250,240,0.6)]">{row.label}</span>
+                <Link key={row.label} href={row.href} className="focus-ring rounded-none border border-[var(--line)] bg-[var(--wash-1)] p-3 transition hover:-translate-y-0.5">
+                  <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{row.label}</span>
                   <strong className="mt-2 block font-serif text-3xl leading-none">{row.value}</strong>
-                  <span className="mt-2 flex items-center justify-between gap-2 text-xs font-bold text-[rgba(255,250,240,0.68)]">
+                  <span className="mt-2 flex items-center justify-between gap-2 text-xs font-bold text-[var(--muted)]">
                     /{row.target}
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>

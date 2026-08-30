@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 type InlineAlertTone = "error" | "success";
 
 const toneClasses: Record<InlineAlertTone, string> = {
-  error: "border-[3px] border-[var(--border)] bg-[var(--seal-soft)] text-[var(--cinnabar)] shadow-[3px_3px_0_var(--shadow-color)]",
-  success: "border-[3px] border-[var(--border)] bg-[var(--green-soft)] text-[var(--celadon)] shadow-[3px_3px_0_var(--shadow-color)]"
+  error: "border-[color-mix(in_srgb,var(--seal)_56%,var(--line))] bg-[color-mix(in_srgb,var(--seal)_9%,var(--paper-hi))] text-[var(--cinnabar)]",
+  success: "border-[color-mix(in_srgb,var(--green)_42%,var(--line))] bg-[color-mix(in_srgb,var(--green)_8%,var(--paper-hi))] text-[var(--celadon-text)]"
 };
 
 export function InlineAlert({
@@ -21,7 +21,7 @@ export function InlineAlert({
     <p
       role="alert"
       aria-live="polite"
-      className={cn("rounded-none p-3 text-sm font-bold leading-6", toneClasses[tone], className)}
+      className={cn("rounded-[var(--radius)] border px-3 py-2.5 text-sm font-normal leading-6 shadow-paper-sm", toneClasses[tone], className)}
     >
       {children}
     </p>
