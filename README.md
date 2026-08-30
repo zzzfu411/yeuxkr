@@ -2,6 +2,26 @@
 
 Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。当前设计方向是 **Seoul Editorial Learning Atlas**：成人学习、首尔编辑部感、纸本学习资产、韩文字形、青瓷绿、深海蓝、朱砂红和黄铜细节。
 
+![学习工作台](docs/screenshots/hero-workspace.png)
+
+<p align="center"><em>学习工作台：路径推荐、到期复习和能力护照收在同一张今日地图上。</em></p>
+
+### 产品界面
+
+| Hangul Studio | Immersion Lab |
+|:---:|:---:|
+| ![韩文实验室](docs/screenshots/hangul.png) | ![情境材料](docs/screenshots/immersion.png) |
+| 韩文实验室：拆音节块、听对立，再把掌握项送进 SRS。 | 咖啡店真实语速：逐句听读、遮译文听写与复述检查。 |
+
+| 五阶段路径 | 间隔复习 |
+|:---:|:---:|
+| ![学习路径](docs/screenshots/path.png) | ![SRS 复习](docs/screenshots/review.png) |
+| 五阶段能力路线：从文字对齐走到母语者语用。 | 到期队列：韩文、词汇和错题进入同一套间隔复习。 |
+
+![咖啡店点单课](docs/screenshots/lesson.png)
+
+<p align="center"><em>课程页：目标、讲解、听读和练习共用同一份进度证据。</em></p>
+
 ## 当前能力
 
 - Next.js 16 + React 19 + TypeScript + Tailwind。
