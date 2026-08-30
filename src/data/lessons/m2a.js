@@ -15,6 +15,14 @@ export const m2aLessons = [
       "能说昨天做了什么",
       "开始连接两句经历"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "用过去式讲昨天",
+      prompt: "用韩语写至少三句，讲昨天做了什么。必须出现 -았/었어요 或 했어요，不要只写一个词。",
+      minSyllables: 20,
+      minClauses: 3,
+      markerGroups: [["았어요", "었어요", "했어요", "봤", "갔", "왔", "먹었", "있었"]]
+    },
     teach: [
       {
         title: "过去式的三个代表",

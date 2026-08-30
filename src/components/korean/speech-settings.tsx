@@ -48,7 +48,7 @@ export function SpeechSettings({ className }: { className?: string }) {
         <label className="grid gap-1 text-sm font-extrabold">
           系统备用语音
           <select
-            className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+            className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
             value={voiceURI}
             disabled={!voices.length}
             aria-describedby={storageError ? "speech-settings-storage-error" : undefined}

@@ -165,6 +165,8 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
     "lucide-react": icons,
     "@/components/layout/pwa-register": { PwaRegister: "PwaRegister" },
     "@/components/layout/learning-data-panel": { LearningDataPanel: "LearningDataPanel" },
+    "@/components/layout/now-playing": { NowPlayingRail: "NowPlayingRail", NowPlayingBar: "NowPlayingBar" },
+    "@/components/theme/theme-toggle": { ThemeToggle: "ThemeToggle" },
     "@/components/korean/speech-status": { SpeechStatusBanner: "SpeechStatusBanner" },
     "@/lib/speech": {
       stopSpeech() {
@@ -403,6 +405,7 @@ function loadLessonEvidencePanels(hooks, {
     "@/components/korean/romanization-text": { RomanizationText: "RomanizationText" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/ui/section": { SectionHeading: "SectionHeading", Surface: "Surface" },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
     "@/data/curriculum": {
       getLessonPrerequisites: () => [],
       getNextLesson: () => null,
@@ -439,7 +442,12 @@ function loadLessonEvidencePanels(hooks, {
       saveLearningRecording: async () => null,
       ...recordingOverrides
     },
-    "@/lib/learning/workspace": { ABILITY_LABELS: {}, useLearningWorkspace: () => ({}) },
+    "@/lib/learning/path-gates": { getLibraryGateForLesson: () => ({ ok: true, missing: [] }) },
+    "@/lib/learning/workspace": {
+      ABILITY_LABELS: {},
+      libraryCountsFromProgress: () => ({ hangul: 0, vocab: 0, grammar: 0, materials: 0, native: 0 }),
+      useLearningWorkspace: () => ({ workspace: { progress: { completedLessons: [], lessonScores: {}, lessonTaskEvidence: {}, capstoneEvidence: {} }, evidence: { validMaterialIds: [] }, nextLesson: null } })
+    },
     "@/lib/speech": { speakKorean() {} }
   };
   return loadComponent("src/app/learn/[lessonId]/lesson-client.tsx", imports, {

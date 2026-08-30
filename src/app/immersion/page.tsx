@@ -1,15 +1,18 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowDownToLine, Check, CheckCircle2, Eye, EyeOff, LockKeyhole, PenLine, RotateCcw, UnlockKeyhole, Volume2 } from "lucide-react";
+import { ArrowDownToLine, Check, CheckCircle2, Eye, EyeOff, PenLine, RotateCcw, Volume2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { LearningCompass } from "@/components/learning/learning-compass";
+import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { TrackRow } from "@/components/ui/track-row";
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, type ImmersionMaterial } from "@/data/materials";
-import { getLessonById, isLessonMastered } from "@/data/curriculum";
+import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
@@ -42,7 +45,6 @@ function ImmersionContent() {
   const requestedMaterial = searchParams.get("material");
   const requestedMaterialId = requestedMaterial && immersionMaterials.some((material) => material.id === requestedMaterial) ? requestedMaterial : "";
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
-  const activeId = selectedMaterialId || requestedMaterialId || (immersionMaterials[0]?.id ?? "");
   const [showZh, setShowZh] = useState(false);
   const [dictationEvidence, setDictationEvidence] = useState("");
   const [retellEvidence, setRetellEvidence] = useState("");
@@ -67,6 +69,28 @@ function ImmersionContent() {
       isLessonMastered(lessonId, completedLessons, workspace.progress.lessonScores)
     )));
   }, [workspace.progress.completedLessons, workspace.progress.lessonScores]);
+  const defaultMaterialId = useMemo(() => {
+    const doneIds = new Set(workspace.evidence.validMaterialIds);
+    const readyOpen = immersionMaterials.find((material) => (
+      getMissingMaterialPrerequisiteIds(material, masteredLessons).length === 0
+      && !doneIds.has(material.id)
+    ));
+    if (readyOpen) return readyOpen.id;
+    const unlocked = immersionMaterials.find((material) => getMissingMaterialPrerequisiteIds(material, masteredLessons).length === 0);
+    return unlocked?.id ?? immersionMaterials[0]?.id ?? "";
+  }, [workspace.evidence.validMaterialIds, masteredLessons]);
+  const activeId = selectedMaterialId || requestedMaterialId || defaultMaterialId;
+  const queuedMaterials = useMemo(() => {
+    const doneIds = new Set(workspace.evidence.validMaterialIds);
+    const rank = (material: ImmersionMaterial) => {
+      const done = doneIds.has(material.id);
+      const unlocked = getMissingMaterialPrerequisiteIds(material, masteredLessons).length === 0;
+      if (unlocked && !done) return 0;
+      if (!unlocked) return 1;
+      return 2;
+    };
+    return [...immersionMaterials].sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title, "zh"));
+  }, [workspace.evidence.validMaterialIds, masteredLessons]);
   const active = useMemo(
     () => immersionMaterials.find((item) => item.id === activeId) ?? immersionMaterials[0],
     [activeId]
@@ -77,7 +101,15 @@ function ImmersionContent() {
   const missingPrerequisiteIds = getMissingMaterialPrerequisiteIds(active, masteredLessons);
   const missingPrerequisites = missingPrerequisiteIds
     .map((lessonId) => getLessonById(lessonId))
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order);
+  const completedLessonIds = new Set(workspace.progress.completedLessons);
+  const lockedCtaLesson = firstActionableLesson(
+    missingPrerequisiteIds,
+    completedLessonIds,
+    workspace.progress.lessonScores,
+    workspace.nextLesson?.id
+  );
   const prerequisitesReady = missingPrerequisiteIds.length === 0;
   const savedEvidence = workspace.progress.materialEvidence[active.id];
   const materialOutputs = outputEntries.filter((entry) => entry.materialId === active.id);
@@ -208,6 +240,10 @@ function ImmersionContent() {
   };
 
   const saveOutput = () => {
+    if (!prerequisitesReady) {
+      setSaveError("先修未满时不能把输出写入档案。先把前置课达到核心路径标准。");
+      return;
+    }
     const entry = saveOutputArchive({
       materialId: active.id,
       materialTitle: active.title,
@@ -321,6 +357,8 @@ function ImmersionContent() {
         compact
       />
 
+      <LibraryGateNotice focus="materials" />
+
       <ModuleHero
         kicker={`${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials} materials`}
         title="先抓住一段情境，再把证据写实。"
@@ -333,17 +371,26 @@ function ImmersionContent() {
         <div className="grid gap-3 md:grid-cols-3">
           <HeroMetric label="当前材料" value={active.title} detail={`${levelLabels[active.level]} · ${kindLabels[active.kind]} · ${active.minutes} min`} />
           <HeroMetric label="证据门槛" value={`${completedGateCount}/${completionGates.length}`} detail={`下一步：${nextGateLabel}`} />
-          <HeroMetric label="先修状态" value={prerequisitesReady ? "已解锁" : `锁定 · 缺 ${missingPrerequisites.length} 课`} detail={prerequisitesReady ? "可以完成材料闭环" : "可预览并保存草稿，补齐后才能完成"} />
+          <HeroMetric label="先修状态" value={prerequisitesReady ? "已解锁" : `锁定 · 缺 ${missingPrerequisites.length} 课`} detail={prerequisitesReady ? "可以完成材料闭环" : "只能看说明和留草稿，补齐后才能听原文"} />
         </div>
-        <Button
-          className="mt-4"
-          type="button"
-          variant="secondary"
-          onClick={focusMaterialPractice}
-        >
-          <ArrowDownToLine className="h-4 w-4" />
-          进入听写练习
-        </Button>
+        {prerequisitesReady ? (
+          <Button
+            className="mt-4"
+            type="button"
+            variant="secondary"
+            onClick={focusMaterialPractice}
+          >
+            <ArrowDownToLine className="h-4 w-4" />
+            进入听写练习
+          </Button>
+        ) : (
+          <Button asChild className="mt-4" variant="secondary">
+            <Link href={lockedCtaLesson ? `/learn/${lockedCtaLesson.id}` : "/path"}>
+              <ArrowDownToLine className="h-4 w-4" />
+              {lockedCtaLesson ? `先补第 ${lockedCtaLesson.order} 课` : "先去路径补先修"}
+            </Link>
+          </Button>
+        )}
       </ModuleHero>
 
       <LearningCompass workspace={workspace} active="immersion" condensed />
@@ -355,105 +402,56 @@ function ImmersionContent() {
       {draftSaveError ? <InlineAlert>{draftSaveError}</InlineAlert> : null}
 
       <section id="material-workbench" className="scroll-mt-40 grid gap-5 lg:scroll-mt-28 xl:grid-cols-[22rem_minmax(0,1fr)]">
-        <Surface className="hidden h-fit xl:sticky xl:top-24 xl:block">
+        <Surface className="h-fit xl:sticky xl:top-24">
           <SectionHeading kicker="Queue" title="材料队列" />
-          <div className="grid gap-2">
-            {immersionMaterials.map((material) => {
+          <div>
+            {queuedMaterials.map((material, materialIndex) => {
               const missingIds = getMissingMaterialPrerequisiteIds(material, masteredLessons);
               const missingLessons = missingIds.map((lessonId) => getLessonById(lessonId)).filter(Boolean);
               const unlocked = missingIds.length === 0;
               return (
-                <button
+                <TrackRow
                   key={material.id}
-                  type="button"
-                  aria-pressed={active.id === material.id}
-                  className={`focus-ring rounded-[8px] border p-3 text-left transition hover:-translate-y-0.5 ${
-                    active.id === material.id
-                      ? "border-[var(--ocean)] bg-[rgba(23,63,115,0.1)]"
-                      : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
-                  }`}
-                  onClick={() => {
-                    selectMaterial(material.id);
-                  }}
-                >
-                  <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">
-                    {levelLabels[material.level]} · {kindLabels[material.kind]}
-                  </span>
-                  <strong className="mt-1 block font-serif text-xl leading-tight">{material.title}</strong>
-                  <span className={`mt-2 inline-flex items-center gap-1.5 text-xs font-black ${unlocked ? "text-[var(--celadon)]" : "text-[var(--brass)]"}`}>
-                    {unlocked ? <UnlockKeyhole className="h-3.5 w-3.5" /> : <LockKeyhole className="h-3.5 w-3.5" />}
-                    {unlocked ? "真实先修已完成" : `尚缺：${missingLessons.map((lesson) => `第 ${lesson.order} 课`).join(" / ")}`}
-                  </span>
-                  <span className="mt-2 flex items-center gap-2 text-xs font-bold text-[var(--ocean)]">
-                    {completed.has(material.id) ? <Check className="h-3.5 w-3.5" /> : null}
-                    {material.minutes} min
-                  </span>
-                </button>
+                  index={materialIndex + 1}
+                  glyph={material.title.slice(0, 1)}
+                  kicker={`${levelLabels[material.level]} · ${kindLabels[material.kind]}${unlocked ? (completed.has(material.id) ? " · 已完成" : " · 可完成") : " · 先修未满"}`}
+                  title={material.title}
+                  detail={unlocked ? "真实先修已完成" : `尚缺：${missingLessons.map((lesson) => `第 ${lesson.order} 课`).join(" / ")}`}
+                  meta={`${material.minutes} min`}
+                  completed={completed.has(material.id)}
+                  active={active.id === material.id}
+                  onToggle={() => selectMaterial(material.id)}
+                />
               );
             })}
           </div>
         </Surface>
 
         <div className="grid gap-5">
-          <Surface className="min-w-0 xl:hidden">
-            <SectionHeading kicker="Material" title="切换材料" />
-            <div className="-mx-4 grid max-w-[calc(100%+2rem)] auto-cols-[13rem] grid-flow-col gap-2 overflow-x-auto px-4 pb-1">
-              {immersionMaterials.map((material) => {
-                const missingIds = getMissingMaterialPrerequisiteIds(material, masteredLessons);
-                const unlocked = missingIds.length === 0;
-                return (
-                  <button
-                    key={material.id}
-                    type="button"
-                    aria-pressed={active.id === material.id}
-                    className={`focus-ring min-w-0 rounded-[8px] border p-3 text-left transition ${
-                      active.id === material.id
-                        ? "border-[var(--ocean)] bg-[rgba(23,63,115,0.1)]"
-                        : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
-                    }`}
-                    onClick={() => {
-                      selectMaterial(material.id);
-                    }}
-                  >
-                    <span className="font-mono text-[0.68rem] font-black uppercase text-[var(--muted)]">
-                      {levelLabels[material.level]} · {material.minutes} min
-                    </span>
-                    <strong className="mt-1 block font-serif text-lg leading-tight">{material.title}</strong>
-                    <span className={`mt-2 flex items-center gap-1 text-xs font-bold ${unlocked ? "text-[var(--celadon)]" : "text-[var(--brass)]"}`}>
-                      {unlocked ? <UnlockKeyhole className="h-3.5 w-3.5" /> : <LockKeyhole className="h-3.5 w-3.5" />}
-                      {unlocked ? "已解锁" : `缺 ${missingIds.length} 课`}
-                      {completed.has(material.id) ? <Check className="ml-auto h-3.5 w-3.5" /> : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Surface>
-
-          <section className="grid overflow-hidden rounded-[8px] border border-[var(--line)] lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="bg-[rgba(255,250,240,0.82)] p-5">
+          <section className="grid overflow-hidden rounded-none border border-[var(--line)] lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="bg-[var(--card)] p-5">
               <p className="eyebrow">{active.sourceLabel}</p>
               <h2 className="mt-2 font-serif text-4xl font-black leading-tight">{active.title}</h2>
               <p className="mt-3 leading-7 text-[var(--muted)]">{active.summary}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {active.focus.map((item) => (
-                  <span key={item} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1 text-sm font-bold text-[var(--ocean)]">
+                  <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-3 py-1 text-sm font-bold text-[var(--ocean)]">
                     {item}
                   </span>
                 ))}
               </div>
-              <div className="mt-4 grid gap-2 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.58)] p-3">
+              <div className="mt-4 grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
                 <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">完成门槛</p>
                 <div className="grid gap-2 sm:grid-cols-4">
                   {completionGates.map((gate, index) => (
                     <div
                       key={gate.id}
-                      className={`rounded-[8px] border px-3 py-2 text-xs font-black leading-5 ${
+                      className={`rounded-none border px-3 py-2 text-xs font-black leading-5 ${
                         gate.done
-                          ? "border-[rgba(79,140,118,0.42)] bg-[rgba(79,140,118,0.12)] text-[var(--celadon)]"
+                          ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]"
                           : index === activeGateIndex
-                            ? "border-[rgba(23,63,115,0.38)] bg-[rgba(23,63,115,0.1)] text-[var(--ocean)]"
-                            : "border-[var(--line)] bg-[rgba(255,250,240,0.64)] text-[var(--muted)]"
+                            ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
+                            : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
                       }`}
                     >
                       <span className="block font-mono text-[0.66rem] uppercase opacity-70">
@@ -464,10 +462,10 @@ function ImmersionContent() {
                   ))}
                 </div>
               </div>
-              <div className={`mt-4 rounded-[8px] border p-3 ${
+              <div className={`mt-4 rounded-none border p-3 ${
                 missingPrerequisites.length
-                  ? "border-[rgba(183,135,63,0.42)] bg-[rgba(183,135,63,0.09)]"
-                  : "border-[rgba(79,140,118,0.34)] bg-[rgba(79,140,118,0.1)]"
+                  ? "border-[var(--border)] bg-[var(--yellow-soft)]"
+                  : "border-[var(--green)] bg-[var(--green-soft)]"
               }`}>
                 <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">真实先修条件</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -476,10 +474,10 @@ function ImmersionContent() {
                     return (
                       <span
                         key={lesson.id}
-                        className={`rounded-[8px] border px-2.5 py-1 text-xs font-black ${
+                        className={`rounded-none border px-2.5 py-1 text-xs font-black ${
                           ready
-                            ? "border-[rgba(79,140,118,0.38)] bg-[rgba(79,140,118,0.12)] text-[var(--celadon)]"
-                            : "border-[rgba(183,135,63,0.36)] bg-[rgba(255,250,240,0.58)] text-[var(--brass)]"
+                            ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]"
+                            : "border-[var(--border)] bg-[var(--card)] text-[var(--brass)]"
                         }`}
                       >
                         第 {lesson.order} 课 · {lesson.title}
@@ -489,15 +487,17 @@ function ImmersionContent() {
                 </div>
                 <p className="mt-2 text-xs font-bold leading-5 text-[var(--muted)]">
                   {missingPrerequisites.length
-                    ? `尚缺：${missingPrerequisites.map((lesson) => `第 ${lesson.order} 课 ${lesson.title}`).join("、")}。可以预览并保存输出草稿；补齐前不能写入完成或能力护照。`
+                    ? `尚缺：${missingPrerequisites.map((lesson) => `第 ${lesson.order} 课 ${lesson.title}`).join("、")}。先修未满时不开放原文、朗读和输出存档。`
                     : "材料实际使用的前置知识均已达标，可以把注意力放在听写、复述和自然改写上。"}
                 </p>
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button type="button" onClick={() => speakSequence(active.lines.map((line) => line.ko), 1200)}>
-                  <Volume2 className="h-4 w-4" />
-                  连续播放
-                </Button>
+                {prerequisitesReady ? (
+                  <Button type="button" onClick={() => speakSequence(active.lines.map((line) => line.ko), 1200)}>
+                    <Volume2 className="h-4 w-4" />
+                    连续播放
+                  </Button>
+                ) : null}
                 <Button type="button" variant="secondary" onClick={() => setShowZh((value) => !value)}>
                   {showZh ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   {showZh ? "隐藏译文" : "显示译文"}
@@ -506,7 +506,7 @@ function ImmersionContent() {
             </div>
             <div className="relative min-h-80">
               <VisualPanel asset="immersion" priority sizes="(max-width: 1024px) 100vw, 22rem" overlay="bottom" className="absolute inset-0 rounded-none border-0" />
-              <div className="absolute bottom-4 left-4 right-4 rounded-[8px] border border-[rgba(255,250,240,0.62)] bg-[rgba(24,28,27,0.74)] p-4 text-[var(--surface-solid)] shadow-editorial backdrop-blur">
+              <div className="absolute bottom-4 left-4 right-4 rounded-none border-[3px] border-[var(--border)] bg-[var(--ink)] p-4 text-[var(--ink-inv)] shadow-brutal">
                 <p className="font-mono text-xs font-black uppercase opacity-70">材料进度</p>
                 <strong className="mt-2 block font-serif text-4xl">{workspace.stats.completedMaterials}/{workspace.stats.totalMaterials}</strong>
                 <p className="mt-2 text-sm leading-6 opacity-80">完成后进入复习；输出改写会回到到期队列。</p>
@@ -518,8 +518,8 @@ function ImmersionContent() {
           <Surface>
             <SectionHeading kicker="Listen" title="逐句听读" />
             <div className="grid gap-3">
-              {active.lines.map((line, index) => (
-                <article key={line.ko} className="grid gap-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-4 md:grid-cols-[3rem_minmax(0,1fr)_auto]">
+              {prerequisitesReady ? active.lines.map((line, index) => (
+                <article key={line.ko} className="grid gap-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-4 md:grid-cols-[3rem_minmax(0,1fr)_auto]">
                   <span className="font-mono text-2xl font-black text-[var(--ocean)]">{String(index + 1).padStart(2, "0")}</span>
                   <div>
                     <p className="hangul-display text-2xl font-black leading-relaxed" lang="ko">{line.ko}</p>
@@ -530,7 +530,11 @@ function ImmersionContent() {
                     <Volume2 className="h-4 w-4" />
                   </Button>
                 </article>
-              ))}
+              )) : (
+                <p className="rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 text-sm font-bold leading-6 text-[var(--brass)]">
+                  先修未满，原文和朗读先收起来。当前只保留材料说明：{active.summary}
+                </p>
+              )}
             </div>
           </Surface>
           </div>
@@ -539,8 +543,8 @@ function ImmersionContent() {
             <Surface>
               <SectionHeading kicker="Step 1" title="遮译文听写" />
               <div className="grid gap-2">
-                {active.dictation.map((item, index) => (
-                  <div key={item} className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3">
+                {prerequisitesReady ? active.dictation.map((item, index) => (
+                  <div key={item} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
                     <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => speakKorean(item)}>
                       <Volume2 className="h-4 w-4" />
                       播放听写句 {String(index + 1).padStart(2, "0")}
@@ -550,12 +554,16 @@ function ImmersionContent() {
                       <strong className="hangul-display mt-2 block text-xl" lang="ko">{item}</strong>
                     </details>
                   </div>
-                ))}
+                )) : (
+                  <p className="rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass)]">
+                    先修达标后才能播放和核对照写原句。当前只能在下方留草稿。
+                  </p>
+                )}
               </div>
               <label className="mt-4 grid gap-2 text-sm font-extrabold">
                 听写证据
                 <textarea
-                  className="focus-ring min-h-24 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
+                  className="focus-ring min-h-24 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
                   value={dictationEvidence}
                   lang="ko"
                   spellCheck={false}
@@ -569,7 +577,7 @@ function ImmersionContent() {
               <SectionHeading kicker="Step 2" title="复述检查" />
               <div className="grid gap-2">
                 {active.retellPrompts.map((item) => (
-                  <div key={item} className="rounded-[8px] border-l-4 border-[var(--brass)] bg-[rgba(183,135,63,0.09)] p-3 text-sm font-bold leading-6">
+                  <div key={item} className="rounded-none border-l-4 border-[var(--brass)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6">
                     {item}
                   </div>
                 ))}
@@ -577,7 +585,7 @@ function ImmersionContent() {
               <label className="mt-4 grid gap-2 text-sm font-extrabold">
                 韩语复述证据
                 <textarea
-                  className="focus-ring min-h-28 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
+                  className="focus-ring min-h-28 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
                   value={retellEvidence}
                   onChange={(event) => setRetellEvidence(event.target.value)}
                   placeholder="用韩语写 1-2 句复述：谁做了什么、为什么、结果是什么。"
@@ -589,7 +597,7 @@ function ImmersionContent() {
                 </p>
               ) : null}
               {selectedOutputEntry ? (
-                <p className="mt-3 rounded-[8px] border border-[rgba(79,140,118,0.36)] bg-[rgba(79,140,118,0.1)] p-3 text-xs font-bold leading-5 text-[var(--muted)]">
+                <p className="mt-3 rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-xs font-bold leading-5 text-[var(--muted)]">
                   绑定输出：{selectedOutputEntry.targetRewrite}
                 </p>
               ) : null}
@@ -603,7 +611,7 @@ function ImmersionContent() {
                 {completed.has(active.id) ? "已完成并加入 SRS" : "完成材料并加入 SRS"}
               </Button>
               {materialError ? (
-                <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+                <p className="mt-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
                   {materialError}
                 </p>
               ) : null}
@@ -619,10 +627,10 @@ function ImmersionContent() {
                   return (
                     <label
                       key={item}
-                      className={`focus-ring grid min-h-14 cursor-pointer grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-3 rounded-[8px] border p-3 transition focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
+                      className={`focus-ring grid min-h-14 cursor-pointer grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-3 rounded-none border p-3 transition focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
                         checked
-                          ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
-                          : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                          ? "border-[var(--green)] bg-[var(--green-soft)]"
+                          : "border-[var(--line)] bg-[var(--card)]"
                       }`}
                     >
                       <input
@@ -631,7 +639,7 @@ function ImmersionContent() {
                         checked={checked}
                         onChange={() => toggleSelfCheck(item)}
                       />
-                      <span className={`grid h-7 w-7 place-items-center rounded-[8px] border text-xs font-black ${
+                      <span className={`grid h-7 w-7 place-items-center rounded-none border text-xs font-black ${
                         checked
                           ? "border-[var(--celadon)] bg-[var(--celadon)] text-[var(--surface-solid)]"
                           : "border-[var(--line-strong)] text-[var(--muted)]"
@@ -665,7 +673,7 @@ function ImmersionContent() {
               <label className="grid gap-2 text-sm font-extrabold">
                 输出草稿
                 <textarea
-                  className="focus-ring min-h-44 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
+                  className="focus-ring min-h-44 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] p-3 leading-7"
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder="在这里写韩语输出或复述稿..."
@@ -675,10 +683,10 @@ function ImmersionContent() {
                 {outputRubric.map((item) => (
                   <label
                     key={item.id}
-                    className={`focus-ring rounded-[8px] border p-3 text-left transition focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
+                    className={`focus-ring rounded-none border p-3 text-left transition focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
                       checkedRubric.includes(item.id)
-                        ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
-                        : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                        ? "border-[var(--green)] bg-[var(--green-soft)]"
+                        : "border-[var(--line)] bg-[var(--card)]"
                     }`}
                   >
                     <input
@@ -698,7 +706,7 @@ function ImmersionContent() {
                 <label className="grid gap-2 text-sm font-extrabold">
                   需要修正的弱点
                   <input
-                    className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                    className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                     value={weakPoint}
                     onChange={(event) => setWeakPoint(event.target.value)}
                     placeholder="例如：拒绝太直接 / 语序像中文 / 缺少缓冲"
@@ -707,7 +715,7 @@ function ImmersionContent() {
                 <label className="grid gap-2 text-sm font-extrabold">
                   送回复习的目标改写
                   <input
-                    className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                    className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                     value={targetRewrite}
                     onChange={(event) => setTargetRewrite(event.target.value)}
                     placeholder="例如：좋긴 한데 조금 비싼 것 같아요."
@@ -717,7 +725,7 @@ function ImmersionContent() {
               <div className="flex items-end gap-2">
                 <Button
                   type="button"
-                  disabled={!currentOutputReady}
+                  disabled={!prerequisitesReady || !currentOutputReady}
                   onClick={saveOutput}
                 >
                   <PenLine className="h-4 w-4" />
@@ -733,7 +741,7 @@ function ImmersionContent() {
               </div>
             </div>
             {saveError ? (
-              <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+              <p className="mt-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
                 {saveError}
               </p>
             ) : null}
@@ -777,22 +785,22 @@ function ImmersionContent() {
                 {activeOutputs.map((entry) => (
                   <article
                     key={entry.id}
-                    className={`rounded-[8px] border p-4 ${
+                    className={`rounded-none border p-4 ${
                       selectedOutputEntry?.id === entry.id
-                        ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.1)]"
-                        : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                        ? "border-[var(--green)] bg-[var(--green-soft)]"
+                        : "border-[var(--line)] bg-[var(--card)]"
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <strong className="font-serif text-xl">{entry.materialTitle}</strong>
                       <div className="flex flex-wrap items-center gap-2">
                         {selectedOutputEntry?.id === entry.id ? (
-                          <span className="inline-flex items-center gap-1 rounded-[8px] bg-[rgba(79,140,118,0.12)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
+                          <span className="inline-flex items-center gap-1 rounded-none bg-[var(--green-soft)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
                             <Check className="h-3.5 w-3.5" />
                             绑定中
                           </span>
                         ) : completed.has(active.id) ? (
-                          <span className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--muted)]">
+                          <span className="rounded-none border border-[var(--line)] bg-[var(--card)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--muted)]">
                             已完成后锁定
                           </span>
                         ) : (
@@ -813,17 +821,17 @@ function ImmersionContent() {
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{entry.draft}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {entry.weakPoint ? (
-                        <span className="rounded-[8px] bg-[rgba(185,78,60,0.1)] px-3 py-1 text-xs font-black text-[var(--cinnabar)]">
+                        <span className="rounded-none bg-[var(--seal-soft)] px-3 py-1 text-xs font-black text-[var(--cinnabar)]">
                           弱点：{entry.weakPoint}
                         </span>
                       ) : null}
                       {entry.targetRewrite ? (
-                        <span className="rounded-[8px] bg-[rgba(79,140,118,0.12)] px-3 py-1 text-xs font-black text-[var(--celadon)]">
+                        <span className="rounded-none bg-[var(--green-soft)] px-3 py-1 text-xs font-black text-[var(--celadon)]">
                           目标：{entry.targetRewrite}
                         </span>
                       ) : null}
                       {entry.rubric.map((item) => (
-                        <span key={item} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1 text-xs font-black text-[var(--ocean)]">
+                        <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-3 py-1 text-xs font-black text-[var(--ocean)]">
                           {outputRubric.find((rubric) => rubric.id === item)?.title ?? item}
                         </span>
                       ))}
@@ -832,7 +840,7 @@ function ImmersionContent() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-4">
+              <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-4">
                 <h3 className="font-serif text-2xl font-black">还没有保存这段材料的输出</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">完成一段复述或观点短文后保存，下一次回来就能看到自己的表达轨迹。</p>
               </div>
@@ -846,7 +854,7 @@ function ImmersionContent() {
 
 function HeroMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3">
+    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
       <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
       <strong className="mt-1 block leading-tight text-[var(--ink)]">{value}</strong>
       <span className="mt-2 block text-xs font-bold leading-5 text-[var(--muted)]">{detail}</span>
@@ -863,7 +871,7 @@ function ImmersionFallback() {
         copy="正在整理材料队列、学习证据和输出档案。"
       />
       <Surface>
-        <div className="grid min-h-48 place-items-center rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-6 text-center">
+        <div className="grid min-h-48 place-items-center rounded-none border border-[var(--line)] bg-[var(--card)] p-6 text-center">
           <div>
             <p className="eyebrow">Loading</p>
             <p className="mt-2 font-serif text-3xl font-black">正在打开对应材料</p>
@@ -876,10 +884,10 @@ function ImmersionFallback() {
 
 function GateRow({ done, label, detail }: { done: boolean; label: string; detail: string }) {
   return (
-    <div className={`flex min-h-14 items-start gap-3 rounded-[8px] border px-3 py-3 text-sm font-extrabold ${
+    <div className={`flex min-h-14 items-start gap-3 rounded-none border px-3 py-3 text-sm font-extrabold ${
       done
-        ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.12)] text-[var(--ink)]"
-        : "border-[var(--line)] bg-[rgba(255,250,240,0.62)] text-[var(--muted)]"
+        ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--ink)]"
+        : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
     }`}>
       <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${done ? "text-[var(--celadon)]" : "text-[var(--muted)]"}`} />
       <span>

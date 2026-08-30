@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
+const { UNLOCK_SCORE } = await import("../src/data/curriculum.js");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
 
 test("gate pass score demands real mastery", () => {
-  assert.equal(GATE_PASS_SCORE >= 75, true);
+  assert.equal(GATE_PASS_SCORE, UNLOCK_SCORE);
 });
 
 test("skipped listening or dictation blocks mastery for every gate kind", () => {

@@ -34,7 +34,7 @@ export function MasteryGate({
   if (!questions.length) return null;
 
   return (
-    <div ref={containerRef} className="mt-3 grid gap-3 rounded-[8px] border border-[rgba(23,63,115,0.28)] bg-[rgba(23,63,115,0.05)] p-3">
+    <div ref={containerRef} className="mt-3 grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />

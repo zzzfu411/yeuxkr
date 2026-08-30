@@ -23,7 +23,7 @@ test("a passing total cannot hide failed active production", () => {
     answer: question.answer,
     correct: !["type", "translate", "dictation"].includes(question.type)
   }));
-  const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 72);
+  const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 80);
 
   assert.equal(result.overallPassed, true);
   assert.equal(result.productionPassed, false);
@@ -56,8 +56,44 @@ test("missing device audio defers listening without forging its evidence", () =>
   });
   const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 100);
 
+  assert.equal(result.listeningRequired, true);
   assert.equal(result.listeningDeferred, true);
   assert.equal(result.listeningPassed, false);
   assert.equal(result.productionPassed, true);
-  assert.equal(result.corePassed, true);
+  assert.equal(result.corePassed, false);
+});
+
+test("skipping some listening items still blocks core mastery", () => {
+  const lesson = lessons.find((item) => item.id === "l01-hangul-map");
+  const questions = questionsFor(lesson);
+  const answers = questions.map((question) => {
+    if (question.type === "dictation") {
+      return { question, answer: "", correct: false, skipped: true };
+    }
+    return { question, answer: question.answer, correct: true, skipped: false };
+  });
+  const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 100);
+
+  assert.equal(result.listeningRequired, true);
+  assert.equal(result.listeningSkipped, true);
+  assert.equal(result.listeningDeferred, false);
+  assert.equal(result.listeningPassed, false);
+  assert.equal(result.corePassed, false);
+  assert.ok(answers.some((entry) => !entry.skipped && entry.correct));
+});
+
+test("speaking lessons still require attempted listening when they have audio drills", () => {
+  const lesson = lessons.find((item) => item.id === "l58-workplace-talk");
+  const questions = questionsFor(lesson);
+  const answers = questions.map((question) => {
+    const auditory = question.speak && ["listen", "dictation"].includes(question.type);
+    return auditory
+      ? { question, answer: "", correct: false, skipped: true }
+      : { question, answer: question.answer, correct: true };
+  });
+  const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 100);
+
+  assert.equal(result.listeningRequired, true);
+  assert.equal(result.listeningDeferred, true);
+  assert.equal(result.corePassed, false);
 });

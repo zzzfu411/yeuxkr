@@ -61,7 +61,7 @@ export function HangulKeyboard({
 
   return (
     <div
-      className={cn("grid min-w-0 max-w-full gap-1.5 overflow-x-auto rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-1 min-[360px]:p-2", className)}
+      className={cn("grid min-w-0 max-w-full gap-1.5 overflow-x-auto rounded-none border border-[var(--line)] bg-[var(--card)] p-1 min-[360px]:p-2", className)}
       role="group"
       aria-label="韩文屏幕键盘"
       onMouseDown={(event) => event.preventDefault()}
@@ -77,7 +77,7 @@ export function HangulKeyboard({
               type="button"
               className={cn(
                 "focus-ring hangul-key min-w-0 font-mono text-xs font-black uppercase",
-                shifted && "border-[rgba(23,63,115,0.4)] bg-[rgba(23,63,115,0.12)] text-[var(--ocean)]"
+                shifted && "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
               )}
               aria-pressed={shifted}
               aria-label="Shift：切换紧音"

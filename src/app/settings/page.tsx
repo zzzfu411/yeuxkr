@@ -40,7 +40,7 @@ export default function SettingsPage() {
               昵称
               <input
                 key={`name-${profile.updatedAt}`}
-                className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                 defaultValue={profile.name}
                 onBlur={(event) => {
                   const next = event.currentTarget.value.trim();
@@ -56,7 +56,7 @@ export default function SettingsPage() {
                 type="number"
                 min={5}
                 max={120}
-                className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                 defaultValue={profile.minutesGoal}
                 onBlur={(event) => {
                   const next = Number(event.currentTarget.value);
@@ -95,10 +95,10 @@ export default function SettingsPage() {
                     key={option.id}
                     type="button"
                     aria-pressed={profile.romanization === option.id}
-                    className={`focus-ring rounded-[8px] border p-3 text-left ${
+                    className={`focus-ring rounded-none border p-3 text-left ${
                       profile.romanization === option.id
-                        ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
-                        : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                        ? "border-[var(--green)] bg-[var(--green-soft)]"
+                        : "border-[var(--line)] bg-[var(--card)]"
                     }`}
                     onClick={() => save({ romanization: option.id })}
                   >

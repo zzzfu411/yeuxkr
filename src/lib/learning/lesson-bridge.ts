@@ -2,6 +2,7 @@ import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlock
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
 import { mapFocusToAbilities } from "./evidence.ts";
 import { lessonReviewCardId } from "./ids.ts";
+import type { LibraryGap } from "./path-gates.ts";
 import type { AbilityId, LearningProgress } from "./types.ts";
 
 export interface LessonBridgeStep {
@@ -35,12 +36,14 @@ export interface LessonBridge {
   steps: LessonBridgeStep[];
 }
 
-export function buildLessonBridge(lesson: any, progress: LearningProgress, evidence?: { validMaterialIds?: string[] }): LessonBridge {
+export function buildLessonBridge(lesson: any, progress: LearningProgress, evidence?: { validMaterialIds?: string[]; libraryOk?: boolean; libraryMissing?: LibraryGap[] }): LessonBridge {
   const validMaterialIds = new Set(evidence?.validMaterialIds ?? progress.completedMaterials);
   const completedIds = new Set(progress.completedLessons);
   const score = Number(progress.lessonScores[lesson.id] ?? progress.previewLessonScores?.[lesson.id] ?? 0);
-  const unlocked = isLessonUnlocked(lesson.id, completedIds, progress.lessonScores);
   const mastered = isLessonMastered(lesson.id, completedIds, progress.lessonScores);
+  const libraryMissing = evidence?.libraryMissing ?? [];
+  const libraryOk = evidence?.libraryOk ?? true;
+  const unlocked = isLessonUnlocked(lesson.id, completedIds, progress.lessonScores) && (mastered || libraryOk);
   const missingPrerequisites = getLessonPrerequisites(lesson.id)
     .filter((item: any) => !isLessonMastered(item.id, completedIds, progress.lessonScores))
     .map((item: any) => ({ id: item.id, order: item.order, title: item.title }));
@@ -78,12 +81,14 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
     {
       id: "prerequisite",
       label: "01",
-      title: missingPrerequisites.length ? "先补前置课" : "前置已对齐",
+      title: missingPrerequisites.length ? "先补前置课" : !libraryOk && !mastered ? "先补图书馆" : "前置已对齐",
       detail: missingPrerequisites.length
         ? `建议先把 ${missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")} 达到 ${UNLOCK_SCORE}%。`
-        : "这节课已经站在正确的路径位置上。",
-      href: missingPrerequisites[0] ? `/learn/${missingPrerequisites[0].id}` : "/path",
-      done: !missingPrerequisites.length
+        : !libraryOk && !mastered
+          ? `先把${libraryMissing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}补上，本课才写入核心路径。`
+          : "这节课已经站在正确的路径位置上。",
+      href: missingPrerequisites[0] ? `/learn/${missingPrerequisites[0].id}` : libraryMissing[0]?.href ?? "/path",
+      done: !missingPrerequisites.length && (mastered || libraryOk)
     },
     {
       id: "lesson",

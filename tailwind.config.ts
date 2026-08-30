@@ -11,13 +11,20 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "Noto Sans KR", "Noto Sans CJK SC", "sans-serif"],
+        sans: ["var(--font-sans)", "Noto Sans KR", "Noto Sans SC", "sans-serif"],
         serif: ["var(--font-serif)", "Noto Serif KR", "Songti SC", "serif"],
-        mono: ["var(--font-mono)", "Cascadia Mono", "monospace"]
+        mono: ["var(--font-mono)", "Cascadia Mono", "monospace"],
+        brush: ["var(--font-brush)", "Ma Shan Zheng", "serif"],
+        script: ["var(--font-script)", "Caveat", "cursive"]
       },
       boxShadow: {
-        editorial: "0 24px 70px rgba(24, 28, 27, 0.13)",
-        "paper-sm": "0 12px 34px rgba(24, 28, 27, 0.08)"
+        editorial: "4px 4px 0 var(--shadow-color)",
+        "paper-sm": "3px 3px 0 var(--shadow-color)",
+        brutal: "4px 4px 0 var(--shadow-color)",
+        "brutal-sm": "3px 3px 0 var(--shadow-color)"
+      },
+      borderRadius: {
+        DEFAULT: "0px"
       }
     }
   },

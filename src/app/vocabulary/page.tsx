@@ -1,19 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
+import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { TrackRow } from "@/components/ui/track-row";
 import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "@/data/lexicon";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean } from "@/lib/speech";
 
 export default function VocabularyPage() {
   const { workspace, toggleVocab, ensureVocab } = useLearningWorkspace();
+  const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const learned = useMemo(() => new Set(workspace.progress.learnedVocab), [workspace.progress.learnedVocab]);
   const romanizationScaffold = workspace.progress.completedLessons.length < 6;
   const [query, setQuery] = useState("");
@@ -23,6 +27,7 @@ export default function VocabularyPage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [gateItemId, setGateItemId] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filteredVocab = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return vocab.filter((item: any) => {
@@ -87,6 +92,9 @@ export default function VocabularyPage() {
         compact
       />
 
+      <OnboardingGateNotice copy="先完成三分钟入门，再把词汇掌握写入核心路径。" />
+      <LibraryGateNotice focus="vocab" />
+
       <ModuleHero
         kicker={`${filteredVocab.length}/${vocab.length} entries`}
         title="按场景取词，而不是背一列中文释义。"
@@ -96,7 +104,7 @@ export default function VocabularyPage() {
       >
         <div className="flex flex-wrap gap-2">
           {vocabCategories.map((item: any) => (
-            <span key={item.id} className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.72)] px-3 py-2 text-sm font-extrabold">
+            <span key={item.id} className="rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-extrabold">
               {item.label} · {categoryCounts[item.id] ?? 0}
             </span>
           ))}
@@ -133,7 +141,7 @@ export default function VocabularyPage() {
           </div>
           <FilterSummary count={filteredVocab.length} filters={activeFilters} />
           {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-[8px] border border-[rgba(183,135,63,0.32)] bg-[rgba(183,135,63,0.08)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
                 当前先显示 {visibleVocab.length} 个今日词汇切片；每个词都可以播放、造句、加入 SRS。熟悉后再展开剩余 {hiddenVocabCount} 个词。
               </span>
@@ -156,44 +164,37 @@ export default function VocabularyPage() {
       {vocabLevels.map((level: any) => (
         <Surface key={level.id} variant="plain" className={(byLevel[level.id] ?? []).length ? "" : "hidden"}>
           <SectionHeading kicker={`当前 ${byLevel[level.id]?.length ?? 0} shown · 匹配 ${levelCounts[level.id] ?? 0} · 扩容目标 ${level.target}`} title={level.label} copy={level.description} />
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(byLevel[level.id] ?? []).map((item: any) => (
-              <article key={item.id} className={`relative grid min-h-60 gap-2 rounded-[8px] border p-4 pr-16 md:min-h-72 ${learned.has(item.id) ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.11)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-                <button
-                  type="button"
-                  className="focus-ring absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)]"
-                  onClick={() => speakKorean(item.korean)}
-                  aria-label={`播放 ${item.korean}`}
-                >
-                  <Volume2 className="h-4 w-4" />
-                </button>
-                <span className="flex w-fit flex-wrap items-center gap-1.5">
-                  <span className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2.5 py-1 text-xs font-bold text-[var(--ocean)]">
-                    {categoryLabel(item.category)}
-                  </span>
-                  {item.pos ? (
-                    <span className="rounded-[8px] bg-[rgba(183,135,63,0.12)] px-2.5 py-1 font-mono text-[0.65rem] font-black uppercase text-[var(--brass)]">
-                      {vocabPosLabels[item.pos] ?? item.pos}
-                    </span>
-                  ) : null}
-                </span>
-                <h3 className="hangul-display text-3xl font-black md:text-4xl" lang="ko">{item.korean}</h3>
+          <div>
+            {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => (
+              <TrackRow
+                key={item.id}
+                index={itemIndex + 1}
+                glyph={item.korean}
+                kicker={categoryLabel(item.category)}
+                title={item.korean}
+                detail={item.meaning}
+                meta={item.pos ? (vocabPosLabels[item.pos] ?? item.pos) : undefined}
+                completed={learned.has(item.id)}
+                expanded={!collapsed[item.id]}
+                onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                onPlay={() => speakKorean(item.korean)}
+                playLabel={`播放 ${item.korean}`}
+              >
                 <RomanizationText
                   text={item.romanization}
                   preference={workspace.profile.romanization}
                   scaffold={romanizationScaffold}
                   className="font-mono text-sm font-black text-[var(--ocean)]"
                 />
-                <strong>{item.meaning}</strong>
-                <p className="hangul-display text-xl" lang="ko">{item.example}</p>
-                <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
+                <p className="hangul-display mt-2 text-xl" lang="ko">{item.example}</p>
+                <small className="block leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
                 {item.soundChangeNote ? (
-                  <p className="rounded-[8px] bg-[rgba(79,140,118,0.08)] p-2 text-xs font-bold leading-5 text-[var(--celadon)]">
+                  <p className="mt-2 rounded-none bg-[var(--green-soft)] p-2 text-xs font-bold leading-5 text-[var(--celadon)]">
                     发音提示：{item.soundChangeNote}
                   </p>
                 ) : null}
                 {item.collocations?.length ? (
-                  <div className="grid gap-1 text-sm leading-6">
+                  <div className="mt-2 grid gap-1 text-sm leading-6">
                     {item.collocations.map((collocation: any) => (
                       <p key={collocation.ko}>
                         <span className="hangul-display font-black" lang="ko">{collocation.ko}</span>
@@ -202,19 +203,21 @@ export default function VocabularyPage() {
                     ))}
                   </div>
                 ) : null}
-                <div className="rounded-[8px] border-l-4 border-[var(--ocean)] bg-[rgba(23,63,115,0.06)] p-3 text-sm leading-6 text-[var(--muted)]">
+                <div className="mt-3 rounded-none border-l-4 border-[var(--ocean)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm leading-6 text-[var(--muted)]">
                   {item.note}
                 </div>
                 {learned.has(item.id) ? (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleVocabSrs(item.id)}>
+                  <Button className="mt-3" type="button" variant="secondary" size="sm" onClick={() => toggleVocabSrs(item.id)}>
                     已掌握 · 点击移出
                   </Button>
                 ) : (
                   <Button
+                    className="mt-3"
                     type="button"
                     variant="secondary"
                     size="sm"
                     aria-expanded={gateItemId === item.id}
+                    disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
                   >
                     测一测 · 加入掌握
@@ -232,7 +235,7 @@ export default function VocabularyPage() {
                   />
                 ) : null}
                 {srsErrorId === item.id ? <SrsError /> : null}
-              </article>
+              </TrackRow>
             ))}
           </div>
         </Surface>

@@ -5,40 +5,40 @@ export const milestones = [
   {
     id: "m0",
     title: "文字与声音对齐",
-    range: "Day 1-14",
-    outcome: "能读写基础韩文字母、拼出音节、听出核心最小对立。",
+    range: "Week 1-3",
+    outcome: "能拆音节块、读完全部基础字母与复合元音，并在双收音和连读里站稳。",
     acceptanceLevelId: "script-foundation",
     modules: ["hangul", "pronunciation", "starter-vocab"]
   },
   {
     id: "m1",
-    title: "礼貌日常句",
-    range: "Week 3-8",
-    outcome: "能完成自我介绍、基础否定、数字时间、点餐购物和位置表达。",
+    title: "礼貌生存句",
+    range: "Week 3-10",
+    outcome: "能完成自我介绍、基础否定、数字时间、点餐购物和位置表达，并分清 은/는、이/가、을/를。",
     acceptanceLevelId: "survival-polite",
     modules: ["particles", "yo-style", "survival-dialogues"]
   },
   {
     id: "m2",
-    title: "连续表达",
-    range: "Month 3-6",
-    outcome: "能用过去式、请求、许可、原因与转折组织愿望、计划和连续经历。",
+    title: "连续日常表达",
+    range: "Month 3-8",
+    outcome: "能用过去式、请求、许可、原因、条件、背景句和意图组织愿望、计划和连续经历。",
     acceptanceLevelId: "connected-daily",
     modules: ["connectors", "daily-vocab", "listening-shadowing"]
   },
   {
     id: "m3",
-    title: "真实材料入口",
-    range: "Month 6-12",
-    outcome: "能读懂慢速新闻、综艺片段和社交媒体短帖，并做复述。",
+    title: "叙述与材料入口",
+    range: "Month 8-14",
+    outcome: "能处理被动/使动、让步、推测，并开始跟慢速新闻、短评和职场短对话做复述。",
     acceptanceLevelId: "media-discourse",
     modules: ["media", "nuance", "paragraph"]
   },
   {
     id: "m4",
-    title: "母语者级语用",
-    range: "Year 2+",
-    outcome: "能根据关系、场合、语域和隐含态度调整表达。",
+    title: "语域桥接",
+    range: "Month 14-18",
+    outcome: "能按关系、场合和书面/口语距离调整敬语、软化、拒绝和半语，而不是假装已经接近母语者。",
     acceptanceLevelId: "native-layer",
     modules: ["register", "discourse", "native-collocations"]
   }
@@ -69,7 +69,7 @@ export function normalizeTeachEntry(entry) {
   return { body: String(entry ?? "") };
 }
 
-export const UNLOCK_SCORE = 65;
+export const UNLOCK_SCORE = 80;
 
 export function getLessonPrerequisites(lessonId) {
   const lesson = getLessonById(lessonId);
@@ -94,6 +94,20 @@ export function isLessonUnlocked(lessonId, completedIds, scores = {}) {
   if (!lesson) return false;
   if (lesson.order === 1) return true;
   return getLessonPrerequisites(lessonId).every((item) => isLessonMastered(item.id, completedIds, scores));
+}
+
+export function firstActionableLesson(lessonIds, completedIds, scores = {}, fallbackId = "") {
+  const items = [...new Set((lessonIds ?? []).filter(Boolean))]
+    .map((id) => getLessonById(id))
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order);
+  const enterable = items.find((item) => isLessonUnlocked(item.id, completedIds, scores));
+  if (enterable) return enterable;
+  if (fallbackId) {
+    const fallback = getLessonById(fallbackId);
+    if (fallback) return fallback;
+  }
+  return items[0] ?? null;
 }
 
 export function getMilestoneProgress(milestoneId, completedIds = new Set(), scores = {}, evidence = {}) {

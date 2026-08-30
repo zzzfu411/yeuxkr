@@ -16,6 +16,14 @@ export const m4Lessons = [
       "切换普通词和敬语词",
       "避免过度敬语"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "改写一句敬语",
+      prompt: "用韩语写至少两句：一句尊敬长辈主语，一句自己向长辈说明。必须出现 -(으)시- 或 드리다/말씀。",
+      minSyllables: 20,
+      minClauses: 2,
+      markerGroups: [["시", "세요", "셨어요"], ["드리", "말씀"]]
+    },
     teach: [
       {
         title: "-(으)시- 尊敬的是主语",
@@ -178,6 +186,14 @@ export const m4Lessons = [
       "委婉拒绝",
       "做让步式评价"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "把断言改软",
+      prompt: "用韩语写至少两句，把直接判断改成 것 같아요 / 좀 / -긴 해요。不要只写一个词。",
+      minSyllables: 18,
+      minClauses: 2,
+      markerGroups: [["것 같", "좀", "긴 해"]]
+    },
     teach: [
       {
         title: "것 같아요：把断言降成印象",
@@ -326,6 +342,14 @@ export const m4Lessons = [
       "表达遗憾",
       "提出替代方案"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "拒绝并留后路",
+      prompt: "用韩语写至少两句：先委婉拒绝，再给替代时间或表示遗憾。必须出现 힘들/어렵 或 다음。",
+      minSyllables: 18,
+      minClauses: 2,
+      markerGroups: [["힘들", "어렵", "죄송"], ["다음", "아쉽"]]
+    },
     teach: [
       {
         title: "힘들 것 같아요：拒绝但不说“不”",
@@ -475,6 +499,14 @@ export const m4Lessons = [
       "使用抽象名词",
       "组织对比段落"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "写一段观点对比",
+      prompt: "围绕一个抽象话题写至少四句：先给自己的 관점，再用 반면에 或 결국 组织对比和收束。不要只堆汉字词。",
+      minSyllables: 40,
+      minClauses: 4,
+      markerGroups: [["관점", "맥락", "입장"], ["반면에", "결국"]]
+    },
     teach: [
       {
         title: "抽象名词工具箱：관점 / 맥락",

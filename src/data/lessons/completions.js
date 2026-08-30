@@ -1,3 +1,5 @@
+import { depthTeach, depthDrills } from "./depth.js";
+
 const replacementTeach = {
   "l06-cafe": [
     { title: "주세요：点单核心", body: "把想要的饮品放在 주세요 前面，就能组成最基础、也最安全的点单句。", speak: "커피 주세요", examples: [{ ko: "커피 주세요.", zh: "请给我咖啡。" }] },
@@ -154,8 +156,11 @@ export function completeLessons(lessons) {
     const extra = additions[lesson.id];
     return {
       ...lesson,
-      teach: replacementTeach[lesson.id] ?? [...(lesson.teach ?? []), ...(extra?.teach ?? [])],
-      drills: [...(lesson.drills ?? []), ...(extra?.drills ?? [])]
+      teach: [
+        ...(replacementTeach[lesson.id] ?? [...(lesson.teach ?? []), ...(extra?.teach ?? [])]),
+        ...(depthTeach[lesson.id] ?? [])
+      ],
+      drills: [...(lesson.drills ?? []), ...(extra?.drills ?? []), ...(depthDrills[lesson.id] ?? [])]
     };
   });
 }

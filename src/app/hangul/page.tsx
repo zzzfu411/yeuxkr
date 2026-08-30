@@ -4,6 +4,10 @@ import { useState } from "react";
 import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { TrackRow } from "@/components/ui/track-row";
+import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
+import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
@@ -27,6 +31,8 @@ export default function HangulPage() {
   } = useLearningWorkspace();
   const [srsErrorId, setSrsErrorId] = useState("");
   const [gateItemId, setGateItemId] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const mastered = new Set(workspace.progress.masteredHangul);
   const romanizationScaffold = workspace.progress.completedLessons.length < 6;
   const pronunciationCards = new Set(Object.keys(srsState.cards).filter((id) => id.startsWith("pronunciation:")));
@@ -49,6 +55,9 @@ export default function HangulPage() {
         compact
       />
 
+      <OnboardingGateNotice copy="先完成三分钟入门，再把字母掌握写入核心路径。" />
+      <LibraryGateNotice focus="hangul" />
+
       <ModuleHero
         kicker="Syllable Lab"
         title="先拆开音节块，再听它怎么发声。"
@@ -61,7 +70,7 @@ export default function HangulPage() {
             <button
               key={lab.result}
               type="button"
-              className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.68)] p-4 text-left transition hover:-translate-y-0.5"
+              className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] p-4 text-left transition hover:-translate-y-0.5"
               onClick={() => speakKorean(lab.result)}
               aria-label={`播放音节 ${lab.result}，结构 ${lab.blocks.join(" 加 ")}`}
             >
@@ -76,39 +85,39 @@ export default function HangulPage() {
       {hangulGroups.map((group: any) => (
         <Surface key={group.id} variant="plain">
           <SectionHeading kicker={group.track} title={group.title} copy={group.summary} />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {group.items.map((item: any) => {
+          <div>
+            {group.items.map((item: any, itemIndex: number) => {
               const soundRole = getSoundRole(group.id);
               const relation = getExampleRelation(item, group.id);
+              const expanded = !collapsed[item.id];
               return (
-              <article key={item.id} className={`relative grid min-h-72 content-start gap-2 rounded-[8px] border p-4 pr-16 ${mastered.has(item.id) ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.11)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-                <button
-                  type="button"
-                  className="focus-ring absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)]"
-                  onClick={() => speakKorean(item.sound)}
-                  aria-label={`播放${soundRole} ${item.sound}`}
-                  title={`播放${soundRole}：${item.sound}`}
-                >
-                  <Volume2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <div className="hangul-display text-5xl font-black md:text-6xl" lang="ko">{item.glyph}</div>
-                <div className="grid gap-1 font-mono text-sm font-black text-[var(--ocean)]">
-                  <RomanizationText
-                    text={item.romanization}
-                    preference={workspace.profile.romanization}
-                    scaffold={romanizationScaffold}
-                    className="font-mono text-sm font-black text-[var(--ocean)]"
-                  />
-                  <span>
-                    /{item.ipa}/
-                    {item.parts ? <span className="ml-2 text-[var(--brass)]" lang="ko">{item.parts.join(" + ")}</span> : null}
-                  </span>
-                </div>
-                <p className="text-sm leading-6 text-[var(--muted)]">{item.cue}</p>
-                <p className="font-mono text-xs font-black text-[var(--ocean)]">
-                  {soundRole} · <span className="hangul-display text-base" lang="ko">{item.sound}</span>
-                </p>
-                <div className="mt-1 grid gap-1 border-t border-[var(--line)] pt-3">
+              <TrackRow
+                key={item.id}
+                index={itemIndex + 1}
+                glyph={item.glyph}
+                kicker={soundRole}
+                title={item.glyph}
+                detail={item.cue}
+                meta={item.sound}
+                completed={mastered.has(item.id)}
+                expanded={expanded}
+                onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                onPlay={() => speakKorean(item.sound)}
+                playLabel={`播放${soundRole} ${item.sound}`}
+              >
+                <div className="grid gap-3">
+                  <div className="grid gap-1 font-mono text-sm font-black text-[var(--ocean)]">
+                    <RomanizationText
+                      text={item.romanization}
+                      preference={workspace.profile.romanization}
+                      scaffold={romanizationScaffold}
+                      className="font-mono text-sm font-black text-[var(--ocean)]"
+                    />
+                    <span>
+                      /{item.ipa}/
+                      {item.parts ? <span className="ml-2 text-[var(--brass)]" lang="ko">{item.parts.join(" + ")}</span> : null}
+                    </span>
+                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="eyebrow">例词</p>
@@ -128,35 +137,36 @@ export default function HangulPage() {
                   </div>
                   <small className="leading-5 text-[var(--muted)]">{item.exampleMeaning}</small>
                   <p className="text-xs font-bold leading-5 text-[var(--muted)]">{relation}</p>
+                  {mastered.has(item.id) ? (
+                    <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id))}>
+                      已掌握 · 点击移出
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      aria-expanded={gateItemId === item.id}
+                      disabled={enrollBlocked}
+                      onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
+                    >
+                      测一测 · 加入掌握
+                    </Button>
+                  )}
+                  {gateItemId === item.id && !mastered.has(item.id) ? (
+                    <MasteryGate
+                      kind="hangul"
+                      itemId={item.id}
+                      title={item.glyph}
+                      onPassed={() => {
+                        if (toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id))) setGateItemId("");
+                      }}
+                      onClose={() => setGateItemId("")}
+                    />
+                  ) : null}
+                  {srsErrorId === `hangul:${item.id}` ? <SrsError /> : null}
                 </div>
-                {mastered.has(item.id) ? (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id))}>
-                    已掌握 · 点击移出
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    aria-expanded={gateItemId === item.id}
-                    onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
-                  >
-                    测一测 · 加入掌握
-                  </Button>
-                )}
-                {gateItemId === item.id && !mastered.has(item.id) ? (
-                  <MasteryGate
-                    kind="hangul"
-                    itemId={item.id}
-                    title={item.glyph}
-                    onPassed={() => {
-                      if (toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id))) setGateItemId("");
-                    }}
-                    onClose={() => setGateItemId("")}
-                  />
-                ) : null}
-                {srsErrorId === `hangul:${item.id}` ? <SrsError /> : null}
-              </article>
+              </TrackRow>
               );
             })}
           </div>
@@ -165,56 +175,58 @@ export default function HangulPage() {
 
       <Surface variant="plain">
         <SectionHeading kicker="Minimal Pairs" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
-        <div id="pairs" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {pronunciationPairs.map((pair: any) => (
-            <article key={pair.id} className={`rounded-[8px] border p-4 ${pronunciationCards.has(pronunciationCardId(pair.id)) ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.11)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-              <button
-                type="button"
-                className="focus-ring flex w-full items-center justify-between rounded-[8px] bg-[rgba(23,63,115,0.08)] p-3"
-                onClick={() => speakSequence([pair.a, pair.b])}
-                aria-label={`播放对比：先 ${pair.a}，后 ${pair.b}`}
-              >
-                <strong className="hangul-display text-3xl" lang="ko">{pair.a}</strong>
-                <span className="font-mono text-xs font-black text-[var(--muted)]">vs</span>
-                <strong className="hangul-display text-3xl" lang="ko">{pair.b}</strong>
-              </button>
-              <h3 className="mt-3 font-serif text-xl font-black">{pair.focus}</h3>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{pair.tip}</p>
-                {pronunciationCards.has(pronunciationCardId(pair.id)) ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => toggleSrs(`pronunciation:${pair.id}`, () => togglePronunciation(pair.id))}
-                  >
-                    已加入 SRS · 点击移出
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="mt-3"
-                    aria-expanded={gateItemId === pair.id}
-                    onClick={() => setGateItemId((current) => (current === pair.id ? "" : pair.id))}
-                  >
-                    测一测 · 加入听辨复习
-                  </Button>
-                )}
-                {gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id)) ? (
-                  <MasteryGate
-                    kind="pronunciation"
-                    itemId={pair.id}
-                    title={`${pair.a} vs ${pair.b}`}
-                    onPassed={() => {
-                      if (toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id))) setGateItemId("");
-                    }}
-                    onClose={() => setGateItemId("")}
-                  />
-                ) : null}
+        <div id="pairs">
+          {pronunciationPairs.map((pair: any, pairIndex: number) => (
+            <TrackRow
+              key={pair.id}
+              index={pairIndex + 1}
+              glyph={pair.a}
+              kicker="最小对立"
+              title={`${pair.a} vs ${pair.b}`}
+              detail={pair.focus}
+              completed={pronunciationCards.has(pronunciationCardId(pair.id))}
+              expanded={!collapsed[pair.id]}
+              onToggle={() => setCollapsed((current) => ({ ...current, [pair.id]: !current[pair.id] }))}
+              onPlay={() => speakSequence([pair.a, pair.b])}
+              playLabel={`播放对比：先 ${pair.a}，后 ${pair.b}`}
+            >
+              <p className="text-sm leading-6 text-[var(--muted)]">{pair.tip}</p>
+              {pronunciationCards.has(pronunciationCardId(pair.id)) ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => toggleSrs(`pronunciation:${pair.id}`, () => togglePronunciation(pair.id))}
+                >
+                  已加入 SRS · 点击移出
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  aria-expanded={gateItemId === pair.id}
+                  disabled={enrollBlocked}
+                  onClick={() => setGateItemId((current) => (current === pair.id ? "" : pair.id))}
+                >
+                  测一测 · 加入听辨复习
+                </Button>
+              )}
+              {gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id)) ? (
+                <MasteryGate
+                  kind="pronunciation"
+                  itemId={pair.id}
+                  title={`${pair.a} vs ${pair.b}`}
+                  onPassed={() => {
+                    if (toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id))) setGateItemId("");
+                  }}
+                  onClose={() => setGateItemId("")}
+                />
+              ) : null}
               {srsErrorId === `pronunciation:${pair.id}` ? <SrsError className="mt-3" /> : null}
-            </article>
+            </TrackRow>
           ))}
         </div>
       </Surface>
@@ -225,24 +237,32 @@ export default function HangulPage() {
           title="音变实验室"
           copy="韩语“写的”和“读的”经常不一样。每条规则都把标准拼写与实际读音并列；播放时边听边对照方括号里的读法，若设备语音与标注不一致，以标注为准。"
         />
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {soundChangeRules.map((rule: any) => {
+        <div>
+          {soundChangeRules.map((rule: any, ruleIndex: number) => {
             const cardId = soundChangeCardId(rule.id);
             const added = soundChangeCards.has(cardId);
+            const first = rule.examples?.[0];
             return (
-              <article key={rule.id} className={`grid content-start gap-3 rounded-[8px] border p-4 ${added ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.11)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="font-serif text-xl font-black">{rule.title}</h3>
-                  <span className="hangul-display font-mono text-sm font-black text-[var(--ocean)]" lang="ko">{rule.korean}</span>
-                </div>
-                <p className="text-sm leading-6 text-[var(--muted)]">{rule.summary}</p>
-                <p className="rounded-[8px] bg-[rgba(23,63,115,0.06)] p-2 font-mono text-xs font-black text-[var(--ocean)]">{rule.rule}</p>
-                <div className="grid gap-2">
+              <TrackRow
+                key={rule.id}
+                index={ruleIndex + 1}
+                glyph={rule.korean?.[0] ?? "한"}
+                kicker="音变"
+                title={rule.title}
+                detail={rule.summary}
+                completed={added}
+                expanded={!collapsed[rule.id]}
+                onToggle={() => setCollapsed((current) => ({ ...current, [rule.id]: !current[rule.id] }))}
+                onPlay={first ? () => speakKorean(first.speak) : undefined}
+                playLabel={first ? `播放 ${first.written}` : undefined}
+              >
+                <p className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-2 font-mono text-xs font-black text-[var(--ocean)]">{rule.rule}</p>
+                <div className="mt-3 grid gap-2">
                   {rule.examples.map((example: any) => (
                     <button
                       key={example.written}
                       type="button"
-                      className="focus-ring flex items-center justify-between gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
+                      className="focus-ring flex items-center justify-between gap-2 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] p-2 text-left transition hover:-translate-y-0.5"
                       onClick={() => speakKorean(example.speak)}
                       aria-label={`播放 ${example.written}，实际读作 ${example.spoken}，意思是${example.zh}`}
                     >
@@ -259,7 +279,7 @@ export default function HangulPage() {
                   ))}
                 </div>
                 {added ? (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(cardId, () => toggleSoundChange(rule.id))}>
+                  <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={() => toggleSrs(cardId, () => toggleSoundChange(rule.id))}>
                     已加入听辨复习 · 点击移出
                   </Button>
                 ) : (
@@ -267,7 +287,9 @@ export default function HangulPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
+                    className="mt-3"
                     aria-expanded={gateItemId === rule.id}
+                    disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === rule.id ? "" : rule.id))}
                   >
                     测一测 · 加入听辨复习
@@ -285,7 +307,7 @@ export default function HangulPage() {
                   />
                 ) : null}
                 {srsErrorId === cardId ? <SrsError /> : null}
-              </article>
+              </TrackRow>
             );
           })}
         </div>

@@ -6,7 +6,7 @@ import { VisualPanel } from "@/components/assets/visual-panel";
 import { Button } from "@/components/ui/button";
 import { buildSelfStudyPlan } from "@/data/self-study";
 import type { DisplayVisualAssetId } from "@/data/visuals/assets";
-import { selectCompassPrimaryTask, selectCompassReviewTask, type CompassContext } from "@/lib/learning/compass";
+import { needsOnboardingFunnel, pathSpineDetail, selectCompassPrimaryTask, selectCompassReviewTask, type CompassContext } from "@/lib/learning/compass";
 import { ABILITY_LABELS, countCheckpointCredits, countNativePracticeEvidence } from "@/lib/learning/workspace";
 import type { LearningWorkspace } from "@/lib/learning/types";
 import { cn } from "@/lib/utils";
@@ -77,17 +77,21 @@ export function LearningCompass({
   workspace,
   active = "workspace",
   className,
-  condensed = false
+  condensed = false,
+  isFirstVisit = false
 }: {
   workspace: LearningWorkspace;
   active?: CompassContext;
   className?: string;
   condensed?: boolean;
+  isFirstVisit?: boolean;
 }) {
   const config = contextConfig[active];
   const plan = buildSelfStudyPlan(workspace.profile as any);
-  const primary = selectCompassPrimaryTask(workspace, active);
+  const funnel = isFirstVisit || needsOnboardingFunnel(workspace.profile, workspace.progress);
+  const primary = selectCompassPrimaryTask(workspace, active, { isFirstVisit: funnel });
   const reviewTask = selectCompassReviewTask(workspace);
+  const routeHref = funnel ? "/onboarding" : "/path";
   const primaryHref = primary?.href.replace(/\/$/, "") || "";
   const activeHref = contextRoutes[active].replace(/\/$/, "") || "/";
   const showPrimaryCta = Boolean(primary && primaryHref !== activeHref);
@@ -101,16 +105,16 @@ export function LearningCompass({
   const tracks = [
     {
       id: "path",
-      href: "/path",
+      href: funnel ? "/onboarding" : "/path",
       label: "课程主线",
       icon: MapPinned,
       stat: `${workspace.stats.completedLessons}/${workspace.stats.totalLessons}`,
-      detail: workspace.nextLesson ? `下一课 ${workspace.nextLesson.order} · ${workspace.nextLesson.title}` : "核心课已跑通，继续扩作品集",
+      detail: pathSpineDetail(workspace, funnel),
       active: active === "path"
     },
     {
       id: "self",
-      href: "/self-study",
+      href: funnel ? "/onboarding" : "/self-study",
       label: "自学方案",
       icon: NotebookTabs,
       stat: `${plan.durationWeeks} 周`,
@@ -119,7 +123,7 @@ export function LearningCompass({
     },
     {
       id: "review",
-      href: "/review",
+      href: funnel ? "/onboarding" : "/review",
       label: "复习闭环",
       icon: RefreshCcw,
       stat: reviewTask ? `${reviewTask.minutes} min` : "SRS",
@@ -128,7 +132,7 @@ export function LearningCompass({
     },
     {
       id: "mistakes",
-      href: "/mistakes",
+      href: funnel ? "/onboarding" : "/mistakes",
       label: "薄弱项地图",
       icon: CircleAlert,
       stat: mistakeStat,
@@ -139,7 +143,7 @@ export function LearningCompass({
     },
     {
       id: "quiz",
-      href: "/quiz",
+      href: funnel ? "/onboarding" : "/quiz",
       label: "迁移测验",
       icon: BookOpenCheck,
       stat: "Mix",
@@ -148,7 +152,7 @@ export function LearningCompass({
     },
     {
       id: "immersion",
-      href: "/immersion",
+      href: funnel ? "/onboarding" : "/immersion",
       label: "真实材料",
       icon: Radio,
       stat: `${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials}`,
@@ -157,7 +161,7 @@ export function LearningCompass({
     },
     {
       id: "native",
-      href: "/native",
+      href: funnel ? "/onboarding" : "/native",
       label: "母语者桥接",
       icon: Sparkles,
       stat: String(nativeEvidence),
@@ -168,7 +172,7 @@ export function LearningCompass({
 
   if (condensed) {
     return (
-      <section className={cn("rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.72)] p-3 shadow-paper-sm md:p-4", className)}>
+      <section className={cn("border-[3px] border-[var(--border)] bg-[var(--card)] p-3 shadow-brutal-sm md:p-4", className)}>
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.5fr)] lg:items-center">
             <div className="min-w-0">
@@ -198,7 +202,7 @@ export function LearningCompass({
             ) : null}
             {active !== "path" ? (
               <Button asChild variant="secondary" size="sm">
-                <Link href="/path">
+                <Link href={routeHref}>
                   <Compass className="h-4 w-4" />
                   路线
                 </Link>
@@ -217,10 +221,10 @@ export function LearningCompass({
                   aria-label={`打开${track.label}`}
                   aria-current={track.active ? "page" : undefined}
                   className={cn(
-                    "focus-ring grid min-h-20 min-w-[11.5rem] snap-start rounded-[8px] border p-2.5 transition hover:-translate-y-0.5 hover:shadow-paper-sm md:min-w-0",
+                    "focus-ring grid min-h-20 min-w-[11.5rem] snap-start rounded-none border-[3px] p-2.5 transition hover:-translate-x-px hover:-translate-y-px md:min-w-0",
                     track.active
-                      ? "border-[rgba(23,63,115,0.52)] bg-[rgba(23,63,115,0.11)]"
-                      : "border-[var(--line)] bg-[rgba(255,250,240,0.58)]"
+                      ? "border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)]"
+                      : "border-[var(--border)] bg-[var(--card)]"
                   )}
                 >
                   <span className="flex min-w-0 items-start justify-between gap-2">
@@ -237,14 +241,14 @@ export function LearningCompass({
           </div>
         </div>
         {nextRequirements.length ? (
-          <div className="mt-3 grid gap-2 rounded-[8px] border border-[rgba(183,135,63,0.32)] bg-[rgba(183,135,63,0.08)] p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+          <div className="mt-3 grid gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
             <span className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--brass)]">
               <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
               下一阶段证据
             </span>
             <div className="grid gap-2 md:grid-cols-4">
               {nextRequirements.map((item) => (
-                <div key={item.metric} className="rounded-[8px] border border-[rgba(24,28,27,0.1)] bg-[rgba(255,250,240,0.55)] px-3 py-2">
+                <div key={item.metric} className="rounded-none border-2 border-[var(--border)] bg-[var(--card)] px-3 py-2">
                   <div className="flex items-center justify-between gap-2 text-xs font-black">
                     <span>{item.label}</span>
                     <span className="font-mono text-[var(--muted)]">{item.current}/{item.target}</span>
@@ -263,18 +267,18 @@ export function LearningCompass({
 
   return (
     <section className={cn("grid gap-3", className)}>
-      <div className="grid overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.38fr)]">
+      <div className="grid overflow-hidden rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] shadow-brutal lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.38fr)]">
         <div className="p-4 md:p-5">
           <p className="eyebrow">{config.kicker}</p>
           <h2 className="mt-2 max-w-4xl font-serif text-3xl font-black leading-tight md:text-4xl">{config.title}</h2>
           <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-[var(--muted)] md:text-base md:leading-7">{config.copy}</p>
           <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="rounded-[8px] border border-[rgba(23,63,115,0.16)] bg-[rgba(23,63,115,0.06)] p-3">
+            <div className="rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] p-3">
               <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">当前证据</span>
               <strong className="mt-1 block font-serif text-2xl leading-tight">{workspace.proficiency.current.band} · {workspace.proficiency.current.title}</strong>
               <p className="mt-2 text-xs font-bold leading-5 text-[var(--muted)]">弱项优先：{weakLabels}</p>
             </div>
-            <div className="rounded-[8px] border border-[rgba(79,140,118,0.22)] bg-[rgba(79,140,118,0.08)] p-3">
+            <div className="rounded-none border-[3px] border-[var(--border)] bg-[var(--green-soft)] p-3">
               <span className="font-mono text-xs font-black uppercase text-[var(--celadon)]">下一动作</span>
               <strong className="mt-1 block font-serif text-2xl leading-tight">{primary?.title ?? "进入自由练习"}</strong>
               <p className="mt-2 text-xs font-bold leading-5 text-[var(--muted)]">{primary?.detail ?? "从复习、真实材料或母语者表达继续积累证据。"}</p>
@@ -291,7 +295,7 @@ export function LearningCompass({
             ) : null}
             {active !== "path" ? (
               <Button asChild variant="secondary" size="sm">
-                <Link href="/path">
+                <Link href={routeHref}>
                   <Compass className="h-4 w-4" />
                   查看全路线
                 </Link>
@@ -301,7 +305,7 @@ export function LearningCompass({
         </div>
         <div className="relative min-h-64">
           <VisualPanel asset={config.asset} priority={active === "workspace"} sizes="(max-width: 1024px) 100vw, 28rem" overlay="bottom" className="absolute inset-0 rounded-none border-0" />
-          <div className="absolute bottom-3 left-3 right-3 grid grid-cols-4 gap-2 rounded-[8px] border border-[rgba(255,250,240,0.58)] bg-[rgba(24,28,27,0.72)] p-3 text-[var(--surface-solid)] shadow-editorial backdrop-blur">
+          <div className="absolute bottom-3 left-3 right-3 grid grid-cols-4 gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--ink)] p-3 text-[var(--ink-inv)] shadow-brutal">
             <CompassMetric label="课程" value={`${pathPercent}%`} />
             <CompassMetric label="材料" value={`${materialPercent}%`} />
             <CompassMetric label="输出" value={String(workspace.stats.outputEntries)} />
@@ -320,10 +324,10 @@ export function LearningCompass({
               aria-label={`打开${track.label}`}
               aria-current={track.active ? "page" : undefined}
               className={cn(
-                "focus-ring grid min-h-32 min-w-0 rounded-[8px] border p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm",
+                "focus-ring grid min-h-32 min-w-0 rounded-none border-[3px] p-3 transition hover:-translate-x-px hover:-translate-y-px",
                 track.active
-                  ? "border-[rgba(23,63,115,0.52)] bg-[rgba(23,63,115,0.11)]"
-                  : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                  ? "border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)]"
+                  : "border-[var(--border)] bg-[var(--card)]"
               )}
             >
               <span className="flex min-w-0 items-start justify-between gap-2">
@@ -340,14 +344,14 @@ export function LearningCompass({
       </div>
 
       {nextRequirements.length ? (
-        <div className="grid gap-2 rounded-[8px] border border-[rgba(183,135,63,0.32)] bg-[rgba(183,135,63,0.08)] p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+        <div className="grid gap-2 rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] p-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
           <span className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--brass)]">
             <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
             下一阶段证据
           </span>
           <div className="grid gap-2 md:grid-cols-4">
             {nextRequirements.map((item) => (
-              <div key={item.metric} className="rounded-[8px] border border-[rgba(24,28,27,0.1)] bg-[rgba(255,250,240,0.55)] px-3 py-2">
+              <div key={item.metric} className="rounded-none border-2 border-[var(--border)] bg-[var(--card)] px-3 py-2">
                 <div className="flex items-center justify-between gap-2 text-xs font-black">
                   <span>{item.label}</span>
                   <span className="font-mono text-[var(--muted)]">{item.current}/{item.target}</span>
@@ -366,7 +370,7 @@ export function LearningCompass({
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-[8px] border border-[rgba(24,28,27,0.1)] bg-[rgba(255,250,240,0.58)] px-3 py-2">
+    <div className="min-w-0 rounded-none border-2 border-[var(--border)] bg-[var(--card)] px-3 py-2">
       <strong className="block truncate font-serif text-xl font-black leading-none">{value}</strong>
       <span className="mt-1 block font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{label}</span>
     </div>

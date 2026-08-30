@@ -4,18 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CheckCircle2, Compass, ListChecks, Route, SlidersHorizontal, TimerReset } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
+import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { TaskCard } from "@/components/learning/task-card";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { TrackRow } from "@/components/ui/track-row";
 import { selfStudyFocus, selfStudyGoals, selfStudyIntensity, buildSelfStudyPlan, normalizeDailyMinutes } from "@/data/self-study";
 import { clearSelfStudyCheckpointDraft, getSelfStudyCheckpointDrafts, saveSelfStudyCheckpointDraft } from "@/lib/learning/drafts";
 import { moduleToAbility } from "@/lib/learning/modules";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { ABILITY_LABELS, findCompletedCheckpointCredit, useLearningWorkspace, validateCheckpointEvidence } from "@/lib/learning/workspace";
 import type { AbilityId, StudyFocus, StudyGoal, StudyIntensity, StudyMode, UserProfile } from "@/lib/learning/types";
 
 export default function SelfStudyPage() {
   const { workspace, saveSelfStudyPlan, saveSelfStudyCheckpoint } = useLearningWorkspace();
   const profile = workspace.profile;
+  const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const [draftPatch, setDraftPatch] = useState<Partial<ReturnType<typeof draftFromProfile>>>({});
   const [minutesGoalDraft, setMinutesGoalDraft] = useState<string | null>(null);
   const [checkpointDrafts, setCheckpointDrafts] = useState<Record<string, string>>({});
@@ -56,6 +60,7 @@ export default function SelfStudyPage() {
   };
 
   const applyPlan = () => {
+    if (enrollBlocked) return false;
     if (!saveSelfStudyPlan(planDraft)) {
       setSaveStatus("error");
       return false;
@@ -90,6 +95,8 @@ export default function SelfStudyPage() {
         </div>
       </PageHeader>
 
+      <OnboardingGateNotice copy="先完成三分钟入门，再把自学方案写入工作台。" />
+
       <ModuleHero
         kicker={`Current Plan · ${plan.intensity.title} · ${plan.focus.title}`}
         title={plan.goal.title}
@@ -117,9 +124,9 @@ export default function SelfStudyPage() {
           title="今天先完成这三步"
           copy="这些不是另一套任务。它们直接来自工作台推荐，并共用课程掌握、SRS、错题和能力证据。"
         />
-        <div className="grid gap-3 lg:grid-cols-3">
-          {todayTasks.map((task) => (
-            <TaskCard key={task.id} task={task} compact />
+        <div>
+          {todayTasks.map((task, index) => (
+            <TaskCard key={task.id} task={task} compact index={index + 1} />
           ))}
         </div>
       </Surface>
@@ -128,7 +135,7 @@ export default function SelfStudyPage() {
 
       <section className="grid gap-3 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div className="dark-slab grid gap-4 p-5 md:grid-cols-[auto_minmax(0,1fr)]">
-          <div className="hidden h-full w-12 place-items-center rounded-[8px] border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase tracking-normal text-[rgba(255,250,240,0.74)] md:grid">
+          <div className="hidden h-full w-12 place-items-center rounded-none border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase tracking-normal text-[rgba(255,250,240,0.74)] md:grid">
             <span className="vertical-text">Mode</span>
           </div>
           <div className="grid gap-3">
@@ -150,8 +157,8 @@ export default function SelfStudyPage() {
               ["3", "必须有输出", plan.dailyTemplate[2]?.detail ?? "写或说一句可复查的韩语。"],
               ["4", "检查点收口", "用录音、正确率、韩语复述或短文证明它真的掌握了。"]
             ].map(([step, title, detail]) => (
-              <div key={step} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-3 rounded-[8px] border border-[rgba(24,28,27,0.12)] bg-[rgba(255,250,240,0.66)] p-3">
-                <span className="grid h-9 w-9 place-items-center rounded-[8px] bg-[var(--ink)] font-mono text-xs font-black text-[var(--surface-solid)]">{step}</span>
+              <div key={step} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
+                <span className="grid h-9 w-9 place-items-center rounded-none bg-[var(--ink)] font-mono text-xs font-black text-[var(--surface-solid)]">{step}</span>
                 <span>
                   <strong className="block font-serif text-xl leading-tight">{title}</strong>
                   <span className="mt-1 block text-sm font-bold leading-6 text-[var(--muted)]">{detail}</span>
@@ -197,7 +204,7 @@ export default function SelfStudyPage() {
               <label className="grid gap-2 text-sm font-extrabold">
                 每日可用分钟
                 <input
-                  className="focus-ring min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                  className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                   type="number"
                   min={5}
                   max={120}
@@ -209,18 +216,18 @@ export default function SelfStudyPage() {
                   }}
                 />
               </label>
-              <Button type="button" onClick={applyPlan}>
-                {saveStatus === "saved" ? "已应用到工作台" : "保存并应用到工作台"}
+              <Button type="button" onClick={applyPlan} disabled={enrollBlocked}>
+                {enrollBlocked ? "先完成入门" : saveStatus === "saved" ? "已应用到工作台" : "保存并应用到工作台"}
               </Button>
               {saveStatus === "error" ? (
-                <p className="rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+                <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
                   本机进度暂时无法写入，请释放浏览器存储空间或关闭隐私限制后再试。
                 </p>
               ) : null}
               {saveStatus === "saved" ? (
-                <div className="grid gap-2 rounded-[8px] border border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)] p-3 text-sm font-bold leading-6">
+                <div className="grid gap-2 rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6">
                   <p className="text-[var(--celadon)]">今日自学规划已确认，首页会按这个方案重新排序推荐任务。</p>
-                  <div className="grid gap-2 rounded-[8px] border border-[rgba(24,28,27,0.1)] bg-[rgba(255,250,240,0.58)] p-3 text-[var(--muted)]">
+                  <div className="grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-[var(--muted)]">
                     <span>{planDraft.studyMode === "self" ? "首页优先：自学计划、弱项模块、复习节奏。" : "首页优先：下一课、到期复习、路径转移任务。"}</span>
                     <span>仍会记录：课程掌握、真实材料、输出档案、错题 SRS 和检查点证据。</span>
                   </div>
@@ -237,15 +244,16 @@ export default function SelfStudyPage() {
               title="每日执行模板"
               copy="复习、新输入、主动输出和记录共同组成每日建议；首页会依据你真正完成的课程、复习、材料、输出与检查点动态重排。"
             />
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {plan.dailyTemplate.map((item: any) => (
-                <article key={item.title} className="grid min-h-44 content-between rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-4 shadow-paper-sm">
-                  <span>
-                    <strong className="font-serif text-2xl leading-tight">{item.title}</strong>
-                    <span className="ml-2 font-mono text-xs font-black text-[var(--ocean)]">{item.minutes} min</span>
-                  </span>
-                  <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{item.detail}</p>
-                </article>
+            <div>
+              {plan.dailyTemplate.map((item: any, index: number) => (
+                <TrackRow
+                  key={item.title}
+                  index={index + 1}
+                  glyph={String(index + 1)}
+                  kicker={`${item.minutes} min`}
+                  title={item.title}
+                  detail={item.detail}
+                />
               ))}
             </div>
           </Surface>
@@ -256,26 +264,25 @@ export default function SelfStudyPage() {
               title="阶段路线"
               copy="完整自学方案会先固定声音和文字，再进入句型、真实场景、语气和作品集，不会一上来就把高级表达堆给零基础学习者。"
             />
-            <div className="relative grid gap-3">
-              <div className="absolute bottom-8 left-8 top-8 hidden w-px bg-[rgba(23,63,115,0.18)] md:block" />
+            <div>
               {plan.phases.map((phase: any, index: number) => (
-                <article key={phase.title} className="relative grid gap-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.66)] p-4 md:grid-cols-[5rem_minmax(0,1fr)]">
-                  <div className="z-10 grid h-14 w-14 place-items-center rounded-[8px] border border-[rgba(23,63,115,0.2)] bg-[var(--surface-solid)] font-mono text-2xl font-black text-[var(--ocean)] shadow-paper-sm">
-                    {String(index + 1).padStart(2, "0")}
+                <TrackRow
+                  key={phase.title}
+                  index={index + 1}
+                  glyph={String(index + 1)}
+                  kicker={phase.weeks}
+                  title={phase.title}
+                  detail={phase.outcome}
+                  expanded
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {phase.modules.map((module: any) => (
+                      <Link key={module.id} href={module.href} className="rounded-none border-[3px] border-[var(--border)] bg-[var(--yellow-soft)] px-3 py-1 text-sm font-bold text-[var(--ocean)]">
+                        {module.title}
+                      </Link>
+                    ))}
                   </div>
-                  <div className="min-w-0">
-                    <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{phase.weeks}</span>
-                    <h3 className="mt-1 font-serif text-2xl font-black">{phase.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{phase.outcome}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {phase.modules.map((module: any) => (
-                        <Link key={module.id} href={module.href} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1 text-sm font-bold text-[var(--ocean)]">
-                          {module.title}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                </article>
+                </TrackRow>
               ))}
             </div>
           </Surface>
@@ -292,12 +299,17 @@ export default function SelfStudyPage() {
                   </Button>
                 ) : null}
               />
-              <div className="grid gap-2">
-                {visibleRhythm.map((day: any) => (
-                  <article key={day.day} className={`rounded-[8px] border p-3 ${day.active ? "border-[rgba(79,140,118,0.35)] bg-[rgba(79,140,118,0.1)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.56)]"}`}>
-                    <strong>{day.day} · {day.title}</strong>
-                    <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{day.detail}</p>
-                  </article>
+              <div>
+                {visibleRhythm.map((day: any, index: number) => (
+                  <TrackRow
+                    key={day.day}
+                    index={index + 1}
+                    glyph={day.day.slice(0, 1)}
+                    kicker={day.day}
+                    title={day.title}
+                    detail={day.detail}
+                    active={day.active}
+                  />
                 ))}
               </div>
             </Surface>
@@ -307,34 +319,32 @@ export default function SelfStudyPage() {
                 title="证据闸门"
                 copy="自学可以自由，但不能空口完成。检查点保存周度复盘与可复查记录；能力分仍只来自课程答题、SRS、真实材料和输出作品。"
               />
-              <div className="grid gap-2">
+              <div>
                 {visibleCheckpoints.map((item: any, index: number) => {
                   const checkpointId = checkpointKey(plan.goal.id, plan.intensity.id, plan.focus.id, item.title, index);
                   const completedCheckpointId = findCompletedCheckpointCredit(workspace.progress, checkpointId);
                   const completed = Boolean(completedCheckpointId);
                   const savedEvidence = completedCheckpointId ? workspace.progress.checkpointEvidence[completedCheckpointId] : undefined;
                   const evidence = savedEvidence ?? workspace.progress.checkpointEvidence[checkpointId] ?? checkpointDrafts[checkpointId] ?? "";
-                  const evidenceReady = validateCheckpointEvidence(evidence);
+                  const evidenceReady = validateCheckpointEvidence(evidence, workspace.progress);
                   const weakEvidence = !completed && Boolean(evidence.trim()) && !evidenceReady;
                   const evidenceHintId = `checkpoint-evidence-hint-${index}`;
                   return (
-                  <article key={item.title} className={`rounded-[8px] border p-3 ${completed ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.56)]"}`}>
-                    <div className="flex items-start gap-3">
-                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-[8px] border text-xs font-black ${completed ? "border-[var(--celadon)] bg-[var(--celadon)] text-[var(--surface-solid)]" : "border-[rgba(23,63,115,0.2)] bg-[var(--surface-solid)] text-[var(--ocean)]"}`}>
-                        {completed ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
-                      </span>
-                      <span>
-                        <strong className="block">{item.title}</strong>
-                        <span className="mt-1 block text-xs font-bold leading-5 text-[var(--muted)]">
-                          关联训练：{checkpointAbilities(item, plan.modules).map((ability) => ABILITY_LABELS[ability]).join(" / ")}
-                        </span>
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{item.detail}</p>
+                  <TrackRow
+                    key={item.title}
+                    index={index + 1}
+                    glyph={String(index + 1)}
+                    kicker={completed ? "已通过" : "检查点"}
+                    title={item.title}
+                    detail={`关联训练：${checkpointAbilities(item, plan.modules).map((ability) => ABILITY_LABELS[ability]).join(" / ")}`}
+                    completed={completed}
+                    expanded
+                  >
+                    <p className="text-sm leading-6 text-[var(--muted)]">{item.detail}</p>
                     <label className="mt-3 grid gap-2 text-sm font-extrabold">
                       检查证据
                       <textarea
-                        className="focus-ring min-h-20 resize-none rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 py-2 text-sm font-medium"
+                        className="focus-ring min-h-20 resize-none rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 py-2 text-sm font-medium"
                         value={evidence}
                         disabled={completed}
                         aria-describedby={weakEvidence ? evidenceHintId : undefined}
@@ -354,8 +364,8 @@ export default function SelfStudyPage() {
                       />
                     </label>
                     {weakEvidence ? (
-                      <p id={evidenceHintId} className="mt-2 rounded-[8px] border border-[rgba(183,135,63,0.28)] bg-[rgba(183,135,63,0.08)] p-3 text-xs font-bold leading-5 text-[var(--brass)]">
-                        需要可复查证据：录音时长、正确率、韩语输出句子、错因或修正目标。
+                      <p id={evidenceHintId} className="mt-2 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-xs font-bold leading-5 text-[var(--brass)]">
+                        需要可复查证据：先有一课或入册记录，再写下含韩语的录音时长、正确率或输出句子。
                       </p>
                     ) : null}
                     <Button
@@ -363,8 +373,9 @@ export default function SelfStudyPage() {
                       type="button"
                       size="sm"
                       variant="secondary"
-                       disabled={completed || !evidenceReady}
+                       disabled={completed || enrollBlocked || !evidenceReady}
                        onClick={() => {
+                         if (enrollBlocked) return;
                          if (!saveSelfStudyCheckpoint(planDraft, checkpointId, evidence, checkpointAbilities(item, plan.modules))) {
                            setCheckpointErrors((current) => ({ ...current, [checkpointId]: "证据没有保存成功，请稍后重试。" }));
                            return;
@@ -387,16 +398,16 @@ export default function SelfStudyPage() {
                        {completed ? "已记录" : "记录检查点"}
                      </Button>
                      {checkpointErrors[checkpointId] ? (
-                       <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+                       <p className="mt-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
                          {checkpointErrors[checkpointId]}
                        </p>
                      ) : null}
-                   </article>
+                   </TrackRow>
                 );
                 })}
               </div>
               {hiddenCheckpointCount ? (
-                <details className="mt-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.5)] p-3">
+                <details className="mt-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
                   <summary className="cursor-pointer text-sm font-black text-[var(--muted)]">
                     后续 {hiddenCheckpointCount} 个检查点将在当前项完成后顺序开放
                   </summary>
@@ -452,8 +463,8 @@ function ChoiceGroup({
         {options.map((item) => (
           <label
             key={item.id}
-            className={`focus-ring grid min-h-11 place-items-center rounded-[8px] border px-3 text-center text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
-              value === item.id ? "border-[var(--ocean)] bg-[rgba(23,63,115,0.12)] text-[var(--ocean)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+            className={`focus-ring grid min-h-11 place-items-center rounded-none border px-3 text-center text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
+              value === item.id ? "border-[var(--ocean)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]" : "border-[var(--line)] bg-[var(--card)]"
             }`}
           >
             <input
@@ -492,7 +503,7 @@ function planCheckpointAbilities(modules: Array<{ id: string }>): AbilityId[] {
 
 function ModeCard({ active, title, detail }: { active: boolean; title: string; detail: string }) {
   return (
-    <div className={`rounded-[8px] border p-4 ${active ? "border-[rgba(255,250,240,0.42)] bg-[rgba(255,250,240,0.16)]" : "border-[rgba(255,250,240,0.14)] bg-[rgba(255,250,240,0.06)]"}`}>
+    <div className={`rounded-none border p-4 ${active ? "border-[rgba(255,250,240,0.42)] bg-[rgba(255,250,240,0.16)]" : "border-[rgba(255,250,240,0.14)] bg-[rgba(255,250,240,0.06)]"}`}>
       <span className="mb-3 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[rgba(255,250,240,0.72)]">
         <CheckCircle2 className={`h-4 w-4 ${active ? "text-[var(--celadon)]" : "text-[rgba(255,250,240,0.38)]"}`} />
         {active ? "当前模式" : "可随时切换"}
@@ -505,7 +516,7 @@ function ModeCard({ active, title, detail }: { active: boolean; title: string; d
 
 function Mini({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.66)] p-3">
+    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
       <Icon className="mb-3 h-4 w-4 text-[var(--ocean)]" aria-hidden="true" />
       <strong className="block font-serif text-2xl font-black">{value}</strong>
       <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>

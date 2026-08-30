@@ -2,26 +2,53 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, Check, ChevronsDown, ClipboardCheck, Layers3, LockKeyhole, MapPinned } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ChevronsDown, ClipboardCheck, Layers3, MapPinned } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { getLessonPrerequisites, getMilestoneProgress, isLessonMastered, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "@/data/curriculum";
+import { TrackRow } from "@/components/ui/track-row";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
+import { TASK_IDS } from "@/lib/learning/ids";
+import { firstHangul } from "@/lib/learning/player";
+import { firstActionableLesson, getLessonPrerequisites, getMilestoneProgress, isLessonMastered, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "@/data/curriculum";
 import { nativeRoadmapPrinciples, nativeRoadmapStages } from "@/data/native-roadmap";
 import { proficiencyLevels, proficiencyMetrics } from "@/data/proficiency";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
+import { libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
 
 export default function PathPage() {
   const { workspace } = useLearningWorkspace();
   const [showAllStages, setShowAllStages] = useState(false);
   const [focusedMilestoneId, setFocusedMilestoneId] = useState<string | null>(null);
   const completedIds = new Set(workspace.progress.completedLessons);
+  const libraryCounts = libraryCountsForWrite(workspace.progress);
+  const nextLibraryGate = getLibraryGateForLesson(workspace.nextLesson, libraryCounts);
+  const dueReview = workspace.recommended.find((task) => task.id === TASK_IDS.systemReview);
+  const retrain = workspace.recommended.find((task) => String(task.id).startsWith("system:retrain-"))
+    ?? workspace.openStudy.find((task) => String(task.id).startsWith("system:retrain-"));
+  const needsOnboarding = needsOnboardingFunnel(workspace.profile, workspace.progress);
+  const continueHref = needsOnboarding
+    ? "/onboarding"
+    : dueReview?.href
+      ?? libraryRepairHref(nextLibraryGate)
+      ?? retrain?.href
+      ?? (workspace.nextLesson ? `/learn/${workspace.nextLesson.id}` : "/path");
+  const continueLabel = needsOnboarding
+    ? "先完成入门"
+    : dueReview
+      ? "先清到期复习"
+      : !nextLibraryGate.ok
+        ? `先补${nextLibraryGate.missing[0]?.label ?? "库"}`
+        : retrain
+          ? "先回炉旧课"
+          : "继续当前建议课";
   const scores = workspace.progress.lessonScores;
   const milestoneProgressById = new Map(milestones.map((milestone: any) => [
     milestone.id,
     getMilestoneProgress(milestone.id, completedIds, scores, workspace.proficiency.evidence)
   ]));
   const nextLessonId = workspace.nextLesson?.id;
+  const recommendNextLessonNow = !needsOnboarding && nextLibraryGate.ok && !dueReview && !retrain;
   const currentMilestoneId = workspace.nextLesson?.milestone ?? milestones.find((milestone: any) => {
     return lessons
       .filter((lesson: any) => lesson.milestone === milestone.id)
@@ -74,7 +101,7 @@ export default function PathPage() {
       <PageHeader
         kicker="Learning Path"
         title="路径不是目录，而是能力迁移地图。"
-        copy={`这条路线从韩文字母、声音、基础句型，逐步走向真实材料、语气距离和母语者表达。课程需要上一课达到 ${UNLOCK_SCORE}% 才建议推进；自由学习时也会保留先修提示。`}
+        copy={`这条路线从韩文字母、声音、基础句型，走向连续日常、叙述材料和语域桥接。课程需要上一课达到 ${UNLOCK_SCORE}%，并且韩文、词汇、语法、材料达到当前阶段门槛，才写入核心路径。母语者水平不在这 60 节核心课里兑现。`}
         compact
       />
 
@@ -86,9 +113,9 @@ export default function PathPage() {
       >
         {workspace.nextLesson ? (
           <Button asChild>
-            <Link href={`/learn/${workspace.nextLesson.id}`}>
+            <Link href={continueHref}>
               <MapPinned className="h-4 w-4" />
-              继续当前建议课
+              {continueLabel}
             </Link>
           </Button>
         ) : null}
@@ -111,24 +138,24 @@ export default function PathPage() {
             <article
               key={milestone.id}
               aria-labelledby={`stage-${milestone.id}-title`}
-              className={`relative overflow-hidden rounded-[8px] border p-4 ${
+              className={`relative overflow-hidden rounded-none border p-4 ${
                 isFocusedStage
-                  ? "border-[rgba(23,63,115,0.62)] bg-[rgba(23,63,115,0.1)]"
+                  ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)]"
                   : isCurrentStage
-                  ? "border-[rgba(183,135,63,0.58)] bg-[rgba(183,135,63,0.11)]"
+                  ? "border-[var(--border)] bg-[rgba(183,135,63,0.11)]"
                   : stageProgress.complete
-                    ? "border-[rgba(79,140,118,0.38)] bg-[rgba(79,140,118,0.1)]"
-                    : "border-[var(--line)] bg-[rgba(255,250,240,0.64)]"
+                    ? "border-[var(--green)] bg-[var(--green-soft)]"
+                    : "border-[var(--line)] bg-[var(--card)]"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">Stage {String(index + 1).padStart(2, "0")}</span>
-                <span className={`rounded-[8px] px-2 py-1 text-xs font-black ${
+                <span className={`rounded-none px-2 py-1 text-xs font-black ${
                   stageProgress.complete
-                    ? "bg-[rgba(79,140,118,0.14)] text-[var(--celadon)]"
+                    ? "bg-[var(--green-soft)] text-[var(--celadon)]"
                     : stageProgress.course.complete
                       ? "bg-[rgba(183,135,63,0.16)] text-[var(--brass)]"
-                      : "bg-[rgba(23,63,115,0.08)] text-[var(--ocean)]"
+                      : "bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
                 }`}>{stageStatus}</span>
               </div>
               <span className="mt-2 block font-mono text-xs font-black uppercase text-[var(--ocean)]">{milestone.range}</span>
@@ -137,13 +164,13 @@ export default function PathPage() {
               <StageProgressSummary progress={stageProgress} />
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {milestone.modules.slice(0, 3).map((item: string) => (
-                  <span key={item} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">
+                  <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">
                     {item}
                   </span>
                 ))}
               </div>
               {isCurrentStage ? (
-                <div className="mt-3 rounded-[8px] border border-[rgba(183,135,63,0.34)] bg-[rgba(255,250,240,0.58)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--brass)]">
+                <div className="mt-3 rounded-none border border-[var(--border)] bg-[var(--card)] px-2 py-1 font-mono text-xs font-black uppercase text-[var(--brass)]">
                   当前路线窗口
                 </div>
               ) : null}
@@ -206,51 +233,55 @@ export default function PathPage() {
                   <StageProgressSummary progress={stageProgress} expanded />
                 </div>
 
-                <div className="relative grid gap-3">
-                  <div className="absolute bottom-6 left-5 top-6 hidden w-px bg-[rgba(23,63,115,0.18)] md:block" />
+                <div>
                   {milestoneLessons.map((lesson: any) => {
                     const mastered = isLessonMastered(lesson.id, completedIds, scores);
                     const unlocked = isLessonUnlocked(lesson.id, completedIds, scores);
                     const prerequisites = getLessonPrerequisites(lesson.id);
                     const missing = prerequisites.filter((item: any) => !isLessonMastered(item.id, completedIds, scores));
-                    const isCurrent = nextLessonId === lesson.id;
+                    const isCurrent = recommendNextLessonNow && nextLessonId === lesson.id;
+                    const libraryGate = getLibraryGateForLesson(lesson, libraryCounts);
+                    const enterable = unlocked && libraryGate.ok && !(needsOnboarding && !mastered);
+                    const actionable = firstActionableLesson(
+                      missing.map((item: any) => item.id),
+                      completedIds,
+                      scores,
+                      workspace.nextLesson?.id
+                    );
+                    const kicker = needsOnboarding && !mastered
+                      ? "先入门"
+                      : isCurrent ? "当前建议" : mastered ? "已达标" : enterable ? "可学习" : unlocked ? "先补库" : "建议先修";
+                    const detail = !enterable
+                      ? `${lesson.subtitle}${missing.length ? ` 建议先修：${missing.map((item: any) => item.title).join("、")}` : ""}${libraryGate.missing.length ? ` 先补${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}` : ""}`
+                      : lesson.subtitle;
+                    const rowHref = needsOnboarding && !mastered
+                      ? "/onboarding"
+                      : mastered || enterable
+                        ? `/learn/${lesson.id}`
+                        : !unlocked
+                          ? (actionable ? `/learn/${actionable.id}` : "/path")
+                          : libraryRepairHref(libraryGate) ?? (actionable ? `/learn/${actionable.id}` : `/learn/${lesson.id}`);
+                    const rowPlayLabel = needsOnboarding && !mastered
+                      ? "先完成入门"
+                      : mastered || enterable
+                        ? `打开 ${lesson.title}`
+                        : !unlocked
+                          ? `先去 ${actionable?.title ?? "当前可上课"}`
+                          : `先补${libraryGate.missing[0]?.label ?? "库"}`;
                     return (
-                      <Link
+                      <TrackRow
                         key={lesson.id}
-                        href={`/learn/${lesson.id}`}
-                        className={`focus-ring relative grid gap-3 rounded-[8px] border p-3 transition motion-reduce:transform-none md:grid-cols-[3.5rem_minmax(0,1fr)_9rem] md:items-center ${
-                          isCurrent
-                            ? "border-[rgba(183,135,63,0.75)] bg-[rgba(183,135,63,0.1)] shadow-paper-sm"
-                            : mastered
-                              ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]"
-                              : unlocked
-                                ? "border-[var(--line)] bg-[rgba(255,250,240,0.68)] hover:-translate-y-0.5 hover:shadow-paper-sm"
-                                : "border-[var(--line)] bg-[rgba(255,250,240,0.42)] opacity-80"
-                        }`}
-                      >
-                        <span className={`z-10 grid h-10 w-10 place-items-center rounded-[8px] border font-mono text-xs font-black ${
-                          isCurrent
-                            ? "border-[rgba(183,135,63,0.56)] bg-[var(--surface-solid)] text-[var(--brass)]"
-                            : mastered
-                              ? "border-[rgba(79,140,118,0.45)] bg-[var(--surface-solid)] text-[var(--celadon)]"
-                              : "border-[rgba(23,63,115,0.16)] bg-[var(--surface-solid)] text-[var(--ocean)]"
-                        }`}>
-                          {lesson.order}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block font-serif text-xl font-black leading-tight">{lesson.title}</span>
-                          <span className="mt-1 block text-sm leading-6 text-[var(--muted)]">{lesson.subtitle}</span>
-                          {!unlocked && missing.length ? (
-                            <span className="mt-1 block text-xs font-bold leading-5 text-[var(--muted)]">
-                              建议先修：{missing.map((item: any) => item.title).join("、")}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="flex flex-wrap items-center gap-2 md:justify-end">
-                          <StatusBadge mastered={mastered} unlocked={unlocked} current={isCurrent} />
-                          <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{lesson.duration} min</span>
-                        </span>
-                      </Link>
+                        index={lesson.order}
+                        glyph={firstHangul(lesson.title, "한")}
+                        kicker={kicker}
+                        title={lesson.title}
+                        detail={detail}
+                        meta={`${lesson.duration} min`}
+                        completed={mastered}
+                        active={isCurrent}
+                        href={rowHref}
+                        playLabel={rowPlayLabel}
+                      />
                     );
                   })}
                 </div>
@@ -269,37 +300,37 @@ export default function PathPage() {
       </Surface>
       </div>
 
-      <LearningCompass workspace={workspace} active="path" condensed />
+      <LearningCompass workspace={workspace} active="path" condensed isFirstVisit={needsOnboarding} />
 
       <Surface variant="plain">
         <SectionHeading
           kicker="Passport Gates"
           title="阶段验收证据"
-          copy={`每个阶段都需要课程、材料、输出和检查点共同证明。最后的母语者作品集是长期扩容方向，不会被 ${lessons.length} 节课伪装成终点。`}
+          copy={`每个阶段都需要课程、材料、输出和检查点共同证明。核心课把学习者带到扎实 A2 / B1 语域桥接；真正接近母语者是长期作品集，不会被 ${lessons.length} 节课伪装成终点。`}
         />
         <div className="grid gap-3 lg:grid-cols-2">
           {proficiencyLevels.map((level: any) => {
             const isCurrent = workspace.proficiency.current.id === level.id;
             const isNext = workspace.proficiency.next?.id === level.id;
             return (
-              <article key={level.id} className={`rounded-[8px] border p-4 ${isCurrent ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.1)]" : isNext ? "border-[rgba(183,135,63,0.6)] bg-[rgba(183,135,63,0.08)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.58)]"}`}>
+              <article key={level.id} className={`rounded-none border p-4 ${isCurrent ? "border-[var(--green)] bg-[var(--green-soft)]" : isNext ? "border-[var(--border)] bg-[var(--yellow-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{level.band}</span>
-                  {isCurrent ? <span className="rounded-[8px] bg-[rgba(79,140,118,0.14)] px-2 py-1 text-xs font-black text-[var(--celadon)]">当前证据</span> : null}
-                  {isNext ? <span className="rounded-[8px] bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一关</span> : null}
+                  {isCurrent ? <span className="rounded-none bg-[var(--green-soft)] px-2 py-1 text-xs font-black text-[var(--celadon)]">当前证据</span> : null}
+                  {isNext ? <span className="rounded-none bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一关</span> : null}
                 </div>
                 <h3 className="mt-2 font-serif text-2xl font-black">{level.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{level.summary}</p>
                 {level.roadmapTargets ? (
                   <div className="mt-3 grid gap-1">
                     {level.roadmapTargets.slice(0, 3).map((item: string) => (
-                      <span key={item} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">{item}</span>
+                      <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">{item}</span>
                     ))}
                   </div>
                 ) : (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(level.requirements ?? []).slice(0, 5).map((requirement: any) => (
-                      <span key={`${level.id}:${requirement.metric}`} className="rounded-[8px] border border-[var(--line)] px-2 py-1 text-xs font-bold">
+                      <span key={`${level.id}:${requirement.metric}`} className="rounded-none border border-[var(--line)] px-2 py-1 text-xs font-bold">
                         {proficiencyMetrics[requirement.metric] ?? requirement.metric} {requirement.target}
                       </span>
                     ))}
@@ -319,10 +350,10 @@ export default function PathPage() {
         />
         <div className="grid gap-3 xl:grid-cols-3">
           {nativeRoadmapStages.map((stage, index) => (
-            <article key={stage.id} className="grid gap-3 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.58)] p-4">
+            <article key={stage.id} className="grid gap-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{stage.band}</span>
-                <span className="grid h-9 w-9 place-items-center rounded-[8px] bg-[rgba(23,63,115,0.08)] font-mono text-xs font-black text-[var(--ocean)]">
+                <span className="grid h-9 w-9 place-items-center rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] font-mono text-xs font-black text-[var(--ocean)]">
                   {String(index + 1).padStart(2, "0")}
                 </span>
               </div>
@@ -336,7 +367,7 @@ export default function PathPage() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {stage.domains.slice(0, 4).map((domain) => (
-                  <span key={domain} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">
+                  <span key={domain} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">
                     {domain}
                   </span>
                 ))}
@@ -344,7 +375,7 @@ export default function PathPage() {
             </article>
           ))}
         </div>
-        <div className="mt-4 grid gap-2 rounded-[8px] border border-[rgba(183,135,63,0.34)] bg-[rgba(183,135,63,0.08)] p-4 md:grid-cols-[auto_minmax(0,1fr)]">
+        <div className="mt-4 grid gap-2 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-4 md:grid-cols-[auto_minmax(0,1fr)]">
           <Layers3 className="mt-1 h-5 w-5 text-[var(--brass)]" aria-hidden="true" />
           <div className="grid gap-2">
             {nativeRoadmapPrinciples.map((principle) => (
@@ -359,7 +390,7 @@ export default function PathPage() {
 
 function RoadmapMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-2">
+    <div className="rounded-none border border-[var(--line)] bg-[var(--surface-solid)] p-2">
       <strong className="block font-mono text-sm font-black">{value.toLocaleString()}</strong>
       <span className="text-[var(--muted)]">{label}</span>
     </div>
@@ -412,10 +443,10 @@ function StageProgressSummary({ progress, expanded = false }: { progress: StageP
             {visibleRequirements.map((requirement) => (
               <span
                 key={requirement.metric}
-                className={`rounded-[8px] border px-2 py-1 text-xs font-bold ${
+                className={`rounded-none border px-2 py-1 text-xs font-bold ${
                   requirement.met
-                    ? "border-[rgba(79,140,118,0.34)] bg-[rgba(79,140,118,0.1)] text-[var(--celadon)]"
-                    : "border-[rgba(183,135,63,0.34)] bg-[rgba(183,135,63,0.08)] text-[var(--brass)]"
+                    ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]"
+                    : "border-[var(--border)] bg-[var(--yellow-soft)] text-[var(--brass)]"
                 }`}
               >
                 {requirement.label} {requirement.current}/{requirement.target}
@@ -450,25 +481,4 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
   );
 }
 
-function StatusBadge({ mastered, unlocked, current }: { mastered: boolean; unlocked: boolean; current: boolean }) {
-  if (mastered) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[rgba(79,140,118,0.14)] px-2 py-1 text-xs font-black text-[var(--celadon)]">
-        <Check className="h-3.5 w-3.5" />
-        已达标
-      </span>
-    );
-  }
-  if (current) {
-    return <span className="rounded-[8px] bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">当前建议</span>;
-  }
-  if (!unlocked) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2 py-1 text-xs font-black text-[var(--muted)]">
-        <LockKeyhole className="h-3.5 w-3.5" />
-        建议先修
-      </span>
-    );
-  }
-  return <span className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2 py-1 text-xs font-black text-[var(--ocean)]">可学习</span>;
-}
+

@@ -30,22 +30,22 @@ export const proficiencyLevels = [
     title: "文字与声音对齐",
     summary: "能拆音节块、读全部韩文字母（含复合元音），并开始听出音变前后的差异。",
     requirements: [
-      { metric: "lessons", target: 6 },
-      { metric: "hangul", target: 20 },
+      { metric: "lessons", target: 8 },
+      { metric: "hangul", target: 28 },
       { metric: "scriptAbility", target: 18 },
-      { metric: "listeningAbility", target: 10 }
+      { metric: "listeningAbility", target: 12 }
     ]
   },
   {
     id: "survival-polite",
     band: "A1",
     title: "礼貌生存表达",
-    summary: "能完成问候、自我介绍、数字与价格、点单、问路和基础需求表达。",
+    summary: "能完成问候、自我介绍、数字与价格、点单、问路和基础需求表达，并稳定使用礼貌现在时。",
     requirements: [
-      { metric: "lessons", target: 13 },
-      { metric: "vocabulary", target: 40 },
-      { metric: "grammar", target: 8 },
-      { metric: "materials", target: 2 },
+      { metric: "lessons", target: 20 },
+      { metric: "vocabulary", target: 80 },
+      { metric: "grammar", target: 14 },
+      { metric: "materials", target: 3 },
       { metric: "vocabularyAbility", target: 40 },
       { metric: "pragmaticsAbility", target: 12 }
     ]
@@ -54,48 +54,48 @@ export const proficiencyLevels = [
     id: "connected-daily",
     band: "A2",
     title: "日常连续表达",
-    summary: "能围绕过去、否定、请求、许可、身体、邀请和简单原因组织连续句。",
+    summary: "能围绕过去、请求、许可、原因、条件、背景句、身体和邀请组织连续日常段落。",
     requirements: [
-      { metric: "lessons", target: 26 },
-      { metric: "vocabulary", target: 90 },
-      { metric: "grammar", target: 16 },
-      { metric: "materials", target: 4 },
+      { metric: "lessons", target: 43 },
+      { metric: "vocabulary", target: 200 },
+      { metric: "grammar", target: 36 },
+      { metric: "materials", target: 8 },
       { metric: "checkpoints", target: 1 },
-      { metric: "grammarAbility", target: 40 }
+      { metric: "grammarAbility", target: 50 }
     ]
   },
   {
     id: "media-discourse",
-    band: "站内 B1-B2 入口",
-    title: "真实材料入口",
-    summary: "站内证据足以开始挑战慢速新闻、社交短评和观点段落，并做短复述与观点输出；这不是正式 CEFR 等级认证。",
+    band: "站内 B1 入口",
+    title: "叙述与材料入口",
+    summary: "站内证据足以开始挑战慢速新闻、社交短评和观点段落，并做短复述；这不是正式 CEFR 认证，也还不是母语者层。",
     requirements: [
-      { metric: "lessons", target: 38 },
-      { metric: "vocabulary", target: 160 },
-      { metric: "grammar", target: 26 },
+      { metric: "lessons", target: 53 },
+      { metric: "vocabulary", target: 320 },
+      { metric: "grammar", target: 56 },
       { metric: "native", target: 8 },
-      { metric: "materials", target: 8 },
+      { metric: "materials", target: 14 },
       { metric: "checkpoints", target: 2 },
-      { metric: "listeningAbility", target: 45 },
+      { metric: "listeningAbility", target: 50 },
       { metric: "nativeAbility", target: 35 }
     ]
   },
   {
     id: "native-layer",
-    band: "站内 C1 桥接",
-    title: "母语者语用桥接",
-    summary: "站内证据已覆盖关系、场合、语域和隐含态度的基础调节；这是进入高级作品集前的桥接层，不等同完整母语者水平。",
+    band: "站内 B1-B2 语域桥接",
+    title: "语域与关系距离桥接",
+    summary: "站内证据已覆盖敬语、软化、拒绝、半语和书面距离的基础调节。这是进入长期作品集前的桥接层，不等同 C1，更不是母语者水平。",
     requirements: [
-      { metric: "lessons", target: 45 },
+      { metric: "lessons", target: 60 },
       { metric: "capstone", target: 1 },
-      { metric: "vocabulary", target: 220 },
-      { metric: "grammar", target: 40 },
-      { metric: "native", target: 16 },
-      { metric: "materials", target: 12 },
-      { metric: "outputs", target: 4 },
+      { metric: "vocabulary", target: 450 },
+      { metric: "grammar", target: 72 },
+      { metric: "native", target: 18 },
+      { metric: "materials", target: 22 },
+      { metric: "outputs", target: 6 },
       { metric: "checkpoints", target: 4 },
       { metric: "pragmaticsAbility", target: 60 },
-      { metric: "nativeAbility", target: 60 }
+      { metric: "nativeAbility", target: 50 }
     ]
   },
   {

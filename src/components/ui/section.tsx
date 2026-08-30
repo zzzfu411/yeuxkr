@@ -29,7 +29,7 @@ export function PageHeader({
         </h1>
         {copy ? (
           <p className={cn(
-            "max-w-3xl leading-7 text-[rgba(24,28,27,0.64)]",
+            "max-w-3xl leading-7 text-[var(--muted)]",
             compact ? "mt-3 text-sm md:text-base" : "mt-4 text-base md:text-lg"
           )}>
             {copy}
@@ -91,11 +91,11 @@ export function ModuleHero({
 }) {
   return (
     <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.44fr)]">
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(183,135,63,0.42),transparent)]" />
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-[3px] bg-[var(--yellow)]" />
       <div className="paper-rail relative p-5 md:p-6">
         <p className="eyebrow">{kicker}</p>
         <h2 className="mt-3 font-serif text-3xl font-black leading-[1.04] md:text-4xl">{title}</h2>
-        {copy ? <p className="mt-3 max-w-2xl leading-7 text-[rgba(24,28,27,0.66)]">{copy}</p> : null}
+        {copy ? <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">{copy}</p> : null}
         {children ? <div className="mt-5">{children}</div> : null}
       </div>
       <VisualPanel
@@ -129,7 +129,7 @@ export function SectionHeading({
       <div>
         {kicker ? <p className="eyebrow">{kicker}</p> : null}
         <h2 className="mt-2 font-serif text-2xl font-black leading-tight">{title}</h2>
-        {copy ? <p className="mt-2 max-w-2xl text-sm leading-6 text-[rgba(24,28,27,0.64)]">{copy}</p> : null}
+        {copy ? <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p> : null}
       </div>
       {action}
     </div>

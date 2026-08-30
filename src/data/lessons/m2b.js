@@ -102,6 +102,14 @@ export const m2bLessons = [
       "表达正式原因",
       "避免中文式因为所以堆叠"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "先说原因再说结果",
+      prompt: "用韩语写至少两句：一句用 -아서/어서 或 -기 때문에 说明原因，一句给出结果。不要把“因为所以”都堆在同一句里。",
+      minSyllables: 20,
+      minClauses: 2,
+      markerGroups: [["아서", "어서", "해서", "와서", "때문에"], ["그래서", "못", "집에", "갔어요", "있었"]]
+    },
     teach: [
       "-아서/어서 适合自然原因或先后动作。",
       "-기 때문에 更明确、书面，常用于解释和论述。",
@@ -370,6 +378,14 @@ export const m2bLessons = [
       "确认对方时间",
       "用缓冲降低压力"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "发出邀请或改期",
+      prompt: "用韩语写至少两句：邀请对方做一件事，或先问时间是否方便。必须出现 같이 或 -ㄹ래요/-을래요。",
+      minSyllables: 18,
+      minClauses: 2,
+      markerGroups: [["같이", "래요", "괜찮"]]
+    },
     teach: [
       "같이 가실래요? 比 같이 가요 更像邀请和询问意愿。",
       "시간 괜찮으세요? 是确认对方是否方便。",

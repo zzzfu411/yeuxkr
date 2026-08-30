@@ -9,7 +9,7 @@ import { nuanceSets } from "../src/data/nuance.js";
 import { immersionMaterialHref, immersionMaterials } from "../src/data/materials.ts";
 import { defaultProfile, defaultProgress, todayKey } from "../src/lib/learning/storage.ts";
 import { applyCheckpointCompletion, applyLessonCompletion, applyTaskCompletion, buildLearningWorkspace, buildProficiencySnapshot, checkpointCreditKey, clearMaterialArchiveEvidence, commitLessonSession, commitQuizSession, completeLessonProgress, completeMaterialEvidence, countCheckpointCredits, countNativePracticeEvidence, ensureGrammarPointMastered, ensureHangulItemMastered, ensurePronunciationPairMastered, ensureSoundChangeRuleMastered, ensureVocabItemMastered, findCompletedCheckpointCredit, gradeReviewCardAndProgress, invalidateCapstoneRecordingEvidence, invalidateLessonTaskRecordingEvidence, mapCardToAbilities, materialPrerequisitesMet, normalizeLearningProgress, normalizeUserProfile, recordAbilityEvent, removeAbilityEvent, removeMistakeCardAndPracticeItem, recordQuizProgress, resetLearningWorkspace, saveCapstonePracticeEvidence, saveLessonTaskPracticeEvidence, saveNativePracticeEvidence, saveOutputArchiveEntry, saveSelfStudyCheckpointAndProgress, saveSelfStudyPlanAndProgress, saveUserProfileAndProgress, toggleGrammarPoint, toggleHangulItem, toggleNativeItem, togglePronunciationPair, toggleSoundChangeRule, toggleVocabItem, validateCheckpointEvidence } from "../src/lib/learning/workspace.ts";
-import { getNextLesson, lessons } from "../src/data/curriculum.js";
+import { getNextLesson, lessons, UNLOCK_SCORE } from "../src/data/curriculum.js";
 import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } from "../src/data/native-roadmap.js";
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
 import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
@@ -60,6 +60,13 @@ const srsStorageKey = "kirina.srs.v2";
 const lessonSessionStorageKey = "kirina.lesson-session.v1";
 const draftStorageKey = "kirina.drafts.v1";
 
+function seedOnboardedProfile() {
+  store.set(profileStorageKey, JSON.stringify({
+    ...defaultProfile(),
+    onboardedAt: "2026-01-01T00:00:00.000Z"
+  }));
+}
+
 function masteredLessonStateThrough(lessonIds) {
   const lastIndex = Math.max(-1, ...lessonIds.map((id) => allLessonIds.indexOf(id)));
   const completedLessons = allLessonIds.slice(0, lastIndex + 1);
@@ -67,6 +74,70 @@ function masteredLessonStateThrough(lessonIds) {
     completedLessons,
     lessonScores: Object.fromEntries(completedLessons.map((id) => [id, 90]))
   };
+}
+
+function withEnrolledLibrary(progress) {
+  return {
+    ...progress,
+    masteredHangul: allHangulIds,
+    learnedVocab: vocab.map((item) => item.id),
+    learnedGrammar: allGrammarIds,
+    learnedNative: allNativeIds,
+    nativeEvidence: nativeEvidenceForIds(allNativeIds),
+    completedMaterials: allMaterialIds
+  };
+}
+
+function attachValidMaterials(progress, count = 4) {
+  const materials = immersionMaterials.slice(0, count);
+  const outputs = materials.map((material) => {
+    const outputId = `valid-out-${material.id}`;
+    const targetRewrite = "오늘 카페에서 아이스 아메리카노 하나 포장하고 카드로 계산할게요.";
+    ensureCard(materialCardId(material.id), {
+      kind: "material",
+      itemId: material.id,
+      prompt: "retell",
+      answer: material.lines[0].ko
+    });
+    ensureCard(outputCardId(outputId), {
+      kind: "output",
+      itemId: outputId,
+      prompt: "rewrite",
+      answer: targetRewrite
+    });
+    return {
+      id: outputId,
+      materialId: material.id,
+      materialTitle: material.title,
+      mission: material.outputMission,
+      draft: "저는 카페에서 따뜻한 음료를 주문하고 카드로 바로 계산하고 싶어요.",
+      weakPoint: "packaging request still sounds translated",
+      targetRewrite,
+      rubric: [],
+      createdAt: "2026-06-09T00:00:00.000Z"
+    };
+  });
+  store.set(outputStorageKey, JSON.stringify({ entries: outputs }));
+  return {
+    ...progress,
+    completedMaterials: materials.map((material) => material.id),
+    materialEvidence: Object.fromEntries(materials.map((material) => [material.id, {
+      dictation: material.dictation[0],
+      retell: materialRetellEvidence(material.id),
+      selfCheck: material.selfCheck,
+      outputEntryId: `valid-out-${material.id}`,
+      updatedAt: "2026-06-09T00:00:00.000Z"
+    }]))
+  };
+}
+
+function progressWithStudy(patch = {}) {
+  return normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 90 },
+    ...patch
+  });
 }
 
 function masteredLessonStateForMaterial(materialId) {
@@ -289,13 +360,13 @@ test("normalizeLearningProgress repairs stale core-path completion state", () =>
     completedLessons: ["l01-hangul-map", "l02-vowels"]
   });
   assert.deepEqual(legacyCompletedOnly.completedLessons, ["l01-hangul-map", "l02-vowels"]);
-  assert.equal(legacyCompletedOnly.lessonScores["l01-hangul-map"], 65);
-  assert.equal(legacyCompletedOnly.lessonScores["l02-vowels"], 65);
+  assert.equal(legacyCompletedOnly.lessonScores["l01-hangul-map"], UNLOCK_SCORE);
+  assert.equal(legacyCompletedOnly.lessonScores["l02-vowels"], UNLOCK_SCORE);
 
   const staleLowScore = normalizeLearningProgress({
     ...defaultProgress(),
     completedLessons: ["l01-hangul-map", "l02-vowels"],
-    lessonScores: { "l01-hangul-map": 65, "l02-vowels": 64 }
+    lessonScores: { "l01-hangul-map": UNLOCK_SCORE, "l02-vowels": UNLOCK_SCORE - 1 }
   });
   assert.deepEqual(staleLowScore.completedLessons, ["l01-hangul-map"]);
 });
@@ -447,7 +518,7 @@ test("self-study plan save is atomic across profile and progress", () => {
 test("self-study checkpoint save is atomic across profile and progress", () => {
   store.clear();
   const oldProfile = normalizeUserProfile({ studyMode: "guided", minutesGoal: 30, selfStudyGoal: "foundation" });
-  const oldProgress = normalizeLearningProgress({ ...defaultProgress(), minutesGoal: 30 });
+  const oldProgress = progressWithStudy({ minutesGoal: 30 });
   global.window.localStorage.setItem("kirina.profile.v2", JSON.stringify(oldProfile));
   global.window.localStorage.setItem("kirina.progress.v2", JSON.stringify(oldProgress));
 
@@ -1000,6 +1071,92 @@ test("workspace turns weak practice history into a concrete repair task", () => 
   assert.match(recommendedTask?.detail ?? "", /2/);
   assert.equal(recommendedTask?.completed, false);
   assert.equal(openTask?.href, "/quiz");
+});
+
+test("practice repair returns to an unfinished lesson when weak items concentrate there", () => {
+  const lessonId = "l04-first-sentences";
+  const itemId = lessonReviewCardId(lessonId, 0);
+  const progress = normalizeLearningProgress({
+    ...defaultProgress(),
+    practiceItems: {
+      [itemId]: {
+        attempts: 3,
+        correct: 0,
+        wrong: 3,
+        streak: 0,
+        lastCorrect: false,
+        lastSeenAt: "2026-07-06T02:00:00.000Z",
+        lastSource: "lesson"
+      }
+    }
+  });
+  const workspace = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided" }), progress, 0);
+  const repair = workspace.recommended.find((task) => task.id === "system:practice-repair");
+
+  assert.equal(repair?.href, `/learn/${lessonId}`);
+  assert.equal(repair?.kind, "lesson");
+});
+
+test("heavy due review drops the next lesson out of the recommended six", () => {
+  const progress = normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 90 }
+  });
+  const workspace = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided" }), progress, 8);
+  assert.equal(workspace.nextLesson?.id, "l02-vowels");
+  assert.equal(workspace.recommended.some((task) => task.id === "system:review"), true);
+  assert.equal(workspace.recommended.some((task) => String(task.href).startsWith("/learn/")), false);
+});
+
+test("mastered lesson with concentrated weak items becomes a retrain task", () => {
+  const lessonId = "l01-hangul-map";
+  const progress = normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: [lessonId],
+    lessonScores: { [lessonId]: 90 },
+    practiceItems: Object.fromEntries([0, 1, 2].map((index) => [lessonReviewCardId(lessonId, index), {
+      attempts: 3,
+      correct: 0,
+      wrong: 3,
+      streak: 0,
+      lastCorrect: false,
+      lastSeenAt: "2026-07-06T02:00:00.000Z",
+      lastSource: "review"
+    }]))
+  });
+  const workspace = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided" }), progress, 0);
+  const retrain = workspace.recommended.find((task) => task.id === `system:retrain-${lessonId}`);
+  assert.equal(Boolean(retrain), true);
+  assert.equal(retrain?.href, `/learn/${lessonId}`);
+  assert.equal(workspace.recommended[0]?.id, `system:retrain-${lessonId}`);
+});
+
+test("retrain stays in recommended when review and library gaps fill the top six", () => {
+  const m4Start = lessons.find((lesson) => lesson.milestone === "m4");
+  const prior = lessons.filter((lesson) => lesson.order < m4Start.order);
+  const priorIds = prior.map((lesson) => lesson.id);
+  const retrainLessonId = priorIds[0];
+  const progress = normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: priorIds,
+    lessonScores: Object.fromEntries(priorIds.map((id) => [id, 90])),
+    practiceItems: Object.fromEntries([0, 1, 2].map((index) => [lessonReviewCardId(retrainLessonId, index), {
+      attempts: 3,
+      correct: 0,
+      wrong: 3,
+      streak: 0,
+      lastCorrect: false,
+      lastSeenAt: "2026-07-06T02:00:00.000Z",
+      lastSource: "review"
+    }]))
+  });
+  const workspace = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided" }), progress, 8);
+  const retrainId = `system:retrain-${retrainLessonId}`;
+  assert.equal(workspace.recommended.some((task) => task.id === "system:review"), true);
+  assert.ok(workspace.recommended.filter((task) => String(task.id).startsWith("system:library-")).length >= 4);
+  assert.equal(workspace.recommended.some((task) => task.id === retrainId), true);
+  assert.equal(workspace.openStudy.some((task) => task.id === retrainId), true);
 });
 
 test("workspace drops the practice repair task after weak items are answered correctly", () => {
@@ -1592,13 +1749,13 @@ test("clearing material archive retracts material and output ability events", ()
 
 test("next lesson follows mastery threshold and ordered unlocks", () => {
   assert.equal(getNextLesson(new Set(), {}).id, "l01-hangul-map");
-  assert.equal(getNextLesson(new Set(["l01-hangul-map"]), { "l01-hangul-map": 64 }).id, "l01-hangul-map");
-  assert.equal(getNextLesson(new Set(["l01-hangul-map"]), { "l01-hangul-map": 65 }).id, "l02-vowels");
+  assert.equal(getNextLesson(new Set(["l01-hangul-map"]), { "l01-hangul-map": UNLOCK_SCORE - 1 }).id, "l01-hangul-map");
+  assert.equal(getNextLesson(new Set(["l01-hangul-map"]), { "l01-hangul-map": UNLOCK_SCORE }).id, "l02-vowels");
 
   const progress = normalizeLearningProgress({
     ...defaultProgress(),
     completedLessons: ["l01-hangul-map"],
-    lessonScores: { "l01-hangul-map": 65 }
+    lessonScores: { "l01-hangul-map": UNLOCK_SCORE }
   });
   const workspace = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided" }), progress, 0);
   assert.equal(workspace.nextLesson.id, "l02-vowels");
@@ -1631,7 +1788,7 @@ test("lesson completion requires score and prerequisite mastery before core path
   assert.equal(lowScore.canMasterCorePath, false);
   assert.deepEqual(lowScore.next.completedLessons, []);
 
-  const mastered = applyLessonCompletion(normalizeLearningProgress(defaultProgress()), "l01-hangul-map", 65);
+  const mastered = applyLessonCompletion(normalizeLearningProgress(defaultProgress()), "l01-hangul-map", UNLOCK_SCORE);
   assert.equal(mastered.canMasterCorePath, true);
   assert.equal(mastered.wasUnlocked, true);
   assert.deepEqual(mastered.next.completedLessons, ["l01-hangul-map"]);
@@ -1648,6 +1805,7 @@ test("lesson completion requires score and prerequisite mastery before core path
 
 test("locked lesson previews do not count as formal study sessions", () => {
   store.clear();
+  seedOnboardedProfile();
 
   assert.equal(completeLessonProgress("l10-native-softeners", 100), true);
   let progress = JSON.parse(store.get("kirina.progress.v2"));
@@ -1667,8 +1825,18 @@ test("locked lesson previews do not count as formal study sessions", () => {
   assert.equal(typeof progress.lastStudyDate, "string");
 });
 
+test("first lesson stays in preview until onboarding is saved", () => {
+  store.clear();
+  assert.equal(completeLessonProgress("l01-hangul-map", UNLOCK_SCORE), true);
+  const progress = JSON.parse(store.get(progressStorageKey));
+  assert.equal(progress.completedLessons.includes("l01-hangul-map"), false);
+  assert.equal(progress.previewLessonScores["l01-hangul-map"], UNLOCK_SCORE);
+  assert.equal(progress.lessonScores["l01-hangul-map"], undefined);
+});
+
 test("lesson session commits progress, review cards, and mistake cards together", () => {
   store.clear();
+  seedOnboardedProfile();
   const firstLesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
   const firstQuestion = { ...firstLesson.drills[0], id: lessonReviewCardId("l01-hangul-map", 0) };
   const secondQuestion = { ...firstLesson.drills[1], id: lessonReviewCardId("l01-hangul-map", 1) };
@@ -1697,6 +1865,7 @@ test("lesson session commits progress, review cards, and mistake cards together"
 
 test("lesson session does not write progress when lesson SRS save fails", () => {
   store.clear();
+  seedOnboardedProfile();
   const firstLesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
   const firstQuestion = { ...firstLesson.drills[0], id: lessonReviewCardId("l01-hangul-map", 0) };
 
@@ -1713,6 +1882,7 @@ test("lesson session does not write progress when lesson SRS save fails", () => 
 
 test("lesson session rolls back SRS when progress save fails", () => {
   store.clear();
+  seedOnboardedProfile();
   const firstLesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
   const firstQuestion = { ...firstLesson.drills[0], id: lessonReviewCardId("l01-hangul-map", 0) };
   ensureCard(mistakeCardId(firstQuestion.id), {
@@ -1743,13 +1913,13 @@ test("native capstone requires a saved Korean output artifact before path comple
   store.clear();
   const capstone = lessons.find((lesson) => lesson.id === "l30-native-capstone");
   const priorLessons = allLessonIds.slice(0, -1);
-  const priorProgress = normalizeLearningProgress({
+  const priorProgress = normalizeLearningProgress(attachValidMaterials(withEnrolledLibrary({
     ...defaultProgress(),
     completedLessons: priorLessons,
     lessonScores: Object.fromEntries(priorLessons.map((id) => [id, 90]))
-  });
+  })));
 
-  assert.equal(commitLessonSession(capstone.id, [], 75, priorProgress), false);
+  assert.equal(commitLessonSession(capstone.id, [], UNLOCK_SCORE, priorProgress), false);
   assert.equal(store.has(progressStorageKey), false);
 
   const transcript = "제 생각에는 도시 생활과 시골 생활이 서로 다른 장점을 가지고 있어요. 도시에서는 교통이 편리하고 필요한 서비스를 쉽게 이용할 수 있기 때문에 시간을 아낄 수 있어요. 예를 들면 늦은 시간에도 병원이나 가게를 찾기 쉬워서 생활이 안정적이에요. 하지만 사람이 많고 소음이 커서 마음이 지칠 때도 있어요. 반면에 시골은 이동이 조금 어렵긴 하지만 자연 속에서 천천히 쉬고 이웃과 가까이 지낼 수 있어요. 그래서 저는 일할 때는 도시에 살고 주말에는 조용한 곳에서 쉬는 방법이 좋다고 생각해요. 결국 중요한 것은 한쪽만 선택하는 것이 아니라 자신의 상황에 맞게 균형을 만드는 일이에요.";
@@ -1764,7 +1934,7 @@ test("native capstone requires a saved Korean output artifact before path comple
   assert.equal(saveCapstonePracticeEvidence({ ...capstoneArtifact, recordedSeconds: 121, recordingId: "capstone:replacement" }, priorProgress, "capstone:test-recording"), true);
   assert.equal(saveCapstonePracticeEvidence({ ...capstoneArtifact, recordedSeconds: 122, recordingId: "capstone:stale" }, priorProgress, "capstone:test-recording"), false);
   assert.equal(JSON.parse(store.get(progressStorageKey)).capstoneEvidence.recordingId, "capstone:replacement");
-  assert.equal(commitLessonSession(capstone.id, [], 75, priorProgress), true);
+  assert.equal(commitLessonSession(capstone.id, [], UNLOCK_SCORE, priorProgress), true);
 
   const progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.completedLessons.includes(capstone.id), true);
@@ -1777,11 +1947,11 @@ test("declared paragraph lessons require saved valid output evidence", () => {
   saveSrsState({ cards: {}, history: [] });
   const lesson = lessons.find((item) => item.id === "l09-connectors");
   const priorLessons = allLessonIds.slice(0, allLessonIds.indexOf(lesson.id));
-  const priorProgress = normalizeLearningProgress({
+  const priorProgress = normalizeLearningProgress(withEnrolledLibrary({
     ...defaultProgress(),
     completedLessons: priorLessons,
     lessonScores: Object.fromEntries(priorLessons.map((id) => [id, 90]))
-  });
+  }));
   const answers = lesson.drills.map((question, index) => ({
     question: { ...question, id: question.id ?? lessonReviewCardId(lesson.id, index) },
     answer: question.answer,
@@ -1800,6 +1970,33 @@ test("declared paragraph lessons require saved valid output evidence", () => {
   assert.equal(progress.completedLessons.includes(lesson.id), true);
   assert.equal(progress.lessonTaskEvidence[lesson.id].kind, "paragraph");
   assert.equal(progress.lessonProductionEvidence[lesson.id], true);
+});
+
+test("export-time normalization revokes writing lessons without saved work", () => {
+  const lessonId = "l09-connectors";
+  const priorLessons = allLessonIds.slice(0, allLessonIds.indexOf(lessonId));
+  const stripped = normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: [...priorLessons, lessonId],
+    lessonScores: Object.fromEntries([...priorLessons, lessonId].map((id) => [id, 90])),
+    masteredHangul: allHangulIds,
+    learnedVocab: vocab.map((item) => item.id),
+    learnedGrammar: allGrammarIds
+  }, { enforceRecordingEvidence: true });
+  assert.equal(stripped.completedLessons.includes(lessonId), false);
+
+  const stale = normalizeLearningProgress({
+    ...defaultProgress(),
+    completedLessons: [...priorLessons, lessonId],
+    lessonScores: Object.fromEntries([...priorLessons, lessonId].map((id) => [id, 90])),
+    masteredHangul: allHangulIds,
+    learnedVocab: vocab.map((item) => item.id),
+    learnedGrammar: allGrammarIds,
+    lessonTaskEvidence: {
+      [lessonId]: { kind: "paragraph", text: "ok", recordedSeconds: 0, updatedAt: "2026-08-29T00:00:00.000Z" }
+    }
+  });
+  assert.equal(stale.completedLessons.includes(lessonId), false);
 });
 
 test("shadowing evidence save rejects a stale recording baseline", () => {
@@ -1826,6 +2023,7 @@ test("unknown lessons stay outside preview and core scores", () => {
 
 test("audio fallback can advance a lesson without forging listening evidence", () => {
   store.clear();
+  seedOnboardedProfile();
   saveSrsState({ cards: {}, history: [] });
   const lesson = lessons[0];
   const answers = lesson.drills.map((question, index) => {
@@ -1840,10 +2038,11 @@ test("audio fallback can advance a lesson without forging listening evidence", (
   const fallbackProgress = normalizeLearningProgress(JSON.parse(store.get(progressStorageKey)));
   const fallbackSnapshot = buildProficiencySnapshot(fallbackProgress, { outputs: [], srs: getSrsState() });
 
-  assert.equal(fallbackProgress.completedLessons.includes(lesson.id), true);
-  assert.equal(fallbackProgress.lessonListeningEvidence[lesson.id], false);
+  assert.equal(fallbackProgress.completedLessons.includes(lesson.id), false);
+  assert.equal(fallbackProgress.lessonScores[lesson.id], 100);
+  assert.equal(fallbackProgress.lessonListeningEvidence[lesson.id], undefined);
   assert.equal(fallbackSnapshot.evidence.listeningAbility, 0);
-  assert.equal(fallbackSnapshot.evidence.scriptAbility > 0, true);
+  assert.equal(fallbackSnapshot.evidence.scriptAbility, 0);
   assert.equal(Object.values(getSrsState().cards).some((card) => card.payload.kind === "mistake"), false);
 
   const audioAnswers = lesson.drills.map((question, index) => ({
@@ -1854,8 +2053,10 @@ test("audio fallback can advance a lesson without forging listening evidence", (
   assert.equal(commitLessonSession(lesson.id, audioAnswers, 100, fallbackProgress), true);
   const upgradedProgress = normalizeLearningProgress(JSON.parse(store.get(progressStorageKey)));
   const upgradedSnapshot = buildProficiencySnapshot(upgradedProgress, { outputs: [], srs: getSrsState() });
+  assert.equal(upgradedProgress.completedLessons.includes(lesson.id), true);
   assert.equal(upgradedProgress.lessonListeningEvidence[lesson.id], true);
   assert.equal(upgradedSnapshot.evidence.listeningAbility > 0, true);
+  assert.equal(upgradedSnapshot.evidence.scriptAbility > 0, true);
 });
 
 test("legacy completed lessons retain listening evidence while explicit fallback records stay false", () => {
@@ -2181,19 +2382,36 @@ test("removing self-study SRS items clears the matching ability task completion"
   progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.completedTasks["ability:grammar"], undefined);
 
-  assert.equal(toggleNativeItem(pragmaticsId, progress), true);
-  progress = JSON.parse(store.get(progressStorageKey));
-  assert.equal(progress.completedTasks["ability:pragmatics"], undefined);
-  assert.equal(toggleNativeItem(pragmaticsId, progress), true);
-  progress = JSON.parse(store.get(progressStorageKey));
-  assert.equal(progress.completedTasks["ability:pragmatics"], undefined);
+  assert.equal(toggleNativeItem(pragmaticsId, progress), false);
+  assert.equal(toggleNativeItem(nuanceId, progress), false);
+  assert.equal(JSON.parse(store.get(progressStorageKey)).learnedNative?.includes(pragmaticsId) ?? false, false);
+  assert.equal(JSON.parse(store.get(progressStorageKey)).learnedNative?.includes(nuanceId) ?? false, false);
+});
 
-  assert.equal(toggleNativeItem(nuanceId, progress), true);
+test("native SRS enrollment requires listen-retell-transfer evidence", () => {
+  store.clear();
+  const pragmaticsId = allNativeIds.find((id) => id.startsWith("pragmatics:"));
+  const nuanceId = allNativeIds.find((id) => id.startsWith("nuance:"));
+
+  assert.equal(toggleNativeItem(pragmaticsId, defaultProgress()), false);
+  assert.equal(toggleNativeItem(nuanceId, defaultProgress()), false);
+  assert.equal(getSrsState().cards[nativeCardId(pragmaticsId)], undefined);
+  assert.equal(getSrsState().cards[nativeCardId(nuanceId)], undefined);
+
+  assert.equal(saveNativePracticeEvidence(pragmaticsId, {
+    listened: true,
+    retell: "안녕하세요. 이 인사로 처음 만난 사람에게 자신을 소개해요.",
+    transfer: "안녕하세요. 선생님께는 한국어를 공부하고 있다고 정중하게 말해요."
+  }, defaultProgress()), true);
+  let progress = JSON.parse(store.get(progressStorageKey));
+  assert.equal(progress.learnedNative.includes(pragmaticsId), true);
+  assert.equal(Boolean(getSrsState().cards[nativeCardId(pragmaticsId)]), true);
+
+  assert.equal(toggleNativeItem(pragmaticsId, progress), true);
   progress = JSON.parse(store.get(progressStorageKey));
-  assert.equal(progress.completedTasks["ability:native"], undefined);
-  assert.equal(toggleNativeItem(nuanceId, progress), true);
-  progress = JSON.parse(store.get(progressStorageKey));
-  assert.equal(progress.completedTasks["ability:native"], undefined);
+  assert.equal(progress.learnedNative.includes(pragmaticsId), false);
+  assert.equal(getSrsState().cards[nativeCardId(pragmaticsId)], undefined);
+  assert.equal(countNativePracticeEvidence(progress, "pragmatics"), 1);
 });
 
 test("native evidence completion adds SRS and marks bridge ability tasks", () => {
@@ -2335,14 +2553,17 @@ test("checkpoint evidence requires a concrete study signal", () => {
   assert.equal(validateCheckpointEvidence("复述已经完成"), false);
   assert.equal(validateCheckpointEvidence("录音 75 秒，能说 안녕하세요。"), true);
   assert.equal(validateCheckpointEvidence("正确率 80%"), true);
+  assert.equal(validateCheckpointEvidence("正确率 80%", progressWithStudy()), false);
+  assert.equal(validateCheckpointEvidence("录音 75 秒，能说 안녕하세요。", progressWithStudy()), true);
+  assert.equal(validateCheckpointEvidence("录音 75 秒，能说 안녕하세요。", normalizeLearningProgress(defaultProgress())), false);
 });
 
 test("checkpoint completion closes the self-study planning task", () => {
   const checkpointId = "foundation:steady:balanced:1:week-check";
   const result = applyCheckpointCompletion(
-    normalizeLearningProgress(defaultProgress()),
+    progressWithStudy(),
     checkpointId,
-    "录音 75 秒，正确率 80%",
+    "录音 75 秒，能说 안녕하세요。",
     ["script", "listening"]
   );
 
@@ -2354,15 +2575,15 @@ test("checkpoint completion closes the self-study planning task", () => {
 
 test("the same reflection cannot be reused to mint another checkpoint credit", () => {
   const first = applyCheckpointCompletion(
-    normalizeLearningProgress(defaultProgress()),
+    progressWithStudy(),
     "foundation:steady:balanced:1:first",
-    "录音 75 秒，正确率 80%",
+    "录音 75 秒，能说 안녕하세요。",
     ["script"]
   );
   const duplicate = applyCheckpointCompletion(
     first.next,
     "foundation:steady:balanced:2:second",
-    "录音 75 秒， 正确率 80％。",
+    "录音 75 秒， 能说 안녕하세요。",
     ["listening"]
   );
 
@@ -2396,7 +2617,9 @@ test("checkpoint completion restores reflection evidence without granting abilit
   });
 
   assert.equal(findCompletedCheckpointCredit(staleProgress, checkpointId), null);
-  const result = applyCheckpointCompletion(staleProgress, checkpointId, "录音 75 秒，正确率 80%", ["script"]);
+  const result = applyCheckpointCompletion(progressWithStudy({
+    completedCheckpoints: [checkpointId]
+  }), checkpointId, "录音 75 秒，能说 안녕하세요。", ["script"]);
 
   assert.equal(result.completed, true);
   assert.equal(findCompletedCheckpointCredit(result.next, checkpointId), checkpointId);
@@ -2412,21 +2635,21 @@ test("self-study checkpoint reflections stay scoped without inflating abilities"
   assert.notEqual(checkpointCreditKey(firstId), checkpointCreditKey(distinctId));
 
   const first = applyCheckpointCompletion(
-    normalizeLearningProgress(defaultProgress()),
+    progressWithStudy(),
     firstId,
-    "录音 75 秒，正确率 80%",
+    "录音 75 秒，能说 안녕하세요。",
     ["script", "listening"]
   );
   const second = applyCheckpointCompletion(
     first.next,
     secondId,
-    "录音 90 秒，正确率 85%",
+    "录音 90 秒，能说 감사합니다。",
     ["script", "listening"]
   );
   const third = applyCheckpointCompletion(
     second.next,
     distinctId,
-    "输出 6 个句子，正确率 80%",
+    "출력 6개 문장, 正确率 80%",
     ["native"]
   );
   const duplicateSnapshot = buildProficiencySnapshot(normalizeLearningProgress(second.next), 0);
@@ -2482,7 +2705,7 @@ test("proficiency passport turns mixed evidence into staged progress", () => {
   assert.equal(scriptReady.next.id, "survival-polite");
 
   global.window.localStorage.setItem(outputStorageKey, JSON.stringify({
-    entries: Array.from({ length: 12 }, (_, index) => ({
+    entries: Array.from({ length: 22 }, (_, index) => ({
       id: `native-output-${index + 1}`,
       materialId: allMaterialIds[index],
       materialTitle: `材料 ${index + 1}`,
@@ -2495,7 +2718,7 @@ test("proficiency passport turns mixed evidence into staged progress", () => {
     }))
   }));
   const nativeOutputEntries = JSON.parse(store.get(outputStorageKey)).entries;
-  const materialEvidenceIds = allMaterialIds.slice(0, 12);
+  const materialEvidenceIds = allMaterialIds.slice(0, 22);
   for (const [index, materialId] of materialEvidenceIds.entries()) {
     const outputId = `native-output-${index + 1}`;
     ensureCard(materialCardId(materialId), {
@@ -2545,7 +2768,7 @@ test("proficiency passport turns mixed evidence into staged progress", () => {
   assert.equal(nativeLayer.current.id, "native-layer");
   assert.equal(nativeLayer.next.id, "native-portfolio");
   assert.equal(nativeLayer.next.expansionOnly, true);
-  assert.equal(nativeLayer.evidence.outputs, 12);
+  assert.equal(nativeLayer.evidence.outputs, 22);
   global.window.localStorage.removeItem(outputStorageKey);
 });
 

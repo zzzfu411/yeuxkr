@@ -200,6 +200,15 @@ export const m3Lessons = [
       "找出谁做了什么",
       "用 2 句中文或韩语复述"
     ],
+    completionTask: {
+      kind: "retell",
+      title: "标题骨架复述",
+      prompt: "读完下面这则慢速新闻后合上文本，用自己的韩语复述谁、做了什么、在哪里。至少两句，不要逐字复制。",
+      source: "정부가 오늘 새로운 기후 계획을 발표했습니다. 시민들은 서울 광장에서 설명을 들었습니다.",
+      minSyllables: 24,
+      minClauses: 2,
+      markerGroups: [["발표"], ["정부", "시민", "계획"]]
+    },
     teach: [
       {
         title: "先抓骨架再看细节",
@@ -963,6 +972,14 @@ export const m3Lessons = [
       "转述名词句",
       "避免硬翻“他说”"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "转述两个人的话",
+      prompt: "用 -다고 하다 / -라고 하다 转述至少两句别人说过的话。不要写成 他说 + 中文语序。",
+      minSyllables: 28,
+      minClauses: 3,
+      markerGroups: [["다고", "라고"]]
+    },
     teach: [
       {
         title: "-다고 하다：转述陈述句",

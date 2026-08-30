@@ -1,3 +1,4 @@
+import { UNLOCK_SCORE } from "../../data/curriculum.js";
 import type { Question } from "./quiz.ts";
 
 export const LESSON_MODALITY_PASS_RATIO = 0.6;
@@ -17,6 +18,7 @@ export interface LessonAssessmentResult {
   listeningRequired: boolean;
   listeningPassed: boolean;
   listeningDeferred: boolean;
+  listeningSkipped: boolean;
   listeningCorrect: number;
   listeningTotal: number;
   corePassed: boolean;
@@ -42,11 +44,14 @@ export function assessLessonAttempt(
   const listeningRequired = hasListeningFocus(lesson?.focus) && auditoryQuestions.length > 0;
   const listeningCorrect = attemptedAuditory.filter((entry) => entry.correct).length;
   const listeningTotal = attemptedAuditory.length;
+  const listeningSkipped = auditory.some((entry) => entry.skipped);
   const listeningDeferred = listeningRequired && auditory.length > 0 && auditory.every((entry) => entry.skipped);
   const listeningPassed = !listeningRequired || (
-    listeningTotal > 0 && listeningCorrect >= requiredCorrectCount(listeningTotal)
+    !listeningSkipped &&
+    listeningTotal > 0 &&
+    listeningCorrect >= requiredCorrectCount(listeningTotal)
   );
-  const overallPassed = Number(score) >= 65;
+  const overallPassed = Number(score) >= UNLOCK_SCORE;
 
   return {
     overallPassed,
@@ -57,9 +62,10 @@ export function assessLessonAttempt(
     listeningRequired,
     listeningPassed,
     listeningDeferred,
+    listeningSkipped,
     listeningCorrect,
     listeningTotal,
-    corePassed: overallPassed && productionPassed && (listeningPassed || listeningDeferred)
+    corePassed: overallPassed && productionPassed && listeningPassed
   };
 }
 
@@ -86,5 +92,5 @@ function isAuditoryQuestion(question: Question) {
 }
 
 function hasListeningFocus(focus: string[] = []) {
-  return focus.includes("sound") || focus.includes("listening");
+  return focus.includes("sound") || focus.includes("listening") || focus.includes("speaking");
 }

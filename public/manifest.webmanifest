@@ -11,8 +11,8 @@
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "categories": ["education", "productivity"],
-  "background_color": "#e9eeeb",
-  "theme_color": "#151a19",
+  "background_color": "#d8d3cc",
+  "theme_color": "#facc15",
   "icons": [
     {
       "src": "/assets/icon-192.png",

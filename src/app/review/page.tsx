@@ -11,6 +11,7 @@ import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui
 import { buildReviewQuestions } from "@/lib/learning/quiz";
 import { getDueCardsFromState, getSrsStateFromRaw, summarizeSrsState } from "@/lib/learning/srs";
 import { defaultProfile, defaultProgress, parseJson, STORAGE_KEYS, useClientNowOnce, useStorageRawOnce } from "@/lib/learning/storage";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { buildLearningWorkspace, gradeReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
 
 const REVIEW_STORAGE_REFRESH_KEYS = new Set([STORAGE_KEYS.profile, STORAGE_KEYS.progress, STORAGE_KEYS.srs]);
@@ -104,42 +105,50 @@ function ReviewContent() {
             }}
           />
         ) : (
-          <div className="grid gap-4 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="grid gap-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
             <div>
               <h2 className="font-serif text-3xl font-black">现在没有到期复习</h2>
-              <p className="mt-2 leading-7 text-[var(--muted)]">先去韩文或词汇页加入一些卡片，或者做一组综合测验。</p>
+              <p className="mt-2 leading-7 text-[var(--muted)]">
+                {needsOnboardingFunnel(profile, progress)
+                  ? "先完成入门，再把卡片送进复习队列。"
+                  : "先回路径或词汇页积累证据；综合测验只抽已经学过的内容。"}
+              </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Button asChild>
-                  <Link href="/path">
+                  <Link href={needsOnboardingFunnel(profile, progress) ? "/onboarding" : "/path"}>
                     <ArrowRight className="h-4 w-4" />
-                    继续路径
+                    {needsOnboardingFunnel(profile, progress) ? "先去入门" : "继续路径"}
                   </Link>
                 </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/mistakes">
-                    <CircleAlert className="h-4 w-4" />
-                    查看错题
-                  </Link>
-                </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/vocabulary">
-                    <ScrollText className="h-4 w-4" />
-                    积累词汇
-                  </Link>
-                </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/quiz">
-                    <BookOpenCheck className="h-4 w-4" />
-                    综合测验
-                  </Link>
-                </Button>
+                {needsOnboardingFunnel(profile, progress) ? null : (
+                  <>
+                    <Button asChild variant="secondary">
+                      <Link href="/mistakes">
+                        <CircleAlert className="h-4 w-4" />
+                        查看错题
+                      </Link>
+                    </Button>
+                    <Button asChild variant="secondary">
+                      <Link href="/vocabulary">
+                        <ScrollText className="h-4 w-4" />
+                        积累词汇
+                      </Link>
+                    </Button>
+                    <Button asChild variant="secondary">
+                      <Link href="/hangul">
+                        <BookOpenCheck className="h-4 w-4" />
+                        先补韩文
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
             <VisualPanel asset="empty" className="min-h-52" />
           </div>
         )}
         {reviewError ? (
-          <p className="mt-4 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+          <p className="mt-4 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
             {reviewError}
           </p>
         ) : null}
@@ -170,7 +179,7 @@ function ReviewLoading() {
       <ReviewHeader />
       <Surface>
         <SectionHeading kicker="Due Queue" title="到期队列" />
-        <div className="grid gap-4 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="grid gap-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
           <div>
             <h2 className="font-serif text-3xl font-black">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
@@ -221,7 +230,7 @@ function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: 
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.66)] p-3">
+    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
       <strong className="block font-serif text-2xl font-black">{value}</strong>
       <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
     </div>

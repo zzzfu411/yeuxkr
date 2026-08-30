@@ -7,7 +7,7 @@ import { soundChangeRules } from "../../data/sound-changes.js";
 import { grammarQuestionId, hangulQuestionId, pronunciationQuestionId, soundChangeQuestionId, vocabQuestionId } from "./ids.ts";
 import { buildDistractors, makeChoices, seededRandom, type Question } from "./quiz.ts";
 
-export const GATE_PASS_SCORE = 75;
+export const GATE_PASS_SCORE = 80;
 
 export function hasSkippedGateAudio(answers: Array<{ skipped?: boolean; question?: { type?: string } }>) {
   return answers.some((entry) => entry.skipped && (entry.question?.type === "listen" || entry.question?.type === "dictation"));

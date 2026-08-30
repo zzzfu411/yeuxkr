@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getLessonPrerequisites, getMilestoneProgress, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "../src/data/curriculum.js";
+import { firstActionableLesson, getLessonPrerequisites, getMilestoneProgress, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "../src/data/curriculum.js";
 
 const orderedLessons = [...lessons].sort((a, b) => a.order - b.order);
 
@@ -23,17 +23,17 @@ test("core lesson prerequisites keep the ordered path and explicit edges", () =>
 });
 
 test("historically skippable lessons block their immediate successors", () => {
-  for (const skippedOrder of [19, 22, 24, 34]) {
-    const skippedLesson = orderedLessons[skippedOrder - 1];
-    const successor = orderedLessons[skippedOrder];
-    const earlierLessons = orderedLessons.slice(0, skippedOrder).filter((lesson) => lesson.id !== skippedLesson.id);
+  for (const skippedId of ["l40-requests", "l41-irregulars", "l42-ability-obligation", "l44-passive-causative"]) {
+    const skippedLesson = orderedLessons.find((lesson) => lesson.id === skippedId);
+    const successor = orderedLessons[skippedLesson.order];
+    const earlierLessons = orderedLessons.slice(0, skippedLesson.order).filter((lesson) => lesson.id !== skippedLesson.id);
     const completedIds = new Set(earlierLessons.map((lesson) => lesson.id));
     const scores = Object.fromEntries(earlierLessons.map((lesson) => [lesson.id, UNLOCK_SCORE]));
 
     assert.equal(
       isLessonUnlocked(successor.id, completedIds, scores),
       false,
-      `${successor.id} should stay locked until lesson ${skippedOrder} (${skippedLesson.id}) is mastered`
+      `${successor.id} should stay locked until ${skippedLesson.id} is mastered`
     );
   }
 });
@@ -56,6 +56,29 @@ test("the final lesson transitively requires mastery of every earlier core lesso
     prerequisiteClosure,
     new Set(orderedLessons.slice(0, -1).map((lesson) => lesson.id))
   );
+});
+
+test("first actionable missing lesson prefers an unlocked prereq then the next lesson", () => {
+  const empty = new Set();
+  const fallback = firstActionableLesson(
+    ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
+    empty,
+    {},
+    "l01-hangul-map"
+  );
+  assert.equal(fallback.id, "l01-hangul-map");
+
+  const numbersLesson = orderedLessons.find((lesson) => lesson.id === "l37-numbers-counters");
+  const beforeNumbers = orderedLessons.filter((lesson) => lesson.order < numbersLesson.order);
+  const completed = new Set(beforeNumbers.map((lesson) => lesson.id));
+  const scores = Object.fromEntries(beforeNumbers.map((lesson) => [lesson.id, UNLOCK_SCORE]));
+  const numbers = firstActionableLesson(
+    ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
+    completed,
+    scores
+  );
+  assert.equal(numbers.id, "l37-numbers-counters");
+  assert.equal(isLessonUnlocked("l37-numbers-counters", completed, scores), true);
 });
 
 test("M1 and M2 outcomes match their actual lesson ownership", () => {

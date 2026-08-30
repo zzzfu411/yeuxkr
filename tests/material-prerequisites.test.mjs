@@ -20,7 +20,19 @@ const expectedPrerequisites = {
   "im-podcast-opinion": ["l09-connectors", "l45-desire-intent", "l43-adnominal", "l24-opinion-paragraph", "l26-indirect-speech", "l29-abstract-discussion"],
   "im-news-comment-thread": ["l39-hamnida", "l09-connectors", "l16-because", "l43-adnominal", "l23-social-posts", "l24-opinion-paragraph", "l26-indirect-speech", "l29-abstract-discussion"],
   "im-academic-seminar-question": ["l39-hamnida", "l09-connectors", "l42-ability-obligation", "l45-desire-intent", "l43-adnominal", "l27-honorific-register", "l29-abstract-discussion"],
-  "im-opinion-mini-essay": ["l09-connectors", "l15-comparison", "l16-because", "l43-adnominal", "l24-opinion-paragraph", "l26-indirect-speech", "l30-native-capstone"]
+  "im-opinion-mini-essay": ["l09-connectors", "l15-comparison", "l16-because", "l43-adnominal", "l24-opinion-paragraph", "l26-indirect-speech", "l30-native-capstone"],
+  "im-cvs-heat-pay": ["l37-numbers-counters", "l06-cafe", "l11-shopping-price", "l35-negation", "l40-requests"],
+  "im-bank-mobile-pay": ["l37-numbers-counters", "l11-shopping-price", "l40-requests", "l13-permission", "l17-phone-message", "l42-ability-obligation"],
+  "im-drama-family-dinner": ["l19-family-honorific", "l27-honorific-register", "l35-negation", "l08-past", "l16-because", "l13-permission"],
+  "im-work-slack-chat": ["l39-hamnida", "l12-time-plans", "l17-phone-message", "l10-native-softeners", "l27-honorific-register", "l38-time-date"],
+  "im-apt-water-notice": ["l39-hamnida", "l38-time-date", "l42-ability-obligation", "l17-phone-message", "l07-location", "l27-honorific-register"],
+  "im-hospital-reception": ["l18-health", "l08-past", "l07-location", "l37-numbers-counters", "l40-requests", "l39-hamnida"],
+  "im-univ-office": ["l38-time-date", "l42-ability-obligation", "l13-permission", "l07-location", "l12-time-plans", "l39-hamnida"],
+  "im-weather-weekend-news": ["l39-hamnida", "l21-slow-news", "l38-time-date", "l43-adnominal", "l26-indirect-speech", "l25-retelling", "l16-because"],
+  "im-restaurant-complaint": ["l06-cafe", "l08-past", "l40-requests", "l10-native-softeners", "l16-because", "l37-numbers-counters"],
+  "im-job-interview-intro": ["l39-hamnida", "l08-past", "l42-ability-obligation", "l16-because", "l27-honorific-register", "l45-desire-intent", "l10-native-softeners"],
+  "im-dating-first-meetup": ["l08-past", "l06-cafe", "l20-invitation", "l16-because", "l10-native-softeners", "l26-indirect-speech"],
+  "im-cs-delivery-call": ["l17-phone-message", "l08-past", "l40-requests", "l13-permission", "l38-time-date", "l43-adnominal", "l27-honorific-register"]
 };
 
 test("every immersion material declares audited, known prerequisites", () => {

@@ -95,7 +95,7 @@ test("focus tags map to stable ability ids", () => {
   assert.deepEqual(mapFocusToAbilities(["script", "sound"]), ["script", "listening"]);
   assert.deepEqual(mapFocusToAbilities(["vocab", "travel", "media"]), ["vocabulary"]);
   assert.deepEqual(mapFocusToAbilities(["grammar", "sentence", "discourse"]), ["grammar"]);
-  assert.deepEqual(mapFocusToAbilities(["pragmatics", "native", "speaking"]), ["pragmatics", "native"]);
+  assert.deepEqual(mapFocusToAbilities(["pragmatics", "native", "speaking"]), ["pragmatics", "native", "listening"]);
   assert.deepEqual(unknownFocusTags(Object.keys(FOCUS_TO_ABILITIES)), []);
   assert.deepEqual(unknownFocusTags(["grammar", "ghost"]), ["ghost"]);
 });

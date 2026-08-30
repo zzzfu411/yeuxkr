@@ -1,4 +1,6 @@
-export const grammarPoints = [
+import { extraGrammarPoints } from "./grammar-extra.js";
+
+const coreGrammarPoints = [
   {
     id: "g-topic-subject",
     level: "foundation",
@@ -1244,3 +1246,5 @@ export const grammarPoints = [
     confusables: ["g-forbid"]
   }
 ];
+
+export const grammarPoints = [...coreGrammarPoints, ...extraGrammarPoints];

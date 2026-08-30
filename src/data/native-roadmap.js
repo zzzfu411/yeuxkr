@@ -2,9 +2,9 @@ export const nativeRoadmapStages = [
   {
     id: "in-app-bridge",
     scope: "in-app",
-    band: "站内 C1 bridge",
+    band: "站内 B1-B2 bridge",
     title: "站内桥接证据闭环",
-    target: "用当前内容库先跑通韩文、词汇、语法、真实材料、输出改写和检查点的完整证据链。",
+    target: "用当前内容库先跑通韩文、词汇、语法、真实材料、输出改写和检查点的完整证据链。这不是 C1。",
     weeks: "4-8 周",
     deliverables: {
       vocabulary: 64,
@@ -29,7 +29,7 @@ export const nativeRoadmapStages = [
   {
     id: "in-app-domain-transfer",
     scope: "in-app",
-    band: "站内 C1 preview",
+    band: "站内 B2 preview",
     title: "站内话题迁移预演",
     target: "把当前站内所有语用、语法、材料和输出任务串成可复查的小型作品集。",
     weeks: "8-12 周",

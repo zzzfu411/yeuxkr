@@ -332,7 +332,7 @@ export function DrillRunner({
 
   if (!questions.length) {
     return (
-      <div className="grid overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.64)] md:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="p-5">
           <p className="eyebrow">Empty Queue</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
@@ -348,7 +348,7 @@ export function DrillRunner({
 
   if (finished) {
     return (
-      <article className="overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.72)]">
+      <article className="overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
             <p className="eyebrow">Result</p>
@@ -364,7 +364,7 @@ export function DrillRunner({
         </div>
         <div className="mt-5 grid gap-2">
           {answers.map((entry) => (
-            <div key={entry.question.id} className={`rounded-[8px] border-l-4 bg-[rgba(255,250,240,0.8)] p-3 text-sm ${entry.correct ? "border-[var(--celadon)]" : "border-[var(--cinnabar)]"}`}>
+            <div key={entry.question.id} className={`rounded-none border-l-4 bg-[var(--card)] p-3 text-sm ${entry.correct ? "border-[var(--celadon)]" : "border-[var(--cinnabar)]"}`}>
               <strong>{entry.skipped ? "已跳过" : entry.correct ? "对" : "错"}</strong> · {entry.question.prompt}
             </div>
           ))}
@@ -388,16 +388,16 @@ export function DrillRunner({
       (question.type === "cloze" && !(question.choices?.length)));
 
   return (
-    <article className={`rounded-[8px] border p-5 ${existing?.correct ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : existing ? "border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.72)]"}`}>
+    <article className={`rounded-none border p-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Practice</p>
           <h2 className="mt-1 font-serif text-2xl font-black">练习 {index + 1} / {questions.length}</h2>
         </div>
-        <div className="rounded-full bg-[rgba(23,63,115,0.08)] px-4 py-2 font-mono text-sm font-black text-[var(--ocean)]">{score}%</div>
+        <div className="border-[3px] border-[var(--border)] bg-[var(--yellow)] px-4 py-2 font-mono text-sm font-black text-[#1a1a2e]">{score}%</div>
       </div>
       <div
-        className="mb-5 h-1.5 overflow-hidden rounded-full bg-[rgba(24,28,27,0.08)]"
+        className="mb-5 h-2 overflow-hidden border-[3px] border-[var(--border)] bg-[var(--track)]"
         role="progressbar"
         aria-label="练习进度"
         aria-valuemin={0}
@@ -405,7 +405,7 @@ export function DrillRunner({
         aria-valuenow={answeredCount}
       >
         <div
-          className="h-full rounded-full bg-[var(--brass)] transition-all duration-300"
+          className="h-full bg-[var(--yellow)] transition-all duration-300"
           style={{ width: `${Math.round((answeredCount / Math.max(1, questions.length)) * 100)}%` }}
         />
       </div>
@@ -434,20 +434,20 @@ export function DrillRunner({
         ) : null}
 
         {audioCheckPending ? (
-          <div className="mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(23,63,115,0.06)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
+          <div className="mt-5 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
             正在检查这台设备的韩语语音，确认后再开放作答。
           </div>
         ) : null}
 
         {audioUnavailable && !existing ? (
-          <div className="mt-5 rounded-[8px] border border-[rgba(183,135,63,0.42)] bg-[rgba(183,135,63,0.09)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
+          <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
             <p>当前设备无法播放韩语，这道音频题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
             <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补回这项证据。</p>
           </div>
         ) : null}
 
         {question.type === "cloze" && question.clozeText ? (
-          <p className="hangul-display mt-6 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] p-4 text-2xl leading-relaxed" lang="ko">
+          <p className="hangul-display mt-6 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] p-4 text-2xl leading-relaxed" lang="ko">
             {question.clozeText.split("___").map((segment, segmentIndex, segments) => (
               <span key={segmentIndex}>
                 {segment}
@@ -484,7 +484,7 @@ export function DrillRunner({
             <label className="mt-6 grid gap-2 font-extrabold">
               输入答案
               <input
-                className="focus-ring min-h-12 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+                className="focus-ring min-h-12 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
                 value={existing?.answer ?? value}
                 disabled={!!existing}
                 onChange={(event) => setValue(event.target.value)}
@@ -504,11 +504,11 @@ export function DrillRunner({
             {(question.choices ?? []).map((choice, choiceIndex) => (
               <label
                 key={choice}
-                className={`grid min-h-12 cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border p-3 ${
+                className={`grid min-h-12 cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 rounded-none border p-3 ${
                   existing && choice === question.answer
-                    ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
+                    ? "border-[var(--green)] bg-[var(--green-soft)]"
                     : existing && choice === existing.answer
-                      ? "border-[rgba(185,78,60,0.55)] bg-[rgba(185,78,60,0.1)]"
+                      ? "border-[var(--seal)] bg-[var(--seal-soft)]"
                       : "border-[var(--line)] bg-[var(--surface-solid)]"
                 }`}
               >
@@ -527,7 +527,7 @@ export function DrillRunner({
         {existing ? (
           <div
             ref={feedbackRef}
-            className="focus-ring mt-5 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.78)] p-3"
+            className="focus-ring mt-5 rounded-none border border-[var(--line)] bg-[var(--card)] p-3"
             role="status"
             aria-live="polite"
             aria-atomic="true"
@@ -546,7 +546,7 @@ export function DrillRunner({
           </div>
         ) : null}
         {srsError ? (
-          <p className="mt-3 rounded-[8px] border border-[rgba(185,78,60,0.45)] bg-[rgba(185,78,60,0.08)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]" role="alert">
+          <p className="mt-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]" role="alert">
             {srsError}
           </p>
         ) : null}

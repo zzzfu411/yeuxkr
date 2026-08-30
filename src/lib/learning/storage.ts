@@ -139,6 +139,7 @@ function getNowSnapshot() {
 }
 
 function getNowOnceSnapshot() {
+  if (!nowOnceSnapshot && typeof window !== "undefined") nowOnceSnapshot = Date.now();
   return nowOnceSnapshot;
 }
 

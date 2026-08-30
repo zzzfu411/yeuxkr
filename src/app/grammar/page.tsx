@@ -5,8 +5,12 @@ import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
+import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
+import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { TrackRow } from "@/components/ui/track-row";
 import { grammarPoints } from "@/data/grammar";
 import { speakKorean } from "@/lib/speech";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
@@ -19,6 +23,7 @@ const levelLabels: Record<string, string> = {
 
 export default function GrammarPage() {
   const { workspace, toggleGrammar, ensureGrammar } = useLearningWorkspace();
+  const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const learned = useMemo(() => new Set(workspace.progress.learnedGrammar), [workspace.progress.learnedGrammar]);
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
@@ -26,6 +31,7 @@ export default function GrammarPage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [gateItemId, setGateItemId] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filteredPoints = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return grammarPoints.filter((point: any) => {
@@ -85,6 +91,9 @@ export default function GrammarPage() {
         compact
       />
 
+      <OnboardingGateNotice copy="先完成三分钟入门，再把语法掌握写入核心路径。" />
+      <LibraryGateNotice focus="grammar" />
+
       <ModuleHero
         kicker={`${filteredPoints.length}/${grammarPoints.length} patterns`}
         title="从骨架到语气。"
@@ -94,7 +103,7 @@ export default function GrammarPage() {
       >
         <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
           {Object.entries(levelLabels).map(([id, label]) => (
-            <div key={id} className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.72)] p-3">
+            <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
               <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
               <strong className="mt-1 block">{label}</strong>
               <span className="text-sm font-bold text-[var(--ocean)]">{levelCounts[id] ?? 0} shown</span>
@@ -127,7 +136,7 @@ export default function GrammarPage() {
           </div>
           <FilterSummary count={filteredPoints.length} filters={activeFilters} />
           {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-[8px] border border-[rgba(23,63,115,0.22)] bg-[rgba(23,63,115,0.07)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
                 当前先显示 {visiblePoints.length} 个今日句型切片；每个句型都需要先听例句、替换成自己的句子，再加入 SRS。掌握后再展开剩余 {hiddenPointCount} 个句型。
               </span>
@@ -150,57 +159,28 @@ export default function GrammarPage() {
       {Object.entries(byLevel).map(([level, points]) => (
         <Surface key={level} variant="plain">
           <SectionHeading kicker={`${level} · 当前 ${points.length} shown · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
-          <div className="grid gap-4">
-            {points.map((point: any) => (
-              <article key={point.id} className={`grid gap-4 rounded-[8px] border p-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] ${learned.has(point.id) ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-                <div>
-                  <span className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1 font-mono text-xs font-black text-[var(--ocean)]">
-                    {point.pattern}
-                  </span>
-                  <h3 className="mt-3 font-serif text-3xl font-black">{point.title}</h3>
-                  <p className="mt-3 leading-7 text-[var(--muted)]">{point.explanation}</p>
-                  {learned.has(point.id) ? (
-                    <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
-                      已掌握 · 点击移出
-                    </Button>
-                  ) : (
-                    <Button
-                      className="mt-4"
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      aria-expanded={gateItemId === point.id}
-                      onClick={() => setGateItemId((current) => (current === point.id ? "" : point.id))}
-                    >
-                      测一测 · 加入语法复习
-                    </Button>
-                  )}
-                  {gateItemId === point.id && !learned.has(point.id) ? (
-                    <MasteryGate
-                      kind="grammar"
-                      itemId={point.id}
-                      title={point.title}
-                      onPassed={() => {
-                        if (ensureGrammarSrs(point.id)) setGateItemId("");
-                      }}
-                      onClose={() => setGateItemId("")}
-                    />
-                  ) : null}
-                  {srsErrorId === point.id ? <SrsError /> : null}
-                  <div className="mt-4 grid gap-2">
-                    {point.pitfalls.map((pitfall: string) => (
-                      <p key={pitfall} className="rounded-[8px] border-l-4 border-[var(--cinnabar)] bg-[rgba(185,78,60,0.08)] p-3 text-sm leading-6 text-[var(--muted)]">
-                        {pitfall}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid gap-2">
+          <div>
+            {points.map((point: any, pointIndex: number) => (
+              <TrackRow
+                key={point.id}
+                index={pointIndex + 1}
+                glyph={point.pattern?.[0] ?? "문"}
+                kicker={point.pattern}
+                title={point.title}
+                detail={point.meaning}
+                completed={learned.has(point.id)}
+                expanded={!collapsed[point.id]}
+                onToggle={() => setCollapsed((current) => ({ ...current, [point.id]: !current[point.id] }))}
+                onPlay={point.examples?.[0]?.ko ? () => speakKorean(point.examples[0].ko) : undefined}
+                playLabel={point.examples?.[0]?.ko ? `播放 ${point.examples[0].ko}` : undefined}
+              >
+                <p className="leading-7 text-[var(--muted)]">{point.explanation}</p>
+                <div className="mt-3 grid gap-2">
                   {point.examples.map((example: any) => (
                     <button
                       key={example.ko}
                       type="button"
-                      className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.76)] p-3 text-left transition hover:-translate-y-0.5"
+                      className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-left transition hover:-translate-y-0.5"
                       onClick={() => speakKorean(example.ko)}
                     >
                       <span className="mb-2 inline-flex items-center gap-2 text-xs font-black text-[var(--ocean)]">
@@ -213,7 +193,43 @@ export default function GrammarPage() {
                     </button>
                   ))}
                 </div>
-              </article>
+                <div className="mt-3 grid gap-2">
+                  {point.pitfalls.map((pitfall: string) => (
+                    <p key={pitfall} className="rounded-none border-l-4 border-[var(--cinnabar)] bg-[var(--seal-soft)] p-3 text-sm leading-6 text-[var(--muted)]">
+                      {pitfall}
+                    </p>
+                  ))}
+                </div>
+                {learned.has(point.id) ? (
+                  <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
+                    已掌握 · 点击移出
+                  </Button>
+                ) : (
+                  <Button
+                    className="mt-4"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    aria-expanded={gateItemId === point.id}
+                    disabled={enrollBlocked}
+                    onClick={() => setGateItemId((current) => (current === point.id ? "" : point.id))}
+                  >
+                    测一测 · 加入语法复习
+                  </Button>
+                )}
+                {gateItemId === point.id && !learned.has(point.id) ? (
+                  <MasteryGate
+                    kind="grammar"
+                    itemId={point.id}
+                    title={point.title}
+                    onPassed={() => {
+                      if (ensureGrammarSrs(point.id)) setGateItemId("");
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : null}
+                {srsErrorId === point.id ? <SrsError /> : null}
+              </TrackRow>
             ))}
           </div>
         </Surface>

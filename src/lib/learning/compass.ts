@@ -3,13 +3,60 @@ import type { LearningWorkspace, StudyTask } from "./types.ts";
 
 export type CompassContext = "workspace" | "path" | "self" | "review" | "mistakes" | "quiz" | "immersion" | "native";
 
-export function selectCompassPrimaryTask(workspace: Pick<LearningWorkspace, "recommended" | "openStudy">, active: CompassContext): StudyTask | null {
+export const ONBOARDING_TASK: StudyTask = {
+  id: TASK_IDS.systemOnboarding,
+  kind: "hangul",
+  title: "完成三分钟入门设置",
+  detail: "选目标、试听韩语并完成键盘检查。",
+  href: "/onboarding",
+  minutes: 3,
+  ability: ["script"],
+  source: "system",
+  priority: 100,
+  lane: "core",
+  reason: "先确认发音与韩文输入，再进入第一课。"
+};
+
+export function needsOnboardingFunnel(
+  profile: { onboardedAt?: string } | null | undefined,
+  progress: { completedLessons?: string[] } | null | undefined
+) {
+  return !profile?.onboardedAt && !(progress?.completedLessons?.length);
+}
+
+export function pathSpineDetail(
+  workspace: Pick<LearningWorkspace, "recommended" | "openStudy" | "nextLesson">,
+  funnel = false
+) {
+  if (funnel) return "先完成三分钟入门，再进入第一课。";
+  const primary = selectCompassPrimaryTask(workspace, "path");
+  if (primary?.id === TASK_IDS.systemReview) return primary.title;
+  if (primary && String(primary.id).startsWith("system:library-")) return primary.title;
+  if (primary && String(primary.id).startsWith("system:retrain-")) return primary.title;
+  if (workspace.nextLesson) return `下一课 ${workspace.nextLesson.order} · ${workspace.nextLesson.title}`;
+  return "核心课已跑通，继续扩作品集";
+}
+
+export function selectCompassPrimaryTask(
+  workspace: Pick<LearningWorkspace, "recommended" | "openStudy">,
+  active: CompassContext,
+  options: { isFirstVisit?: boolean } = {}
+): StudyTask | null {
+  if (options.isFirstVisit) return ONBOARDING_TASK;
   const recommended = workspace.recommended ?? [];
   const openStudy = workspace.openStudy ?? [];
   const findTask = (predicate: (task: StudyTask) => boolean) => recommended.find(predicate) ?? openStudy.find(predicate) ?? null;
 
   if (active === "path") {
-    return findTask((task) => task.id === TASK_IDS.openNextLesson || (task.kind === "lesson" && task.href.startsWith("/learn/"))) ?? recommended[0] ?? openStudy[0] ?? null;
+    return (
+      findTask((task) => task.id === TASK_IDS.systemReview) ??
+      findTask((task) => String(task.id).startsWith("system:library-")) ??
+      findTask((task) => String(task.id).startsWith("system:retrain-")) ??
+      findTask((task) => task.id === TASK_IDS.openNextLesson || (task.kind === "lesson" && task.href.startsWith("/learn/") && !String(task.id).startsWith("system:retrain-"))) ??
+      recommended[0] ??
+      openStudy[0] ??
+      null
+    );
   }
 
   if (active === "self") {

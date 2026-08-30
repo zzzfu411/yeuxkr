@@ -1,6 +1,7 @@
 import type { AbilityId } from "./types.ts";
 
 export const TASK_IDS = {
+  systemOnboarding: "system:onboarding",
   systemReview: "system:review",
   systemImmersion: "system:immersion",
   systemPracticeRepair: "system:practice-repair",

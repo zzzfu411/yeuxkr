@@ -71,7 +71,7 @@ export function SpeechStatusBanner() {
     : null;
 
   return (
-    <div className="border-b border-[rgba(185,78,60,0.35)] bg-[rgba(185,78,60,0.08)] px-3 py-2" role="alert" aria-live="assertive">
+    <div className="border-b-[3px] border-[var(--border)] bg-[var(--seal-soft)] px-3 py-2" role="alert" aria-live="assertive">
       <div className="mx-auto flex max-w-[1480px] items-start justify-between gap-2 sm:items-center">
         <div className="flex min-w-0 items-start gap-2 text-sm font-bold leading-6 text-[var(--cinnabar)]">
           <Volume2 className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -80,7 +80,7 @@ export function SpeechStatusBanner() {
               ? "当前浏览器不支持语音朗读；听力题会跳过且不计分。"
               : "未检测到韩语语音包；听力题会跳过且不计分。")}
             {!playbackError && status === "missing" ? (
-              <details className="mt-1 font-normal text-[rgba(24,28,27,0.72)]">
+              <details className="mt-1 font-normal text-[var(--ink)]">
                 <summary className="cursor-pointer font-bold">安装韩语语音包</summary>
                 <ul className="mt-1 list-disc pl-5">
                   <li>Windows：设置 → 时间和语言 → 语音 → 添加语音 → 한국어（韩语）。</li>

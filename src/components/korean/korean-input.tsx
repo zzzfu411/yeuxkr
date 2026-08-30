@@ -141,7 +141,7 @@ export function KoreanInput({
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={inputRef}
-          className="focus-ring hangul-display min-h-12 min-w-0 flex-1 rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 text-lg"
+          className="focus-ring hangul-display min-h-12 min-w-0 flex-1 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 text-lg"
           lang="ko"
           value={value}
           disabled={disabled}
@@ -172,10 +172,10 @@ export function KoreanInput({
         <button
           type="button"
           className={cn(
-            "focus-ring inline-flex min-h-12 items-center gap-2 rounded-[8px] border px-3 text-sm font-extrabold transition",
+            "focus-ring inline-flex min-h-12 items-center gap-2 rounded-none border px-3 text-sm font-extrabold transition",
             keyboardOpen
-              ? "border-[rgba(23,63,115,0.4)] bg-[rgba(23,63,115,0.1)] text-[var(--ocean)]"
-              : "border-[var(--line)] bg-[rgba(255,250,240,0.72)] text-[var(--muted)]"
+              ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
+              : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
           )}
           aria-pressed={keyboardOpen}
           onClick={() => setKeyboardOverride(!keyboardOpen)}

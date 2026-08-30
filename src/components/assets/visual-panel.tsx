@@ -9,9 +9,9 @@ export type VisualPanelOverlay = "left" | "right" | "bottom" | "none";
 export type VisualPanelTreatment = "paper" | "raw" | "darkCaption" | "inset" | "ambient";
 
 const overlayClasses: Record<VisualPanelOverlay, string> = {
-  left: "bg-gradient-to-r from-[rgba(233,238,235,0.88)] via-[rgba(233,238,235,0.24)] to-transparent",
-  right: "bg-gradient-to-l from-[rgba(233,238,235,0.88)] via-[rgba(233,238,235,0.24)] to-transparent",
-  bottom: "bg-gradient-to-t from-[rgba(24,28,27,0.44)] via-[rgba(24,28,27,0.12)] to-transparent",
+  left: "bg-gradient-to-r from-[color-mix(in_srgb,var(--paper)_88%,transparent)] via-[color-mix(in_srgb,var(--paper)_24%,transparent)] to-transparent",
+  right: "bg-gradient-to-l from-[color-mix(in_srgb,var(--paper)_88%,transparent)] via-[color-mix(in_srgb,var(--paper)_24%,transparent)] to-transparent",
+  bottom: "bg-gradient-to-t from-[color-mix(in_srgb,var(--ink)_44%,transparent)] via-[color-mix(in_srgb,var(--ink)_12%,transparent)] to-transparent",
   none: ""
 };
 
@@ -25,30 +25,30 @@ const treatmentStyles: Record<
   }
 > = {
   paper: {
-    frame: "border border-[rgba(24,28,27,0.14)] bg-[var(--paper-deep)] shadow-[0_16px_44px_rgba(24,28,27,0.08)]",
+    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal-sm",
     image: "object-cover saturate-[1.08] contrast-[1.08]",
     wash: "bg-[linear-gradient(140deg,rgba(249,251,248,0.06),rgba(63,128,106,0.03)_46%,rgba(21,61,104,0.06))]",
     grid: "opacity-[0.06] [background-image:linear-gradient(rgba(24,28,27,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(24,28,27,0.1)_1px,transparent_1px)] [background-size:28px_28px]"
   },
   raw: {
-    frame: "bg-[var(--paper-deep)] shadow-[0_14px_36px_rgba(24,28,27,0.08)]",
+    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal-sm",
     image: "object-cover contrast-[1.02]"
   },
   darkCaption: {
-    frame: "bg-[var(--ink)] shadow-[0_18px_52px_rgba(24,28,27,0.18)]",
+    frame: "border-[3px] border-[var(--border)] bg-[var(--ink)] shadow-brutal",
     image: "object-cover brightness-[0.82] saturate-[0.92]",
     wash: "bg-[linear-gradient(180deg,rgba(24,28,27,0.02),rgba(24,28,27,0.5))]"
   },
   inset: {
-    frame: "border border-[rgba(24,28,27,0.14)] bg-[rgba(249,251,248,0.72)] shadow-[0_14px_36px_rgba(24,28,27,0.08)]",
+    frame: "border-[3px] border-[var(--border)] bg-[var(--card)] shadow-brutal-sm",
     image: "object-cover scale-[1.01] saturate-[1.08] contrast-[1.06]",
     wash: "bg-[linear-gradient(135deg,rgba(249,251,248,0.06),rgba(63,128,106,0.03)_44%,rgba(21,61,104,0.05))]",
     grid: "opacity-[0.06] [background-image:linear-gradient(rgba(24,28,27,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(24,28,27,0.08)_1px,transparent_1px)] [background-size:24px_24px]"
   },
   ambient: {
-    frame: "bg-[var(--paper-deep)] shadow-[0_16px_44px_rgba(24,28,27,0.08)]",
+    frame: "border-[3px] border-[var(--border)] bg-[var(--paper-deep)] shadow-brutal",
     image: "object-cover brightness-[0.98] saturate-[1.16] contrast-[1.08]",
-    wash: "bg-[linear-gradient(90deg,rgba(233,238,235,0.86)_0%,rgba(233,238,235,0.52)_28%,rgba(233,238,235,0.08)_58%,rgba(21,26,25,0.08)_100%)]"
+    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--paper)_86%,transparent)_0%,color-mix(in_srgb,var(--paper)_52%,transparent)_28%,color-mix(in_srgb,var(--paper)_8%,transparent)_58%,transparent_100%)]"
   }
 };
 
@@ -88,7 +88,7 @@ export function VisualPanel({
 
   return (
     <div
-      className={cn("relative isolate min-h-56 overflow-hidden rounded-[8px]", style.frame, className)}
+      className={cn("visual-panel relative isolate min-h-56 overflow-hidden rounded-none", style.frame, className)}
       role={resolvedImageState.failed && !decorative ? "img" : undefined}
       aria-label={resolvedImageState.failed && !decorative ? fallbackLabel : undefined}
     >
@@ -96,7 +96,7 @@ export function VisualPanel({
         <>
           <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(251,252,249,0.98),rgba(216,225,219,0.94))]" />
           <div className="absolute inset-0 grid place-items-center p-5 text-center">
-            <span className="max-w-56 rounded-[8px] border border-[rgba(24,28,27,0.14)] bg-[rgba(249,251,248,0.8)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
+            <span className="max-w-56 rounded-none border border-[var(--line)] bg-[var(--card)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
               {item.manifestLabel}
             </span>
           </div>

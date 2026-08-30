@@ -20,7 +20,7 @@ test("Hangul cards separate the target sound from the example word", () => {
   for (const item of items) assert.match(item.sound, /[가-힣]/, item.id);
 
   const pageSource = readFileSync("src/app/hangul/page.tsx", "utf8");
-  assert.match(pageSource, /onClick=\{\(\) => speakKorean\(item\.sound\)\}/);
+  assert.match(pageSource, /onPlay=\{\(\) => speakKorean\(item\.sound\)\}/);
   assert.match(pageSource, /onClick=\{\(\) => speakKorean\(item\.example\)\}/);
   assert.match(pageSource, /회 = ㅎ \+ ㅚ|const relation = getExampleRelation/);
 });

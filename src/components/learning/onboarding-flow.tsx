@@ -33,7 +33,10 @@ export function OnboardingFlow() {
   const [goal, setGoal] = useState<StudyGoal>("foundation");
   const [minutes, setMinutes] = useState(30);
   const [typed, setTyped] = useState("");
+  const [heardSample, setHeardSample] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const canSkipVoice = voiceStatus === "missing" || voiceStatus === "unsupported";
+  const voiceReadyToContinue = heardSample || canSkipVoice;
 
   const typedTarget = typed.trim() === "가";
 
@@ -58,7 +61,7 @@ export function OnboardingFlow() {
                 index === step
                   ? "bg-[var(--ink)] text-[var(--surface-solid)]"
                   : index < step
-                    ? "bg-[rgba(79,140,118,0.16)] text-[var(--celadon)]"
+                    ? "bg-[var(--green-soft)] text-[var(--celadon)]"
                     : "bg-[rgba(24,28,27,0.06)] text-[var(--muted)]"
               }`}
             >
@@ -101,10 +104,10 @@ export function OnboardingFlow() {
                 key={option.id}
                 type="button"
                 aria-pressed={goal === option.id}
-                className={`focus-ring rounded-[8px] border p-4 text-left transition hover:-translate-y-0.5 ${
+                className={`focus-ring rounded-none border p-4 text-left transition hover:-translate-y-0.5 ${
                   goal === option.id
-                    ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)]"
-                    : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"
+                    ? "border-[var(--green)] bg-[var(--green-soft)]"
+                    : "border-[var(--line)] bg-[var(--card)]"
                 }`}
                 onClick={() => setGoal(option.id)}
               >
@@ -120,10 +123,10 @@ export function OnboardingFlow() {
                 key={option}
                 type="button"
                 aria-pressed={minutes === option}
-                className={`focus-ring min-h-11 rounded-[8px] border px-5 font-mono text-sm font-black ${
+                className={`focus-ring min-h-11 rounded-none border px-5 font-mono text-sm font-black ${
                   minutes === option
-                    ? "border-[rgba(23,63,115,0.4)] bg-[rgba(23,63,115,0.1)] text-[var(--ocean)]"
-                    : "border-[var(--line)] bg-[rgba(255,250,240,0.62)] text-[var(--muted)]"
+                    ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
+                    : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
                 }`}
                 onClick={() => setMinutes(option)}
               >
@@ -150,7 +153,10 @@ export function OnboardingFlow() {
             听力练习靠系统的韩语语音朗读。点一下试听，如果听到自然的“<span lang="ko">안녕하세요</span>”（你好）就没问题。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button type="button" size="lg" onClick={() => speakKorean("안녕하세요")}>
+            <Button type="button" size="lg" onClick={() => {
+              setHeardSample(true);
+              speakKorean("안녕하세요");
+            }}>
               <Volume2 className="h-5 w-5" aria-hidden="true" />
               试听 <span lang="ko">안녕하세요</span>
             </Button>
@@ -176,8 +182,8 @@ export function OnboardingFlow() {
             <Button type="button" variant="secondary" onClick={() => setStep(1)}>
               上一步
             </Button>
-            <Button type="button" onClick={() => setStep(3)}>
-              下一步：试打韩文
+            <Button type="button" disabled={!voiceReadyToContinue} onClick={() => setStep(3)}>
+              {canSkipVoice ? "暂时没声音，先去打字" : heardSample ? "下一步：试打韩文" : "先点试听"}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>

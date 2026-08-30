@@ -13,7 +13,7 @@ import { buildSelfStudyPlan } from "../../data/self-study.js";
 import { proficiencyLevels, proficiencyMetrics } from "../../data/proficiency.js";
 import { hrefForStudyModule, moduleToAbility, studyModuleReadinessRequirement } from "./modules.js";
 import { CAPSTONE_LESSON_ID, isValidCapstoneEvidence, normalizeCapstoneEvidence } from "./capstone.ts";
-import { hasKoreanContentOverlap, hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasKoreanText as hasKoreanEvidenceText, hasMaterialOutputEvidence, mapFocusToAbilities } from "./evidence.ts";
+import { countHangulSyllables, hasKoreanContentOverlap, hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasKoreanText as hasKoreanEvidenceText, hasMaterialOutputEvidence, mapFocusToAbilities } from "./evidence.ts";
 import { assessLessonAttempt } from "./lesson-assessment.ts";
 import { checkLessonTaskEvidence, lessonCompletionTask, normalizeLessonTaskEvidence } from "./lesson-evidence.ts";
 import { defaultProfile, defaultProgress, nowIso, parseJson, readJson, STORAGE_KEYS, todayKey, useClientNow, useStorageRaw, writeJson } from "./storage.ts";
@@ -24,6 +24,7 @@ import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftStat
 import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
 import { clearLearningRecordings } from "./recordings.ts";
 import { summarizeMistakes } from "./mistakes.ts";
+import { getLibraryGateForLesson, type LibraryCounts } from "./path-gates.ts";
 import {
   TASK_IDS,
   abilityTaskId,
@@ -218,13 +219,6 @@ export function useLearningWorkspace() {
     return saveOutputArchiveEntry(input, progress);
   }, [progress]);
 
-  const completeTask = useCallback((taskId: string) => {
-    const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, progress));
-    const task = findTaskById(buildLearningWorkspace(profile, current, 0), taskId);
-    if (!task) return false;
-    return saveProgress(applyTaskCompletion(current, task));
-  }, [profile, progress, saveProgress]);
-
   const completeCheckpoint = useCallback((checkpointId: string, evidence: string, abilities: AbilityId[]) => {
     const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, progress));
     const result = applyCheckpointCompletion(current, checkpointId, evidence, abilities);
@@ -271,7 +265,6 @@ export function useLearningWorkspace() {
     completeMaterial,
     recordOutput,
     saveOutputArchive,
-    completeTask,
     completeCheckpoint,
     clearMaterialArchive,
     recordQuizProgress,
@@ -296,9 +289,7 @@ export function buildLearningWorkspace(profile: UserProfile, progress: LearningP
   const proficiency = buildProficiencySnapshot(progress, outputEvidence);
   const taskPool = buildTaskPool(profile, progress, nextLesson, abilityGaps, dueCount, outputEvidence);
   const taskContext = { dueCount, outputEvidence };
-  const recommended = taskPool
-    .filter((task) => task.priority >= 55)
-    .slice(0, 6);
+  const recommended = takeRecommendedTasks(taskPool);
   const openStudy = markTasksCompleted(
     buildOpenStudyTasks(profile, progress, nextLesson, outputEvidence),
     progress,
@@ -371,7 +362,7 @@ export function applyCheckpointCompletion(progress: LearningProgress, checkpoint
   const cleanCheckpointId = checkpointId.trim();
   const cleanEvidence = evidence.trim();
   const cleanAbilities = [...new Set(abilities)].filter(isAbilityId);
-  if (!cleanCheckpointId || !validateCheckpointEvidence(cleanEvidence) || !cleanAbilities.length) {
+  if (!cleanCheckpointId || !validateCheckpointEvidence(cleanEvidence, current) || !cleanAbilities.length) {
     return { next: current, completed: false };
   }
   const evidenceFingerprint = checkpointEvidenceFingerprint(cleanEvidence);
@@ -603,24 +594,13 @@ export function toggleNativeItem(itemId: string, fallbackProgress: LearningProgr
   if (!nativeIdSet.has(itemId)) return false;
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
   const set = new Set(current.learnedNative);
-  let added = false;
+  if (!set.has(itemId)) return false;
   const removeIds = nativeRemovalCardIds(itemId);
   const snapshots = removeIds.map(snapshotSrsCard);
-  if (set.has(itemId)) {
-    set.delete(itemId);
-    if (!removeCardsAndDerivedMistakesOrRollback(removeIds, snapshots)) return false;
-  }
-  else {
-    added = true;
-    set.add(itemId);
-    if (!ensureSrsCardOrRollback(nativeCardId(itemId), { kind: "native", itemId }, snapshots)) return false;
-  }
+  set.delete(itemId);
+  if (!removeCardsAndDerivedMistakesOrRollback(removeIds, snapshots)) return false;
   const next = mutableProgress(current, { learnedNative: [...set] });
-  if (added) {
-    next.updatedAt = nowIso();
-  } else {
-    removeAbilityEvent(next, `native:${itemId}`, itemId.startsWith("pragmatics:") ? ["pragmatics"] : ["native"]);
-  }
+  removeAbilityEvent(next, `native:${itemId}`, itemId.startsWith("pragmatics:") ? ["pragmatics"] : ["native"]);
   if (!saveLearningProgress(next)) {
     rollbackSrsCardSnapshots(snapshots);
     return false;
@@ -925,9 +905,9 @@ function buildProficiencyEvidence(progress: LearningProgress, outputEvidence: Ou
   const ability = buildEvidenceBackedAbility(progress, outputEvidence);
   return {
     lessons: progress.completedLessons.length,
-    hangul: progress.masteredHangul.length,
-    vocabulary: progress.learnedVocab.length,
-    grammar: progress.learnedGrammar.length,
+    hangul: progress.masteredHangul.filter((id) => hangulIdSet.has(id)).length,
+    vocabulary: progress.learnedVocab.filter((id) => vocabIdSet.has(id)).length,
+    grammar: progress.learnedGrammar.filter((id) => grammarIdSet.has(id)).length,
     native: countNativePracticeEvidence(progress),
     materials: materialEntries,
     outputs: outputEntries,
@@ -1048,10 +1028,6 @@ function levelRequirementsMet(level: any, evidence: Record<string, number>) {
   });
 }
 
-function findTaskById(workspace: LearningWorkspace, taskId: string) {
-  return [...workspace.recommended, ...workspace.openStudy].find((task) => task.id === taskId);
-}
-
 function markTasksCompleted(
   tasks: StudyTask[],
   progress: LearningProgress,
@@ -1168,7 +1144,7 @@ export function applyTaskCompletion(progress: LearningProgress, task: StudyTask)
   return next;
 }
 
-export function applyLessonCompletion(progress: LearningProgress, lessonId: string, score = 0, assessmentReady = true) {
+export function applyLessonCompletion(progress: LearningProgress, lessonId: string, score = 0, assessmentReady = true, onboarded = true) {
   const current = normalizeLearningProgress(progress);
   const next = {
     ...current,
@@ -1185,7 +1161,11 @@ export function applyLessonCompletion(progress: LearningProgress, lessonId: stri
   const previousScore = next.lessonScores[lessonId] ?? 0;
   const masteredIds = new Set(current.completedLessons);
   const prerequisitesMet = getLessonPrerequisites(lessonId).every((item: any) => masteredIds.has(item.id) && Number(current.lessonScores[item.id] ?? 0) >= UNLOCK_SCORE);
-  const wasUnlocked = lessonIdSet.has(lessonId) && prerequisitesMet;
+  const lesson = lessons.find((item: any) => item.id === lessonId);
+  const libraryOk = getLibraryGateForLesson(lesson, libraryCountsForWrite(current)).ok;
+  const alreadyOnPath = current.completedLessons.includes(lessonId);
+  const onboardingBlocked = Number(lesson?.order) === 1 && !alreadyOnPath && !onboarded;
+  const wasUnlocked = lessonIdSet.has(lessonId) && prerequisitesMet && (libraryOk || alreadyOnPath) && !onboardingBlocked;
   if (wasUnlocked) next.lessonScores[lessonId] = Math.max(previousScore, score);
   else next.previewLessonScores[lessonId] = Math.max(next.previewLessonScores[lessonId] ?? 0, score);
   const canMasterCorePath = wasUnlocked && ((score >= UNLOCK_SCORE && assessmentReady) || current.completedLessons.includes(lessonId));
@@ -1201,12 +1181,27 @@ export function completeLessonProgress(lessonId: string, score = 0, fallbackProg
   return commitLessonSession(lessonId, [], score, fallbackProgress);
 }
 
+function hasOnboardedProfile() {
+  return Boolean(normalizeUserProfile(readJson(STORAGE_KEYS.profile, defaultProfile())).onboardedAt);
+}
+
+function isCorePathOpen(progress: LearningProgress, lessonId: string) {
+  if (!lessonIdSet.has(lessonId)) return false;
+  if (progress.completedLessons.includes(lessonId)) return true;
+  const lesson = lessons.find((item: any) => item.id === lessonId);
+  if (Number(lesson?.order) === 1 && !hasOnboardedProfile()) return false;
+  const masteredIds = new Set(progress.completedLessons);
+  const prerequisitesMet = getLessonPrerequisites(lessonId).every((item: any) => masteredIds.has(item.id) && Number(progress.lessonScores[item.id] ?? 0) >= UNLOCK_SCORE);
+  return prerequisitesMet && getLibraryGateForLesson(lesson, libraryCountsForWrite(progress)).ok;
+}
+
 export function commitLessonSession(lessonId: string, answers: LessonAnswerCommitEntry[], score = 0, fallbackProgress: LearningProgress = defaultProgress()) {
   const current = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, fallbackProgress));
-  if (lessonId === CAPSTONE_LESSON_ID && score >= UNLOCK_SCORE && !isValidCapstoneEvidence(current.capstoneEvidence)) return false;
+  const coreOpen = isCorePathOpen(current, lessonId);
+  if (coreOpen && lessonId === CAPSTONE_LESSON_ID && score >= UNLOCK_SCORE && !isValidCapstoneEvidence(current.capstoneEvidence)) return false;
   const lesson = lessons.find((item: any) => item.id === lessonId);
   const task = lessonCompletionTask(lesson);
-  if (score >= UNLOCK_SCORE && !checkLessonTaskEvidence(task, current.lessonTaskEvidence[lessonId]).ready) return false;
+  if (coreOpen && score >= UNLOCK_SCORE && !checkLessonTaskEvidence(task, current.lessonTaskEvidence[lessonId]).ready) return false;
   const assessment = answers.length
     ? assessLessonAttempt(
         { ...lesson, drills: (lesson?.drills ?? []).map((question: any, index: number) => ({ ...question, id: question.id ?? lessonReviewCardId(lessonId, index) })) },
@@ -1214,7 +1209,7 @@ export function commitLessonSession(lessonId: string, answers: LessonAnswerCommi
         score
       )
     : null;
-  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score, assessment?.corePassed ?? true);
+  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score, assessment?.corePassed ?? true, hasOnboardedProfile());
   if (!knownLesson) return false;
   const previousListeningEvidence = current.lessonListeningEvidence[lessonId] === true;
   const hasListeningEvidence = answers.some((entry) => isAuditoryQuestion(entry.question) && !entry.skipped && entry.correct);
@@ -1439,18 +1434,56 @@ function abilitiesForPracticeItems(items: WeakPracticeItem[], fallback: AbilityI
   return abilities.length ? abilities : fallback;
 }
 
+function repairHrefForWeakItems(items: WeakPracticeItem[], progress: LearningProgress) {
+  const lessonIds = items.map((item) => parseLessonReviewCardId(item.id)?.lessonId).filter(Boolean) as string[];
+  if (!lessonIds.length) return "/quiz";
+  const primary = lessonIds[0];
+  const concentrated = lessonIds.filter((id) => id === primary).length >= Math.ceil(items.length / 2);
+  const completed = new Set(progress.completedLessons);
+  if (concentrated && primary && !completed.has(primary) && lessonIdSet.has(primary)) return `/learn/${primary}`;
+  return "/quiz";
+}
+
+function taskForMasteredLessonRetrain(progress: LearningProgress): StudyTask | null {
+  const counts = new Map<string, number>();
+  for (const item of getWeakPracticeItems(progress, 12)) {
+    const lessonId = parseLessonReviewCardId(item.id)?.lessonId;
+    if (!lessonId || !progress.completedLessons.includes(lessonId) || !lessonIdSet.has(lessonId)) continue;
+    counts.set(lessonId, (counts.get(lessonId) ?? 0) + 1);
+  }
+  const hit = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  if (!hit || hit[1] < 3) return null;
+  const lesson = lessons.find((item: any) => item.id === hit[0]);
+  if (!lesson) return null;
+  return {
+    id: `system:retrain-${lesson.id}`,
+    kind: "lesson",
+    title: `回炉「${lesson.title}」`,
+    detail: `${hit[1]} 道这节已达标课的旧题最近又错了。先回去修断点，再推新课。`,
+    href: `/learn/${lesson.id}`,
+    minutes: lesson.duration ?? 12,
+    ability: mapFocusToAbilities(lesson.focus),
+    source: "system",
+    priority: 92,
+    lane: "bridge",
+    reason: "已掌握课出现集中回潮时，不该假装主线仍然稳。"
+  };
+}
+
 function taskForPracticeRepair(progress: LearningProgress, priority = 86): StudyTask | null {
   const weakItems = getWeakPracticeItems(progress);
   if (!weakItems.length) return null;
+  const href = repairHrefForWeakItems(weakItems, progress);
+  const backToLesson = href.startsWith("/learn/");
   const sourceLabels = [...new Set(weakItems.map((item) => item.lastSource))]
     .map((source) => source === "lesson" ? "课程" : source === "review" ? "复习" : "测验")
     .join(" / ");
   return {
     id: TASK_IDS.systemPracticeRepair,
-    kind: "quiz",
-    title: "修复最近错过的具体题",
-    detail: `${weakItems.length} 个具体题最后一次没有答对，来自${sourceLabels || "练习"}记录；先用迁移测验把它们重新答对。`,
-    href: "/quiz",
+    kind: backToLesson ? "lesson" : "quiz",
+    title: backToLesson ? "回到错过的那节课" : "修复最近错过的具体题",
+    detail: `${weakItems.length} 个具体题最后一次没有答对，来自${sourceLabels || "练习"}记录；${backToLesson ? "先把这节未达标课的断点修掉。" : "先用迁移测验把它们重新答对。"}`,
+    href,
     minutes: Math.min(14, Math.max(6, weakItems.length * 2)),
     ability: abilitiesForPracticeItems(weakItems),
     source: "system",
@@ -1472,6 +1505,7 @@ function buildTaskPool(
   const plan = buildSelfStudyPlan(profile as any);
   const moduleEvidence = selfStudyModuleEvidence(progress, outputEvidence);
   const tasks: StudyTask[] = [];
+  const libraryCounts = libraryCountsForWrite(progress);
   if (dueCount > 0) {
     tasks.push({
       id: TASK_IDS.systemReview,
@@ -1489,6 +1523,22 @@ function buildTaskPool(
   }
 
   if (nextLesson) {
+    const libraryGate = getLibraryGateForLesson(nextLesson, libraryCounts);
+    for (const [index, gap] of libraryGate.missing.entries()) {
+      tasks.push({
+        id: `system:library-${gap.key}`,
+        kind: gap.key === "hangul" ? "hangul" : gap.key === "vocab" ? "vocabulary" : gap.key === "grammar" ? "grammar" : gap.key === "materials" ? "immersion" : "native",
+        title: `先补${gap.label}`,
+        detail: `现在 ${gap.current}/${gap.target}。主线下一课「${nextLesson.title}」要等这项过关，否则只算旁路预览。`,
+        href: gap.href,
+        minutes: 12,
+        ability: [gap.ability],
+        source: "system",
+        priority: 96 - index,
+        lane: "core",
+        reason: "图书馆门槛未满时，不把新课伪装成今天最该做的事。"
+      });
+    }
     tasks.push({
       id: lessonTaskId(nextLesson.id),
       kind: "lesson",
@@ -1498,14 +1548,20 @@ function buildTaskPool(
       minutes: nextLesson.duration ?? 15,
       ability: mapFocusToAbilities(nextLesson.focus),
       source: "guided",
-      priority: profile.studyMode === "guided" ? 90 : 65,
+      priority: !libraryGate.ok ? 64 : dueCount >= 8 ? 50 : dueCount > 0 ? 70 : profile.studyMode === "guided" ? 90 : 65,
       lane: "core",
-      reason: profile.studyMode === "guided" ? "主线推进到下一课。" : "主线还没断，但优先级稍低于到期复习。"
+      reason: !libraryGate.ok
+        ? "先修课已开，但韩文库/词汇/语法/材料还没达到这一阶段的门槛。"
+        : dueCount > 0
+          ? "先把到期复习清掉，再推新课。"
+          : (profile.studyMode === "guided" ? "主线推进到下一课。" : "主线还没断，但优先级稍低于到期复习。")
     });
   }
 
   const practiceRepairTask = taskForPracticeRepair(progress);
   if (practiceRepairTask) tasks.push(practiceRepairTask);
+  const retrainTask = taskForMasteredLessonRetrain(progress);
+  if (retrainTask) tasks.push(retrainTask);
 
   for (const [index, ability] of abilityGaps.entries()) {
     if (!selfStudyModuleGateMet(ability, moduleEvidence)) continue;
@@ -1561,13 +1617,13 @@ function buildTaskPool(
       minutes: Math.min(24, Math.max(14, readyMaterial.minutes)),
       ability: mapFocusToAbilities(readyMaterial.focus),
       source: "system",
-      priority: profile.selfStudyGoal === "media" || profile.selfStudyGoal === "native" ? 82 : 58,
+      priority: profile.selfStudyGoal === "media" || profile.selfStudyGoal === "native" || ["m2", "m3", "m4"].includes(String(nextLesson?.milestone ?? "")) ? 88 : 66,
       lane: "bridge",
       reason: readyMaterial.recommendedLessons.length ? "真实材料已经满足先修，适合正式进入输入输出闭环。" : "先把材料加入观察队列，等待先修补齐。"
     });
   }
 
-  const nativeTask = taskForNativeBridge(profile, progress, outputEvidence);
+  const nativeTask = taskForNativeBridge(profile, progress, outputEvidence, nextLesson);
   if (nativeTask) tasks.push(nativeTask);
 
   return tasks
@@ -1577,13 +1633,35 @@ function buildTaskPool(
     .slice(0, 8);
 }
 
+function takeRecommendedTasks(taskPool: StudyTask[], limit = 6) {
+  const eligible = taskPool.filter((task) => task.priority >= 55);
+  const pinnedRetrain = eligible.filter((task) => String(task.id).startsWith("system:retrain-"));
+  const rest = eligible.filter((task) => !String(task.id).startsWith("system:retrain-"));
+  const room = Math.max(0, limit - pinnedRetrain.length);
+  return [...rest.slice(0, room), ...pinnedRetrain].sort(
+    (a, b) => Number(a.completed) - Number(b.completed) || b.priority - a.priority
+  );
+}
+
 function isTaskCompleted(
   task: StudyTask,
   progress: LearningProgress,
   context: { dueCount?: number; outputEvidence?: OutputEvidenceInput } = {}
 ) {
   if (task.id === TASK_IDS.systemReview) return (context.dueCount ?? 0) <= 0 && progress.completedTasks[task.id] === todayKey();
+  if (task.id === "system:native-bridge") return countNativePracticeEvidence(progress) >= 1;
+  if (task.id.startsWith("system:library-")) {
+    const nextLesson = getNextLesson(new Set(progress.completedLessons), progress.lessonScores);
+    const gate = getLibraryGateForLesson(nextLesson, libraryCountsForWrite(progress));
+    const key = task.id.slice("system:library-".length);
+    return !gate.missing.some((gap) => gap.key === key);
+  }
   if (task.id === TASK_IDS.systemPracticeRepair) return getWeakPracticeItems(progress).length === 0;
+  if (task.id.startsWith("system:retrain-")) {
+    const lessonId = task.id.slice("system:retrain-".length);
+    const weak = getWeakPracticeItems(progress, 12).filter((item) => parseLessonReviewCardId(item.id)?.lessonId === lessonId);
+    return weak.length < 3;
+  }
   if (task.id === TASK_IDS.systemImmersion || task.id === TASK_IDS.openImmersion) {
     const materialId = materialIdFromImmersionHref(task.href);
     if (!materialId) return false;
@@ -1616,20 +1694,25 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
   const previewMaterial = immersionMaterials.find((material) => !validMaterialIds.has(material.id)) ?? immersionMaterials[0];
   const mistakeSummary = summarizeMistakes(srsEvidenceFromInput(outputEvidence));
   const practiceRepairTask = taskForPracticeRepair(progress, 59);
+  const retrainTask = taskForMasteredLessonRetrain(progress);
+  const libraryCounts = libraryCountsForWrite(progress);
+  const libraryGate = getLibraryGateForLesson(nextLesson, libraryCounts);
   const tasks: StudyTask[] = [
     nextLesson
       ? {
           id: TASK_IDS.openNextLesson,
           kind: "lesson",
-          title: "继续课程线",
-          detail: nextLesson.title,
-          href: `/learn/${nextLesson.id}`,
+          title: libraryGate.ok ? "继续课程线" : "先补库再上课",
+          detail: libraryGate.ok
+            ? nextLesson.title
+            : `「${nextLesson.title}」还差${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}`,
+          href: libraryGate.ok ? `/learn/${nextLesson.id}` : libraryGate.missing[0]?.href ?? `/learn/${nextLesson.id}`,
           minutes: nextLesson.duration ?? 15,
-          ability: mapFocusToAbilities(nextLesson.focus),
+          ability: libraryGate.ok ? mapFocusToAbilities(nextLesson.focus) : [libraryGate.missing[0]?.ability ?? "script"],
           source: "guided",
-          priority: 70,
+          priority: libraryGate.ok ? 70 : 48,
           lane: "core",
-          reason: "先接上下一节核心课，学习链最稳。"
+          reason: libraryGate.ok ? "先接上下一节核心课，学习链最稳。" : "图书馆门槛未满时，开放入口也先送去补库。"
         }
       : {
           id: TASK_IDS.openReview,
@@ -1666,7 +1749,7 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
       title: readyMaterial ? "真实材料实验室" : "真实材料预览",
       detail: readyMaterial
         ? `${readyMaterial.title} 已满足先修，可以正式完成并加入 SRS。`
-        : "可以自由试听和保存输出草稿；先修达标前不会写入能力护照。",
+        : "先修未满时只能看说明和留草稿；原文朗读和输出存档要等前置课达标。",
       href: readyMaterial ? immersionMaterialHref(readyMaterial.id) : previewMaterial ? immersionMaterialHref(previewMaterial.id) : "/immersion",
       minutes: readyMaterial?.minutes ?? 18,
       ability: readyMaterial ? mapFocusToAbilities(readyMaterial.focus) : ["listening", "pragmatics", "native"],
@@ -1676,6 +1759,7 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
       reason: readyMaterial ? "先修已达标，材料可以正式进闭环。" : "先把这段材料当预览池，不要把它当完成。"
     },
     ...(practiceRepairTask ? [practiceRepairTask] : []),
+    ...(retrainTask ? [retrainTask] : []),
     ...(mistakeSummary.total ? [{
       id: TASK_IDS.openMistakes,
       kind: "review" as const,
@@ -1704,6 +1788,26 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
     }
   ];
   return tasks;
+}
+
+export function libraryCountsFromProgress(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }): LibraryCounts {
+  return {
+    hangul: progress.masteredHangul.filter((id) => hangulIdSet.has(id)).length,
+    vocab: progress.learnedVocab.filter((id) => vocabIdSet.has(id)).length,
+    grammar: progress.learnedGrammar.filter((id) => grammarIdSet.has(id)).length,
+    materials: getValidMaterialIds(progress, outputEvidence).length,
+    native: countNativePracticeEvidence(progress)
+  };
+}
+
+export function libraryCountsForWrite(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }): LibraryCounts {
+  return {
+    hangul: progress.masteredHangul.filter((id) => hangulIdSet.has(id)).length,
+    vocab: progress.learnedVocab.filter((id) => vocabIdSet.has(id)).length,
+    grammar: progress.learnedGrammar.filter((id) => grammarIdSet.has(id)).length,
+    materials: getValidMaterialIds(progress, outputEvidence).length,
+    native: countNativePracticeEvidence(progress)
+  };
 }
 
 function nextReadyImmersionMaterial(progress: LearningProgress, outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }) {
@@ -1780,11 +1884,20 @@ function taskForAbility(ability: AbilityId, profile: UserProfile, priority: numb
 function taskForNativeBridge(
   profile: UserProfile,
   progress: LearningProgress,
-  outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() }
+  outputEvidence: OutputEvidenceInput = { outputs: getOutputState().entries, srs: getSrsState() },
+  nextLesson: { milestone?: string } | null = null
 ): StudyTask | null {
   const moduleEvidence = selfStudyModuleEvidence(progress, outputEvidence);
   if (!selfStudyModuleGateMet("native", moduleEvidence)) return null;
   const nativeEvidence = countNativePracticeEvidence(progress) + countCheckpointCredits(progress) + countValidOutputEvidence(outputEvidence);
+  const milestone = String(nextLesson?.milestone ?? "");
+  const priority = profile.selfStudyGoal === "native"
+    ? 76
+    : milestone === "m4" || milestone === "m3"
+      ? 70
+      : milestone === "m2"
+        ? 60
+        : 52;
   return {
     id: "system:native-bridge",
     kind: "native",
@@ -1796,7 +1909,7 @@ function taskForNativeBridge(
     minutes: 14,
     ability: ["pragmatics", "native"],
     source: profile.selfStudyGoal === "native" ? "self" : "system",
-    priority: profile.selfStudyGoal === "native" ? 76 : 52,
+    priority,
     lane: "bridge",
     reason: "母语者层不再是单独专区，而是从真实材料和输出证据里长出来。"
   };
@@ -2260,9 +2373,19 @@ export function hasKoreanText(value: string) {
   return hasKoreanEvidenceText(value);
 }
 
-export function validateCheckpointEvidence(evidence: string) {
+export function hasCheckpointStudyBasis(progress: LearningProgress) {
+  return progress.completedLessons.length > 0
+    || progress.masteredHangul.length > 0
+    || progress.learnedVocab.length > 0
+    || progress.learnedGrammar.length > 0
+    || Object.keys(progress.practiceItems ?? {}).length > 0;
+}
+
+export function validateCheckpointEvidence(evidence: string, progress?: LearningProgress) {
   const clean = evidence.trim();
-  return clean.length >= 6 && checkpointSignalPattern.test(clean) && checkpointMeasurementPattern.test(clean);
+  if (clean.length < 6 || !checkpointSignalPattern.test(clean) || !checkpointMeasurementPattern.test(clean)) return false;
+  if (!progress) return true;
+  return countHangulSyllables(clean) >= 2 && hasCheckpointStudyBasis(progress);
 }
 
 function checkpointEvidenceFingerprint(evidence: string) {
@@ -2505,7 +2628,7 @@ export function normalizeLearningProgress(
   const completedLessons = normalizeCompletedLessons(
     source.completedLessons,
     lessonScores,
-    lessonTaskEvidence,
+    source.lessonTaskEvidence,
     capstoneEvidence,
     options.enforceRecordingEvidence === true
   );
@@ -2576,10 +2699,20 @@ function filterKnownIds(input: unknown, known: Set<string>) {
   return Array.isArray(input) ? [...new Set(input.map(String).filter((id) => known.has(id)))] : [];
 }
 
+function completionTaskBlocksMastery(lesson: unknown, rawTaskEvidence: unknown, enforceRecordingEvidence: boolean) {
+  const task = lessonCompletionTask(lesson);
+  if (!task) return false;
+  const rawEntry = isRecord(rawTaskEvidence) ? rawTaskEvidence[(lesson as { id?: string }).id ?? ""] : undefined;
+  const ready = checkLessonTaskEvidence(task, rawEntry).ready;
+  if (ready) return false;
+  if (enforceRecordingEvidence) return true;
+  return isRecord(rawEntry);
+}
+
 function normalizeCompletedLessons(
   input: unknown,
   lessonScores: Record<string, number>,
-  lessonTaskEvidence: LearningProgress["lessonTaskEvidence"],
+  lessonTaskEvidence: unknown,
   capstoneEvidence: CapstoneEvidence | null,
   enforceRecordingEvidence: boolean
 ) {
@@ -2589,11 +2722,8 @@ function normalizeCompletedLessons(
   for (const lesson of lessons) {
     if (!requested.has(lesson.id)) continue;
     if (Number(lessonScores[lesson.id] ?? 0) < UNLOCK_SCORE) continue;
-    if (enforceRecordingEvidence) {
-      const completionTask = lessonCompletionTask(lesson);
-      if (completionTask?.kind === "shadowing" && !checkLessonTaskEvidence(completionTask, lessonTaskEvidence[lesson.id]).ready) continue;
-      if (lesson.id === CAPSTONE_LESSON_ID && !isValidCapstoneEvidence(capstoneEvidence)) continue;
-    }
+    if (completionTaskBlocksMastery(lesson, lessonTaskEvidence, enforceRecordingEvidence)) continue;
+    if (enforceRecordingEvidence && lesson.id === CAPSTONE_LESSON_ID && !isValidCapstoneEvidence(capstoneEvidence)) continue;
     const prerequisitesMet = getLessonPrerequisites(lesson.id).every((item: any) => {
       return validSet.has(item.id) && Number(lessonScores[item.id] ?? 0) >= UNLOCK_SCORE;
     });

@@ -173,7 +173,7 @@ export function PwaRegister() {
   if (installStatus === "available") {
     return (
       <div
-        className="fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between gap-3 rounded-[8px] border border-[rgba(23,63,115,0.28)] bg-[rgba(255,250,240,0.94)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-paper-sm backdrop-blur md:left-auto md:max-w-80"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 flex items-center justify-between gap-3 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-brutal-sm md:bottom-3 md:left-auto md:max-w-80 lg:bottom-3"
         role="status"
         aria-live="polite"
       >
@@ -190,7 +190,7 @@ export function PwaRegister() {
 
   return (
     <div
-      className="fixed bottom-3 left-3 right-3 z-50 rounded-[8px] border border-[rgba(23,63,115,0.28)] bg-[rgba(255,250,240,0.94)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-paper-sm backdrop-blur md:left-auto md:max-w-80"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-brutal-sm md:bottom-3 md:left-auto md:max-w-80 lg:bottom-3"
       role="status"
       aria-live="polite"
     >

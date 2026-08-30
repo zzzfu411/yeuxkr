@@ -21,6 +21,7 @@ import {
   pronunciationQuestionId,
   vocabClozeQuestionId,
   vocabDictationQuestionId,
+  parseLessonReviewCardId,
   vocabQuestionId
 } from "./ids.ts";
 import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "./evidence.ts";
@@ -302,7 +303,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .filter((card) => card.payload.kind === "pronunciation")
     .map((card) => card.payload.itemId));
   const validMaterials = new Set(getValidQuizMaterialIds(progress, outputEntries, srsState));
-  const completedLessonQuestions = progress.completedLessons.flatMap((lessonId) => lessonReviewQuestions(lessonId));
+  const completedLessonQuestions = lessonIdsForProgressQuiz(progress).flatMap((lessonId) => lessonReviewQuestions(lessonId));
   const hangulQuestions = hangulGroups.flatMap((group: any) =>
     group.items
       .filter((item: any) => learnedHangul.has(item.id))
@@ -439,6 +440,15 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
   const pool = [...completedLessonQuestions, ...hangulQuestions, ...vocabQuestions, ...vocabDictationQuestions, ...vocabClozeQuestions, ...grammarQuestions, ...soundQuestions, ...pragmaticQuestions, ...nuanceQuestions, ...materialQuestions, ...outputQuestions];
   if (pool.length) return prioritizeWeakPracticeQuestions(pool, progress, random).slice(0, count);
   return [];
+}
+
+function lessonIdsForProgressQuiz(progress: LearningProgress) {
+  const ids = new Set(progress.completedLessons ?? []);
+  for (const itemId of Object.keys(progress.practiceItems ?? {})) {
+    const parsed = parseLessonReviewCardId(itemId);
+    if (parsed?.lessonId) ids.add(parsed.lessonId);
+  }
+  return [...ids];
 }
 
 function getValidQuizMaterialIds(progress: LearningProgress, outputEntries: OutputEntry[], srsState: SrsState) {

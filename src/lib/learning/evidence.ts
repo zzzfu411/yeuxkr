@@ -19,7 +19,7 @@ export const FOCUS_TO_ABILITIES: Record<string, AbilityId[]> = {
   discourse: ["grammar"],
   pragmatics: ["pragmatics"],
   native: ["native"],
-  speaking: ["native"]
+  speaking: ["listening", "pragmatics"]
 };
 
 export function hasKoreanText(value: unknown) {

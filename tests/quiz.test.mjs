@@ -288,6 +288,27 @@ test("buildProgressQuiz prioritizes weak practice items and completed lesson dri
   assert.equal(questions.slice(0, 2).some((question) => question.id === grammarId), false);
 });
 
+test("buildProgressQuiz includes unfinished lesson drills that already have weak history", () => {
+  const lessonId = "l04-first-sentences";
+  const lessonQuestionId = lessonReviewCardId(lessonId, 0);
+  const questions = buildProgressQuiz({
+    ...defaultProgress(),
+    practiceItems: {
+      [lessonQuestionId]: {
+        attempts: 2,
+        correct: 0,
+        wrong: 2,
+        streak: 0,
+        lastCorrect: false,
+        lastSeenAt: "2026-07-06T03:00:00.000Z",
+        lastSource: "lesson"
+      }
+    }
+  }, 6, 3);
+
+  assert.equal(questions[0].id, lessonQuestionId);
+});
+
 test("buildProgressQuiz only adds explicitly practiced pronunciation pairs", () => {
   const foundationOnly = buildProgressQuiz({
     ...defaultProgress(),

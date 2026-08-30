@@ -6,11 +6,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-[var(--ink)] text-[var(--surface-solid)] shadow-paper-sm hover:-translate-y-0.5 hover:shadow-editorial",
+  primary: "border-[3px] border-[var(--border)] bg-[var(--yellow)] text-[#1a1a2e] shadow-[3px_3px_0_var(--shadow-color)] hover:-translate-x-px hover:-translate-y-px",
   secondary:
-    "border border-[var(--line-strong)] bg-[rgba(255,250,240,0.72)] text-[var(--ink)] hover:-translate-y-0.5 hover:bg-[var(--surface-solid)]",
-  ghost: "text-[var(--ink)] hover:bg-[rgba(24,28,27,0.06)]",
-  danger: "bg-[var(--cinnabar)] text-white hover:-translate-y-0.5"
+    "border-[3px] border-[var(--border)] bg-[var(--card)] text-[var(--ink)] shadow-[3px_3px_0_var(--shadow-color)] hover:bg-[var(--yellow-soft)]",
+  ghost: "border-[3px] border-transparent text-[var(--ink)] hover:border-[var(--border)] hover:bg-[var(--card)]",
+  danger: "border-[3px] border-[var(--border)] bg-[var(--red)] text-white shadow-[3px_3px_0_var(--shadow-color)] hover:-translate-x-px hover:-translate-y-px"
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -33,7 +33,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         ref={ref}
         className={cn(
-          "focus-ring inline-flex min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal rounded-[8px] text-center font-extrabold leading-tight transition duration-200 disabled:pointer-events-none disabled:opacity-45",
+          "focus-ring inline-flex min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal rounded-none text-center font-extrabold leading-tight transition duration-150 disabled:pointer-events-none disabled:opacity-45",
           variantClasses[variant],
           sizeClasses[size],
           className

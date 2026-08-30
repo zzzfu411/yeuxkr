@@ -2,19 +2,23 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, FilePenLine, Gauge, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, FilePenLine, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
+import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
+import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { Button } from "@/components/ui/button";
+import { TrackRow } from "@/components/ui/track-row";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { getCurrentInAppNativeStage, nativeRoadmapTotals } from "@/data/native-roadmap";
 import { nuanceSets } from "@/data/nuance";
 import { pragmaticScenarios } from "@/data/pragmatics";
-import { hasKoreanOutputRewrite, hasKoreanRetellEvidence } from "@/lib/learning/evidence";
 import { countSavedCollocationEvidence, useNativePortfolio, type NativePortfolioDraft, type NativePortfolioEntry } from "@/lib/learning/native-portfolio";
+import { firstHangul } from "@/lib/learning/player";
 import { speakKorean } from "@/lib/speech";
-import { countCheckpointCredits, countNativePracticeEvidence, useLearningWorkspace, type NativeEvidenceInput } from "@/lib/learning/workspace";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
+import { countCheckpointCredits, countNativePracticeEvidence, hasCompleteNativePracticeEvidence, useLearningWorkspace, type NativeEvidenceInput } from "@/lib/learning/workspace";
 
 const trackOptions = [
   { id: "all", label: "全部" },
@@ -24,6 +28,7 @@ const trackOptions = [
 
 export default function NativePage() {
   const { workspace, toggleNative, saveNativeEvidence } = useLearningWorkspace();
+  const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const learned = useMemo(() => new Set(workspace.progress.learnedNative), [workspace.progress.learnedNative]);
   const [query, setQuery] = useState("");
   const [trackFilter, setTrackFilter] = useState("all");
@@ -32,6 +37,7 @@ export default function NativePage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [evidenceErrorId, setEvidenceErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const portfolioEvidence = {
     vocabulary: workspace.progress.learnedVocab.length,
     collocations: countSavedCollocationEvidence(workspace.progress.learnedVocab),
@@ -88,6 +94,7 @@ export default function NativePage() {
     setShowAll(false);
   };
   const toggleNativeSrs = (itemId: string) => {
+    if (enrollBlocked) return;
     if (toggleNative(itemId)) {
       setSrsErrorId((current) => (current === itemId ? "" : current));
       return;
@@ -95,6 +102,7 @@ export default function NativePage() {
     setSrsErrorId(itemId);
   };
   const saveNativeCardEvidence = (itemId: string, evidence: NativeEvidenceInput) => {
+    if (enrollBlocked) return;
     if (saveNativeEvidence(itemId, evidence)) {
       setEvidenceErrorId((current) => (current === itemId ? "" : current));
       setSrsErrorId((current) => (current === itemId ? "" : current));
@@ -111,6 +119,9 @@ export default function NativePage() {
         copy="同一句中文，在陌生人、朋友、前辈面前会变成不同韩语。母语者层不是炫技，而是知道什么时候留余地。"
         compact
       />
+
+      <OnboardingGateNotice copy="先完成三分钟入门，再把母语者表达写入核心路径。" />
+      <LibraryGateNotice focus="native" />
 
       <section className="grid gap-4 border-y border-[var(--line)] py-5">
         <SectionHeading
@@ -142,7 +153,7 @@ export default function NativePage() {
           </div>
           <FilterSummary count={filteredItems.length} filters={activeFilters} unit="expressions" />
           {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-[8px] border border-[rgba(185,78,60,0.22)] bg-[rgba(185,78,60,0.07)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="grid gap-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
                 当前先显示 {visibleItems.length} 个今日母语者切片，混合场景语用和语气细差；每张卡都要听、复述、换一个关系场景再加入 SRS。熟悉后再展开剩余 {hiddenItemCount} 个表达。
               </span>
@@ -165,17 +176,21 @@ export default function NativePage() {
       {pragmaticItems.length ? (
         <section className="grid gap-4">
           <SectionHeading kicker="Pragmatics" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
-          <div className="grid gap-4 xl:grid-cols-2">
-            {pragmaticItems.map((item) => (
+          <div>
+            {pragmaticItems.map((item, index) => (
               <NativeCard
                 key={item.id}
+                index={index + 1}
                 item={item}
                 learned={learned.has(item.srsId)}
                 evidence={workspace.progress.nativeEvidence[item.srsId]}
                 hasError={srsErrorId === item.srsId}
                 hasEvidenceError={evidenceErrorId === item.srsId}
+                expanded={!collapsed[item.id]}
+                onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onToggle={() => toggleNativeSrs(item.srsId)}
                 onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
+                enrollBlocked={enrollBlocked}
               />
             ))}
           </div>
@@ -185,17 +200,21 @@ export default function NativePage() {
       {nuanceItems.length ? (
         <section className="grid gap-4">
           <SectionHeading kicker="Nuance" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
-          <div id="nuance" className="grid gap-4 xl:grid-cols-2">
-            {nuanceItems.map((item) => (
+          <div id="nuance">
+            {nuanceItems.map((item, index) => (
               <NativeCard
                 key={item.id}
+                index={index + 1}
                 item={item}
                 learned={learned.has(item.srsId)}
                 evidence={workspace.progress.nativeEvidence[item.srsId]}
                 hasError={srsErrorId === item.srsId}
                 hasEvidenceError={evidenceErrorId === item.srsId}
+                expanded={!collapsed[item.id]}
+                onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onToggle={() => toggleNativeSrs(item.srsId)}
                 onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
+                enrollBlocked={enrollBlocked}
               />
             ))}
           </div>
@@ -208,20 +227,17 @@ export default function NativePage() {
           title="今天让语气更自然"
           copy="不要只收藏表达。每个动作都要回到材料、输出或复习。"
         />
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        <div>
           {currentStage.todayActions.map((action, index) => (
-            <Link
+            <TrackRow
               key={`${currentStage.id}:${action.title}`}
+              index={index + 1}
+              glyph={String(index + 1)}
+              kicker={`Step ${index + 1}`}
+              title={action.title}
+              detail={action.task}
               href={action.href}
-              className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm"
-            >
-              <span className="mb-2 inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
-                <Gauge className="h-4 w-4" />
-                Step {index + 1}
-              </span>
-              <strong className="block font-serif text-xl leading-tight">{action.title}</strong>
-              <span className="mt-2 block text-sm font-bold leading-6 text-[var(--muted)]">{action.task}</span>
-            </Link>
+            />
           ))}
         </div>
       </section>
@@ -238,7 +254,7 @@ export default function NativePage() {
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="dark-slab grid gap-4 p-5 md:grid-cols-[auto_minmax(0,1fr)]">
-          <div className="hidden h-full w-12 place-items-center rounded-[8px] border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase text-[rgba(255,250,240,0.74)] md:grid">
+          <div className="hidden h-full w-12 place-items-center rounded-none border border-[rgba(255,250,240,0.18)] bg-[rgba(255,250,240,0.06)] font-mono text-xs font-black uppercase text-[rgba(255,250,240,0.74)] md:grid">
             <span className="vertical-text">Portfolio</span>
           </div>
           <div className="grid gap-4">
@@ -249,7 +265,7 @@ export default function NativePage() {
             </div>
             <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
               {portfolioRows.map((row) => (
-                <Link key={row.label} href={row.href} className="focus-ring rounded-[8px] border border-[rgba(255,250,240,0.16)] bg-[rgba(255,250,240,0.07)] p-3 transition hover:-translate-y-0.5">
+                <Link key={row.label} href={row.href} className="focus-ring rounded-none border border-[rgba(255,250,240,0.16)] bg-[rgba(255,250,240,0.07)] p-3 transition hover:-translate-y-0.5">
                   <span className="font-mono text-[0.66rem] font-black uppercase text-[rgba(255,250,240,0.6)]">{row.label}</span>
                   <strong className="mt-2 block font-serif text-3xl leading-none">{row.value}</strong>
                   <span className="mt-2 flex items-center justify-between gap-2 text-xs font-bold text-[rgba(255,250,240,0.68)]">
@@ -267,7 +283,7 @@ export default function NativePage() {
             <p className="eyebrow">Gate Meter</p>
             <div className="mt-3 flex items-end justify-between gap-3">
               <strong className="font-serif text-5xl leading-none">{stageProgress}%</strong>
-              <span className="rounded-[8px] border border-[rgba(79,140,118,0.35)] bg-[rgba(79,140,118,0.1)] px-3 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
+              <span className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] px-3 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
                 {inAppPortfolioComplete ? "站内阶段已跑通" : "证据收集中"}
               </span>
             </div>
@@ -355,7 +371,7 @@ function LongTermNativePortfolio() {
           );
         })}
       </div>
-      <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 border-l-4 border-[var(--brass)] bg-[rgba(183,135,63,0.08)] p-4">
+      <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 border-l-4 border-[var(--brass)] bg-[var(--yellow-soft)] p-4">
         <ShieldCheck className="mt-0.5 h-5 w-5 text-[var(--brass)]" />
         <p className="text-sm font-bold leading-6 text-[var(--muted)]">
           独立证据仓：这里保存的是长期作品集证据，不会写入上方站内能力分、C1 阶段进度或 SRS 完成数。
@@ -363,7 +379,7 @@ function LongTermNativePortfolio() {
       </div>
       {notice?.tone === "error" ? <InlineAlert>{notice.text}</InlineAlert> : null}
       {notice?.tone === "success" ? (
-        <p role="status" className="border-l-4 border-[var(--celadon)] bg-[rgba(79,140,118,0.08)] p-3 text-sm font-bold leading-6 text-[var(--muted)]">
+        <p role="status" className="border-l-4 border-[var(--celadon)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)]">
           {notice.text}
         </p>
       ) : null}
@@ -419,7 +435,7 @@ function NativePortfolioForm({
     const saved = onSubmit(draft, revisionNote);
     setError(saved ? "" : "本地写入失败，内容仍保留在表单中。");
   };
-  const fieldClass = "focus-ring min-h-11 rounded-[8px] border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-2 font-bold text-[var(--ink)] focus:border-[var(--ocean)]";
+  const fieldClass = "focus-ring min-h-11 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-2 font-bold text-[var(--ink)] focus:border-[var(--ocean)]";
 
   return (
     <form className="grid gap-4 border-y border-[var(--line)] py-5" onSubmit={handleSubmit}>
@@ -504,7 +520,7 @@ function NativePortfolioRecord({
   };
 
   return (
-    <article className="grid gap-4 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] p-4">
+    <article className="grid gap-4 rounded-none border border-[var(--line)] bg-[var(--card)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-xs font-black uppercase text-[var(--ocean)]">Updated {displayPortfolioDate(entry.updatedAt)}</p>
@@ -530,7 +546,7 @@ function NativePortfolioRecord({
         </div>
       </div>
       {confirmDelete ? (
-        <p className="border-l-4 border-[var(--cinnabar)] bg-[rgba(185,78,60,0.08)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
+        <p className="border-l-4 border-[var(--cinnabar)] bg-[var(--seal-soft)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
           再点一次会删除当前作品及全部版本记录。
         </p>
       ) : null}
@@ -615,21 +631,29 @@ function displayPortfolioDate(input: string) {
 }
 
 function NativeCard({
+  index,
   item,
   learned,
   evidence,
   hasError,
   hasEvidenceError,
+  expanded,
+  onExpand,
   onToggle,
-  onSaveEvidence
+  onSaveEvidence,
+  enrollBlocked = false
 }: {
+  index: number;
   item: NativeItem;
   learned: boolean;
   evidence?: NativeEvidenceInput;
   hasError: boolean;
   hasEvidenceError: boolean;
+  expanded: boolean;
+  onExpand: () => void;
   onToggle: () => void;
   onSaveEvidence: (evidence: NativeEvidenceInput) => void;
+  enrollBlocked?: boolean;
 }) {
   const Icon = item.track === "pragmatics" ? MessagesSquare : Sparkles;
   const relationProfile = buildRelationProfile(item);
@@ -640,7 +664,7 @@ function NativeCard({
   const [transfer, setTransfer] = useState(evidence?.transfer ?? "");
   const visibleLines = showAllLines ? item.lines : item.lines.slice(0, 1);
   const hiddenLineCount = Math.max(0, item.lines.length - visibleLines.length);
-  const evidenceComplete = listened && hasKoreanRetellEvidence(retell) && hasKoreanOutputRewrite(transfer);
+  const evidenceComplete = hasCompleteNativePracticeEvidence({ listened, retell, transfer }, item.srsId);
   const evidenceSaved = Boolean(
     evidence &&
     evidenceComplete &&
@@ -650,43 +674,58 @@ function NativeCard({
   );
   const evidenceDirty = Boolean(evidence && evidenceComplete && !evidenceSaved);
   const handleToggle = () => {
-    if (learned && !confirmRemove) {
+    if (!learned) return;
+    if (!confirmRemove) {
       setConfirmRemove(true);
       return;
     }
     onToggle();
     setConfirmRemove(false);
   };
+  const firstLine = item.lines[0];
   return (
-    <article className={`grid gap-4 rounded-[8px] border p-4 ${learned ? "border-[rgba(79,140,118,0.45)] bg-[rgba(79,140,118,0.1)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]"}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1 font-mono text-xs font-black uppercase text-[var(--ocean)]">
-            <Icon className="h-3.5 w-3.5" />
-            {item.level}
-          </span>
-          <h3 className="mt-3 font-serif text-2xl font-black leading-tight">{item.title}</h3>
-        </div>
-        <Button type="button" variant={confirmRemove ? "ghost" : "secondary"} size="sm" onClick={handleToggle}>
-          {learned ? confirmRemove ? "确认移出复习" : "已加入 SRS" : item.track === "pragmatics" ? "加入场景复习" : "加入语气复习"}
-        </Button>
+    <TrackRow
+      index={index}
+      glyph={firstHangul(firstLine?.ko ?? item.title, "말")}
+      kicker={item.level}
+      title={item.title}
+      detail={item.summary}
+      completed={learned}
+      expanded={expanded}
+      onToggle={onExpand}
+      onPlay={firstLine ? () => speakKorean(firstLine.ko, { onstart: () => setListened(true) }) : undefined}
+      playLabel={firstLine ? `播放 ${firstLine.ko}` : undefined}
+    >
+      <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
+          <Icon className="h-3.5 w-3.5" />
+          {item.track === "pragmatics" ? "场景语用" : "语气细差"}
+        </span>
+        {learned ? (
+          <Button type="button" variant={confirmRemove ? "ghost" : "secondary"} size="sm" onClick={handleToggle}>
+            {confirmRemove ? "确认移出复习" : "已加入 SRS"}
+          </Button>
+        ) : (
+          <p className="text-xs font-black leading-5 text-[var(--muted)]">先听、复述并做关系迁移，再用下方按钮加入 SRS。</p>
+        )}
       </div>
       {confirmRemove ? (
-        <p className="rounded-[8px] border border-[rgba(185,78,60,0.32)] bg-[rgba(185,78,60,0.08)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
+        <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
           再点一次才会移出 SRS；已经提交的护照证据会保留。
         </p>
       ) : null}
       {hasError ? <SrsError /> : null}
       <p className="text-sm leading-6 text-[var(--muted)]">{item.summary}</p>
-      <div className="grid gap-2 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.58)] p-3 sm:grid-cols-4">
+      <div className="grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3 sm:grid-cols-4">
         {relationProfile.map((slot) => (
-          <div key={slot.label} className="rounded-[8px] bg-[rgba(23,63,115,0.06)] px-3 py-2">
+          <div key={slot.label} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-3 py-2">
             <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{slot.label}</span>
             <strong className="mt-1 block text-sm leading-5 text-[var(--ink)]">{slot.value}</strong>
           </div>
         ))}
       </div>
-      <div className="grid gap-2 rounded-[8px] border border-[rgba(183,135,63,0.28)] bg-[rgba(183,135,63,0.08)] p-3 text-xs font-black leading-5 text-[var(--muted)] sm:grid-cols-3">
+      <div className="grid gap-2 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-xs font-black leading-5 text-[var(--muted)] sm:grid-cols-3">
         <span className="inline-flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-[var(--brass)]" />
           先听一句
@@ -703,7 +742,7 @@ function NativeCard({
       {item.contrast.length ? (
         <div className="flex flex-wrap gap-2">
           {item.contrast.map((part) => (
-            <b key={part} className="hangul-display rounded-[8px] bg-[rgba(23,63,115,0.08)] px-3 py-1" lang="ko">
+            <b key={part} className="hangul-display rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-3 py-1" lang="ko">
               {part}
             </b>
           ))}
@@ -714,7 +753,7 @@ function NativeCard({
           <button
             key={line.ko}
             type="button"
-            className="focus-ring rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.76)] p-3 text-left transition hover:-translate-y-0.5"
+            className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-left transition hover:-translate-y-0.5"
             onClick={() => speakKorean(line.ko, { onstart: () => setListened(true) })}
           >
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-black text-[var(--ocean)]">
@@ -732,10 +771,10 @@ function NativeCard({
           </Button>
         ) : null}
       </div>
-      <div className="rounded-[8px] border-l-4 border-[var(--ocean)] bg-[rgba(23,63,115,0.07)] p-3 text-sm leading-6 text-[var(--muted)]">
+      <div className="rounded-none border-l-4 border-[var(--ocean)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm leading-6 text-[var(--muted)]">
         {item.nativeMove}
       </div>
-      <div className="grid gap-3 rounded-[8px] border border-[rgba(23,63,115,0.18)] bg-[rgba(23,63,115,0.055)] p-3">
+      <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="inline-flex items-center gap-2 text-sm font-black text-[var(--ink)]">
             <input
@@ -747,7 +786,7 @@ function NativeCard({
             />
             已实际播放关键台词
           </label>
-          <span className={`rounded-[8px] border px-2 py-1 font-mono text-[0.68rem] font-black uppercase ${evidenceSaved ? "border-[rgba(79,140,118,0.38)] bg-[rgba(79,140,118,0.1)] text-[var(--celadon)]" : "border-[rgba(183,135,63,0.36)] bg-[rgba(183,135,63,0.08)] text-[var(--brass)]"}`}>
+          <span className={`rounded-none border px-2 py-1 font-mono text-[0.68rem] font-black uppercase ${evidenceSaved ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]" : "border-[var(--border)] bg-[var(--yellow-soft)] text-[var(--brass)]"}`}>
             {evidenceSaved ? "证据已入护照" : evidenceDirty ? "有未保存修改" : "证据未完成"}
           </span>
         </div>
@@ -757,7 +796,7 @@ function NativeCard({
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
           韩语复述
           <textarea
-            className="focus-ring min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
+            className="focus-ring min-h-20 resize-y rounded-none border border-[var(--line)] bg-[var(--card)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={retell}
             placeholder="用韩语复述这张卡的关系、场合或语气动作。"
             onChange={(event) => setRetell(event.target.value)}
@@ -766,7 +805,7 @@ function NativeCard({
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
           关系迁移
           <textarea
-            className="focus-ring min-h-20 resize-y rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.82)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
+            className="focus-ring min-h-20 resize-y rounded-none border border-[var(--line)] bg-[var(--card)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={transfer}
             placeholder="换成朋友/前辈/店员/同事等另一种关系，用韩语改写一句。"
             onChange={(event) => setTransfer(event.target.value)}
@@ -777,11 +816,12 @@ function NativeCard({
             母语者证据没有保存：需要勾选听辨，并填写两段可复查的韩语复述与关系迁移。
           </InlineAlert>
         ) : null}
-        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={!evidenceComplete || evidenceSaved} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
-          {evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存证据并加入 SRS"}
+        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={enrollBlocked || !evidenceComplete || evidenceSaved} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
+          {enrollBlocked ? "先完成入门" : evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存证据并加入 SRS"}
         </Button>
       </div>
-    </article>
+      </div>
+    </TrackRow>
   );
 }
 

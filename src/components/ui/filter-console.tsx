@@ -26,7 +26,7 @@ export function SearchField({
       <span className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <input
-          className="focus-ring min-h-12 w-full rounded-[8px] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-10 text-base"
+          className="focus-ring min-h-12 w-full rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-10 text-base"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
@@ -94,10 +94,10 @@ export function SegmentedFilter({
             aria-checked={value === item.id}
             tabIndex={value === item.id ? 0 : -1}
             className={cn(
-              "focus-ring min-h-11 rounded-[8px] border px-3 text-sm font-extrabold transition",
+              "focus-ring min-h-11 rounded-none border-[3px] px-3 text-sm font-extrabold transition",
               value === item.id
-                ? "border-[var(--ocean)] bg-[rgba(23,63,115,0.12)] text-[var(--ocean)]"
-                : "border-[var(--line)] bg-[rgba(255,250,240,0.62)] text-[var(--muted)] hover:text-[var(--ink)]"
+                ? "border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)]"
+                : "border-[var(--border)] bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--yellow)] hover:text-[var(--ink)]"
             )}
             onClick={() => onChange(item.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
@@ -124,8 +124,8 @@ export function CheckboxFilter({
   return (
     <label
       className={cn(
-        "focus-ring grid min-h-11 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-[8px] border px-3 text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)]",
-        checked ? "border-[rgba(79,140,118,0.55)] bg-[rgba(79,140,118,0.12)] text-[var(--celadon-text)]" : "border-[var(--line)] bg-[rgba(255,250,240,0.62)]",
+        "focus-ring grid min-h-11 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-none border-[3px] px-3 text-sm font-extrabold focus-within:border-[var(--navy)]",
+        checked ? "border-[var(--border)] bg-[var(--green-soft)] text-[var(--celadon-text)]" : "border-[var(--border)] bg-[var(--card)]",
         className
       )}
     >
@@ -151,7 +151,7 @@ export function FilterSummary({
         {count} {unit}
       </span>
       {activeFilters.map((item) => (
-        <span key={item} className="rounded-[8px] bg-[rgba(23,63,115,0.08)] px-2.5 py-1 text-xs font-black text-[var(--ocean)]">
+        <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2.5 py-1 text-xs font-black text-[var(--ocean)]">
           {item}
         </span>
       ))}

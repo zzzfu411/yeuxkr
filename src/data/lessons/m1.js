@@ -292,6 +292,14 @@ export const m1Lessons = [
       "会说数量 하나",
       "会表达外带"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "写自己的点单",
+      prompt: "用韩语写至少两句点单：一杯饮品、数量，以及堂食或外带。必须出现 주세요，不要照抄课文例句。",
+      minSyllables: 16,
+      minClauses: 2,
+      markerGroups: [["주세요"], ["잔", "하나", "포장", "아이스", "따뜻한"]]
+    },
     teach: [
       "주세요 是请求“请给我”的核心表达。",
       "아이스 아메리카노 하나 주세요 是完整点单句。",
@@ -353,6 +361,14 @@ export const m1Lessons = [
       "区分 에 和 에서",
       "能确认距离"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "问路并说出位置",
+      prompt: "用韩语写至少两句：问一个地点在哪里，再说你在哪里做什么。必须区分 에 和 에서。",
+      minSyllables: 18,
+      minClauses: 2,
+      markerGroups: [["어디"], ["에", "에서"]]
+    },
     teach: [
       "어디예요? 是询问位置的基本句。",
       "에 用于目的地或存在位置。",
@@ -438,6 +454,14 @@ export const m1Lessons = [
       "表达数量",
       "礼貌追加或更换"
     ],
+    completionTask: {
+      kind: "paragraph",
+      title: "问价并追加数量",
+      prompt: "用韩语写至少两句购物话：先问价格，再请对方给数量或更换。必须出现 얼마 或 주세요。",
+      minSyllables: 16,
+      minClauses: 2,
+      markerGroups: [["얼마", "주세요"], ["개", "병", "잔", "더", "바꿔"]]
+    },
     teach: [
       "얼마예요? 是最安全的价格问句，想更礼貌可说 얼마인가요?",
       "韩语数量常需要量词：한 개, 두 병, 세 잔。",

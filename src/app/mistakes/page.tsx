@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleAlert, Clock, Play, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowRight, CircleAlert, Clock, Play, RefreshCcw, Trash2 } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { TrackRow } from "@/components/ui/track-row";
+import { firstHangul } from "@/lib/learning/player";
 import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
 import type { Question } from "@/lib/learning/quiz";
 import { getSrsStateFromRaw } from "@/lib/learning/srs";
@@ -22,6 +24,7 @@ export default function MistakesPage() {
   const [status, setStatus] = useState<"idle" | "removed" | "error">("idle");
   const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
   const [retrainError, setRetrainError] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
   const insights = useMemo(() => buildMistakeInsights(srsState, now), [srsState, now]);
   const summary = useMemo(() => summarizeMistakes(srsState, now), [srsState, now]);
@@ -126,9 +129,18 @@ export default function MistakesPage() {
                 </Button>
               }
             />
-            <div className="grid gap-3">
-              {insights.map((item) => (
-                <MistakeCard key={item.id} item={item} now={now} onRemove={handleRemove} onRetrain={(id) => startRetrain([id])} />
+            <div>
+              {insights.map((item, index) => (
+                <MistakeCard
+                  key={item.id}
+                  index={index + 1}
+                  item={item}
+                  now={now}
+                  expanded={!collapsed[item.id]}
+                  onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                  onRemove={handleRemove}
+                  onRetrain={(id) => startRetrain([id])}
+                />
               ))}
             </div>
           </Surface>
@@ -145,16 +157,19 @@ export default function MistakesPage() {
 
             <Surface>
               <SectionHeading kicker="Hot Four" title="今天最该照看的 4 个点" />
-              <div className="grid gap-2">
-                {urgent.map((item) => (
-                  <Link
+              <div>
+                {urgent.map((item, index) => (
+                  <TrackRow
                     key={item.id}
-                    href="/review"
-                    className="focus-ring rounded-[8px] border border-[rgba(185,78,60,0.24)] bg-[rgba(185,78,60,0.07)] p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm"
-                  >
-                    <span className="font-mono text-xs font-black uppercase text-[var(--cinnabar)]">{item.sourceLabel}</span>
-                    <strong className="mt-1 line-clamp-2 block text-sm leading-5">{item.prompt}</strong>
-                  </Link>
+                    index={index + 1}
+                    glyph={firstHangul(item.prompt, "오")}
+                    kicker={item.sourceLabel}
+                    title={item.prompt}
+                    href={item.due ? "/review" : undefined}
+                    onToggle={item.due ? undefined : () => startRetrain([item.id])}
+                    onPlay={item.due ? undefined : () => startRetrain([item.id])}
+                    playLabel={item.due ? `去复习：${item.prompt}` : `重练：${item.prompt}`}
+                  />
                 ))}
               </div>
             </Surface>
@@ -162,7 +177,7 @@ export default function MistakesPage() {
         </section>
       ) : (
         <Surface>
-          <div className="grid overflow-hidden rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.62)] md:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="grid overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="p-5">
               <p className="eyebrow">Clean Slate</p>
               <h2 className="mt-2 font-serif text-3xl font-black">当前没有可追踪错题。</h2>
@@ -194,64 +209,80 @@ export default function MistakesPage() {
 
 function MistakeMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.66)] p-3">
+    <div className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
       <strong className="block font-serif text-3xl font-black leading-none">{value}</strong>
       <span className="mt-1 block font-mono text-xs font-black uppercase text-[var(--muted)]">{label}</span>
     </div>
   );
 }
 
-function MistakeCard({ item, now, onRemove, onRetrain }: { item: MistakeInsight; now: number; onRemove: (id: string) => void; onRetrain: (id: string) => void }) {
+function MistakeCard({
+  index,
+  item,
+  now,
+  expanded,
+  onExpand,
+  onRemove,
+  onRetrain
+}: {
+  index: number;
+  item: MistakeInsight;
+  now: number;
+  expanded: boolean;
+  onExpand: () => void;
+  onRemove: (id: string) => void;
+  onRetrain: (id: string) => void;
+}) {
   return (
-    <article className="grid gap-3 rounded-[8px] border border-[rgba(24,28,27,0.12)] bg-[rgba(255,250,240,0.7)] p-4 md:grid-cols-[minmax(0,1fr)_12rem]">
-      <div className="min-w-0">
+    <TrackRow
+      index={index}
+      glyph={firstHangul(item.prompt, "오")}
+      kicker={item.sourceLabel}
+      title={item.prompt}
+      detail={`正确答案：${item.answer}`}
+      meta={item.statusLabel}
+      expanded={expanded}
+      onToggle={onExpand}
+      onPlay={() => onRetrain(item.id)}
+      playLabel={`重练 ${item.prompt}`}
+    >
+      <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[0.68rem] font-black uppercase ${item.due ? "bg-[rgba(185,78,60,0.12)] text-[var(--cinnabar)]" : "bg-[rgba(23,63,115,0.08)] text-[var(--ocean)]"}`}>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 font-mono text-[0.68rem] font-black uppercase ${item.due ? "bg-[var(--seal-soft)] text-[var(--cinnabar)]" : "bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"}`}>
             {item.due ? <CircleAlert className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
             {item.statusLabel}
           </span>
-          <span className="rounded-full bg-[rgba(24,28,27,0.06)] px-2.5 py-1 font-mono text-[0.68rem] font-black uppercase text-[var(--muted)]">
-            {item.sourceLabel}
-          </span>
         </div>
-        <h2 className="mt-3 break-words font-serif text-2xl font-black leading-tight">{item.prompt}</h2>
-        <p className="mt-2 break-words text-sm font-bold leading-6 text-[var(--muted)]">
-          正确答案：<span className="text-[var(--ink)]">{item.answer}</span>
-        </p>
-      </div>
-      <div className="grid content-between gap-3 rounded-[8px] border border-[rgba(24,28,27,0.08)] bg-[rgba(255,250,240,0.58)] p-3">
         <div className="grid grid-cols-3 gap-2 text-center">
           <SmallStat label="错" value={item.wrong} />
           <SmallStat label="对" value={item.correct} />
           <SmallStat label="盒" value={item.box} />
         </div>
         <p className="text-xs font-bold leading-5 text-[var(--muted)]">{dueLabel(item, now)}</p>
-        <div className="grid gap-2">
+        <div className="grid gap-2 sm:grid-cols-3">
           <Button type="button" size="sm" onClick={() => onRetrain(item.id)}>
             <Play className="h-4 w-4" />
             重练这题
           </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild size="sm" variant="secondary">
-              <Link href="/review">
-                <RefreshCcw className="h-4 w-4" />
-                复习
-              </Link>
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(item.id)}>
-              <Trash2 className="h-4 w-4" />
-              移出
-            </Button>
-          </div>
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/review">
+              <RefreshCcw className="h-4 w-4" />
+              复习
+            </Link>
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(item.id)}>
+            <Trash2 className="h-4 w-4" />
+            移出
+          </Button>
         </div>
       </div>
-    </article>
+    </TrackRow>
   );
 }
 
 function SmallStat({ label, value }: { label: string; value: number }) {
   return (
-    <span className="rounded-[8px] border border-[rgba(24,28,27,0.08)] bg-[rgba(255,250,240,0.62)] px-2 py-1">
+    <span className="rounded-none border border-[var(--line)] bg-[var(--card)] px-2 py-1">
       <strong className="block font-serif text-lg leading-none">{value}</strong>
       <span className="font-mono text-[0.62rem] font-black uppercase text-[var(--muted)]">{label}</span>
     </span>
@@ -260,14 +291,14 @@ function SmallStat({ label, value }: { label: string; value: number }) {
 
 function PlanStep({ index, title, detail, href }: { index: number; title: string; detail: string; href: string }) {
   return (
-    <Link href={href} className="focus-ring grid gap-2 rounded-[8px] border border-[var(--line)] bg-[rgba(255,250,240,0.58)] p-3 transition hover:-translate-y-0.5 hover:shadow-paper-sm">
-      <span className="flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
-        <CheckCircle2 className="h-4 w-4" />
-        Step {index}
-      </span>
-      <strong className="font-serif text-xl leading-tight">{title}</strong>
-      <span className="text-xs font-bold leading-5 text-[var(--muted)]">{detail}</span>
-    </Link>
+    <TrackRow
+      index={index}
+      glyph={String(index)}
+      kicker={`Step ${index}`}
+      title={title}
+      detail={detail}
+      href={href}
+    />
   );
 }
 
