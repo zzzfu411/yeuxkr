@@ -3,13 +3,55 @@ import assert from "node:assert/strict";
 import {
   buildPlayQueue,
   firstHangul,
+  getNowPlayingLocationSearch,
   matchQueueIndex,
+  notifyNowPlayingLocationChange,
   nowPlayingNav,
   pathMatchesTrack,
   splitTrackHref,
+  subscribeNowPlayingLocation,
   trackProgress,
   wrapQueueIndex
 } from "../src/lib/learning/player.ts";
+
+test("now-playing location subscriptions update after query-only navigation", () => {
+  const originalWindow = global.window;
+  const listeners = new Map();
+  let search = "?material=first";
+  global.window = {
+    location: { get search() { return search; } },
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) ?? new Set();
+      entries.add(listener);
+      listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      listeners.get(type)?.delete(listener);
+    },
+    dispatchEvent(event) {
+      for (const listener of listeners.get(event.type) ?? []) listener(event);
+      return true;
+    }
+  };
+
+  try {
+    let updates = 0;
+    const unsubscribe = subscribeNowPlayingLocation(() => { updates += 1; });
+    assert.equal(getNowPlayingLocationSearch(), "?material=first");
+
+    search = "?material=second";
+    notifyNowPlayingLocationChange();
+    assert.equal(updates, 1);
+    assert.equal(getNowPlayingLocationSearch(), "?material=second");
+
+    for (const listener of listeners.get("popstate") ?? []) listener({ type: "popstate" });
+    assert.equal(updates, 2);
+    unsubscribe();
+    assert.equal([...listeners.values()].every((entries) => entries.size === 0), true);
+  } finally {
+    global.window = originalWindow;
+  }
+});
 
 test("play queue skips duplicate hrefs and wraps skip indexes", () => {
   const workspace = {

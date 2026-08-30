@@ -11,5 +11,5 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   const lesson = getLessonById(lessonId);
   if (!lesson) notFound();
 
-  return <LessonClient lesson={lesson} />;
+  return <LessonClient key={lesson.id} lesson={lesson} />;
 }

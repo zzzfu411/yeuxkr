@@ -9,8 +9,10 @@ import {
   buildPlayQueue,
   formatTrackTime,
   KIND_LABEL,
+  getNowPlayingLocationSearch,
   matchQueueIndex,
   nowPlayingNav,
+  subscribeNowPlayingLocation,
   taskGlyph,
   trackProgress,
   type QueueTrack
@@ -34,9 +36,9 @@ function useClientMounted() {
 function useNowPlayingTrack() {
   const mounted = useClientMounted();
   const pathname = usePathname();
+  const search = useSyncExternalStore(subscribeNowPlayingLocation, getNowPlayingLocationSearch, () => "");
   const { workspace, srs } = useLearningWorkspace();
   const isFirstVisit = needsOnboardingFunnel(workspace.profile, workspace.progress);
-  const search = mounted && typeof window !== "undefined" ? window.location.search : "";
   const queue = mounted ? buildPlayQueue(workspace, isFirstVisit) : [QUEUE_PENDING];
   const matchedIndex = mounted ? matchQueueIndex(queue, pathname, search) : -1;
   const nav = nowPlayingNav(queue, matchedIndex);
