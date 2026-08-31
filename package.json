@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,6 +15,7 @@
     "test": "node --import tsx --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "validate": "node --import tsx scripts/validate.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
     "speech:prepare": "node scripts/build-speech-corpus.mjs",
     "speech:generate": "python scripts/generate-speech-assets.py scripts/speech-corpus.json public/assets/audio/ko",
     "check": "npm run validate && npm run lint && npm run typecheck && npm run test && npm run build",
@@ -27,7 +31,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "tailwind-merge": "^3.4.0"
@@ -38,15 +42,16 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.12",
     "playwright": "^1.60.0",
-    "postcss": "8.5.15",
+    "postcss": "8.5.23",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.23.13",
     "typescript": "^5"
   },
   "overrides": {
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "sharp": "0.35.0"
   }
 }

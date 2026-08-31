@@ -9,7 +9,7 @@ from pathlib import Path
 async def generate_edge(job, output_dir, voice, rate, semaphore, retries):
     import edge_tts
 
-    target = output_dir / job["file"]
+    target = resolve_output_target(output_dir, job["file"])
     if valid_audio_file(target):
         return "kept", target
 
@@ -96,7 +96,7 @@ def run_sherpa(args, jobs, output_dir):
     kept = 0
     failures = []
     for index, job in enumerate(jobs, 1):
-        target = output_dir / job["file"]
+        target = resolve_output_target(output_dir, job["file"])
         if valid_audio_file(target):
             kept += 1
             report_progress(index, len(jobs), generated, kept)
@@ -155,6 +155,20 @@ def valid_audio_file(path):
     return path.exists() and path.stat().st_size > 1024
 
 
+def resolve_output_target(output_dir, filename):
+    """Resolve a corpus filename without allowing writes outside output_dir."""
+    if not isinstance(filename, str) or not filename.strip():
+        raise SystemExit("speech corpus jobs must provide a non-empty file name")
+    root = Path(output_dir).resolve()
+    target = (root / filename).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as error:
+        raise SystemExit(f"speech corpus output escapes output directory: {filename}") from error
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return target
+
+
 def assert_valid_audio(path):
     if not valid_audio_file(path):
         raise RuntimeError("generated audio is unexpectedly small")
@@ -193,7 +207,13 @@ def main():
     if args.threads < 1 or args.speed <= 0 or args.bit_rate < 32:
         raise SystemExit("threads, speed, and bit rate must be positive production values")
     jobs = json.loads(Path(args.corpus).read_text(encoding="utf-8"))
-    output_dir = Path(args.output_dir)
+    if not isinstance(jobs, list) or any(not isinstance(job, dict) for job in jobs):
+        raise SystemExit("speech corpus must be a JSON array of job objects")
+    for job in jobs:
+        if not isinstance(job.get("text"), str) or not job["text"].strip():
+            raise SystemExit("speech corpus jobs must provide non-empty text")
+        resolve_output_target(args.output_dir, job.get("file"))
+    output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     if args.provider == "edge":
         asyncio.run(run_edge(args, jobs, output_dir))

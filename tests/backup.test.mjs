@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultProfile, defaultProgress, STORAGE_KEYS } from "../src/lib/learning/storage.ts";
-import { createLearningBackup, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "../src/lib/learning/backup.ts";
+import { createLearningBackup, MAX_LEARNING_BACKUP_TEXT_LENGTH, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "../src/lib/learning/backup.ts";
 
 const store = new Map();
 const recordingBlobs = new Map();
@@ -301,6 +301,7 @@ test("learning backup parser rejects invalid backup payloads", () => {
       [STORAGE_KEYS.srs]: "{bad json"
     }
   })), null);
+  assert.equal(parseLearningBackupText("{".padEnd(MAX_LEARNING_BACKUP_TEXT_LENGTH + 1, "x")), null);
 });
 
 function resetMockStorage() {

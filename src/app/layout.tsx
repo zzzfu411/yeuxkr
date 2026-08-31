@@ -6,9 +6,23 @@ import "@fontsource/ma-shan-zheng/latin-400.css";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 
+const DEFAULT_SITE_URL = "http://localhost:3000";
+
+function getMetadataBase() {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!configured) return new URL(DEFAULT_SITE_URL);
+  try {
+    const url = new URL(configured);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : new URL(DEFAULT_SITE_URL);
+  } catch {
+    return new URL(DEFAULT_SITE_URL);
+  }
+}
+
 export const metadata: Metadata = {
   title: "Kirina Korean | YEUX KR 韩语手帖",
   description: "在纸上读、听、写韩语。课程、复习与真实材料收进同一本学习手帖。",
+  metadataBase: getMetadataBase(),
   manifest: "/manifest.webmanifest",
   openGraph: {
     title: "Kirina Korean | YEUX KR",
@@ -37,7 +51,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <link rel="preload" href="/assets/fonts/lxgw-wenkai-screen.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("yeuxkr.theme");if(t==="dark")t="ye";if(t==="light")t="yuan";if(!/^(yuan|yue|qing|ye)$/.test(t||""))t="yuan";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","yuan");}})();`

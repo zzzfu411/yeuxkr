@@ -90,7 +90,16 @@ await page.addInitScript(() => {
 await page.goto(baseUrl, { waitUntil: "networkidle" });
 await page.screenshot({ path: fileURLToPath(new URL("app-home-wide.png", outDir)), fullPage: false });
 await page.screenshot({ path: fileURLToPath(new URL("home-onboarding.png", outDir)), fullPage: true });
-await expectText(page, "从韩文字块开始，今天读出第一句");
+await expectText(page, "完成三分钟入门设置");
+const onboardingLink = page.getByRole("link", { name: "开始今日一页", exact: true });
+if (await onboardingLink.count() !== 1) {
+  issues.push("first-visit home should expose exactly one onboarding action");
+} else {
+  const onboardingHref = await onboardingLink.getAttribute("href");
+  if (onboardingHref !== "/onboarding") {
+    issues.push(`first-visit home onboarding action should link to /onboarding, found ${onboardingHref}`);
+  }
+}
 const offlineCleanup = await page.evaluate(async () => {
   const registrations = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistrations() : [];
   const cacheNames = "caches" in window ? await caches.keys() : [];

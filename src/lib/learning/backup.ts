@@ -12,6 +12,9 @@ import { clearLearningRecordings } from "./recordings.ts";
 
 export const LEARNING_BACKUP_VERSION = 1;
 export const LEARNING_BACKUP_KEYS = Object.values(STORAGE_KEYS);
+/** Keep imports below the browser's typical local-storage quota and bound JSON parsing work. */
+export const MAX_LEARNING_BACKUP_BYTES = 4 * 1024 * 1024;
+export const MAX_LEARNING_BACKUP_TEXT_LENGTH = MAX_LEARNING_BACKUP_BYTES;
 
 export interface LearningBackup {
   version: typeof LEARNING_BACKUP_VERSION;
@@ -41,6 +44,7 @@ export function createLearningBackup(now = Date.now()): LearningBackup | null {
 }
 
 export function parseLearningBackupText(input: string): LearningBackup | null {
+  if (typeof input !== "string" || input.length > MAX_LEARNING_BACKUP_TEXT_LENGTH) return null;
   return normalizeLearningBackup(parseJson<Partial<LearningBackup>>(input, {}), { strictEntries: true });
 }
 

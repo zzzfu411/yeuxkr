@@ -1,3 +1,11 @@
+// Archived one-off migration for the retired 45-lesson schema. It is kept for
+// historical reference only; never run it accidentally against the current
+// 60-lesson content tree.
+if (!process.argv.includes("--legacy")) {
+  console.error("This archived migration targets the retired 45-lesson schema. Pass --legacy only when intentionally reproducing that migration.");
+  process.exit(1);
+}
+
 // One-off restructure: split lessons/vocab into per-milestone files, renumber
 // orders 1-45 with slots for 15 new lessons, add branch unlock edges, absorb
 // extended-content.js, and delete it. Content is preserved verbatim.

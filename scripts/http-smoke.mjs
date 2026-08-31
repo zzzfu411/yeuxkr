@@ -55,6 +55,7 @@ for (const path of paths) {
       await validateManifest(manifest);
       continue;
     }
+    if (path === "/") validateSecurityHeaders(response.headers);
     if (imagePaths.includes(path)) {
       const bytes = new Uint8Array(await response.arrayBuffer());
       const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
@@ -96,6 +97,18 @@ if (failures.length) {
 }
 
 console.log(`HTTP smoke passed for ${paths.length} routes.`);
+
+function validateSecurityHeaders(headers) {
+  const expected = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), geolocation=(), microphone=(self)"
+  };
+  for (const [name, value] of Object.entries(expected)) {
+    if (headers.get(name) !== value) failures.push(`/: missing or incorrect ${name} header`);
+  }
+}
 
 async function fetchJson(path) {
   try {

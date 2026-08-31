@@ -27,12 +27,13 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 ## 当前能力
 
 - Next.js 16 + React 19 + TypeScript + Tailwind。
+- Node.js `>=20.9.0`（与 Next 16 / sharp 0.35 的运行时要求一致）。
 - Web App manifest 与图标位于 `public/`；课程始终联网加载，不注册 Service Worker 或离线学习包。
 - 学习方式支持“路径推荐”和“自由自学”，两者共用同一套进度、SRS、输出档案和能力护照。
 - `LearningWorkspace` 会综合课程进度、自学目标、能力短板和 SRS 到期状态，生成推荐任务和自由入口。
 - 课程练习、综合测验、韩文、词汇、语法、语用、真实材料和输出弱点会进入统一复习闭环；答错会写入 mistake SRS。
 - `Immersion Lab` 提供真实材料输入、逐句播放、遮译文听写、复述提示、输出草稿、自评 rubric 和 output SRS。
-- 课程朗读优先使用 `public/assets/audio/ko/` 中的 1197 条统一韩语 MP3；未收录的动态内容才回退到浏览器系统韩语语音。
+- 课程朗读优先使用 `public/assets/audio/ko/` 中的 1212 条统一韩语 MP3；未收录的动态内容才回退到浏览器系统韩语语音。
 - 图片资产通过 `my-image-gen` / imagegen 工作流生成后接入 `public/assets/generated/`，页面通过 `src/data/visuals/assets.ts` 引用，并由 `src/data/visuals/manifest.ts` 记录 provider、prompt、源 PNG 和 WebP 派生关系。
 
 ## 命令
@@ -51,9 +52,18 @@ KIRINA_URL=http://127.0.0.1:4173 npm run smoke:http
 KIRINA_URL=http://127.0.0.1:4173 npm run smoke:browser
 npm run check:all
 npm run check:smoke
+npm run audit:prod
 ```
 
 `check:smoke` 需要先执行 `npm run build`，然后会在测试进程内启动 Next production server，连续运行 HTTP 与浏览器 smoke，并在结束时关闭服务，不留下后台 Node 进程。
+
+浏览器 smoke 需要可用的 Playwright Chromium；如果本机使用的是全局或自定义安装，可通过 `PLAYWRIGHT_ENTRY` 指定模块。公开站点的 canonical metadata 可在 `.env` 中设置 `NEXT_PUBLIC_SITE_URL`，未设置时使用 `http://localhost:3000`。
+
+## 数据与安全边界
+
+学习进度、复习卡、草稿和作品集默认只保存在当前浏览器的 `localStorage`；录音 Blob 保存在同源 IndexedDB，不会随备份导出。产品没有账号、服务端 API 或跨用户数据边界，因此本地数据不是可验证的认证凭据。导入备份会先做 schema/大小校验（最大 4 MB），失败时回滚已写入的学习键。
+
+生产依赖升级后可用 `npm audit --omit=dev --audit-level=high` 做阻断式检查；仓库 CI 会执行同一检查。完整 `npm audit` 可能仍报告仅供开发期 lint 工具链使用的依赖，不能把它们误解为线上运行时依赖。
 
 ## 结构
 
@@ -99,7 +109,7 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 内容规模与路线
 
-当前内容规模：45 节核心课、352 个词、40 个语法点、12 个语用场景、12 个语义细差集合和 17 组分层真实材料（基础真实场景、连续理解、母语者桥接）。这个规模可以支撑从零基础进入真实材料和 C1 bridge preview，但不等同完整母语者水平。
+当前内容规模：60 节核心课、722 个词、83 个语法点、20 个语用场景、12 个语义细差集合和 29 组分层真实材料（基础真实场景、连续理解、母语者桥接）。这个规模可以支撑从零基础进入真实材料和 C1 bridge preview，但不等同完整母语者水平。
 
 长期母语者路线由 `src/data/native-roadmap.js` 维护，目标包括：
 

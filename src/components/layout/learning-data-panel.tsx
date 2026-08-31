@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Database, Download, RotateCcw, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createLearningBackup, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "@/lib/learning/backup";
+import { createLearningBackup, MAX_LEARNING_BACKUP_BYTES, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "@/lib/learning/backup";
 import { requestLearningStoragePersistence, type LearningStorageHealth } from "@/lib/learning/storage-health";
 
 type PanelStatus = "idle" | "exported" | "imported" | "reset" | "invalid" | "error";
@@ -70,6 +70,10 @@ export function LearningDataPanel() {
   const importData = async (file: File | undefined) => {
     setConfirmReset(false);
     if (!file) return;
+    if (file.size > MAX_LEARNING_BACKUP_BYTES) {
+      setStatus("invalid");
+      return;
+    }
     const backup = parseLearningBackupText(await file.text().catch(() => ""));
     if (!backup) {
       setStatus("invalid");
@@ -146,7 +150,7 @@ export function LearningDataPanel() {
               保护存储
             </Button>
           </div>
-          <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品；麦克风录音不会导出，迁移后需重新录制相关证据。</p>
+          <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品（最大 4 MB）；麦克风录音不会导出，迁移后需重新录制相关证据。</p>
           {confirmReset ? <p className="border-l-2 border-[var(--seal)] pl-2 text-xs font-normal leading-5 text-[var(--cinnabar)]">再次点击会清空本机课程、复习卡、输出档案和录音。</p> : null}
           <div className="flex min-h-6 flex-wrap gap-2" aria-live="polite">
             {status !== "idle" ? (
