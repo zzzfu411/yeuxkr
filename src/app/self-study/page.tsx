@@ -147,7 +147,7 @@ export default function SelfStudyPage() {
             </div>
           </div>
         </div>
-        <div className="studio-panel paper-rail grid gap-3 p-5">
+        <div className="studio-panel paper-rail relative grid gap-3 p-5">
           <p className="eyebrow">Plan Thread</p>
           <h2 className="font-serif text-3xl font-black leading-tight">今天的方案会怎样流动</h2>
           <div className="grid gap-2">

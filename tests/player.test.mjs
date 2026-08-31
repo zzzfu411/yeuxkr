@@ -103,6 +103,15 @@ test("path matching ignores hash and matches immersion query strings", () => {
   assert.equal(pathMatchesTrack("/immersion", "/immersion?material=im-cafe-real-speed", "?material=im-other"), false);
 });
 
+test("query-specific queue tracks win over generic module entries", () => {
+  const queue = [
+    { href: "/immersion", title: "补材料库", detail: "材料门槛", minutes: 12, kind: "immersion" },
+    { href: "/immersion?material=im-cafe-real-speed", title: "咖啡店", detail: "当前材料", minutes: 14, kind: "immersion" }
+  ];
+  assert.equal(matchQueueIndex(queue, "/immersion", "?material=im-cafe-real-speed"), 1);
+  assert.equal(matchQueueIndex(queue, "/immersion", "?material=unknown"), -1);
+});
+
 test("unmatched pages do not pretend to be the first queue track", () => {
   const workspace = {
     recommended: [

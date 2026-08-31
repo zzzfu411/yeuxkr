@@ -69,10 +69,18 @@ export function pathMatchesTrack(pathname: string, href: string, search = "") {
 }
 
 export function matchQueueIndex(queue: QueueTrack[], pathname: string, search = "") {
+  const pageQuery = search.startsWith("?") ? search.slice(1) : search;
+  if (pageQuery) {
+    // A generic module entry (for example `/immersion`) must not shadow the
+    // material-specific entry currently selected by the query string.
+    const specific = queue.findIndex((track) => {
+      const { search: trackSearch } = splitTrackHref(track.href);
+      return Boolean(trackSearch) && pathMatchesTrack(pathname, track.href, search);
+    });
+    return specific;
+  }
   const exact = queue.findIndex((track) => pathMatchesTrack(pathname, track.href, search));
   if (exact >= 0) return exact;
-  const pageQuery = search.startsWith("?") ? search.slice(1) : search;
-  if (pageQuery) return -1;
   return queue.findIndex((track) => {
     const { pathname: trackPath } = splitTrackHref(track.href);
     return pathMatchesTrack(pathname, trackPath, "");

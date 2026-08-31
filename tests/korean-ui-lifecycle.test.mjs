@@ -434,6 +434,53 @@ test("re-recording overwrites an unsaved recording instead of orphaning its blob
   }
 });
 
+test("recording controls stay locked until the asynchronous blob write finishes", async (context) => {
+  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  assert.match(source, /disabled={!check\.ready \|\| recording \|\| startingRecording \|\| savingRecording}/);
+  assert.match(source, /const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence/);
+  assert.match(source, /if \(recording \|\| startingRecording \|\| savingRecording\)/);
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      const saves = [];
+      const resolvers = [];
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: {
+          saveLearningRecording: async (blob, kind, existingId) => {
+            saves.push({ blob, kind, existingId });
+            return new Promise((resolve) => resolvers.push(resolve));
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const props = panel === "shadowing" ? createShadowingPanelProps() : createCapstonePanelProps();
+      const startLabel = "开始录音";
+      const stopLabel = panel === "shadowing" ? "停止" : "停止录音";
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, startLabel).props.onClick();
+      media.recorders[0].ondataavailable({ data: new Blob(["first"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, stopLabel).props.onClick();
+
+      tree = hooks.render(Component, props);
+      const savingButton = findButton(tree, "保存录音");
+      assert.equal(savingButton.props.disabled, true);
+      await savingButton.props.onClick();
+      assert.equal(media.recorders.length, 1, "a second recorder must not start while the first blob is being written");
+      assert.equal(saves.length, 1);
+
+      resolvers[0](`${panel}-draft`);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+      assert.equal(findButton(tree, startLabel).props.disabled, false);
+    });
+  }
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -577,6 +624,14 @@ test("immersion query changes replace a stale in-page material selection", () =>
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
 });
 
+test("immersion autosave waits for the current material draft to hydrate", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  assert.match(source, /const hydratedMaterialRef = useRef\(""\);/);
+  assert.match(source, /let cancelled = false;\s*hydratedMaterialRef\.current = "";\s*queueMicrotask/);
+  assert.match(source, /const savedDraft = getImmersionMaterialDraft\(active\.id\);\s*hydratedMaterialRef\.current = active\.id;/);
+  assert.match(source, /if \(!activeDraftReady \|\| suppressDraftSaveRef\.current \|\| hydratedMaterialRef\.current !== active\.id\) return;/);
+});
+
 test("clearing an immersion archive cannot immediately recreate its live draft", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
   const clearArchive = source.slice(source.indexOf("const clearActiveArchive"), source.indexOf("const finishMaterial"));
@@ -597,6 +652,7 @@ test("finishing an immersion material clears live draft fields then re-enables l
 test("paper frames clip media inside the panel instead of hanging tape", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
+  const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
   const css = readFileSync("src/app/globals.css", "utf8");
   assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
@@ -607,14 +663,15 @@ test("paper frames clip media inside the panel instead of hanging tape", () => {
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
   assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
+  assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {
   const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
   const panel = source.slice(source.indexOf("function LessonTaskEvidencePanel"), source.indexOf("function CapstoneEvidencePanel"));
-  assert.match(panel, /if \(recording \|\| startingRecording\) \{/);
+  assert.match(panel, /if \(recording \|\| startingRecording \|\| savingRecording\) \{/);
   assert.match(panel, /if \(ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId\)/);
-  assert.match(panel, /disabled=\{!check\.ready \|\| recording \|\| startingRecording\}/);
+  assert.match(panel, /disabled=\{!check\.ready \|\| recording \|\| startingRecording \|\| savingRecording\}/);
 });
 
 test("lesson pages remount lesson-scoped client state when the lesson ID changes", async () => {
