@@ -172,7 +172,7 @@ export function LearningCompass({
 
   if (condensed) {
     return (
-      <section className={cn("surface paper-rail relative overflow-hidden p-4 pt-7 md:p-5 md:pt-8", className)}>
+      <section className={cn("surface paper-rail relative p-4 pt-7 md:p-5 md:pt-8", className)}>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)] lg:items-end">
             <div className="min-w-0">
@@ -270,7 +270,7 @@ export function LearningCompass({
 
   return (
     <section className={cn("grid gap-5", className)}>
-      <div className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.4fr)]">
+      <div className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.4fr)]">
         <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
         <div className="paper-rail relative p-5 pt-8 md:p-7 md:pt-9">
           <p className="eyebrow">{config.kicker}</p>
@@ -318,7 +318,7 @@ export function LearningCompass({
         </div>
       </div>
 
-      <nav className="surface relative grid overflow-hidden md:grid-cols-2" aria-label="学习路线">
+      <nav className="surface relative grid md:grid-cols-2" aria-label="学习路线">
         {tracks.map((track) => {
           const Icon = track.icon;
           return (
@@ -346,7 +346,7 @@ export function LearningCompass({
       </nav>
 
       {nextRequirements.length ? (
-        <div className="surface paper-rail relative grid gap-4 overflow-hidden p-4 pt-7 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-6 md:p-5 md:pt-8">
+        <div className="surface paper-rail relative grid gap-4 p-4 pt-7 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-6 md:p-5 md:pt-8">
           <span className="inline-flex items-center gap-2 text-xs text-[var(--seal)]">
             <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
             下一阶段证据

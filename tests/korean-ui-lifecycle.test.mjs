@@ -580,7 +580,7 @@ test("immersion query changes replace a stale in-page material selection", () =>
 test("clearing an immersion archive cannot immediately recreate its live draft", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
   const clearArchive = source.slice(source.indexOf("const clearActiveArchive"), source.indexOf("const finishMaterial"));
-  assert.match(clearArchive, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);\s*if \(!clearMaterialArchive/);
+  assert.match(clearArchive, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);\s*pinActiveMaterial\(active\.id\);\s*if \(!clearMaterialArchive/);
   assert.match(clearArchive, /if \(draftCleared\) \{[\s\S]*setDictationEvidence\(""\);[\s\S]*setRetellEvidence\(""\);[\s\S]*setDraft\(""\);/);
   assert.match(clearArchive, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
 });
@@ -588,10 +588,21 @@ test("clearing an immersion archive cannot immediately recreate its live draft",
 test("finishing an immersion material clears live draft fields then re-enables later saves", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
   const finishMaterial = source.slice(source.indexOf("const finishMaterial"), source.indexOf("const focusMaterialPractice"));
-  assert.match(finishMaterial, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);/);
+  assert.match(finishMaterial, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);\s*pinActiveMaterial\(active\.id\);/);
   assert.match(finishMaterial, /setDictationEvidence\(""\);[\s\S]*setRetellEvidence\(""\);[\s\S]*setDraft\(""\);/);
   assert.match(finishMaterial, /delete next\[active\.id\]/);
   assert.match(finishMaterial, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
+});
+
+test("paper frames clip media inside the panel instead of hanging tape", () => {
+  const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
+  const section = readFileSync("src/components/ui/section.tsx", "utf8");
+  assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
+  assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
+  assert.match(visual, /\{treatment !== "ambient" \? <span className="paper-tape left-6 top-\[-7px\]"/);
+  assert.match(section, /"surface relative p-4 md:p-5"/);
+  assert.match(section, /className="studio-panel relative grid lg:grid-cols-\[minmax\(0,1fr\)_minmax\(18rem,0\.44fr\)\]"/);
+  assert.doesNotMatch(section, /surface relative overflow-hidden p-4/);
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {

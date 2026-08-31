@@ -54,7 +54,7 @@ export function Surface({
 }) {
   return (
     <section id={id} className={cn(
-      variant === "plain" ? "relative min-w-0" : "surface relative overflow-hidden p-4 md:p-5",
+      variant === "plain" ? "relative min-w-0" : "surface relative p-4 md:p-5",
       className
     )}>
       {children}
@@ -90,7 +90,7 @@ export function ModuleHero({
   imageAlt?: string;
 }) {
   return (
-    <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.44fr)]">
+    <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.44fr)]">
       <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
       <div className="paper-rail relative p-5 pt-8 md:p-7 md:pt-9">
         <p className="eyebrow">{kicker}</p>

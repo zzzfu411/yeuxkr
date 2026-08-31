@@ -295,11 +295,15 @@ function ImmersionContent() {
     setCheckedRubric([]);
   };
 
-  const selectMaterial = (materialId: string) => {
-    setActiveDraftReady(false);
+  const pinActiveMaterial = (materialId: string) => {
     setSelectedMaterialId(materialId);
     window.history.replaceState(null, "", immersionMaterialHref(materialId));
     notifyNowPlayingLocationChange();
+  };
+
+  const selectMaterial = (materialId: string) => {
+    setActiveDraftReady(false);
+    pinActiveMaterial(materialId);
     resetMaterialWork();
   };
 
@@ -313,6 +317,7 @@ function ImmersionContent() {
     }
     suppressDraftSaveRef.current = true;
     setActiveDraftReady(false);
+    pinActiveMaterial(active.id);
     if (!clearMaterialArchive(active.id)) {
       suppressDraftSaveRef.current = false;
       setActiveDraftReady(true);
@@ -363,6 +368,7 @@ function ImmersionContent() {
     }
     suppressDraftSaveRef.current = true;
     setActiveDraftReady(false);
+    pinActiveMaterial(active.id);
     const draftCleared = clearImmersionMaterialDraft(active.id);
     setMaterialError(draftCleared ? "" : "材料已完成，但本地草稿断点没有清理成功；正式证据已保存，可以稍后再清理草稿。");
     setDictationEvidence("");
@@ -476,7 +482,7 @@ function ImmersionContent() {
         </Surface>
 
         <div className="grid gap-5">
-          <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_22rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">{active.sourceLabel}</p>

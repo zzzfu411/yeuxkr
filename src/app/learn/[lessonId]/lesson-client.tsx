@@ -117,7 +117,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
   return (
     <div className="grid gap-5">
-      <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_28rem]">
+      <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_28rem]">
         <div className="paper-rail p-5 md:p-6">
           <Button asChild variant="ghost" size="sm">
             <Link href="/path">

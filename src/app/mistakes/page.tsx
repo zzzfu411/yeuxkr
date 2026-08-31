@@ -177,7 +177,7 @@ export default function MistakesPage() {
         </section>
       ) : (
         <Surface variant="plain">
-          <div className="studio-panel relative grid overflow-hidden md:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="studio-panel relative grid md:grid-cols-[minmax(0,1fr)_18rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">빈 장 · Clean leaf</p>

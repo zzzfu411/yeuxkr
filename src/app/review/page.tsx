@@ -105,7 +105,7 @@ function ReviewContent() {
             }}
           />
         ) : (
-          <div className="studio-panel relative grid gap-4 overflow-hidden md:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">오늘은 맑음 · Clear today</p>
@@ -181,7 +181,7 @@ function ReviewLoading() {
       <ReviewHeader />
       <Surface>
         <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
-        <div className="studio-panel relative grid gap-4 overflow-hidden md:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
           <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
           <div className="paper-rail p-5 pt-8">
             <p className="eyebrow">잠시 · A quiet moment</p>

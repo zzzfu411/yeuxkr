@@ -86,45 +86,47 @@ export function VisualPanel({
 
   return (
     <div
-      className={cn("visual-panel relative isolate min-h-56 overflow-hidden rounded-none", style.frame, className)}
+      className={cn("visual-panel relative isolate min-h-56 rounded-none", style.frame, className)}
       role={resolvedImageState.failed && !decorative ? "img" : undefined}
       aria-label={resolvedImageState.failed && !decorative ? fallbackLabel : undefined}
     >
-      {resolvedImageState.failed ? (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(251,252,249,0.98),rgba(216,225,219,0.94))]" />
-          <div className="absolute inset-0 grid place-items-center p-5 text-center">
-            <span className="max-w-56 rounded-none border border-[var(--line)] bg-[var(--card)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
-              {item.manifestLabel}
-            </span>
-          </div>
-        </>
-      ) : null}
-      {!resolvedImageState.failed ? (
-        <Image
-          src={resolvedImageState.src}
-          alt={decorative ? "" : alt ?? item.alt}
-          aria-hidden={decorative || undefined}
-          fill
-          priority={priority}
-          unoptimized
-          className={style.image}
-          sizes={sizes}
-          style={{ objectPosition }}
-          onError={() => {
-            if (resolvedImageState.src !== item.source) {
-              setImageState({ asset, src: item.source, failed: false });
-            } else {
-              setImageState({ asset, src: item.source, failed: true });
-            }
-          }}
-        />
-      ) : null}
+      <div className="absolute inset-0 overflow-hidden">
+        {resolvedImageState.failed ? (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(251,252,249,0.98),rgba(216,225,219,0.94))]" />
+            <div className="absolute inset-0 grid place-items-center p-5 text-center">
+              <span className="max-w-56 rounded-none border border-[var(--line)] bg-[var(--card)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
+                {item.manifestLabel}
+              </span>
+            </div>
+          </>
+        ) : null}
+        {!resolvedImageState.failed ? (
+          <Image
+            src={resolvedImageState.src}
+            alt={decorative ? "" : alt ?? item.alt}
+            aria-hidden={decorative || undefined}
+            fill
+            priority={priority}
+            unoptimized
+            className={style.image}
+            sizes={sizes}
+            style={{ objectPosition }}
+            onError={() => {
+              if (resolvedImageState.src !== item.source) {
+                setImageState({ asset, src: item.source, failed: false });
+              } else {
+                setImageState({ asset, src: item.source, failed: true });
+              }
+            }}
+          />
+        ) : null}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,var(--sheen),transparent)]" />
+        {style.wash ? <div className={cn("pointer-events-none absolute inset-0", style.wash)} /> : null}
+        {style.grid ? <div className={cn("pointer-events-none absolute inset-0", style.grid)} /> : null}
+        {overlayClass ? <div className={cn("pointer-events-none absolute inset-0", overlayClass)} /> : null}
+      </div>
       {treatment !== "ambient" ? <span className="paper-tape left-6 top-[-7px]" aria-hidden="true" /> : null}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,var(--sheen),transparent)]" />
-      {style.wash ? <div className={cn("pointer-events-none absolute inset-0", style.wash)} /> : null}
-      {style.grid ? <div className={cn("pointer-events-none absolute inset-0", style.grid)} /> : null}
-      {overlayClass ? <div className={cn("pointer-events-none absolute inset-0", overlayClass)} /> : null}
     </div>
   );
 }
