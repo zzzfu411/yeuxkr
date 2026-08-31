@@ -490,9 +490,9 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
     "lucide-react": {
       ArrowRight: "ArrowIcon",
       CheckCircle2: "CheckIcon",
-      GraduationCap: "GraduationIcon",
       Volume2: "VolumeIcon"
     },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-settings": { SpeechSettings: "SpeechSettings" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -531,7 +531,7 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
 test("ThemeToggle applies valid theme changes received from another tab", () => {
   let subscribe = null;
   let notified = 0;
-  let theme = "light";
+  let theme = "yuan";
   const listeners = new Map();
   const react = {
     useSyncExternalStore(nextSubscribe, getSnapshot) {
@@ -557,12 +557,16 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
   ThemeToggle();
   const unsubscribe = subscribe(() => { notified += 1; });
-  listeners.get("storage")({ key: "unrelated", newValue: "dark" });
-  assert.equal(theme, "light");
+  listeners.get("storage")({ key: "unrelated", newValue: "ye" });
+  assert.equal(theme, "yuan");
   assert.equal(notified, 0);
+  // Legacy dark value migrates to the paper night theme.
   listeners.get("storage")({ key: "yeuxkr.theme", newValue: "dark" });
-  assert.equal(theme, "dark");
+  assert.equal(theme, "ye");
   assert.equal(notified, 1);
+  listeners.get("storage")({ key: "yeuxkr.theme", newValue: "qing" });
+  assert.equal(theme, "qing");
+  assert.equal(notified, 2);
   unsubscribe();
   assert.equal(listeners.has("storage"), false);
 });
