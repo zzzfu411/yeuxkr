@@ -303,6 +303,11 @@ html[data-theme="dark"] .visual-panel img {
   opacity: 0.68;
 }
 
+.surface:has(> .paper-tape)::after,
+.studio-panel:has(> .paper-tape)::after {
+  content: none;
+}
+
 .dark-slab {
   border: 1.2px solid var(--line);
   border-radius: var(--radius);

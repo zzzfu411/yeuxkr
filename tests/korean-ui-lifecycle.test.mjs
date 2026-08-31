@@ -597,12 +597,16 @@ test("finishing an immersion material clears live draft fields then re-enables l
 test("paper frames clip media inside the panel instead of hanging tape", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
+  const css = readFileSync("src/app/globals.css", "utf8");
   assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
   assert.match(visual, /\{treatment !== "ambient" \? <span className="paper-tape left-6 top-\[-7px\]"/);
   assert.match(section, /"surface relative p-4 md:p-5"/);
   assert.match(section, /className="studio-panel relative grid lg:grid-cols-\[minmax\(0,1fr\)_minmax\(18rem,0\.44fr\)\]"/);
   assert.doesNotMatch(section, /surface relative overflow-hidden p-4/);
+  assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
+  assert.doesNotMatch(visual, /251,252,249/);
+  assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {

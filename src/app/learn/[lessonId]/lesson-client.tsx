@@ -1243,7 +1243,7 @@ function CapstoneEvidencePanel({
                 return (
                   <label key={item.id} className={`focus-ring grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border p-3 text-sm font-medium ${checked ? "border-[var(--green)] bg-[var(--green-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
                     <input className="sr-only" type="checkbox" checked={checked} onChange={() => toggleRubric(item.id)} />
-                    <span className={`grid h-6 w-6 place-items-center rounded-[6px] border ${checked ? "border-[var(--celadon)] bg-[var(--celadon)] text-white" : "border-[var(--line-strong)]"}`}>
+                    <span className={`grid h-6 w-6 place-items-center rounded-[6px] border ${checked ? "border-[var(--celadon)] bg-[var(--celadon)] text-[var(--ink-inv)]" : "border-[var(--line-strong)]"}`}>
                       {checked ? <CheckCircle2 className="h-4 w-4" /> : null}
                     </span>
                     {item.label}
