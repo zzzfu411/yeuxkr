@@ -805,13 +805,17 @@ function LessonTaskEvidencePanel({
   };
 
   const save = () => {
+    if (recording || startingRecording) {
+      setMessage("录音进行中，先停止后再保存作品。");
+      return;
+    }
     if (!check.ready) {
       setMessage("作品还未满足系统检查，请补齐未通过项。");
       return;
     }
     const expectedRecordingId = draftBaseRecordingIdRef.current;
     const ok = onSave(lessonId, draftEvidence, expectedRecordingId);
-    if (ok && expectedRecordingId && expectedRecordingId !== recordingId) {
+    if (ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId) {
       void deleteLearningRecording(expectedRecordingId);
     }
     if (ok) {
@@ -890,7 +894,7 @@ function LessonTaskEvidencePanel({
         ))}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={save} disabled={!check.ready}>保存作品</Button>
+        <Button type="button" onClick={save} disabled={!check.ready || recording || startingRecording}>保存作品</Button>
         {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">已保存有效证据</span> : null}
         {message ? <span className="text-sm font-bold text-[var(--muted)]" role="status">{message}</span> : null}
       </div>

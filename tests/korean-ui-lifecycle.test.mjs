@@ -585,6 +585,23 @@ test("clearing an immersion archive cannot immediately recreate its live draft",
   assert.match(clearArchive, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
 });
 
+test("finishing an immersion material clears live draft fields then re-enables later saves", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  const finishMaterial = source.slice(source.indexOf("const finishMaterial"), source.indexOf("const focusMaterialPractice"));
+  assert.match(finishMaterial, /suppressDraftSaveRef\.current = true;\s*setActiveDraftReady\(false\);/);
+  assert.match(finishMaterial, /setDictationEvidence\(""\);[\s\S]*setRetellEvidence\(""\);[\s\S]*setDraft\(""\);/);
+  assert.match(finishMaterial, /delete next\[active\.id\]/);
+  assert.match(finishMaterial, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
+});
+
+test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {
+  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  const panel = source.slice(source.indexOf("function LessonTaskEvidencePanel"), source.indexOf("function CapstoneEvidencePanel"));
+  assert.match(panel, /if \(recording \|\| startingRecording\) \{/);
+  assert.match(panel, /if \(ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId\)/);
+  assert.match(panel, /disabled=\{!check\.ready \|\| recording \|\| startingRecording\}/);
+});
+
 test("lesson pages remount lesson-scoped client state when the lesson ID changes", async () => {
   const lessons = new Map([
     ["lesson-a", { id: "lesson-a" }],

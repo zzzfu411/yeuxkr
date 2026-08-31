@@ -372,6 +372,20 @@ function ImmersionContent() {
     setTargetRewrite("");
     setCheckedRubric([]);
     setDraftRestoredFor("");
+    setCheckedSelfCheckByMaterial((drafts) => {
+      const next = { ...drafts };
+      delete next[active.id];
+      return next;
+    });
+    setSelectedOutputByMaterial((items) => {
+      const next = { ...items };
+      delete next[active.id];
+      return next;
+    });
+    queueMicrotask(() => {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
+    });
   };
 
   const focusMaterialPractice = () => {
