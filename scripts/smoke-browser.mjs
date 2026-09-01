@@ -1084,10 +1084,33 @@ await page.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
 await expectText(page, "情境材料不是奖励");
 await expectText(page, "真实先修条件");
 await expectText(page, "先修未满，原文和朗读先收起来");
-await page.getByLabel("韩语复述证据").fill("当前材料草稿不应因重复点击而丢失。");
-await page.getByRole("button", { name: "咖啡店真实语速点单" }).click();
+const sameMaterialDraftMarker = "当前材料草稿不应因重复点击而丢失。";
+await page.getByLabel("韩语复述证据").fill(sameMaterialDraftMarker);
+const continueSameMaterial = page.getByRole("link", { name: "继续", exact: true });
+if (await continueSameMaterial.count()) {
+  await continueSameMaterial.click();
+  await page.waitForURL(/material=im-cafe-real-speed/);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const sameMaterialUrlDraft = await page.getByLabel("韩语复述证据").inputValue();
+  if (sameMaterialUrlDraft !== sameMaterialDraftMarker) {
+    issues.push(`opening the active immersion material URL should preserve its draft, found ${sameMaterialUrlDraft}`);
+  }
+  await page.getByLabel("听写证据").fill("同一材料链接不应停掉自动保存。");
+  await page.waitForTimeout(80);
+  const savedAfterSameMaterialUrl = await page.evaluate(() => {
+    const drafts = JSON.parse(localStorage.getItem("kirina.drafts.v1") ?? "{}");
+    return drafts.immersion?.["im-cafe-real-speed"]?.dictationEvidence ?? "";
+  });
+  if (savedAfterSameMaterialUrl !== "同一材料链接不应停掉自动保存。") {
+    issues.push(`same-material URL navigation should keep immersion autosave armed, found ${savedAfterSameMaterialUrl}`);
+  }
+} else {
+  issues.push("immersion compass should offer a continue link to the current material");
+}
+await page.locator(".is-active").getByRole("button", { name: "咖啡店真实语速点单" }).click();
+await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 const sameMaterialDraft = await page.getByLabel("韩语复述证据").inputValue();
-if (sameMaterialDraft !== "当前材料草稿不应因重复点击而丢失。") {
+if (sameMaterialDraft !== sameMaterialDraftMarker) {
   issues.push(`clicking the active immersion material should preserve its draft, found ${sameMaterialDraft}`);
 }
 await page.getByRole("button", { name: "显示译文" }).click();

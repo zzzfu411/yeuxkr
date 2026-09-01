@@ -764,8 +764,17 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /queueMicrotask\(\(\) => \{\s*if \(cancelled\) return;\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
+  assert.match(source, /const nextMaterialId = requestedMaterialId \|\| defaultMaterialIdRef\.current;/);
+  assert.match(source, /if \(nextMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
+  assert.match(source, /setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
+});
+
+test("reselecting the active immersion material keeps the live draft armed", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  const selectMaterial = source.slice(source.indexOf("const selectMaterial"), source.indexOf("const clearActiveArchive"));
+  assert.match(selectMaterial, /if \(materialId === active\.id\) \{\s*pinActiveMaterial\(materialId\);\s*return;/);
+  assert.match(selectMaterial, /setActiveDraftReady\(false\);\s*pinActiveMaterial\(materialId\);\s*resetMaterialWork\(\);/);
 });
 
 test("immersion autosave waits for the current material draft to hydrate", () => {

@@ -64,6 +64,8 @@ function ImmersionContent() {
   const [selectedOutputByMaterial, setSelectedOutputByMaterial] = useState<Record<string, string>>({});
   const suppressDraftSaveRef = useRef(false);
   const hydratedMaterialRef = useRef("");
+  const displayedMaterialIdRef = useRef("");
+  const defaultMaterialIdRef = useRef("");
   const completed = new Set(workspace.evidence.validMaterialIds);
   const masteredLessons = useMemo(() => {
     const completedLessons = new Set(workspace.progress.completedLessons);
@@ -170,12 +172,17 @@ function ImmersionContent() {
   const activeGateIndex = Math.max(0, completionGates.findIndex((gate) => !gate.done));
   const completedGateCount = completionGates.filter((gate) => gate.done).length;
   const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "材料闭环完成";
+  displayedMaterialIdRef.current = active.id;
+  defaultMaterialIdRef.current = defaultMaterialId;
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setActiveDraftReady(false);
+      const nextMaterialId = requestedMaterialId || defaultMaterialIdRef.current;
+      if (nextMaterialId !== displayedMaterialIdRef.current) {
+        setActiveDraftReady(false);
+      }
       setSelectedMaterialId(requestedMaterialId);
       notifyNowPlayingLocationChange();
     });
@@ -305,7 +312,10 @@ function ImmersionContent() {
   };
 
   const selectMaterial = (materialId: string) => {
-    if (materialId === active.id) return;
+    if (materialId === active.id) {
+      pinActiveMaterial(materialId);
+      return;
+    }
     setActiveDraftReady(false);
     pinActiveMaterial(materialId);
     resetMaterialWork();
