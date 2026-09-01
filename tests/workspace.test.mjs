@@ -928,7 +928,9 @@ test("early practice can grade a not-yet-due card when allowed", () => {
   const after = getSrsState().cards[card.id];
   assert.equal(after.correct, 2);
   assert.equal(after.dueAt > now, true);
-  assert.equal(JSON.parse(store.get(progressStorageKey)).practiceItems["future-practice"].correct, 1);
+  const progress = JSON.parse(store.get(progressStorageKey));
+  assert.equal(progress.practiceItems["future-practice"].correct, 1);
+  assert.equal(progress.completedTasks?.["system:review"], undefined);
 });
 
 test("due review is not marked completed when new cards are due later the same day", () => {

@@ -1278,7 +1278,7 @@ export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, op
   if (!graded) return false;
 
   if (!saveSrsState(graded.state)) return false;
-  const reviewQueueCleared = getDueCardsFromState(graded.state, 1, at).length === 0;
+  const reviewQueueCleared = current.dueAt <= at && getDueCardsFromState(graded.state, 1, at).length === 0;
   const nextProgress = applyReviewProgress(previousProgress, current, isCorrect, reviewQueueCleared);
   if (!saveLearningProgress(nextProgress)) {
     saveSrsState(previousSrs);
