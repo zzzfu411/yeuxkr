@@ -223,7 +223,9 @@ export default function GrammarPage() {
                     itemId={point.id}
                     title={point.title}
                     onPassed={() => {
-                      if (ensureGrammarSrs(point.id)) setGateItemId("");
+                      const saved = ensureGrammarSrs(point.id);
+                      if (saved) setGateItemId("");
+                      return saved;
                     }}
                     onClose={() => setGateItemId("")}
                   />

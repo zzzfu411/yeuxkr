@@ -67,9 +67,9 @@ export const visualAssets = {
   hero: createGeneratedAsset(
     "hero",
     "hero",
-    "Cool-white Seoul study desk with transit fragments, waveform sheets, abstract syllable tiles, celadon, and brass tools.",
-    "Seoul Transit Editorial hero with cool hanji, unlabeled route fragments, sound-wave sheets, abstract construction tiles, and restrained color accents.",
-    "Hero editorial collage"
+    "Warm gray hanji study sheet with an inkstone, brush, folded Hangul practice paper, and a tiny faded vermilion seal.",
+    "Original warm-gray #d8d3cc hanji hero still life with graphite wash, visible paper fibers, inkstone, brush, generous negative space, and a tiny faded vermilion seal; no readable text, UI, gibberish, or watermark.",
+    "Hanji inkstone hero"
   ),
   workspace: createGeneratedAsset(
     "workspace",
@@ -95,9 +95,9 @@ export const visualAssets = {
   hangul: createGeneratedAsset(
     "hangul",
     "hangul",
-    "Korean sound laboratory with abstract stroke pieces, airflow paper, mouth-position contours, and calibration tiles.",
-    "Korean writing and sound laboratory using abstract square stroke architecture, airflow paper, contour cards, and acoustic calibration objects without letters.",
-    "Hangul studio"
+    "Hanji Hangul practice still life with diluted ink strokes, inkstone, brush, abstract syllable blocks, and a tiny faded vermilion seal.",
+    "Original warm-gray #d8d3cc hanji Hangul practice still life with diluted graphite ink, visible fibers, brush, inkstone, abstract stroke blocks, generous negative space, and a tiny faded vermilion seal; no readable text, UI, gibberish, or watermark.",
+    "Hanji Hangul practice"
   ),
   vocabulary: createGeneratedAsset(
     "vocabulary",
@@ -214,9 +214,9 @@ export const visualAssets = {
   empty: createGeneratedAsset(
     "empty",
     "empty",
-    "Open paper tray with one blank seed card, a celadon listening token, and generous clean space.",
-    "Purposeful empty state with a single blank seed card, one listening token, deep-blue edge, brass registration pin, and ample cool-white space.",
-    "Empty state"
+    "Quiet blank hanji tray with one practice slip, diluted ink wash dish, muted celadon token, and a tiny faded vermilion seal.",
+    "Original warm-gray #d8d3cc hanji empty-state still life with visible fibers, one blank practice slip, diluted graphite wash, generous negative space, muted celadon token, and a tiny faded vermilion seal; no readable text, UI, gibberish, or watermark.",
+    "Quiet hanji empty state"
   ),
   iconBase: createIconBaseAsset(
     "Kirina Korean app icon base with interlocking square stroke modules and transit-interchange geometry.",

@@ -3,13 +3,55 @@ import assert from "node:assert/strict";
 import {
   buildPlayQueue,
   firstHangul,
+  getNowPlayingLocationSearch,
   matchQueueIndex,
+  notifyNowPlayingLocationChange,
   nowPlayingNav,
   pathMatchesTrack,
   splitTrackHref,
+  subscribeNowPlayingLocation,
   trackProgress,
   wrapQueueIndex
 } from "../src/lib/learning/player.ts";
+
+test("now-playing location subscriptions update after query-only navigation", () => {
+  const originalWindow = global.window;
+  const listeners = new Map();
+  let search = "?material=first";
+  global.window = {
+    location: { get search() { return search; } },
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) ?? new Set();
+      entries.add(listener);
+      listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      listeners.get(type)?.delete(listener);
+    },
+    dispatchEvent(event) {
+      for (const listener of listeners.get(event.type) ?? []) listener(event);
+      return true;
+    }
+  };
+
+  try {
+    let updates = 0;
+    const unsubscribe = subscribeNowPlayingLocation(() => { updates += 1; });
+    assert.equal(getNowPlayingLocationSearch(), "?material=first");
+
+    search = "?material=second";
+    notifyNowPlayingLocationChange();
+    assert.equal(updates, 1);
+    assert.equal(getNowPlayingLocationSearch(), "?material=second");
+
+    for (const listener of listeners.get("popstate") ?? []) listener({ type: "popstate" });
+    assert.equal(updates, 2);
+    unsubscribe();
+    assert.equal([...listeners.values()].every((entries) => entries.size === 0), true);
+  } finally {
+    global.window = originalWindow;
+  }
+});
 
 test("play queue skips duplicate hrefs and wraps skip indexes", () => {
   const workspace = {
@@ -59,6 +101,15 @@ test("path matching ignores hash and matches immersion query strings", () => {
   assert.equal(pathMatchesTrack("/immersion", "/immersion?material=im-cafe-real-speed"), false);
   assert.equal(pathMatchesTrack("/immersion", "/immersion?material=im-cafe-real-speed", "?material=im-cafe-real-speed"), true);
   assert.equal(pathMatchesTrack("/immersion", "/immersion?material=im-cafe-real-speed", "?material=im-other"), false);
+});
+
+test("query-specific queue tracks win over generic module entries", () => {
+  const queue = [
+    { href: "/immersion", title: "补材料库", detail: "材料门槛", minutes: 12, kind: "immersion" },
+    { href: "/immersion?material=im-cafe-real-speed", title: "咖啡店", detail: "当前材料", minutes: 14, kind: "immersion" }
+  ];
+  assert.equal(matchQueueIndex(queue, "/immersion", "?material=im-cafe-real-speed"), 1);
+  assert.equal(matchQueueIndex(queue, "/immersion", "?material=unknown"), -1);
 });
 
 test("unmatched pages do not pretend to be the first queue track", () => {

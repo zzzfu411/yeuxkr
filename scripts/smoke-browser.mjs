@@ -90,7 +90,7 @@ await page.addInitScript(() => {
 await page.goto(baseUrl, { waitUntil: "networkidle" });
 await page.screenshot({ path: fileURLToPath(new URL("app-home-wide.png", outDir)), fullPage: false });
 await page.screenshot({ path: fileURLToPath(new URL("home-onboarding.png", outDir)), fullPage: true });
-await expectText(page, "从韩文字块开始，今天读出第一句");
+await expectText(page, "完成三分钟入门设置");
 const offlineCleanup = await page.evaluate(async () => {
   const registrations = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistrations() : [];
   const cacheNames = "caches" in window ? await caches.keys() : [];
@@ -1353,6 +1353,20 @@ for (const viewport of viewportChecks) {
     });
     if (!activeNavVisibility.found || !activeNavVisibility.visible) {
       issues.push(`${viewport.label} active navigation item is outside the visible navigation viewport on ${route}`);
+    }
+    if (viewport.width <= 360) {
+      const headerControlOverlap = await page.evaluate(() => {
+        const theme = document.querySelector('header .theme-toggle');
+        const data = document.querySelector('header details');
+        if (!(theme instanceof HTMLElement) || !(data instanceof HTMLElement)) return null;
+        const themeRect = theme.getBoundingClientRect();
+        const dataRect = data.getBoundingClientRect();
+        const overlap = Math.min(themeRect.right, dataRect.right) - Math.max(themeRect.left, dataRect.left);
+        return overlap > 1 ? { themeLeft: themeRect.left, themeRight: themeRect.right, dataLeft: dataRect.left, dataRight: dataRect.right } : null;
+      });
+      if (headerControlOverlap) {
+        issues.push(`${viewport.label} header theme and learning-data controls overlap: ${JSON.stringify(headerControlOverlap)}`);
+      }
     }
     const elementOverflow = await visibleElementOverflow(page);
     if (elementOverflow.length) {

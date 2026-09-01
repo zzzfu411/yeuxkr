@@ -5,6 +5,27 @@ export type QueueTrack = Pick<StudyTask, "href" | "title" | "detail" | "minutes"
   completed?: boolean;
 };
 
+export const NOW_PLAYING_LOCATION_EVENT = "kirina:now-playing-location";
+
+export function getNowPlayingLocationSearch() {
+  return typeof window === "undefined" ? "" : window.location.search;
+}
+
+export function subscribeNowPlayingLocation(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(NOW_PLAYING_LOCATION_EVENT, onStoreChange);
+  window.addEventListener("popstate", onStoreChange);
+  return () => {
+    window.removeEventListener(NOW_PLAYING_LOCATION_EVENT, onStoreChange);
+    window.removeEventListener("popstate", onStoreChange);
+  };
+}
+
+export function notifyNowPlayingLocationChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(NOW_PLAYING_LOCATION_EVENT));
+}
+
 export function buildPlayQueue(workspace: LearningWorkspace, isFirstVisit: boolean): QueueTrack[] {
   if (isFirstVisit) return [ONBOARDING_TASK];
   const seen = new Set<string>();
@@ -48,10 +69,18 @@ export function pathMatchesTrack(pathname: string, href: string, search = "") {
 }
 
 export function matchQueueIndex(queue: QueueTrack[], pathname: string, search = "") {
+  const pageQuery = search.startsWith("?") ? search.slice(1) : search;
+  if (pageQuery) {
+    // A generic module entry (for example `/immersion`) must not shadow the
+    // material-specific entry currently selected by the query string.
+    const specific = queue.findIndex((track) => {
+      const { search: trackSearch } = splitTrackHref(track.href);
+      return Boolean(trackSearch) && pathMatchesTrack(pathname, track.href, search);
+    });
+    return specific;
+  }
   const exact = queue.findIndex((track) => pathMatchesTrack(pathname, track.href, search));
   if (exact >= 0) return exact;
-  const pageQuery = search.startsWith("?") ? search.slice(1) : search;
-  if (pageQuery) return -1;
   return queue.findIndex((track) => {
     const { pathname: trackPath } = splitTrackHref(track.href);
     return pathMatchesTrack(pathname, trackPath, "");

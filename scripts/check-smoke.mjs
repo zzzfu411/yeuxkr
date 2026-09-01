@@ -22,8 +22,8 @@ await listen(server, Number(port));
 
 try {
   await waitReady();
-  await run(["scripts/http-smoke.mjs", `--base=${baseUrl}`]);
-  await run(["scripts/smoke-browser.mjs"]);
+  await run(["--import", "tsx", "scripts/http-smoke.mjs", `--base=${baseUrl}`]);
+  await run(["--import", "tsx", "scripts/smoke-browser.mjs"]);
 } finally {
   await closeServer(server);
   await app.close();

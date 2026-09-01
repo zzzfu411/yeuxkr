@@ -15,6 +15,7 @@ import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMate
 import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
+import { notifyNowPlayingLocationChange } from "@/lib/learning/player";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
@@ -62,6 +63,7 @@ function ImmersionContent() {
   const [checkedSelfCheckByMaterial, setCheckedSelfCheckByMaterial] = useState<Record<string, string[]>>({});
   const [selectedOutputByMaterial, setSelectedOutputByMaterial] = useState<Record<string, string>>({});
   const suppressDraftSaveRef = useRef(false);
+  const hydratedMaterialRef = useRef("");
   const completed = new Set(workspace.evidence.validMaterialIds);
   const masteredLessons = useMemo(() => {
     const completedLessons = new Set(workspace.progress.completedLessons);
@@ -173,9 +175,24 @@ function ImmersionContent() {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
+      setActiveDraftReady(false);
+      setSelectedMaterialId(requestedMaterialId);
+      notifyNowPlayingLocationChange();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedMaterialId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    hydratedMaterialRef.current = "";
+    queueMicrotask(() => {
+      if (cancelled) return;
       suppressDraftSaveRef.current = false;
       setActiveDraftReady(false);
       const savedDraft = getImmersionMaterialDraft(active.id);
+      hydratedMaterialRef.current = active.id;
       setDictationEvidence(savedDraft?.dictationEvidence ?? "");
       setRetellEvidence(savedDraft?.retellEvidence ?? "");
       setDraft(savedDraft?.draft ?? "");
@@ -204,7 +221,7 @@ function ImmersionContent() {
   }, [active.id]);
 
   useEffect(() => {
-    if (!activeDraftReady || suppressDraftSaveRef.current) return;
+    if (!activeDraftReady || suppressDraftSaveRef.current || hydratedMaterialRef.current !== active.id) return;
     const saved = saveImmersionMaterialDraft(active.id, {
       dictationEvidence,
       retellEvidence,
@@ -281,10 +298,15 @@ function ImmersionContent() {
     setCheckedRubric([]);
   };
 
-  const selectMaterial = (materialId: string) => {
-    setActiveDraftReady(false);
+  const pinActiveMaterial = (materialId: string) => {
     setSelectedMaterialId(materialId);
     window.history.replaceState(null, "", immersionMaterialHref(materialId));
+    notifyNowPlayingLocationChange();
+  };
+
+  const selectMaterial = (materialId: string) => {
+    setActiveDraftReady(false);
+    pinActiveMaterial(materialId);
     resetMaterialWork();
   };
 
@@ -296,7 +318,12 @@ function ImmersionContent() {
       setMaterialError("");
       return;
     }
+    suppressDraftSaveRef.current = true;
+    setActiveDraftReady(false);
+    pinActiveMaterial(active.id);
     if (!clearMaterialArchive(active.id)) {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
       setClearArchiveStatus("error");
       setMaterialError("本段完成记录与输出档案没有清除成功，请释放浏览器存储空间后再试。");
       return;
@@ -307,13 +334,28 @@ function ImmersionContent() {
       delete next[active.id];
       return next;
     });
-    setMaterialError(draftCleared ? "" : "本段完成记录已清除，但草稿断点没有清理成功；请稍后重试或手动清空当前输入。");
     setClearArchiveStatus("cleared");
     setClearArchiveConfirmId("");
-    setCheckedSelfCheckByMaterial((drafts) => {
-      const next = { ...drafts };
-      delete next[active.id];
-      return next;
+    if (draftCleared) {
+      setDictationEvidence("");
+      setRetellEvidence("");
+      setDraft("");
+      setWeakPoint("");
+      setTargetRewrite("");
+      setCheckedRubric([]);
+      setDraftRestoredFor("");
+      setSaveError("");
+      setDraftSaveError("");
+      setCheckedSelfCheckByMaterial((drafts) => {
+        const next = { ...drafts };
+        delete next[active.id];
+        return next;
+      });
+    }
+    setMaterialError(draftCleared ? "" : "本段完成记录已清除，但草稿断点没有清理成功；请释放浏览器存储空间后再试。当前输入仍保留在页面里。");
+    queueMicrotask(() => {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
     });
   };
 
@@ -329,6 +371,7 @@ function ImmersionContent() {
     }
     suppressDraftSaveRef.current = true;
     setActiveDraftReady(false);
+    pinActiveMaterial(active.id);
     const draftCleared = clearImmersionMaterialDraft(active.id);
     setMaterialError(draftCleared ? "" : "材料已完成，但本地草稿断点没有清理成功；正式证据已保存，可以稍后再清理草稿。");
     setDictationEvidence("");
@@ -338,6 +381,20 @@ function ImmersionContent() {
     setTargetRewrite("");
     setCheckedRubric([]);
     setDraftRestoredFor("");
+    setCheckedSelfCheckByMaterial((drafts) => {
+      const next = { ...drafts };
+      delete next[active.id];
+      return next;
+    });
+    setSelectedOutputByMaterial((items) => {
+      const next = { ...items };
+      delete next[active.id];
+      return next;
+    });
+    queueMicrotask(() => {
+      suppressDraftSaveRef.current = false;
+      setActiveDraftReady(true);
+    });
   };
 
   const focusMaterialPractice = () => {
@@ -394,7 +451,7 @@ function ImmersionContent() {
       </ModuleHero>
 
       <LearningCompass workspace={workspace} active="immersion" condensed />
-      {draftRestoredFor === active.id ? (
+      {draftRestoredFor === active.id && !completed.has(active.id) ? (
         <InlineAlert tone="success">
           已恢复这段材料的未完成草稿。完成材料或保存输出后，相关草稿会自动清理。
         </InlineAlert>
@@ -428,7 +485,7 @@ function ImmersionContent() {
         </Surface>
 
         <div className="grid gap-5">
-          <section className="studio-panel relative grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_22rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">{active.sourceLabel}</p>

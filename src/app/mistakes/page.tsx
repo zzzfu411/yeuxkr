@@ -23,6 +23,7 @@ export default function MistakesPage() {
   const now = useClientNow();
   const [status, setStatus] = useState<"idle" | "removed" | "error">("idle");
   const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
+  const [retrainSession, setRetrainSession] = useState(0);
   const [retrainError, setRetrainError] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
@@ -38,6 +39,7 @@ export default function MistakesPage() {
   const startRetrain = (ids: string[] | null) => {
     const questions = buildRetrainQuestions(srsState, ids);
     setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
+    setRetrainSession((value) => value + 1);
     setRetrainQuestions(questions.length ? questions : null);
   };
 
@@ -91,7 +93,7 @@ export default function MistakesPage() {
           <SectionHeading
             kicker="다시 쓰기 · Retrain"
             title="错题定向重练"
-            copy="做对会按间隔延后这张卡，做错会立即回到队首。练完这组再回到优先队列。"
+            copy="做对会按间隔延后这张卡，做错会缩短间隔并提前再现。练完这组再回到优先队列。"
             action={
               <Button type="button" variant="secondary" size="sm" onClick={() => setRetrainQuestions(null)}>
                 退出重练
@@ -99,12 +101,13 @@ export default function MistakesPage() {
             }
           />
           <DrillRunner
+            key={retrainSession}
             questions={retrainQuestions}
             finishLabel="结束重练"
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = srsState.cards[entry.question.id];
-              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
+              if (card && !gradeReviewCardAndProgress(card, entry.correct, { allowEarly: true })) {
                 setRetrainError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
                 return false;
               }
@@ -177,7 +180,7 @@ export default function MistakesPage() {
         </section>
       ) : (
         <Surface variant="plain">
-          <div className="studio-panel relative grid overflow-hidden md:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="studio-panel relative grid md:grid-cols-[minmax(0,1fr)_18rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">빈 장 · Clean leaf</p>
@@ -200,7 +203,7 @@ export default function MistakesPage() {
                 </Button>
               </div>
             </div>
-            <VisualPanel asset="empty" treatment="inset" className="min-h-56 border-0 shadow-none" />
+            <VisualPanel asset="empty" priority treatment="inset" className="min-h-56 border-0 shadow-none" />
           </div>
         </Surface>
       )}

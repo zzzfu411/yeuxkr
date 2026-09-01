@@ -119,7 +119,7 @@ export function LearningDataPanel() {
         <summary className="focus-ring inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">学习数据</span>
-          {status !== "idle" ? <span className={`font-script text-xs font-normal ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
+          {status !== "idle" ? <span className={`hidden font-script text-xs font-normal sm:inline ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
           <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
         <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid w-[min(20rem,calc(100vw-1.5rem))] gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
@@ -186,5 +186,5 @@ function storageHealthClassName(health: LearningStorageHealth | null) {
   if (!health) return "border-[var(--line)] bg-[var(--wash-1)] text-[var(--muted)]";
   if (health.status === "secure") return "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon-text)]";
   if (health.status === "critical" || health.status === "error") return "border-[var(--seal)] bg-[var(--seal-soft)] text-[var(--cinnabar)]";
-  return "border-[rgba(197,148,77,0.42)] bg-[rgba(197,148,77,0.12)] text-[var(--brass-text)]";
+  return "border-[color-mix(in_srgb,var(--brass)_42%,var(--line))] bg-[color-mix(in_srgb,var(--brass)_12%,transparent)] text-[var(--brass-text)]";
 }
