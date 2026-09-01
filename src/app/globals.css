@@ -308,6 +308,12 @@ html[data-theme="dark"] .visual-panel img {
   content: none;
 }
 
+/* Framed panels already provide the hanging tape; media panels must not add a second one. */
+.surface .visual-panel > .paper-tape,
+.studio-panel .visual-panel > .paper-tape {
+  display: none;
+}
+
 .dark-slab {
   border: 1.2px solid var(--line);
   border-radius: var(--radius);

@@ -653,6 +653,7 @@ test("paper frames clip media inside the panel instead of hanging tape", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
+  const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
   const css = readFileSync("src/app/globals.css", "utf8");
   assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
@@ -663,7 +664,18 @@ test("paper frames clip media inside the panel instead of hanging tape", () => {
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
   assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
+  assert.match(css, /\.surface \.visual-panel > \.paper-tape,[\s\S]*\.studio-panel \.visual-panel > \.paper-tape/);
+  assert.doesNotMatch(drill, /<div className="grid overflow-hidden rounded-none border/);
+  assert.doesNotMatch(drill, /<article className="overflow-hidden rounded-none border/);
   assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
+});
+
+test("paper progress tracks adapt to the active theme", () => {
+  for (const file of ["src/app/path/page.tsx", "src/app/native/page.tsx", "src/components/learning/ability-bars.tsx"]) {
+    const source = readFileSync(file, "utf8");
+    assert.match(source, /bg-\[var\(--track\)\]/, `${file} should use the theme-aware track color`);
+    assert.doesNotMatch(source, /bg-\[rgba\(24,28,27,/);
+  }
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {

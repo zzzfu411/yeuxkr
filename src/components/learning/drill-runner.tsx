@@ -331,7 +331,7 @@ export function DrillRunner({
 
   if (!questions.length) {
     return (
-      <div className="grid overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="p-5">
           <p className="eyebrow">Empty Queue</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
@@ -347,7 +347,7 @@ export function DrillRunner({
 
   if (finished) {
     return (
-      <article className="overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)]">
+      <article className="rounded-none border border-[var(--line)] bg-[var(--card)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
             <p className="eyebrow">Result</p>
