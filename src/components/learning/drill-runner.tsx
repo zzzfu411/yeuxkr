@@ -514,7 +514,7 @@ export function DrillRunner({
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
                 <span lang={hasKoreanText(choice) ? "ko" : undefined}>{choice}</span>
                 {choiceIndex < 9 ? (
-                  <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
+                  <kbd className="hidden rounded border border-[var(--line)] bg-[var(--wash-1)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
                     {choiceIndex + 1}
                   </kbd>
                 ) : null}

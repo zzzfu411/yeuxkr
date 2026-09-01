@@ -822,6 +822,18 @@ test("paper progress tracks adapt to the active theme", () => {
   }
 });
 
+test("paper status washes keep the active theme palette", () => {
+  const storagePanel = readFileSync("src/components/layout/learning-data-panel.tsx", "utf8");
+  const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
+  const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
+  assert.match(storagePanel, /border-\[color-mix\(in_srgb,var\(--brass\)_42%,var\(--line\)\)\] bg-\[color-mix\(in_srgb,var\(--brass\)_12%,transparent\)\]/);
+  assert.doesNotMatch(storagePanel, /rgba\(197,148,77/);
+  assert.match(selfStudy, /focus-within:ring-\[color-mix\(in_srgb,var\(--ocean\)_22%,transparent\)\]/);
+  assert.doesNotMatch(selfStudy, /rgba\(23,63,115/);
+  assert.match(drill, /bg-\[var\(--wash-1\)\]/);
+  assert.doesNotMatch(drill, /bg-\[rgba\(24,28,27,/);
+});
+
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {
   const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
   const panel = source.slice(source.indexOf("function LessonTaskEvidencePanel"), source.indexOf("function CapstoneEvidencePanel"));
