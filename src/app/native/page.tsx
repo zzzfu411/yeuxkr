@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock, ExternalLink, FilePenLine, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
@@ -630,6 +630,24 @@ function displayPortfolioDate(input: string) {
   return Number.isFinite(Date.parse(input)) ? input.slice(0, 10) : "unknown";
 }
 
+type NativePracticeDraft = {
+  listened: boolean;
+  retell: string;
+  transfer: string;
+};
+
+function nativePracticeDraft(evidence?: NativeEvidenceInput): NativePracticeDraft {
+  return {
+    listened: Boolean(evidence?.listened),
+    retell: evidence?.retell ?? "",
+    transfer: evidence?.transfer ?? ""
+  };
+}
+
+function sameNativePracticeDraft(left: NativePracticeDraft, right: NativePracticeDraft) {
+  return left.listened === right.listened && left.retell === right.retell && left.transfer === right.transfer;
+}
+
 function NativeCard({
   index,
   item,
@@ -659,9 +677,27 @@ function NativeCard({
   const relationProfile = buildRelationProfile(item);
   const [showAllLines, setShowAllLines] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const [listened, setListened] = useState(Boolean(evidence?.listened));
-  const [retell, setRetell] = useState(evidence?.retell ?? "");
-  const [transfer, setTransfer] = useState(evidence?.transfer ?? "");
+  const incomingDraft = useMemo(
+    () => nativePracticeDraft(evidence),
+    [evidence]
+  );
+  const [listened, setListened] = useState(incomingDraft.listened);
+  const [retell, setRetell] = useState(incomingDraft.retell);
+  const [transfer, setTransfer] = useState(incomingDraft.transfer);
+  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
+  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
+  const draftBaselineRef = useRef(incomingDraft);
+  useEffect(() => {
+    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
+    const previousDraft = draftBaselineRef.current;
+    const currentDraft = { listened, retell, transfer };
+    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
+    draftBaselineRef.current = incomingDraft;
+    if (!sameNativePracticeDraft(currentDraft, previousDraft)) return;
+    setListened(incomingDraft.listened);
+    setRetell(incomingDraft.retell);
+    setTransfer(incomingDraft.transfer);
+  }, [incomingDraft, incomingDraftSignature, listened, retell, transfer]);
   const visibleLines = showAllLines ? item.lines : item.lines.slice(0, 1);
   const hiddenLineCount = Math.max(0, item.lines.length - visibleLines.length);
   const evidenceComplete = hasCompleteNativePracticeEvidence({ listened, retell, transfer }, item.srsId);

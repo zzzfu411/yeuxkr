@@ -23,6 +23,7 @@ export default function MistakesPage() {
   const now = useClientNow();
   const [status, setStatus] = useState<"idle" | "removed" | "error">("idle");
   const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
+  const [retrainSession, setRetrainSession] = useState(0);
   const [retrainError, setRetrainError] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
@@ -38,6 +39,7 @@ export default function MistakesPage() {
   const startRetrain = (ids: string[] | null) => {
     const questions = buildRetrainQuestions(srsState, ids);
     setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
+    setRetrainSession((value) => value + 1);
     setRetrainQuestions(questions.length ? questions : null);
   };
 
@@ -99,6 +101,7 @@ export default function MistakesPage() {
             }
           />
           <DrillRunner
+            key={retrainSession}
             questions={retrainQuestions}
             finishLabel="结束重练"
             recordMistakes={false}

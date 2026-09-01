@@ -481,6 +481,51 @@ test("recording controls stay locked until the asynchronous blob write finishes"
   }
 });
 
+test("lesson evidence panels hydrate persisted drafts without overwriting local input", () => {
+  const persistedShadowing = {
+    kind: "shadowing",
+    text: "저는 기억한 문장을 다시 말합니다.",
+    recordedSeconds: 4.2,
+    recordingId: "shadowing:persisted",
+    updatedAt: "2026-08-31T00:00:00.000Z"
+  };
+  const cleanHooks = createHookHarness();
+  const cleanPanels = loadLessonEvidencePanels(cleanHooks, {});
+  let tree = cleanHooks.render(cleanPanels.LessonTaskEvidencePanel, createShadowingPanelProps());
+  tree = cleanHooks.render(cleanPanels.LessonTaskEvidencePanel, createShadowingPanelProps({ evidence: persistedShadowing }));
+  tree = cleanHooks.render(cleanPanels.LessonTaskEvidencePanel, createShadowingPanelProps({ evidence: persistedShadowing }));
+  assert.equal(findElement(tree, (node) => node.type === "textarea").props.value, persistedShadowing.text);
+
+  const dirtyHooks = createHookHarness();
+  const dirtyPanels = loadLessonEvidencePanels(dirtyHooks, {});
+  tree = dirtyHooks.render(dirtyPanels.LessonTaskEvidencePanel, createShadowingPanelProps());
+  findElement(tree, (node) => node.type === "textarea").props.onChange({ target: { value: "本地先写下的草稿" } });
+  tree = dirtyHooks.render(dirtyPanels.LessonTaskEvidencePanel, createShadowingPanelProps({ evidence: persistedShadowing }));
+  tree = dirtyHooks.render(dirtyPanels.LessonTaskEvidencePanel, createShadowingPanelProps({ evidence: persistedShadowing }));
+  assert.equal(findElement(tree, (node) => node.type === "textarea").props.value, "本地先写下的草稿");
+
+  const persistedCapstone = {
+    transcript: "제 생각은 이렇습니다.",
+    weakPoint: "连接词需要更自然",
+    targetRewrite: "그래서 다음에는 더 구체적으로 말하겠습니다.",
+    rubric: ["position", "reason"],
+    recordedSeconds: 0,
+    recordingId: "",
+    updatedAt: "2026-08-31T00:00:00.000Z"
+  };
+  const capstoneHooks = createHookHarness();
+  const capstonePanels = loadLessonEvidencePanels(capstoneHooks, {});
+  tree = capstoneHooks.render(capstonePanels.CapstoneEvidencePanel, createCapstonePanelProps());
+  tree = capstoneHooks.render(capstonePanels.CapstoneEvidencePanel, createCapstonePanelProps({ evidence: persistedCapstone }));
+  tree = capstoneHooks.render(capstonePanels.CapstoneEvidencePanel, createCapstonePanelProps({ evidence: persistedCapstone }));
+  const capstoneTextareas = findElements(tree, (node) => node.type === "textarea");
+  assert.deepEqual(capstoneTextareas.map((node) => node.props.value), [
+    persistedCapstone.transcript,
+    persistedCapstone.targetRewrite
+  ]);
+  assert.equal(findElements(tree, (node) => node.type === "input").some((node) => node.props.value === persistedCapstone.weakPoint), true);
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -525,6 +570,105 @@ test("MasteryGate reports a failed persistence write and retries without another
   addon = runner.props.resultAddon({ score: 100, answers: [] });
   assert.match(textContent(addon), /正在写入掌握记录/);
   assert.equal(saveAttempts, 2);
+});
+
+test("MistakesPage remounts retrain runner when the target changes", () => {
+  const hooks = createHookHarness();
+  const insights = [
+    {
+      id: "q1",
+      itemId: "lesson:q1",
+      prompt: "第一题",
+      answer: "하나",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    },
+    {
+      id: "q2",
+      itemId: "lesson:q2",
+      prompt: "第二题",
+      answer: "둘",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    }
+  ];
+  const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": {
+      ArrowRight: "ArrowRightIcon",
+      CircleAlert: "CircleAlertIcon",
+      Clock: "ClockIcon",
+      Play: "PlayIcon",
+      RefreshCcw: "RefreshIcon",
+      Trash2: "TrashIcon"
+    },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
+    "@/lib/learning/player": { firstHangul: (value, fallback) => value || fallback },
+    "@/lib/learning/mistakes": {
+      buildMistakeInsights: () => insights,
+      buildRetrainQuestions: (_state, ids) => (ids ?? insights.map((item) => item.id)).map((id) => ({
+        id,
+        type: "type",
+        prompt: id,
+        answer: id
+      })),
+      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 })
+    },
+    "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
+    "@/lib/learning/storage": {
+      STORAGE_KEYS: { srs: "srs" },
+      useClientNow: () => 0,
+      useStorageRaw: () => null
+    },
+    "@/lib/learning/workspace": {
+      gradeReviewCardAndProgress: () => true,
+      removeMistakeCardAndPracticeItem: () => true,
+      useLearningWorkspace: () => ({ workspace: {} })
+    }
+  });
+
+  let tree = hooks.render(MistakesPage, {});
+  let cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
+  assert.equal(cards.length, 2);
+
+  cards[0].props.onRetrain("q1");
+  tree = hooks.render(MistakesPage, {});
+  let runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.key, 1);
+  assert.equal(runner.props.questions[0].id, "q1");
+
+  cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
+  cards[1].props.onRetrain("q2");
+  tree = hooks.render(MistakesPage, {});
+  runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.key, 2);
+  assert.equal(runner.props.questions[0].id, "q2");
 });
 
 test("onboarding unlocks its voice step only after playback actually starts", () => {

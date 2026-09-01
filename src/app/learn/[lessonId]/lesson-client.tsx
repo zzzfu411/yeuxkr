@@ -73,9 +73,11 @@ export function LessonClient({ lesson }: { lesson: any }) {
     ? { ...workspace.progress.lessonScores, [lesson.id]: Math.max(workspace.progress.lessonScores[lesson.id] ?? 0, savedScore) }
     : workspace.progress.lessonScores;
   const task = lessonCompletionTask(lesson);
-  const taskCheck = checkLessonTaskEvidence(task, workspace.progress.lessonTaskEvidence[lesson.id]);
+  const taskEvidence = workspace.progress.lessonTaskEvidence[lesson.id];
+  const taskCheck = checkLessonTaskEvidence(task, taskEvidence);
   const isCapstone = lesson.id === CAPSTONE_LESSON_ID;
-  const capstoneReady = !isCapstone || isValidCapstoneEvidence(workspace.progress.capstoneEvidence);
+  const capstoneEvidence = workspace.progress.capstoneEvidence;
+  const capstoneReady = !isCapstone || isValidCapstoneEvidence(capstoneEvidence);
   const completionGateReady = capstoneReady && taskCheck.ready;
   const savedCorePass = savedScore !== null && unlocked && (completed || (savedScore >= UNLOCK_SCORE && savedAssessmentReady && completionGateReady));
   if (savedCorePass) savedCompletedIds.add(lesson.id);
@@ -253,7 +255,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
           {isCapstone ? (
             <CapstoneEvidencePanel
-              evidence={workspace.progress.capstoneEvidence}
+              evidence={capstoneEvidence}
               onSave={saveCapstoneEvidence}
               onInvalidateRecording={invalidateCapstoneRecording}
             />
@@ -263,7 +265,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             <LessonTaskEvidencePanel
               lessonId={lesson.id}
               task={task}
-              evidence={workspace.progress.lessonTaskEvidence[lesson.id]}
+              evidence={taskEvidence}
               onSave={saveLessonTaskEvidence}
               onInvalidateRecording={invalidateLessonTaskRecording}
             />
@@ -574,19 +576,44 @@ function lessonAssessmentMessage(assessment: LessonAssessmentResult) {
   return missing.length ? missing.join("；") : "本次分项已达标。";
 }
 
+type LessonTaskDraftSnapshot = {
+  kind: LessonCompletionTask["kind"];
+  text: string;
+  recordedSeconds: number;
+  recordingId: string;
+};
+
+function lessonTaskDraftSnapshot(taskKind: LessonCompletionTask["kind"], evidence?: LessonTaskEvidencePanelProps["evidence"]): LessonTaskDraftSnapshot {
+  return {
+    kind: evidence?.kind ?? taskKind,
+    text: evidence?.text ?? "",
+    recordedSeconds: evidence?.recordedSeconds ?? 0,
+    recordingId: evidence?.recordingId ?? ""
+  };
+}
+
+function sameLessonTaskDraft(left: LessonTaskDraftSnapshot, right: LessonTaskDraftSnapshot) {
+  return left.kind === right.kind
+    && left.text === right.text
+    && left.recordedSeconds === right.recordedSeconds
+    && left.recordingId === right.recordingId;
+}
+
+type LessonTaskEvidencePanelProps = {
+  lessonId: string;
+  task: LessonCompletionTask;
+  evidence?: { kind: "paragraph" | "retell" | "shadowing"; text: string; recordedSeconds: number; recordingId?: string; updatedAt: string };
+  onSave: (lessonId: string, input: unknown, expectedRecordingId: string) => boolean;
+  onInvalidateRecording: (lessonId: string, recordingId: string) => boolean;
+};
+
 function LessonTaskEvidencePanel({
   lessonId,
   task,
   evidence,
   onSave,
   onInvalidateRecording
-}: {
-  lessonId: string;
-  task: LessonCompletionTask;
-  evidence?: { kind: "paragraph" | "retell" | "shadowing"; text: string; recordedSeconds: number; recordingId?: string; updatedAt: string };
-  onSave: (lessonId: string, input: unknown, expectedRecordingId: string) => boolean;
-  onInvalidateRecording: (lessonId: string, recordingId: string) => boolean;
-}) {
+}: LessonTaskEvidencePanelProps) {
   const [text, setText] = useState(evidence?.text ?? "");
   const [recordedSeconds, setRecordedSeconds] = useState(evidence?.recordedSeconds ?? 0);
   const [recordingId, setRecordingId] = useState(evidence?.recordingId ?? "");
@@ -609,6 +636,13 @@ function LessonTaskEvidencePanel({
   const savingRecordingRef = useRef(false);
   const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const incomingDraft = useMemo(
+    () => lessonTaskDraftSnapshot(task.kind, evidence),
+    [evidence, task.kind]
+  );
+  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
+  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
+  const draftBaselineRef = useRef(incomingDraft);
   const draftEvidence = useMemo(() => ({ kind: task.kind, text, recordedSeconds, recordingId: recordingId || undefined, updatedAt: new Date(0).toISOString() }), [recordedSeconds, recordingId, task.kind, text]);
   const check = checkLessonTaskEvidence(task, draftEvidence);
   const saved = Boolean(
@@ -628,6 +662,29 @@ function LessonTaskEvidencePanel({
     savedRecordingIdRef.current = nextSavedRecordingId;
     invalidateRecordingRef.current = onInvalidateRecording;
   }, [evidence?.recordingId, onInvalidateRecording]);
+
+  useEffect(() => {
+    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
+    const previousDraft = draftBaselineRef.current;
+    const currentDraft = { kind: task.kind, text, recordedSeconds, recordingId };
+    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
+    draftBaselineRef.current = incomingDraft;
+    if (
+      recording
+      || startingRecording
+      || savingRecording
+      || startingRecordingRef.current
+      || savingRecordingRef.current
+      || !sameLessonTaskDraft(currentDraft, previousDraft)
+    ) return;
+    setText(incomingDraft.text);
+    setRecordedSeconds(incomingDraft.recordedSeconds);
+    setRecordingId(incomingDraft.recordingId);
+    recordingIdRef.current = incomingDraft.recordingId;
+    savedRecordingIdRef.current = incomingDraft.recordingId;
+    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
+    setMessage("");
+  }, [incomingDraft, incomingDraftSignature, recordedSeconds, recording, recordingId, savingRecording, startingRecording, task.kind, text]);
 
   useEffect(() => {
     let cancelled = false;
@@ -919,6 +976,16 @@ function LessonTaskEvidencePanel({
   );
 }
 
+function sameCapstoneDraft(left: Omit<CapstoneEvidence, "updatedAt">, right: Omit<CapstoneEvidence, "updatedAt">) {
+  return left.transcript === right.transcript
+    && left.weakPoint === right.weakPoint
+    && left.targetRewrite === right.targetRewrite
+    && left.recordedSeconds === right.recordedSeconds
+    && left.recordingId === right.recordingId
+    && left.rubric.length === right.rubric.length
+    && left.rubric.every((item, index) => item === right.rubric[index]);
+}
+
 function CapstoneEvidencePanel({
   evidence,
   onSave,
@@ -929,14 +996,15 @@ function CapstoneEvidencePanel({
   onInvalidateRecording: (recordingId: string) => boolean;
 }) {
   const savedRecordingId = evidence?.recordingId ?? "";
-  const [draft, setDraft] = useState<Omit<CapstoneEvidence, "updatedAt">>(() => ({
+  const incomingDraft = useMemo(() => ({
     transcript: evidence?.transcript ?? "",
     weakPoint: evidence?.weakPoint ?? "",
     targetRewrite: evidence?.targetRewrite ?? "",
-    rubric: evidence?.rubric ?? [],
+    rubric: [...(evidence?.rubric ?? [])],
     recordedSeconds: evidence?.recordedSeconds ?? 0,
     recordingId: evidence?.recordingId ?? ""
-  }));
+  }), [evidence?.recordedSeconds, evidence?.recordingId, evidence?.rubric, evidence?.targetRewrite, evidence?.transcript, evidence?.weakPoint]);
+  const [draft, setDraft] = useState<Omit<CapstoneEvidence, "updatedAt">>(() => incomingDraft);
   const [status, setStatus] = useState<"idle" | "saved" | "error">(() => isValidCapstoneEvidence(evidence) ? "saved" : "idle");
   const [recording, setRecording] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
@@ -959,6 +1027,9 @@ function CapstoneEvidencePanel({
   const savingRecordingRef = useRef(false);
   const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
+  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
+  const draftBaselineRef = useRef(incomingDraft);
   const hangulCount = countHangulCharacters(draft.transcript);
   const systemChecks = capstoneSystemChecks(draft.transcript);
   const recordingCheck = capstoneRecordingCheck(draft.recordedSeconds, draft.recordingId);
@@ -971,6 +1042,27 @@ function CapstoneEvidencePanel({
     savedRecordingIdRef.current = savedRecordingId;
     invalidateRecordingRef.current = onInvalidateRecording;
   }, [onInvalidateRecording, savedRecordingId]);
+
+  useEffect(() => {
+    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
+    const previousDraft = draftBaselineRef.current;
+    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
+    draftBaselineRef.current = incomingDraft;
+    if (
+      recording
+      || startingRecording
+      || savingRecording
+      || startingRecordingRef.current
+      || savingRecordingRef.current
+      || !sameCapstoneDraft(draft, previousDraft)
+    ) return;
+    setDraft(incomingDraft);
+    recordingIdRef.current = incomingDraft.recordingId;
+    savedRecordingIdRef.current = incomingDraft.recordingId;
+    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
+    setStatus(isValidCapstoneEvidence(evidence) ? "saved" : "idle");
+    setRecordingMessage("");
+  }, [draft, evidence, incomingDraft, incomingDraftSignature, recording, savingRecording, startingRecording]);
 
   useEffect(() => {
     let cancelled = false;
