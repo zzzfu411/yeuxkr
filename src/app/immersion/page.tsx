@@ -305,6 +305,7 @@ function ImmersionContent() {
   };
 
   const selectMaterial = (materialId: string) => {
+    if (materialId === active.id) return;
     setActiveDraftReady(false);
     pinActiveMaterial(materialId);
     resetMaterialWork();

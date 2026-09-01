@@ -1084,6 +1084,12 @@ await page.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
 await expectText(page, "情境材料不是奖励");
 await expectText(page, "真实先修条件");
 await expectText(page, "先修未满，原文和朗读先收起来");
+await page.getByLabel("韩语复述证据").fill("当前材料草稿不应因重复点击而丢失。");
+await page.getByRole("button", { name: "咖啡店真实语速点单" }).click();
+const sameMaterialDraft = await page.getByLabel("韩语复述证据").inputValue();
+if (sameMaterialDraft !== "当前材料草稿不应因重复点击而丢失。") {
+  issues.push(`clicking the active immersion material should preserve its draft, found ${sameMaterialDraft}`);
+}
 await page.getByRole("button", { name: "显示译文" }).click();
 if (await page.getByRole("button", { name: "完成材料并加入 SRS" }).isEnabled()) issues.push("material completion should require evidence before enabling");
 await page.getByLabel("听写证据").fill("포장해 주세요.");
