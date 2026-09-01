@@ -172,8 +172,11 @@ function ImmersionContent() {
   const activeGateIndex = Math.max(0, completionGates.findIndex((gate) => !gate.done));
   const completedGateCount = completionGates.filter((gate) => gate.done).length;
   const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "材料闭环完成";
-  displayedMaterialIdRef.current = active.id;
-  defaultMaterialIdRef.current = defaultMaterialId;
+
+  useEffect(() => {
+    displayedMaterialIdRef.current = active.id;
+    defaultMaterialIdRef.current = defaultMaterialId;
+  }, [active.id, defaultMaterialId]);
 
   useEffect(() => {
     let cancelled = false;
