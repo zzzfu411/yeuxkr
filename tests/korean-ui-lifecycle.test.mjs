@@ -768,6 +768,14 @@ function loadLessonEvidencePanels(hooks, {
       deleteLearningRecording: async () => true,
       loadLearningRecording: () => pendingRecording,
       saveLearningRecording: async () => null,
+      shouldDeleteAbandonedRecording(nextRecordingId, currentRecordingId, replaceableRecordingId, savedRecordingId) {
+        const id = String(nextRecordingId || "").trim();
+        if (!id) return false;
+        if (id === String(savedRecordingId || "").trim()) return false;
+        if (id === String(currentRecordingId || "").trim()) return false;
+        if (id === String(replaceableRecordingId || "").trim()) return false;
+        return true;
+      },
       ...recordingOverrides
     },
     "@/lib/learning/path-gates": { getLibraryGateForLesson: () => ({ ok: true, missing: [] }) },
