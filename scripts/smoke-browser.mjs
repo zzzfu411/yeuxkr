@@ -1354,6 +1354,20 @@ for (const viewport of viewportChecks) {
     if (!activeNavVisibility.found || !activeNavVisibility.visible) {
       issues.push(`${viewport.label} active navigation item is outside the visible navigation viewport on ${route}`);
     }
+    if (viewport.width <= 360) {
+      const headerControlOverlap = await page.evaluate(() => {
+        const theme = document.querySelector('header .theme-toggle');
+        const data = document.querySelector('header details');
+        if (!(theme instanceof HTMLElement) || !(data instanceof HTMLElement)) return null;
+        const themeRect = theme.getBoundingClientRect();
+        const dataRect = data.getBoundingClientRect();
+        const overlap = Math.min(themeRect.right, dataRect.right) - Math.max(themeRect.left, dataRect.left);
+        return overlap > 1 ? { themeLeft: themeRect.left, themeRight: themeRect.right, dataLeft: dataRect.left, dataRight: dataRect.right } : null;
+      });
+      if (headerControlOverlap) {
+        issues.push(`${viewport.label} header theme and learning-data controls overlap: ${JSON.stringify(headerControlOverlap)}`);
+      }
+    }
     const elementOverflow = await visibleElementOverflow(page);
     if (elementOverflow.length) {
       issues.push(`${viewport.label} clipped visible elements on ${route}: ${JSON.stringify(elementOverflow.slice(0, 8))}`);

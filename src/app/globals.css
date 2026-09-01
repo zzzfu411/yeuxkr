@@ -687,7 +687,6 @@ html[data-theme="dark"] .visual-panel img {
 }
 
 .seal-mark {
-  display: inline-grid;
   min-width: 2.25rem;
   min-height: 2.25rem;
   place-items: center;
@@ -700,6 +699,8 @@ html[data-theme="dark"] .visual-panel img {
   transform: rotate(-6deg);
   filter: url(#roughen);
 }
+
+.seal-mark:not(.hidden) { display: inline-grid; }
 
 .inkline { position: relative; display: inline-block; padding-bottom: 0.15em; }
 .inkline::after {
