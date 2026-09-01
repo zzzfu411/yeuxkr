@@ -340,7 +340,7 @@ export function DrillRunner({
           </p>
           {emptyState?.action ? <div className="mt-4 flex flex-wrap gap-2">{emptyState.action}</div> : null}
         </div>
-        <VisualPanel asset="empty" decorative className="min-h-52 rounded-none border-0" />
+        <VisualPanel asset="empty" priority decorative className="min-h-52 rounded-none border-0" />
       </div>
     );
   }

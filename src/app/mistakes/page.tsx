@@ -203,7 +203,7 @@ export default function MistakesPage() {
                 </Button>
               </div>
             </div>
-            <VisualPanel asset="empty" treatment="inset" className="min-h-56 border-0 shadow-none" />
+            <VisualPanel asset="empty" priority treatment="inset" className="min-h-56 border-0 shadow-none" />
           </div>
         </Surface>
       )}
