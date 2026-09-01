@@ -142,7 +142,7 @@ export default function PathPage() {
                 isFocusedStage
                   ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)]"
                   : isCurrentStage
-                  ? "border-[var(--border)] bg-[rgba(183,135,63,0.11)]"
+                  ? "border-[var(--border)] bg-[var(--yellow-soft)]"
                   : stageProgress.complete
                     ? "border-[var(--green)] bg-[var(--green-soft)]"
                     : "border-[var(--line)] bg-[var(--card)]"
@@ -154,7 +154,7 @@ export default function PathPage() {
                   stageProgress.complete
                     ? "bg-[var(--green-soft)] text-[var(--celadon)]"
                     : stageProgress.course.complete
-                      ? "bg-[rgba(183,135,63,0.16)] text-[var(--brass)]"
+                      ? "bg-[var(--yellow-soft)] text-[var(--brass)]"
                       : "bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
                 }`}>{stageStatus}</span>
               </div>
@@ -317,7 +317,7 @@ export default function PathPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{level.band}</span>
                   {isCurrent ? <span className="rounded-none bg-[var(--green-soft)] px-2 py-1 text-xs font-black text-[var(--celadon)]">当前证据</span> : null}
-                  {isNext ? <span className="rounded-none bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一关</span> : null}
+                  {isNext ? <span className="rounded-none bg-[var(--yellow-soft)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一关</span> : null}
                 </div>
                 <h3 className="mt-2 font-serif text-2xl font-black">{level.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{level.summary}</p>
@@ -480,4 +480,3 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
     </div>
   );
 }
-
