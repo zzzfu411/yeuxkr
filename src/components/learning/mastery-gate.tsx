@@ -91,7 +91,7 @@ export function MasteryGate({
           ) : (
             <p className="flex items-center gap-2 font-bold text-[var(--muted)]" role="status">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              小测已通过，正在写入掌握记录…
+              小测已通过，掌握记录已写入。
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">

@@ -107,7 +107,7 @@ export default function MistakesPage() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = srsState.cards[entry.question.id];
-              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
+              if (card && !gradeReviewCardAndProgress(card, entry.correct, { allowEarly: true })) {
                 setRetrainError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
                 return false;
               }

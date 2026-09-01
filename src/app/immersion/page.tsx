@@ -451,7 +451,7 @@ function ImmersionContent() {
       </ModuleHero>
 
       <LearningCompass workspace={workspace} active="immersion" condensed />
-      {draftRestoredFor === active.id ? (
+      {draftRestoredFor === active.id && !completed.has(active.id) ? (
         <InlineAlert tone="success">
           已恢复这段材料的未完成草稿。完成材料或保存输出后，相关草稿会自动清理。
         </InlineAlert>

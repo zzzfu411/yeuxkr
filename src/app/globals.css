@@ -304,6 +304,8 @@ html[data-theme="dark"] .visual-panel img {
 }
 
 .surface:has(> .paper-tape)::after,
+.surface:has(.studio-panel)::after,
+.surface:has(.paper-rail > .paper-tape)::after,
 .studio-panel:has(> .paper-tape)::after {
   content: none;
 }

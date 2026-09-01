@@ -568,7 +568,7 @@ test("MasteryGate reports a failed persistence write and retries without another
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /正在写入掌握记录/);
+  assert.match(textContent(addon), /掌握记录已写入/);
   assert.equal(saveAttempts, 2);
 });
 
@@ -793,6 +793,16 @@ test("finishing an immersion material clears live draft fields then re-enables l
   assert.match(finishMaterial, /queueMicrotask\(\(\) => \{\s*suppressDraftSaveRef\.current = false;\s*setActiveDraftReady\(true\);/);
 });
 
+test("completed immersion materials do not claim an unfinished draft restore", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  assert.match(source, /draftRestoredFor === active\.id && !completed\.has\(active\.id\)/);
+});
+
+test("mistakes retrain grades cards even when they are not yet due", () => {
+  const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
+});
+
 test("paper frames clip media inside the panel instead of hanging tape", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
@@ -808,6 +818,8 @@ test("paper frames clip media inside the panel instead of hanging tape", () => {
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
   assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
+  assert.match(css, /\.surface:has\(\.studio-panel\)::after/);
+  assert.match(css, /\.surface:has\(\.paper-rail > \.paper-tape\)::after/);
   assert.match(css, /\.surface \.visual-panel > \.paper-tape,[\s\S]*\.studio-panel \.visual-panel > \.paper-tape/);
   assert.doesNotMatch(drill, /<div className="grid overflow-hidden rounded-none border/);
   assert.doesNotMatch(drill, /<article className="overflow-hidden rounded-none border/);

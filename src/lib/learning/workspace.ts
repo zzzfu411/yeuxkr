@@ -1267,13 +1267,13 @@ export function applyReviewProgress(progress: LearningProgress, card: SrsCard, i
   return next;
 }
 
-export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean) {
+export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, options?: { allowEarly?: boolean }) {
   const previousProgress = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, defaultProgress()));
   const previousSrs = getSrsState();
   const current = previousSrs.cards[card.id];
   if (!current) return false;
   const at = Date.now();
-  if (current.dueAt > at || !sameReviewCardSnapshot(current, card)) return false;
+  if ((current.dueAt > at && !options?.allowEarly) || !sameReviewCardSnapshot(current, card)) return false;
   const graded = applyGradeToState(previousSrs, card.id, isCorrect, at);
   if (!graded) return false;
 
