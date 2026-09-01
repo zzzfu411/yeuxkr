@@ -25,6 +25,7 @@ export function MasteryGate({
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [missingAudioEvidence, setMissingAudioEvidence] = useState(false);
   const [persistenceFailed, setPersistenceFailed] = useState(false);
+  const [persistenceSucceeded, setPersistenceSucceeded] = useState(false);
   const seed = useMemo(() => hashSeed(`${kind}:${itemId}:${attempt}`), [attempt, itemId, kind]);
   const questions = useMemo(() => buildGateQuestions(kind, itemId, seed), [itemId, kind, seed]);
 
@@ -37,6 +38,7 @@ export function MasteryGate({
   const persistPassedResult = () => {
     const saved = onPassed();
     setPersistenceFailed(!saved);
+    setPersistenceSucceeded(saved);
   };
 
   return (
@@ -69,6 +71,7 @@ export function MasteryGate({
           setLastScore(score);
           setMissingAudioEvidence(blockedBySkippedAudio);
           setPersistenceFailed(false);
+          setPersistenceSucceeded(false);
           if (score >= GATE_PASS_SCORE && !blockedBySkippedAudio) persistPassedResult();
         }}
         resultAddon={({ score, answers }) => {
@@ -88,6 +91,11 @@ export function MasteryGate({
                 </Button>
               </div>
             </div>
+          ) : persistenceSucceeded ? (
+            <p className="flex items-center gap-2 font-bold text-[var(--celadon)]" role="status">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+              通过！已写入掌握记录和复习队列。
+            </p>
           ) : (
             <p className="flex items-center gap-2 font-bold text-[var(--muted)]" role="status">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
@@ -97,6 +105,7 @@ export function MasteryGate({
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => {
                 setPersistenceFailed(false);
+                setPersistenceSucceeded(false);
                 setAttempt((value) => value + 1);
               }}>
                 <RefreshCcw className="h-4 w-4" aria-hidden="true" />

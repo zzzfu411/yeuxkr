@@ -15,6 +15,29 @@ export function hasSkippedGateAudio(answers: Array<{ skipped?: boolean; question
 
 export type GateKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "soundChange";
 
+const GATE_QUESTION_COUNTS: Record<GateKind, number> = {
+  hangul: 4,
+  pronunciation: 3,
+  vocab: 4,
+  grammar: 3,
+  soundChange: 3
+};
+
+function gateBaseQuestionId(kind: GateKind, itemId: string) {
+  if (kind === "hangul") return hangulQuestionId(itemId);
+  if (kind === "pronunciation") return pronunciationQuestionId(itemId);
+  if (kind === "vocab") return vocabQuestionId(itemId);
+  if (kind === "grammar") return grammarQuestionId(itemId);
+  return soundChangeQuestionId(itemId);
+}
+
+export function masteryGateQuestionIds(kind: GateKind, itemId: string) {
+  const generated = [...new Set(buildGateQuestions(kind, itemId).map((question) => question.id))];
+  if (generated.length) return generated;
+  const baseId = gateBaseQuestionId(kind, itemId);
+  return Array.from({ length: GATE_QUESTION_COUNTS[kind] }, (_, index) => `${baseId}:gate${index + 1}`);
+}
+
 export function buildGateQuestions(kind: GateKind, itemId: string, seed = 1): Question[] {
   const random = seededRandom(seed);
   if (kind === "hangul") return buildHangulGate(itemId, random);

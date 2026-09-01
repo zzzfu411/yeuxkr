@@ -13,7 +13,7 @@ import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui
 import { TrackRow } from "@/components/ui/track-row";
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, type ImmersionMaterial } from "@/data/materials";
 import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum";
-import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
+import { clearImmersionMaterialDraft, getImmersionMaterialDraft, resolveImmersionQuerySelection, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
 import { notifyNowPlayingLocationChange } from "@/lib/learning/player";
 import { useLearningWorkspace } from "@/lib/learning/workspace";
@@ -174,14 +174,17 @@ function ImmersionContent() {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setActiveDraftReady(false);
-      setSelectedMaterialId(requestedMaterialId);
+      setSelectedMaterialId((current) => {
+        const sync = resolveImmersionQuerySelection(current, requestedMaterialId, defaultMaterialId);
+        if (sync.shouldResetDraft) setActiveDraftReady(false);
+        return sync.selectedMaterialId;
+      });
       notifyNowPlayingLocationChange();
     });
     return () => {
       cancelled = true;
     };
-  }, [requestedMaterialId]);
+  }, [defaultMaterialId, requestedMaterialId]);
 
   useEffect(() => {
     let cancelled = false;

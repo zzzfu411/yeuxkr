@@ -44,7 +44,7 @@ global.window = {
   }
 };
 
-const { saveLearningRecording } = await import("../src/lib/learning/recordings.ts");
+const { saveLearningRecording, shouldDeleteAbandonedRecording } = await import("../src/lib/learning/recordings.ts");
 
 test("recording database retries failed opens and reports success only after transaction commit", async () => {
   const blob = new Blob(["audio"], { type: "audio/webm" });
@@ -60,4 +60,12 @@ test("recording database retries failed opens and reports success only after tra
   const id = await saveLearningRecording(blob, "shadowing");
   assert.match(id, /^shadowing:/);
   assert.equal(openAttempts, 2);
+});
+
+test("abandoned overwrite saves keep a recording still owned by a later take", () => {
+  assert.equal(shouldDeleteAbandonedRecording("shadowing-draft", "shadowing-draft", "shadowing-draft", ""), false);
+  assert.equal(shouldDeleteAbandonedRecording("shadowing-draft", "", "shadowing-draft", ""), false);
+  assert.equal(shouldDeleteAbandonedRecording("shadowing:new", "", "", ""), true);
+  assert.equal(shouldDeleteAbandonedRecording("saved-id", "", "", "saved-id"), false);
+  assert.equal(shouldDeleteAbandonedRecording("", "shadowing-draft", "shadowing-draft", ""), false);
 });

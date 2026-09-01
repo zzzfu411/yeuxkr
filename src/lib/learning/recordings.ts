@@ -15,6 +15,20 @@ interface LearningRecordingRecord {
 
 let databasePromise: Promise<IDBDatabase | null> | null = null;
 
+export function shouldDeleteAbandonedRecording(
+  nextRecordingId: string,
+  currentRecordingId: string,
+  replaceableRecordingId: string,
+  savedRecordingId: string
+) {
+  const id = nextRecordingId.trim();
+  if (!id) return false;
+  if (id === savedRecordingId.trim()) return false;
+  if (id === currentRecordingId.trim()) return false;
+  if (id === replaceableRecordingId.trim()) return false;
+  return true;
+}
+
 export async function saveLearningRecording(blob: Blob, kind: LearningRecordingKind, existingId = "") {
   if (!(blob instanceof Blob) || blob.size <= 0) return null;
   const database = await openDatabase();

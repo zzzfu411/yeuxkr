@@ -40,6 +40,20 @@ export function saveLearningDraftState(state: LearningDraftState) {
   return writeJson(STORAGE_KEYS.drafts, normalizeLearningDraftState(state));
 }
 
+export function resolveImmersionQuerySelection(
+  currentSelectedId: string,
+  requestedMaterialId: string,
+  defaultMaterialId: string
+) {
+  const selectedMaterialId = requestedMaterialId;
+  const currentActiveId = currentSelectedId || requestedMaterialId || defaultMaterialId;
+  const nextActiveId = selectedMaterialId || defaultMaterialId;
+  return {
+    selectedMaterialId,
+    shouldResetDraft: currentActiveId !== nextActiveId
+  };
+}
+
 export function getImmersionMaterialDraft(materialId: string) {
   const cleanId = normalizeDraftId(materialId);
   if (!cleanId) return null;

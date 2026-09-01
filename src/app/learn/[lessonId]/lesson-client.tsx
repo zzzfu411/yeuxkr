@@ -17,7 +17,7 @@ import { assessLessonAttempt, type LessonAssessmentResult } from "@/lib/learning
 import { checkLessonTaskEvidence, lessonCompletionTask, type LessonCompletionTask } from "@/lib/learning/lesson-evidence";
 import { clearLessonPracticeSession, getLessonPracticeSession, saveLessonPracticeSession } from "@/lib/learning/lesson-session";
 import { lessonQuestions } from "@/lib/learning/quiz";
-import { deleteLearningRecording, loadLearningRecording, saveLearningRecording } from "@/lib/learning/recordings";
+import { deleteLearningRecording, loadLearningRecording, saveLearningRecording, shouldDeleteAbandonedRecording } from "@/lib/learning/recordings";
 import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
 import { ABILITY_LABELS, libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
 import type { CapstoneEvidence } from "@/lib/learning/types";
@@ -749,7 +749,14 @@ function LessonTaskEvidencePanel({
           return;
         }
         if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-          await deleteLearningRecording(nextRecordingId);
+          if (shouldDeleteAbandonedRecording(
+            nextRecordingId,
+            recordingIdRef.current,
+            replaceableRecordingId,
+            savedRecordingIdRef.current
+          )) {
+            await deleteLearningRecording(nextRecordingId);
+          }
           return;
         }
         if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
@@ -1081,7 +1088,14 @@ function CapstoneEvidencePanel({
           return;
         }
         if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-          await deleteLearningRecording(nextRecordingId);
+          if (shouldDeleteAbandonedRecording(
+            nextRecordingId,
+            recordingIdRef.current,
+            replaceableRecordingId,
+            savedRecordingIdRef.current
+          )) {
+            await deleteLearningRecording(nextRecordingId);
+          }
           return;
         }
         if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {

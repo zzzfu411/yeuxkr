@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
+const { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio, masteryGateQuestionIds } = await import("../src/lib/learning/gate.ts");
 const { UNLOCK_SCORE } = await import("../src/data/curriculum.js");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
 
@@ -96,4 +96,10 @@ test("gate questions are deterministic per seed and unknown items return nothing
   assert.deepEqual(buildGateQuestions("vocab", "missing-item", 1), []);
   assert.deepEqual(buildGateQuestions("hangul", "missing-item", 1), []);
   assert.deepEqual(buildGateQuestions("pronunciation", "missing-item", 1), []);
+});
+
+test("mastery-gate question IDs follow the live builder and keep a fallback for missing items", () => {
+  const live = buildGateQuestions("vocab", "v-annyeonghaseyo").map((question) => question.id);
+  assert.deepEqual(masteryGateQuestionIds("vocab", "v-annyeonghaseyo"), [...new Set(live)]);
+  assert.deepEqual(masteryGateQuestionIds("hangul", "missing-item"), ["hq:missing-item:gate1", "hq:missing-item:gate2", "hq:missing-item:gate3", "hq:missing-item:gate4"]);
 });

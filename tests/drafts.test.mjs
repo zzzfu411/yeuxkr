@@ -7,6 +7,7 @@ import {
   getImmersionMaterialDraft,
   getLearningDraftStateFromRaw,
   getSelfStudyCheckpointDrafts,
+  resolveImmersionQuerySelection,
   saveImmersionMaterialDraft,
   saveSelfStudyCheckpointDraft
 } from "../src/lib/learning/drafts.ts";
@@ -95,6 +96,29 @@ test("self-study checkpoint drafts save and clear without touching other drafts"
   assert.equal(clearSelfStudyCheckpointDraft("checkpoint-a"), true);
   assert.equal(getSelfStudyCheckpointDrafts()["checkpoint-a"], undefined);
   assert.equal(getSelfStudyCheckpointDrafts()["checkpoint-b"].evidence, "韩语输出 3 句");
+});
+
+test("immersion query selection only resets drafts when the active material changes", () => {
+  assert.deepEqual(resolveImmersionQuerySelection("", "cafe", "cafe"), {
+    selectedMaterialId: "cafe",
+    shouldResetDraft: false
+  });
+  assert.deepEqual(resolveImmersionQuerySelection("cafe", "cafe", "cafe"), {
+    selectedMaterialId: "cafe",
+    shouldResetDraft: false
+  });
+  assert.deepEqual(resolveImmersionQuerySelection("market", "cafe", "cafe"), {
+    selectedMaterialId: "cafe",
+    shouldResetDraft: true
+  });
+  assert.deepEqual(resolveImmersionQuerySelection("cafe", "", "cafe"), {
+    selectedMaterialId: "",
+    shouldResetDraft: false
+  });
+  assert.deepEqual(resolveImmersionQuerySelection("market", "", "cafe"), {
+    selectedMaterialId: "",
+    shouldResetDraft: true
+  });
 });
 
 test("draft writes report storage failures", () => {

@@ -434,6 +434,63 @@ test("re-recording overwrites an unsaved recording instead of orphaning its blob
   }
 });
 
+test("a stale overwrite save does not delete a recording still owned by a newer take", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      const saveQueue = [];
+      const deletes = [];
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: {
+          saveLearningRecording: (blob, kind, existingId) => new Promise((resolve) => {
+            saveQueue.push(() => resolve(existingId || `${kind}-draft`));
+          }),
+          deleteLearningRecording: async (id) => {
+            deletes.push(id);
+            return true;
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const props = panel === "shadowing" ? createShadowingPanelProps() : createCapstonePanelProps();
+      const startLabel = "开始录音";
+      const stopLabel = panel === "shadowing" ? "停止" : "停止录音";
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, startLabel).props.onClick();
+      media.recorders[0].ondataavailable({ data: new Blob(["first"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, stopLabel).props.onClick();
+      assert.equal(saveQueue.length, 1);
+      saveQueue.shift()();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      tree = hooks.render(Component, props);
+      await findButton(tree, startLabel).props.onClick();
+      media.recorders[1].ondataavailable({ data: new Blob(["second"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, stopLabel).props.onClick();
+      assert.equal(saveQueue.length, 1);
+
+      tree = hooks.render(Component, props);
+      await findButton(tree, startLabel).props.onClick();
+      saveQueue.shift()();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(deletes, []);
+
+      media.recorders[2].ondataavailable({ data: new Blob(["third"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, stopLabel).props.onClick();
+      saveQueue.shift()();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(deletes, []);
+    });
+  }
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -476,7 +533,8 @@ test("MasteryGate reports a failed persistence write and retries without another
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /正在写入掌握记录/);
+  assert.match(textContent(addon), /已写入掌握记录/);
+  assert.doesNotMatch(textContent(addon), /正在写入掌握记录/);
   assert.equal(saveAttempts, 2);
 });
 
@@ -569,7 +627,8 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /queueMicrotask\(\(\) => \{\s*if \(cancelled\) return;\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
+  assert.match(source, /resolveImmersionQuerySelection\(current, requestedMaterialId, defaultMaterialId\)/);
+  assert.match(source, /if \(sync\.shouldResetDraft\) setActiveDraftReady\(false\);/);
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
 });
 

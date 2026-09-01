@@ -24,6 +24,7 @@ import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftStat
 import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
 import { clearLearningRecordings } from "./recordings.ts";
 import { summarizeMistakes } from "./mistakes.ts";
+import { masteryGateQuestionIds } from "./gate.ts";
 import { getLibraryGateForLesson, type LibraryCounts } from "./path-gates.ts";
 import {
   TASK_IDS,
@@ -2174,36 +2175,36 @@ function materialArchiveRemovalCardIds(materialId: string, outputIds: string[]) 
   ];
 }
 
-function questionMistakeCardIds(questionId: string, gateCount: number) {
+function questionMistakeCardIds(questionId: string, kind: Parameters<typeof masteryGateQuestionIds>[0], itemId: string) {
   return [
     mistakeCardId(questionId),
-    ...Array.from({ length: gateCount }, (_, index) => mistakeCardId(`${questionId}:gate${index + 1}`))
+    ...masteryGateQuestionIds(kind, itemId).map(mistakeCardId)
   ];
 }
 
 function hangulRemovalCardIds(itemId: string) {
-  return [hangulCardId(itemId), ...questionMistakeCardIds(hangulQuestionId(itemId), 4)];
+  return [hangulCardId(itemId), ...questionMistakeCardIds(hangulQuestionId(itemId), "hangul", itemId)];
 }
 
 function pronunciationRemovalCardIds(itemId: string) {
-  return [pronunciationCardId(itemId), ...questionMistakeCardIds(pronunciationQuestionId(itemId), 3)];
+  return [pronunciationCardId(itemId), ...questionMistakeCardIds(pronunciationQuestionId(itemId), "pronunciation", itemId)];
 }
 
 function soundChangeRemovalCardIds(itemId: string) {
-  return [soundChangeCardId(itemId), ...questionMistakeCardIds(soundChangeQuestionId(itemId), 3)];
+  return [soundChangeCardId(itemId), ...questionMistakeCardIds(soundChangeQuestionId(itemId), "soundChange", itemId)];
 }
 
 function vocabRemovalCardIds(itemId: string) {
   return [
     vocabCardId(itemId),
-    ...questionMistakeCardIds(vocabQuestionId(itemId), 4),
+    ...questionMistakeCardIds(vocabQuestionId(itemId), "vocab", itemId),
     mistakeCardId(vocabDictationQuestionId(itemId)),
     mistakeCardId(vocabClozeQuestionId(itemId))
   ];
 }
 
 function grammarRemovalCardIds(itemId: string) {
-  return [grammarCardId(itemId), ...questionMistakeCardIds(grammarQuestionId(itemId), 3)];
+  return [grammarCardId(itemId), ...questionMistakeCardIds(grammarQuestionId(itemId), "grammar", itemId)];
 }
 
 function normalizeLessonReviewQuestionType(input: unknown): SrsCard["payload"]["type"] {
