@@ -1349,7 +1349,7 @@ test("lesson pages remount lesson-scoped client state when the lesson ID changes
   assert.equal(second.key, "lesson-b");
 });
 
-test("DrillRunner ignores speech events from outside its current audio question", () => {
+test("DrillRunner ignores speech events from outside its current audio question", async () => {
   const hooks = createHookHarness();
   const listeners = new Map();
   const speechCalls = [];
@@ -1393,6 +1393,7 @@ test("DrillRunner ignores speech events from outside its current audio question"
   };
 
   let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
   assert.equal(speechCalls.length, 1);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
   assert.equal(listeners.has("kirina:speech"), false);
@@ -1416,7 +1417,7 @@ test("DrillRunner ignores speech events from outside its current audio question"
   assert.ok(findButton(tree, "跳过音频题"));
 });
 
-test("DrillRunner keeps a new audio question pending until its own playback resolves", () => {
+test("DrillRunner keeps a new audio question pending until its own playback resolves", async () => {
   const hooks = createHookHarness();
   const speechCalls = [];
   const window = {
@@ -1453,6 +1454,7 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
   };
 
   let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
   assert.equal(speechCalls.length, 1);
   speechCalls[0].options.onstart();
   tree = hooks.render(DrillRunner, props);
@@ -1466,6 +1468,7 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
   tree = hooks.render(DrillRunner, props);
   findButton(tree, "下一题").props.onClick();
   tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
   assert.equal(speechCalls.length, 2);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
 
@@ -1486,6 +1489,113 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
   tree = hooks.render(DrillRunner, props);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
   assert.ok(findButton(tree, "跳过音频题"));
+});
+
+test("DrillRunner keeps audio alive when a parent recreates an equivalent question object", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+      }
+    }
+  }, { queueMicrotask, window });
+  const makeProps = () => ({
+    questions: [{ id: "dictation-recreated", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  });
+
+  let tree = hooks.render(DrillRunner, makeProps());
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  tree = hooks.render(DrillRunner, makeProps());
+
+  assert.equal(stops, 0);
+  assert.equal(speechCalls.length, 1);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, makeProps());
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+});
+
+test("DrillRunner survives StrictMode audio effect replay and still stops on teardown", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  let playing = false;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        playing = true;
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+        playing = false;
+      }
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{ id: "dictation-strict", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  hooks.replayEffects();
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.equal(playing, true);
+
+  assert.equal(stops, 0);
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  hooks.unmount();
+  await Promise.resolve();
+  assert.equal(stops, 1);
+  assert.equal(playing, false);
 });
 
 test("DrillRunner lets a resumed answered audio question advance", () => {
@@ -1766,10 +1876,23 @@ function createHookHarness() {
         slots[pending.index]?.cleanup?.();
         slots[pending.index] = {
           dependencies: pending.dependencies,
+          effect: pending.effect,
           cleanup: pending.effect() || undefined
         };
       }
       return tree;
+    },
+    replayEffects() {
+      const effects = slots
+        .map((slot, index) => ({ index, effect: slot?.effect, cleanup: slot?.cleanup }))
+        .filter((entry) => typeof entry.effect === "function");
+      for (const entry of effects) entry.cleanup?.();
+      for (const entry of effects) {
+        slots[entry.index].cleanup = entry.effect() || undefined;
+      }
+    },
+    unmount() {
+      for (const slot of slots) slot?.cleanup?.();
     },
     refs() {
       return slots

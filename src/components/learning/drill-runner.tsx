@@ -84,7 +84,7 @@ interface ResultContext {
 type AudioPlaybackState = { questionId: string; status: "pending" | "started" | "failed" };
 
 function playQuestionAudio(
-  question: Question,
+  question: Pick<Question, "id" | "speak">,
   setAudioPlayback: (next: AudioPlaybackState | ((current: AudioPlaybackState) => AudioPlaybackState)) => void,
   rate?: number
 ) {
@@ -151,6 +151,10 @@ export function DrillRunner({
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const question = questions[index];
   const existing = answers[index];
+  const hasExistingAnswer = Boolean(existing);
+  const questionId = question?.id;
+  const questionSpeak = question?.speak;
+  const questionType = question?.type;
   const audioQuestion = isAudioQuestion(question);
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
   const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
@@ -182,31 +186,37 @@ export function DrillRunner({
   }, [answers, finished, onResult, resultSignature, score]);
 
   useEffect(() => {
-    if (finished || !question || !question.speak || voiceStatus !== "ready") return;
-    if (question.type !== "listen" && question.type !== "dictation") return;
-    if (answers[index]) return;
-    if (playedListenRef.current === question.id) return;
-    playedListenRef.current = question.id;
+    if (finished || !questionId || !questionSpeak || voiceStatus !== "ready") return;
+    if (questionType !== "listen" && questionType !== "dictation") return;
+    if (hasExistingAnswer) return;
+    if (playedListenRef.current === questionId) return;
     let active = true;
-    setAudioPlayback({ questionId: question.id, status: "pending" });
-    const started = playQuestionAudio(question, setAudioPlayback);
-    const playbackTimeout = window.setTimeout(() => {
+    let playbackStarted = false;
+    let playbackTimeout: number | undefined;
+    setAudioPlayback({ questionId, status: "pending" });
+    queueMicrotask(() => {
+      if (!active || playedListenRef.current === questionId) return;
+      playedListenRef.current = questionId;
+      playbackStarted = true;
+      const started = playQuestionAudio({ id: questionId, speak: questionSpeak }, setAudioPlayback);
       if (!active) return;
-      setAudioPlayback((current) => current.questionId === question.id && current.status !== "pending"
-        ? current
-        : { questionId: question.id, status: "failed" });
-    }, 5000);
-    if (!started) {
-      queueMicrotask(() => {
-        if (active) setAudioPlayback({ questionId: question.id, status: "failed" });
-      });
-    }
+      if (!started) {
+        setAudioPlayback({ questionId, status: "failed" });
+        return;
+      }
+      playbackTimeout = window.setTimeout(() => {
+        if (!active) return;
+        setAudioPlayback((current) => current.questionId === questionId && current.status !== "pending"
+          ? current
+          : { questionId, status: "failed" });
+      }, 5000);
+    });
     return () => {
       active = false;
-      window.clearTimeout(playbackTimeout);
-      stopSpeech();
+      if (playbackTimeout !== undefined) window.clearTimeout(playbackTimeout);
+      if (playbackStarted) stopSpeech();
     };
-  }, [answers, finished, index, question, voiceStatus]);
+  }, [finished, hasExistingAnswer, index, questionId, questionSpeak, questionType, voiceStatus]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
