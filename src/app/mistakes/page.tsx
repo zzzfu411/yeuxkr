@@ -37,7 +37,7 @@ export default function MistakesPage() {
   };
 
   const startRetrain = (ids: string[] | null) => {
-    const questions = buildRetrainQuestions(srsState, ids);
+    const questions = buildRetrainQuestions(srsState, ids, ids?.length ?? 8);
     setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
     setRetrainSession((value) => value + 1);
     setRetrainQuestions(questions.length ? questions : null);

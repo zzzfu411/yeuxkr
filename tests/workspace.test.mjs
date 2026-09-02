@@ -14,7 +14,7 @@ import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } 
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
 import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
 import { buildGateQuestions } from "../src/lib/learning/gate.ts";
-import { ensureCard, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
+import { BOX_INTERVALS, ensureCard, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
 import { buildLessonBridge, lessonReviewCardIds, lessonsWithoutTransferMaterials } from "../src/lib/learning/lesson-bridge.ts";
 import { hangulQuestionId, lessonReviewCardId, materialCardId, materialRetellQuestionId, mistakeCardId, nativeCardId, outputCardId, outputTransferQuestionId, pronunciationCardId, pronunciationQuestionId, soundChangeCardId, vocabCardId, vocabClozeQuestionId, vocabDictationQuestionId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -776,6 +776,46 @@ test("quiz session commits mistake SRS and progress together", () => {
   assert.equal(progress.practiceItems["vq:v-annyeonghaseyo"].lastSource, "quiz");
   assert.equal(progress.practiceItems["gq:g-topic-subject"].correct, 1);
   assert.equal(progress.practiceItems["gq:g-topic-subject"].streak, 1);
+});
+
+test("re-queued mature quiz mistakes restart on the learning ladder", () => {
+  store.clear();
+  const questionId = "vq:v-annyeonghaseyo";
+  const cardId = mistakeCardId(questionId);
+  saveSrsState({
+    cards: {
+      [cardId]: {
+        id: cardId,
+        box: 6,
+        dueAt: Date.now() - 1,
+        correct: 8,
+        wrong: 1,
+        lastSeenAt: Date.now() - 1000,
+        ease: 2.5,
+        intervalDays: 100,
+        lapses: 2,
+        payload: { kind: "mistake", itemId: questionId, prompt: "旧题面", answer: "old" }
+      }
+    },
+    history: []
+  });
+
+  assert.equal(commitQuizSession("mixed:restart-mature", [{
+    question: { id: questionId, prompt: "新题面", answer: "hello" },
+    correct: false
+  }], 0), true);
+
+  const queued = getSrsState().cards[cardId];
+  assert.equal(queued.box, 0);
+  assert.equal(queued.intervalDays, undefined);
+  assert.equal(queued.ease, undefined);
+  assert.equal(queued.lapses, undefined);
+
+  assert.equal(gradeReviewCardAndProgress(queued, true), true);
+  const graded = getSrsState().cards[cardId];
+  assert.equal(graded.box, 1);
+  assert.equal(graded.intervalDays, BOX_INTERVALS[1] / (1000 * 60 * 60 * 24));
+  assert.equal(graded.dueAt > Date.now(), true);
 });
 
 test("quiz session does not write progress when mistake SRS save fails", () => {
@@ -1947,6 +1987,44 @@ test("lesson session commits progress, review cards, and mistake cards together"
   assert.equal(progress.practiceItems[firstQuestion.id].lastSource, "lesson");
   assert.equal(progress.practiceItems[secondQuestion.id].correct, 1);
   assert.equal(progress.practiceItems[secondQuestion.id].streak, 1);
+});
+
+test("re-queued mature lesson mistakes restart on the learning ladder", () => {
+  store.clear();
+  seedOnboardedProfile();
+  const lesson = lessons.find((item) => item.id === "l01-hangul-map");
+  const question = { ...lesson.drills[0], id: lessonReviewCardId(lesson.id, 0) };
+  const cardId = mistakeCardId(question.id);
+  saveSrsState({
+    cards: {
+      [cardId]: {
+        id: cardId,
+        box: 6,
+        dueAt: Date.now() - 1,
+        correct: 7,
+        wrong: 2,
+        lastSeenAt: Date.now() - 1000,
+        ease: 2.4,
+        intervalDays: 90,
+        lapses: 3,
+        payload: { kind: "mistake", itemId: question.id, prompt: "旧题面", answer: "old" }
+      }
+    },
+    history: []
+  });
+
+  assert.equal(commitLessonSession(lesson.id, [{ question, correct: false }], 67), true);
+
+  const queued = getSrsState().cards[cardId];
+  assert.equal(queued.box, 0);
+  assert.equal(queued.intervalDays, undefined);
+  assert.equal(queued.ease, undefined);
+  assert.equal(queued.lapses, undefined);
+
+  assert.equal(gradeReviewCardAndProgress(queued, true), true);
+  const graded = getSrsState().cards[cardId];
+  assert.equal(graded.box, 1);
+  assert.equal(graded.intervalDays, BOX_INTERVALS[1] / (1000 * 60 * 60 * 24));
 });
 
 test("lesson session does not write progress when lesson SRS save fails", () => {

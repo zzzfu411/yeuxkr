@@ -1269,6 +1269,11 @@ test("mistakes retrain grades cards even when they are not yet due", () => {
   assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
 });
 
+test("all-due mistake retrain requests every selected card", () => {
+  const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(source, /buildRetrainQuestions\(srsState, ids, ids\?\.length \?\? 8\)/);
+});
+
 test("review and retrain refuse answers when the queued card disappears", () => {
   const review = readFileSync("src/app/review/page.tsx", "utf8");
   const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
@@ -1392,6 +1397,11 @@ test("DrillRunner ignores speech events from outside its current audio question"
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
   assert.equal(listeners.has("kirina:speech"), false);
 
+  speechCalls[0].options.onerror({ error: "network-before-start" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+
   window.dispatchEvent({ type: "kirina:speech", detail: { type: "playback-start", text: "다른 문장" } });
   tree = hooks.render(DrillRunner, props);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
@@ -1399,6 +1409,127 @@ test("DrillRunner ignores speech events from outside its current audio question"
   speechCalls[0].options.onstart();
   tree = hooks.render(DrillRunner, props);
   assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+});
+
+test("DrillRunner keeps a new audio question pending until its own playback resolves", () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [
+      { id: "dictation-1", type: "dictation", prompt: "听写一", answer: "안녕", speak: "안녕" },
+      { id: "dictation-2", type: "dictation", prompt: "听写二", answer: "학교", speak: "학교" }
+    ],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(input);
+  input.props.onChange("안녕");
+  tree = hooks.render(DrillRunner, props);
+  const filledInput = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(filledInput);
+  filledInput.props.onSubmit();
+  tree = hooks.render(DrillRunner, props);
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(speechCalls.length, 2);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+
+  speechCalls[0].options.onerror({ error: "stale-q1" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+
+  speechCalls[1].options.onerror({ error: "q2-before-start" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+});
+
+test("DrillRunner lets a resumed answered audio question advance", () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const questions = [
+    { id: "dictation-1", type: "dictation", prompt: "听写一", answer: "안녕", speak: "안녕" },
+    { id: "dictation-2", type: "dictation", prompt: "听写二", answer: "학교", speak: "학교" }
+  ];
+  const props = {
+    questions,
+    finishLabel: "完成",
+    initialAnswers: questions.map((question) => ({
+      questionId: question.id,
+      answer: question.answer,
+      correct: true
+    })),
+    initialIndex: 1
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  assert.equal(speechCalls.length, 0, "answered audio should not be replayed on resume");
+  const finish = findButton(tree, "完成");
+  assert.equal(finish.props.disabled, false);
+  finish.props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.props?.role === "status"));
 });
 
 function loadLessonEvidencePanels(hooks, {

@@ -93,9 +93,9 @@ function playQuestionAudio(
   return speakKorean(question.speak, {
     ...(rate === undefined ? {} : { rate }),
     onstart: () => setAudioPlayback({ questionId, status: "started" }),
-    onerror: () => setAudioPlayback((current) => current.questionId === questionId && current.status === "started"
-      ? current
-      : { questionId, status: "failed" })
+    onerror: () => setAudioPlayback((current) => current.questionId === questionId
+      ? { questionId, status: "failed" }
+      : current)
   });
 }
 
@@ -151,7 +151,7 @@ export function DrillRunner({
   const existing = answers[index];
   const audioQuestion = isAudioQuestion(question);
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
-  const audioCheckPending = audioQuestion && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
+  const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
@@ -186,6 +186,7 @@ export function DrillRunner({
     if (playedListenRef.current === question.id) return;
     playedListenRef.current = question.id;
     let active = true;
+    setAudioPlayback({ questionId: question.id, status: "pending" });
     const started = playQuestionAudio(question, setAudioPlayback);
     const playbackTimeout = window.setTimeout(() => {
       if (!active) return;
