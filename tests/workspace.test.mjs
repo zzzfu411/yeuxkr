@@ -902,6 +902,60 @@ test("a stale review card snapshot cannot be graded twice", () => {
   assert.equal(JSON.parse(store.get(progressStorageKey)).practiceItems["single-submit"].correct, 1);
 });
 
+test("a stale review card snapshot cannot be graded after its payload changes", () => {
+  store.clear();
+  const now = Date.now();
+  const id = "mistake:payload-change";
+  saveSrsState({
+    cards: {
+      [id]: {
+        id,
+        box: 0,
+        dueAt: now - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: {
+          kind: "mistake",
+          itemId: "payload-change",
+          prompt: "old prompt",
+          answer: "same answer",
+          acceptable: ["same answer"],
+          choices: ["same answer", "other answer"]
+        }
+      }
+    },
+    history: []
+  });
+
+  const submitted = getSrsState().cards[id];
+  const before = getSrsState().cards[id];
+  const updated = ensureCard(id, {
+    kind: "mistake",
+    itemId: "payload-change",
+    prompt: "new prompt",
+    answer: "new answer",
+    acceptable: ["new acceptable answer"],
+    choices: ["same answer", "new choice"]
+  });
+  assert.equal(updated?.payload.prompt, "new prompt");
+  assert.equal(updated?.payload.answer, "new answer");
+  assert.equal(updated?.payload.acceptable?.[0], "new acceptable answer");
+
+  assert.equal(gradeReviewCardAndProgress(submitted, true), false);
+  const after = getSrsState().cards[id];
+  assert.equal(after.box, before.box);
+  assert.equal(after.dueAt, before.dueAt);
+  assert.equal(after.correct, before.correct);
+  assert.equal(after.wrong, before.wrong);
+  assert.equal(after.lastSeenAt, before.lastSeenAt);
+  assert.deepEqual(getSrsState().history, []);
+  assert.equal(after.payload.prompt, "new prompt");
+  assert.equal(after.payload.answer, "new answer");
+  assert.equal(after.payload.acceptable?.[0], "new acceptable answer");
+  assert.equal(store.has(progressStorageKey), false);
+});
+
 test("early practice can grade a not-yet-due card when allowed", () => {
   store.clear();
   const now = Date.now();

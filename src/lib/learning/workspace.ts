@@ -1296,7 +1296,28 @@ function sameReviewCardSnapshot(current: SrsCard, submitted: SrsCard) {
     current.lastSeenAt === submitted.lastSeenAt &&
     current.ease === submitted.ease &&
     current.intervalDays === submitted.intervalDays &&
-    current.lapses === submitted.lapses;
+    current.lapses === submitted.lapses &&
+    sameReviewCardPayload(current.payload, submitted.payload);
+}
+
+function sameReviewCardPayload(current: SrsCard["payload"], submitted: SrsCard["payload"]) {
+  return current.kind === submitted.kind &&
+    current.itemId === submitted.itemId &&
+    current.type === submitted.type &&
+    current.prompt === submitted.prompt &&
+    current.answer === submitted.answer &&
+    sameStringList(current.acceptable, submitted.acceptable) &&
+    sameStringList(current.choices, submitted.choices) &&
+    current.explain === submitted.explain &&
+    current.speak === submitted.speak &&
+    current.clozeText === submitted.clozeText &&
+    current.hint === submitted.hint;
+}
+
+function sameStringList(current?: string[], submitted?: string[]) {
+  if (current === submitted) return true;
+  if (!current || !submitted || current.length !== submitted.length) return false;
+  return current.every((value, index) => value === submitted[index]);
 }
 
 type QuizAnswerCommitEntry = {
