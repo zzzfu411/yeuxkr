@@ -1469,9 +1469,17 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
   assert.equal(speechCalls.length, 2);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
 
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
   speechCalls[0].options.onerror({ error: "stale-q1" });
   tree = hooks.render(DrillRunner, props);
-  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
 
   speechCalls[1].options.onerror({ error: "q2-before-start" });

@@ -92,7 +92,9 @@ function playQuestionAudio(
   const questionId = question.id;
   return speakKorean(question.speak, {
     ...(rate === undefined ? {} : { rate }),
-    onstart: () => setAudioPlayback({ questionId, status: "started" }),
+    onstart: () => setAudioPlayback((current) => current.questionId === questionId
+      ? { questionId, status: "started" }
+      : current),
     onerror: () => setAudioPlayback((current) => current.questionId === questionId
       ? { questionId, status: "failed" }
       : current)
