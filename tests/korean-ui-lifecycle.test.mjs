@@ -682,6 +682,306 @@ test("recording replacements can save after persisted evidence is removed", asyn
   }
 });
 
+test("delayed persisted recording lookups cannot invalidate an active replacement", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      let invalidations = 0;
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: { loadLearningRecording: () => pendingLoad }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(null);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(invalidations, 0, "the superseded lookup must not revoke persisted evidence");
+      tree = hooks.render(Component, props);
+      assert.ok(findButton(tree, panel === "shadowing" ? "停止" : "停止录音"));
+    });
+  }
+});
+
+test("persisted recording lookups still hydrate after a denied microphone request", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      let loadCalls = 0;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: async () => {
+          throw new Error("permission denied");
+        },
+        recordingOverrides: {
+          loadLearningRecording: () => {
+            loadCalls += 1;
+            return loadCalls === 1 ? pendingLoad : Promise.resolve(new Blob(["persisted"]));
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const savedInputs = [];
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onSave: (_lessonId, input) => {
+              savedInputs.push(input);
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onSave: (input) => {
+              savedInputs.push(input);
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(new Blob(["persisted"]));
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      assert.ok(loadCalls >= 2, "a failed replacement should retry the persisted lookup");
+      assert.ok(findElement(tree, (node) => node.type === "audio"), "a denied replacement must not hide persisted playback");
+      const saveButton = findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品");
+      assert.equal(saveButton.props.disabled, false, "a denied replacement must keep the prior draft saveable");
+      saveButton.props.onClick();
+      assert.equal(savedInputs.length, 1);
+      assert.equal(savedInputs[0].recordingId, persisted.recordingId);
+      assert.equal(savedInputs[0].recordedSeconds, persisted.recordedSeconds);
+    });
+  }
+});
+
+test("failed recording replacements restore the prior draft and playback", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    for (const failure of ["empty", "save"]) {
+      await context.test(`${panel} ${failure}`, async () => {
+        const hooks = createHookHarness();
+        const media = createActiveMediaHarness();
+        const savedInputs = [];
+        const overrides = panel === "shadowing"
+          ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+          : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+        const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+          ...overrides,
+          MediaRecorder: media.MediaRecorder,
+          getUserMedia: media.getUserMedia,
+          recordingOverrides: {
+            loadLearningRecording: async () => new Blob(["persisted"]),
+            saveLearningRecording: async () => failure === "save" ? null : "unused"
+          }
+        });
+        const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+        const persisted = panel === "shadowing"
+          ? {
+              kind: "shadowing",
+              text: "",
+              recordedSeconds: 4.2,
+              recordingId: "shadowing:original",
+              updatedAt: "2026-09-02T00:00:00.000Z"
+            }
+          : {
+              transcript: "旧稿",
+              weakPoint: "旧弱点",
+              targetRewrite: "오래된 목표 문장",
+              rubric: [],
+              recordedSeconds: 120,
+              recordingId: "capstone:original",
+              updatedAt: "2026-09-02T00:00:00.000Z"
+            };
+        const props = panel === "shadowing"
+          ? createShadowingPanelProps({
+              evidence: persisted,
+              onSave: (_lessonId, input) => {
+                savedInputs.push(input);
+                return true;
+              }
+            })
+          : createCapstonePanelProps({
+              evidence: persisted,
+              onSave: (input) => {
+                savedInputs.push(input);
+                return true;
+              }
+            });
+
+        let tree = hooks.render(Component, props);
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+        await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+        if (failure === "save") media.recorders[0].ondataavailable({ data: new Blob(["replacement"]) });
+        tree = hooks.render(Component, props);
+        findButton(tree, panel === "shadowing" ? "停止" : "停止录音").props.onClick();
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+
+        assert.ok(findElement(tree, (node) => node.type === "audio"), "the prior playback should remain available");
+        assert.match(textContent(tree), panel === "shadowing" ? /已录 4\.2 秒/ : /有效录音 120\.0 秒/);
+        const saveButton = findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品");
+        assert.equal(saveButton.props.disabled, false, "a failed replacement must leave the prior draft saveable");
+        saveButton.props.onClick();
+        assert.equal(savedInputs.length, 1);
+        assert.equal(savedInputs[0].recordingId, persisted.recordingId);
+        assert.equal(savedInputs[0].recordedSeconds, persisted.recordedSeconds);
+      });
+    }
+  }
+});
+
+test("deferred missing recording lookups are processed after a failed replacement", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      let loadCalls = 0;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      let invalidations = 0;
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: async () => {
+          throw new Error("permission denied");
+        },
+        recordingOverrides: {
+          loadLearningRecording: () => {
+            loadCalls += 1;
+            return loadCalls === 1 ? pendingLoad : Promise.resolve(null);
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(null);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      assert.ok(loadCalls >= 2, "the failed replacement should retry the persisted lookup");
+      assert.equal(invalidations, 1, "the retry should revoke the missing persisted recording");
+      assert.ok(findButton(tree, "保存"));
+    });
+  }
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -818,6 +1118,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   let runner = findElement(tree, (node) => node.type === "DrillRunner");
   assert.equal(runner.key, 1);
   assert.equal(runner.props.questions[0].id, "q1");
+  assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true }), false);
 
   cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
   cards[1].props.onRetrain("q2");
@@ -966,6 +1267,13 @@ test("completed immersion materials do not claim an unfinished draft restore", (
 test("mistakes retrain grades cards even when they are not yet due", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
   assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
+});
+
+test("review and retrain refuse answers when the queued card disappears", () => {
+  const review = readFileSync("src/app/review/page.tsx", "utf8");
+  const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(review, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct\)\)/);
+  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)\)/);
 });
 
 test("paper frames clip media inside the panel instead of hanging tape", () => {

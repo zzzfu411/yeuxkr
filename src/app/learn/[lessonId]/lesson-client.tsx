@@ -583,6 +583,12 @@ type LessonTaskDraftSnapshot = {
   recordingId: string;
 };
 
+type RecordingDraftRecovery = {
+  recordingId: string;
+  recordedSeconds: number;
+  audioUrl: string;
+};
+
 function lessonTaskDraftSnapshot(taskKind: LessonCompletionTask["kind"], evidence?: LessonTaskEvidencePanelProps["evidence"]): LessonTaskDraftSnapshot {
   return {
     kind: evidence?.kind ?? taskKind,
@@ -620,6 +626,7 @@ function LessonTaskEvidencePanel({
   const [recording, setRecording] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
   const [savingRecording, setSavingRecording] = useState(false);
+  const [recordingLoadRetry, setRecordingLoadRetry] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [message, setMessage] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -636,6 +643,8 @@ function LessonTaskEvidencePanel({
   const savingRecordingRef = useRef(false);
   const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const recordingLoadTokenRef = useRef(0);
+  const recordingRecoveryRef = useRef<RecordingDraftRecovery | null>(null);
   const incomingDraft = useMemo(
     () => lessonTaskDraftSnapshot(task.kind, evidence),
     [evidence, task.kind]
@@ -689,6 +698,7 @@ function LessonTaskEvidencePanel({
   useEffect(() => {
     let cancelled = false;
     recordingRequestRef.current += 1;
+    const loadToken = ++recordingLoadTokenRef.current;
     startingRecordingRef.current = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -698,7 +708,7 @@ function LessonTaskEvidencePanel({
     });
     if (task.kind === "shadowing" && evidence?.recordingId) {
       void loadLearningRecording(evidence.recordingId).then((blob) => {
-        if (cancelled) return;
+        if (cancelled || loadToken !== recordingLoadTokenRef.current) return;
         if (!blob) {
           if (!invalidateRecordingRef.current(lessonId, evidence.recordingId!)) {
             setMessage("录音实体不存在，但学习进度未能同步撤回；请释放存储空间后刷新重试。");
@@ -721,6 +731,7 @@ function LessonTaskEvidencePanel({
     return () => {
       cancelled = true;
       recordingRequestRef.current += 1;
+      recordingLoadTokenRef.current += 1;
       startingRecordingRef.current = false;
       const recorder = recorderRef.current;
       if (recorder) {
@@ -744,7 +755,7 @@ function LessonTaskEvidencePanel({
         audioUrlRef.current = "";
       }
     };
-  }, [evidence?.recordingId, lessonId, task.kind]);
+  }, [evidence?.recordingId, lessonId, recordingLoadRetry, task.kind]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -756,20 +767,55 @@ function LessonTaskEvidencePanel({
     };
   }, []);
 
+  const retryPersistedRecordingLoad = (requestId: number, expectedRecordingId = recordingIdRef.current) => {
+    if (
+      mountedRef.current
+      && requestId === recordingRequestRef.current
+      && savedRecordingIdRef.current
+      && expectedRecordingId === savedRecordingIdRef.current
+    ) {
+      setRecordingLoadRetry((value) => value + 1);
+    }
+  };
+
+  const restoreRecordingDraftAfterFailure = (requestId: number) => {
+    if (!mountedRef.current || requestId !== recordingRequestRef.current) return false;
+    const recovery = recordingRecoveryRef.current;
+    if (!recovery) return true;
+    recordingRecoveryRef.current = null;
+    recordingIdRef.current = recovery.recordingId;
+    setRecordingId(recovery.recordingId);
+    setRecordedSeconds(recovery.recordedSeconds);
+    if (audioUrlRef.current !== recovery.audioUrl) {
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = recovery.audioUrl;
+    }
+    setAudioUrl(recovery.audioUrl);
+    return true;
+  };
+
   const startRecording = async () => {
     if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
     startingRecordingRef.current = true;
     setStartingRecording(true);
     const requestId = ++recordingRequestRef.current;
+    recordingLoadTokenRef.current += 1;
+    recordingRecoveryRef.current = {
+      recordingId: recordingIdRef.current,
+      recordedSeconds,
+      audioUrl: audioUrlRef.current
+    };
     setMessage("");
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setMessage("当前浏览器不能录音，请使用下方听后复现作为替代验收。");
       startingRecordingRef.current = false;
       setStartingRecording(false);
+      retryPersistedRecordingLoad(requestId);
       return;
     }
     let stream: MediaStream | null = null;
     let recorder: MediaRecorder | null = null;
+    let recordingStartedSuccessfully = false;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -796,22 +842,25 @@ function LessonTaskEvidencePanel({
         activeStream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         recorderRef.current = null;
+        if (!mountedRef.current || requestId !== recordingRequestRef.current) return;
         setRecording(false);
         const saveToken = ++recordingSaveTokenRef.current;
         savingRecordingRef.current = true;
         setSavingRecording(true);
         try {
           if (!blob.size) {
-            setRecordedSeconds(0);
-            setRecordingId("");
-            setMessage("没有取得有效音频数据，请重新录音或使用听后复现。");
+            if (restoreRecordingDraftAfterFailure(requestId)) {
+              setMessage("没有取得有效音频数据，已保留上一轮录音；请重新录音或使用听后复现。");
+              retryPersistedRecordingLoad(requestId);
+            }
             return;
           }
           const nextRecordingId = await saveLearningRecording(blob, "shadowing", replaceableRecordingId);
           if (!nextRecordingId) {
-            setRecordedSeconds(0);
-            setRecordingId("");
-            setMessage("录音无法写入浏览器数据库，请使用听后复现作为替代验收。");
+            if (restoreRecordingDraftAfterFailure(requestId)) {
+              setMessage("录音无法写入浏览器数据库，已保留上一轮录音；请使用听后复现作为替代验收。");
+              retryPersistedRecordingLoad(requestId);
+            }
             return;
           }
           if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -822,6 +871,7 @@ function LessonTaskEvidencePanel({
             void deleteLearningRecording(previousRecordingId);
           }
           recordingIdRef.current = nextRecordingId;
+          recordingRecoveryRef.current = null;
           setRecordingId(nextRecordingId);
           setRecordedSeconds(Math.round(seconds * 10) / 10);
           const nextUrl = URL.createObjectURL(blob);
@@ -829,9 +879,10 @@ function LessonTaskEvidencePanel({
           audioUrlRef.current = nextUrl;
           setAudioUrl(nextUrl);
         } catch {
-          setRecordedSeconds(0);
-          setRecordingId("");
-          setMessage("录音无法写入浏览器数据库，请使用听后复现作为替代验收。");
+          if (restoreRecordingDraftAfterFailure(requestId)) {
+            setMessage("录音无法写入浏览器数据库，已保留上一轮录音；请使用听后复现作为替代验收。");
+            retryPersistedRecordingLoad(requestId);
+          }
         } finally {
           if (recordingSaveTokenRef.current === saveToken) {
             savingRecordingRef.current = false;
@@ -847,6 +898,7 @@ function LessonTaskEvidencePanel({
       setRecordedSeconds(0);
       setRecordingId("");
       setRecording(true);
+      recordingStartedSuccessfully = true;
     } catch {
       if (recorder) {
         recorder.ondataavailable = null;
@@ -871,6 +923,7 @@ function LessonTaskEvidencePanel({
       if (mountedRef.current && requestId === recordingRequestRef.current) {
         startingRecordingRef.current = false;
         setStartingRecording(false);
+        if (!recordingStartedSuccessfully) retryPersistedRecordingLoad(requestId);
       }
     }
   };
@@ -1011,6 +1064,7 @@ function CapstoneEvidencePanel({
   const [recording, setRecording] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
   const [savingRecording, setSavingRecording] = useState(false);
+  const [recordingLoadRetry, setRecordingLoadRetry] = useState(0);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [recordingMessage, setRecordingMessage] = useState("");
@@ -1029,6 +1083,8 @@ function CapstoneEvidencePanel({
   const savingRecordingRef = useRef(false);
   const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const recordingLoadTokenRef = useRef(0);
+  const recordingRecoveryRef = useRef<RecordingDraftRecovery | null>(null);
   const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
   const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
   const draftBaselineRef = useRef(incomingDraft);
@@ -1069,6 +1125,7 @@ function CapstoneEvidencePanel({
   useEffect(() => {
     let cancelled = false;
     recordingRequestRef.current += 1;
+    const loadToken = ++recordingLoadTokenRef.current;
     startingRecordingRef.current = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -1079,7 +1136,7 @@ function CapstoneEvidencePanel({
     });
     if (savedRecordingId) {
       void loadLearningRecording(savedRecordingId).then((blob) => {
-        if (cancelled) return;
+        if (cancelled || loadToken !== recordingLoadTokenRef.current) return;
         if (!blob) {
           if (!invalidateRecordingRef.current(savedRecordingId)) {
             setRecordingMessage("录音实体不存在，但终课进度未能同步撤回；请释放存储空间后刷新重试。");
@@ -1102,6 +1159,7 @@ function CapstoneEvidencePanel({
     return () => {
       cancelled = true;
       recordingRequestRef.current += 1;
+      recordingLoadTokenRef.current += 1;
       startingRecordingRef.current = false;
       if (timerRef.current !== null) {
         window.clearInterval(timerRef.current);
@@ -1129,7 +1187,7 @@ function CapstoneEvidencePanel({
         audioUrlRef.current = "";
       }
     };
-  }, [savedRecordingId]);
+  }, [recordingLoadRetry, savedRecordingId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -1141,21 +1199,55 @@ function CapstoneEvidencePanel({
     };
   }, []);
 
+  const retryPersistedRecordingLoad = (requestId: number, expectedRecordingId = recordingIdRef.current) => {
+    if (
+      mountedRef.current
+      && requestId === recordingRequestRef.current
+      && savedRecordingIdRef.current
+      && expectedRecordingId === savedRecordingIdRef.current
+    ) {
+      setRecordingLoadRetry((value) => value + 1);
+    }
+  };
+
+  const restoreRecordingDraftAfterFailure = (requestId: number) => {
+    if (!mountedRef.current || requestId !== recordingRequestRef.current) return false;
+    const recovery = recordingRecoveryRef.current;
+    if (!recovery) return true;
+    recordingRecoveryRef.current = null;
+    recordingIdRef.current = recovery.recordingId;
+    setDraft((current) => ({ ...current, recordedSeconds: recovery.recordedSeconds, recordingId: recovery.recordingId }));
+    if (audioUrlRef.current !== recovery.audioUrl) {
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = recovery.audioUrl;
+    }
+    setAudioUrl(recovery.audioUrl);
+    return true;
+  };
+
   const startRecording = async () => {
     if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
     startingRecordingRef.current = true;
     setStartingRecording(true);
     const requestId = ++recordingRequestRef.current;
+    recordingLoadTokenRef.current += 1;
+    recordingRecoveryRef.current = {
+      recordingId: recordingIdRef.current,
+      recordedSeconds: draft.recordedSeconds,
+      audioUrl: audioUrlRef.current
+    };
     setRecordingMessage("");
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setRecordingMessage("当前浏览器不支持录音，终课作品需要换用支持麦克风录制的浏览器完成。");
       startingRecordingRef.current = false;
       setStartingRecording(false);
+      retryPersistedRecordingLoad(requestId);
       return;
     }
 
     let stream: MediaStream | null = null;
     let recorder: MediaRecorder | null = null;
+    let recordingStartedSuccessfully = false;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -1185,6 +1277,7 @@ function CapstoneEvidencePanel({
         activeStream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         recorderRef.current = null;
+        if (!mountedRef.current || requestId !== recordingRequestRef.current) return;
         setRecording(false);
         setRecordingElapsed(seconds);
         const saveToken = ++recordingSaveTokenRef.current;
@@ -1192,15 +1285,19 @@ function CapstoneEvidencePanel({
         setSavingRecording(true);
         try {
           if (blob.size === 0) {
-            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-            setRecordingMessage("没有取得有效音频数据，本次录音不计入终课证据，请重新录制。");
+            if (restoreRecordingDraftAfterFailure(requestId)) {
+              setRecordingMessage("没有取得有效音频数据，已保留上一轮录音；请重新录制。");
+              retryPersistedRecordingLoad(requestId);
+            }
             return;
           }
 
           const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
           if (!nextRecordingId) {
-            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-            setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
+            if (restoreRecordingDraftAfterFailure(requestId)) {
+              setRecordingMessage("录音无法写入浏览器数据库，已保留上一轮录音；请释放存储空间后重试。");
+              retryPersistedRecordingLoad(requestId);
+            }
             return;
           }
           if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -1211,6 +1308,7 @@ function CapstoneEvidencePanel({
             void deleteLearningRecording(previousRecordingId);
           }
           recordingIdRef.current = nextRecordingId;
+          recordingRecoveryRef.current = null;
           const nextAudioUrl = URL.createObjectURL(blob);
           if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
           audioUrlRef.current = nextAudioUrl;
@@ -1220,8 +1318,10 @@ function CapstoneEvidencePanel({
             ? "录音时长已达标，请先回听，再保存终课作品。"
             : `本次录音 ${seconds.toFixed(1)} 秒，还需至少 ${(CAPSTONE_MIN_RECORDED_SECONDS - seconds).toFixed(1)} 秒。`);
         } catch {
-          setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
+          if (restoreRecordingDraftAfterFailure(requestId)) {
+            setRecordingMessage("录音无法写入浏览器数据库，已保留上一轮录音；请释放存储空间后重试。");
+            retryPersistedRecordingLoad(requestId);
+          }
         } finally {
           if (recordingSaveTokenRef.current === saveToken) {
             savingRecordingRef.current = false;
@@ -1235,13 +1335,12 @@ function CapstoneEvidencePanel({
       if (recordingIdRef.current === savedRecordingIdRef.current) {
         draftBaseRecordingIdRef.current = savedRecordingIdRef.current;
       }
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = "";
       setAudioUrl("");
       setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
       setStatus("idle");
       setRecordingElapsed(0);
       setRecording(true);
+      recordingStartedSuccessfully = true;
       timerRef.current = window.setInterval(() => {
         const seconds = Math.max(0, Math.floor((performance.now() - startedAtRef.current) / 100) / 10);
         setRecordingElapsed(seconds);
@@ -1270,6 +1369,7 @@ function CapstoneEvidencePanel({
       if (mountedRef.current && requestId === recordingRequestRef.current) {
         startingRecordingRef.current = false;
         setStartingRecording(false);
+        if (!recordingStartedSuccessfully) retryPersistedRecordingLoad(requestId);
       }
     }
   };

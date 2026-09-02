@@ -93,7 +93,7 @@ function ReviewContent() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = dueCards.find((item) => item.id === entry.question.id);
-              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
+              if (!card || !gradeReviewCardAndProgress(card, entry.correct)) {
                 setReviewError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
                 return false;
               } else {
