@@ -656,7 +656,7 @@ function LessonTaskEvidencePanel({
 
   useEffect(() => {
     const nextSavedRecordingId = evidence?.recordingId ?? "";
-    if (recordingIdRef.current === savedRecordingIdRef.current) {
+    if (recordingIdRef.current === savedRecordingIdRef.current || !nextSavedRecordingId) {
       draftBaseRecordingIdRef.current = nextSavedRecordingId;
     }
     savedRecordingIdRef.current = nextSavedRecordingId;
@@ -707,6 +707,8 @@ function LessonTaskEvidencePanel({
           setRecordedSeconds(0);
           setRecordingId("");
           recordingIdRef.current = "";
+          savedRecordingIdRef.current = "";
+          draftBaseRecordingIdRef.current = "";
           setMessage("已保存的录音实体不存在，需要重新录音或完成听后复现。");
           return;
         }
@@ -1036,7 +1038,7 @@ function CapstoneEvidencePanel({
   const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence({ ...draft, updatedAt: evidence?.updatedAt ?? "" });
 
   useEffect(() => {
-    if (recordingIdRef.current === savedRecordingIdRef.current) {
+    if (recordingIdRef.current === savedRecordingIdRef.current || !savedRecordingId) {
       draftBaseRecordingIdRef.current = savedRecordingId;
     }
     savedRecordingIdRef.current = savedRecordingId;
@@ -1084,6 +1086,8 @@ function CapstoneEvidencePanel({
             return;
           }
           recordingIdRef.current = "";
+          savedRecordingIdRef.current = "";
+          draftBaseRecordingIdRef.current = "";
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
           setStatus("idle");
           setRecordingMessage("已保存的录音实体不存在，终课证据已撤回，请重新录制。");

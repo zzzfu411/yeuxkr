@@ -526,6 +526,162 @@ test("lesson evidence panels hydrate persisted drafts without overwriting local 
   assert.equal(findElements(tree, (node) => node.type === "input").some((node) => node.props.value === persistedCapstone.weakPoint), true);
 });
 
+test("missing recording entities clear optimistic save baselines", async (context) => {
+  await context.test("shadowing fallback", async () => {
+    const hooks = createHookHarness();
+    const expectedRecordingIds = [];
+    let invalidatedRecordingId = "";
+    const { LessonTaskEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) },
+      recordingOverrides: { loadLearningRecording: async () => null }
+    });
+    const persisted = {
+      kind: "shadowing",
+      text: "저는 기억한 문장을 다시 말합니다.",
+      recordedSeconds: 4.2,
+      recordingId: "shadowing:missing",
+      updatedAt: "2026-09-02T00:00:00.000Z"
+    };
+    const props = createShadowingPanelProps({
+      evidence: persisted,
+      onInvalidateRecording: (_lessonId, recordingId) => {
+        invalidatedRecordingId = recordingId;
+        return true;
+      },
+      onSave: (_lessonId, _input, expectedRecordingId) => {
+        expectedRecordingIds.push(expectedRecordingId);
+        return true;
+      }
+    });
+
+    hooks.render(LessonTaskEvidencePanel, props);
+    await new Promise((resolve) => setImmediate(resolve));
+    const clearedProps = { ...props, evidence: undefined };
+    const tree = hooks.render(LessonTaskEvidencePanel, clearedProps);
+    findButton(tree, "保存作品").props.onClick();
+
+    assert.equal(invalidatedRecordingId, persisted.recordingId);
+    assert.deepEqual(expectedRecordingIds, [""]);
+  });
+
+  await context.test("capstone replacement", async () => {
+    const hooks = createHookHarness();
+    const expectedRecordingIds = [];
+    let invalidatedRecordingId = "";
+    const { CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      capstoneOverrides: {
+        capstoneRecordingCheck: () => ({ passed: true }),
+        isValidCapstoneEvidence: () => true
+      },
+      recordingOverrides: { loadLearningRecording: async () => null }
+    });
+    const persisted = {
+      transcript: "제 생각은 이렇습니다.",
+      weakPoint: "연결어를 더 자연스럽게 쓰기",
+      targetRewrite: "그래서 다음에는 더 구체적으로 말하겠습니다.",
+      rubric: [],
+      recordedSeconds: 120,
+      recordingId: "capstone:missing",
+      updatedAt: "2026-09-02T00:00:00.000Z"
+    };
+    const props = createCapstonePanelProps({
+      evidence: persisted,
+      onInvalidateRecording: (recordingId) => {
+        invalidatedRecordingId = recordingId;
+        return true;
+      },
+      onSave: (_input, expectedRecordingId) => {
+        expectedRecordingIds.push(expectedRecordingId);
+        return true;
+      }
+    });
+
+    hooks.render(CapstoneEvidencePanel, props);
+    await new Promise((resolve) => setImmediate(resolve));
+    const clearedProps = { ...props, evidence: null };
+    const tree = hooks.render(CapstoneEvidencePanel, clearedProps);
+    findButton(tree, "保存终课作品").props.onClick();
+
+    assert.equal(invalidatedRecordingId, persisted.recordingId);
+    assert.deepEqual(expectedRecordingIds, [""]);
+  });
+});
+
+test("recording replacements can save after persisted evidence is removed", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      const expectedRecordingIds = [];
+      const overrides = panel === "shadowing"
+        ? {
+            lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) }
+          }
+        : {
+            capstoneOverrides: {
+              capstoneRecordingCheck: () => ({ passed: true }),
+              isValidCapstoneEvidence: () => true
+            }
+          };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: {
+          saveLearningRecording: async (_blob, kind) => `${kind}:replacement`
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onSave: (_lessonId, _input, expectedRecordingId) => {
+              expectedRecordingIds.push(expectedRecordingId);
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onSave: (_input, expectedRecordingId) => {
+              expectedRecordingIds.push(expectedRecordingId);
+              return true;
+            }
+      });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      media.recorders[0].ondataavailable({ data: new Blob(["replacement"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, panel === "shadowing" ? "停止" : "停止录音").props.onClick();
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      const clearedProps = { ...props, evidence: panel === "shadowing" ? undefined : null };
+      tree = hooks.render(Component, clearedProps);
+      findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品").props.onClick();
+
+      assert.deepEqual(expectedRecordingIds, [""]);
+    });
+  }
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -941,7 +1097,9 @@ function loadLessonEvidencePanels(hooks, {
   MediaRecorder,
   getUserMedia,
   window = { setInterval() { return 1; }, clearInterval() {} },
-  recordingOverrides = {}
+  recordingOverrides = {},
+  lessonEvidenceOverrides = {},
+  capstoneOverrides = {}
 }) {
   const pendingRecording = new Promise(() => {});
   const icons = Object.fromEntries([
@@ -973,13 +1131,15 @@ function loadLessonEvidencePanels(hooks, {
       capstoneRubric: [],
       capstoneSystemChecks: () => [],
       countHangulCharacters: () => 0,
-      isValidCapstoneEvidence: () => false
+      isValidCapstoneEvidence: () => false,
+      ...capstoneOverrides
     },
     "@/lib/learning/lesson-bridge": { buildLessonBridge: () => ({}) },
     "@/lib/learning/lesson-assessment": { assessLessonAttempt: () => ({}) },
     "@/lib/learning/lesson-evidence": {
       checkLessonTaskEvidence: () => ({ ready: false, checks: [] }),
-      lessonCompletionTask: () => null
+      lessonCompletionTask: () => null,
+      ...lessonEvidenceOverrides
     },
     "@/lib/learning/lesson-session": {
       clearLessonPracticeSession: () => true,
