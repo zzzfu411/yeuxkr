@@ -1476,6 +1476,60 @@ test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a 
   assert.ok(findButton(tree, "听"));
 });
 
+test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{
+      id: "listen-tts-not-allowed",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onerror({ error: "not-allowed" });
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.doesNotMatch(textContent(tree), /当前设备无法播放韩语/);
+  assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.ok(findButton(tree, "听"));
+});
+
 test("skipping a review audio question defers the card so it is no longer due", async () => {
   const hooks = createHookHarness();
   const answered = [];
@@ -2069,7 +2123,7 @@ function createActiveMediaHarness() {
 
 function mockGestureBlockedPlaybackError(error) {
   const name = typeof error === "string" ? error : error?.error || error?.name || error?.reason;
-  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture";
+  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture" || name === "not-allowed";
 }
 
 function findButton(tree, label) {

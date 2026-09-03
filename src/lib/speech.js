@@ -124,10 +124,21 @@ export function getKoreanVoiceStatus() {
   return voiceProbeCompleted ? "missing" : "loading";
 }
 
+const GESTURE_BLOCK_TOKENS = new Set([
+  "NotAllowedError",
+  "play-rejected",
+  "needs-gesture",
+  "not-allowed"
+]);
+
+function isGestureBlockToken(value) {
+  return typeof value === "string" && GESTURE_BLOCK_TOKENS.has(value);
+}
+
 export function isGestureBlockedPlaybackError(error) {
   if (!error) return false;
   if (typeof error === "string") {
-    return error === "NotAllowedError" || error === "play-rejected" || error === "needs-gesture";
+    return isGestureBlockToken(error);
   }
   if (typeof error !== "object") return false;
   if (error.reason === "needs-gesture") return true;
@@ -139,7 +150,7 @@ export function isGestureBlockedPlaybackError(error) {
       : typeof nested?.name === "string"
         ? nested.name
         : "";
-  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture";
+  return isGestureBlockToken(name);
 }
 
 export function listKoreanVoices() {
@@ -357,6 +368,10 @@ function speakNow(text, options) {
     if (requestId !== activePlaybackRequestId && canceled) return;
     if (requestId !== activePlaybackRequestId) return;
     activePlaybackRequestId = 0;
+    if (isGestureBlockedPlaybackError(reason) || isGestureBlockedPlaybackError(event)) {
+      reportPlaybackFailure({ onerror }, "needs-gesture", reason, requestId, event);
+      return;
+    }
     dispatchPlaybackError("synthesis-error", reason, requestId);
     if (typeof onerror === "function") onerror.call(this, event);
   };
@@ -377,6 +392,10 @@ function speakNow(text, options) {
   } catch (error) {
     if (requestId === activePlaybackRequestId) activePlaybackRequestId = 0;
     const reason = typeof error?.name === "string" ? error.name : "speak-threw";
+    if (isGestureBlockedPlaybackError(reason) || isGestureBlockedPlaybackError(error)) {
+      reportPlaybackFailure({ onerror }, "needs-gesture", reason, requestId, { error: reason, cause: error });
+      return false;
+    }
     dispatchPlaybackError("synthesis-error", reason, requestId);
     if (typeof onerror === "function") onerror.call(utterance, { error: reason, cause: error });
     return false;
