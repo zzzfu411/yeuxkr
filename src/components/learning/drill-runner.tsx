@@ -11,6 +11,7 @@ import { mistakeCardId } from "@/lib/learning/ids";
 import { checkAnswer, type Question } from "@/lib/learning/quiz";
 import { recordMistake } from "@/lib/learning/srs";
 import {
+  isGestureBlockedPlaybackError,
   speakKorean,
   stopSpeech
 } from "@/lib/speech";
@@ -81,7 +82,8 @@ interface ResultContext {
   finish: () => void;
 }
 
-type AudioPlaybackState = { questionId: string; status: "pending" | "started" | "failed" };
+type AudioPlaybackStatus = "pending" | "started" | "failed" | "needs-gesture";
+type AudioPlaybackState = { questionId: string; status: AudioPlaybackStatus };
 
 function playQuestionAudio(
   question: Pick<Question, "id" | "speak">,
@@ -95,8 +97,8 @@ function playQuestionAudio(
     onstart: () => setAudioPlayback((current) => current.questionId === questionId
       ? { questionId, status: "started" }
       : current),
-    onerror: () => setAudioPlayback((current) => current.questionId === questionId
-      ? { questionId, status: "failed" }
+    onerror: (event: unknown) => setAudioPlayback((current) => current.questionId === questionId
+      ? { questionId, status: isGestureBlockedPlaybackError(event) ? "needs-gesture" : "failed" }
       : current)
   });
 }
@@ -139,7 +141,7 @@ export function DrillRunner({
   const [value, setValue] = useState(initialState.value);
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
-  const [audioPlayback, setAudioPlayback] = useState<{ questionId: string; status: "pending" | "started" | "failed" }>({
+  const [audioPlayback, setAudioPlayback] = useState<AudioPlaybackState>({
     questionId: "",
     status: "pending"
   });
@@ -158,6 +160,7 @@ export function DrillRunner({
   const audioQuestion = isAudioQuestion(question);
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
   const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
+  const audioNeedsGesture = audioQuestion && !existing && currentPlaybackStatus === "needs-gesture";
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
@@ -291,8 +294,10 @@ export function DrillRunner({
 
   const skipAudioQuestion = () => {
     if (!question || existing || !audioUnavailable) return;
+    const entry = { question, answer: "", correct: false, skipped: true };
+    if (onAnswer?.(entry) === false) return;
     const next = [...answers];
-    next[index] = { question, answer: "", correct: false, skipped: true };
+    next[index] = entry;
     setAnswers(next);
     setSrsError("");
     emitProgress(index, next, false);
@@ -448,6 +453,12 @@ export function DrillRunner({
         {audioCheckPending ? (
           <div className="mt-5 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
             正在检查这台设备的韩语语音，确认后再开放作答。
+          </div>
+        ) : null}
+
+        {audioNeedsGesture ? (
+          <div className="mt-5 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
+            浏览器拦截了自动播放。点「听」或「播放」后即可继续作答；这不代表设备无法播放韩语。
           </div>
         ) : null}
 

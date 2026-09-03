@@ -14,7 +14,7 @@ import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } 
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
 import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
 import { buildGateQuestions } from "../src/lib/learning/gate.ts";
-import { BOX_INTERVALS, ensureCard, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
+import { BOX_INTERVALS, ensureCard, getDueCardsFromState, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
 import { buildLessonBridge, lessonReviewCardIds, lessonsWithoutTransferMaterials } from "../src/lib/learning/lesson-bridge.ts";
 import { hangulQuestionId, lessonReviewCardId, materialCardId, materialRetellQuestionId, mistakeCardId, nativeCardId, outputCardId, outputTransferQuestionId, pronunciationCardId, pronunciationQuestionId, soundChangeCardId, vocabCardId, vocabClozeQuestionId, vocabDictationQuestionId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -1025,6 +1025,50 @@ test("early practice can grade a not-yet-due card when allowed", () => {
   const progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.practiceItems["future-practice"].correct, 1);
   assert.equal(progress.completedTasks?.["system:review"], undefined);
+});
+
+test("skipping a review audio card defers it without counting listening evidence", () => {
+  store.clear();
+  const now = Date.now();
+  const id = "mistake:listen-skip";
+  saveSrsState({
+    cards: {
+      [id]: {
+        id,
+        box: 2,
+        dueAt: now - 1000,
+        correct: 3,
+        wrong: 1,
+        lastSeenAt: now - 5000,
+        ease: 2.2,
+        intervalDays: 8 / 24,
+        lapses: 0,
+        payload: {
+          kind: "mistake",
+          itemId: "listen-skip",
+          type: "listen",
+          prompt: "听选",
+          answer: "안녕",
+          speak: "안녕"
+        }
+      }
+    },
+    history: []
+  });
+
+  const submitted = getSrsState().cards[id];
+  assert.equal(getDueCardsFromState(getSrsState(), 30, now).some((card) => card.id === id), true);
+  assert.equal(gradeReviewCardAndProgress(submitted, false, { skipped: true }), true);
+
+  const after = getSrsState().cards[id];
+  assert.equal(after.correct, 3);
+  assert.equal(after.wrong, 1);
+  assert.equal(after.box, 2);
+  assert.equal(after.ease, 2.2);
+  assert.equal(after.dueAt > now, true);
+  assert.equal(getDueCardsFromState(getSrsState(), 30, now).some((card) => card.id === id), false);
+  assert.deepEqual(getSrsState().history, []);
+  assert.equal(store.has(progressStorageKey), false);
 });
 
 test("due review is not marked completed when new cards are due later the same day", () => {

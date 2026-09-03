@@ -1266,7 +1266,7 @@ test("completed immersion materials do not claim an unfinished draft restore", (
 
 test("mistakes retrain grades cards even when they are not yet due", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
+  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
 });
 
 test("all-due mistake retrain requests every selected card", () => {
@@ -1274,11 +1274,16 @@ test("all-due mistake retrain requests every selected card", () => {
   assert.match(source, /buildRetrainQuestions\(srsState, ids, ids\?\.length \?\? 8\)/);
 });
 
+test("audio skip goes through onAnswer so review and retrain can reschedule", () => {
+  const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
+  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) return;/);
+});
+
 test("review and retrain refuse answers when the queued card disappears", () => {
   const review = readFileSync("src/app/review/page.tsx", "utf8");
   const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(review, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct\)\)/);
-  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)\)/);
+  assert.match(review, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)\)/);
+  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
 });
 
 test("paper frames clip media inside the panel instead of hanging tape", () => {
@@ -1380,6 +1385,7 @@ test("DrillRunner ignores speech events from outside its current audio question"
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         return true;
@@ -1417,6 +1423,157 @@ test("DrillRunner ignores speech events from outside its current audio question"
   assert.ok(findButton(tree, "跳过音频题"));
 });
 
+test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a missing voice", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{
+      id: "listen-1",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onerror({ error: "NotAllowedError", reason: "needs-gesture" });
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.ok(findButton(tree, "听"));
+});
+
+test("skipping a review audio question defers the card so it is no longer due", async () => {
+  const hooks = createHookHarness();
+  const answered = [];
+  const speechCalls = [];
+  const now = Date.now();
+  const dueCard = {
+    id: "mistake:listen-review",
+    box: 0,
+    dueAt: now - 1000,
+    correct: 0,
+    wrong: 2,
+    lastSeenAt: null,
+    payload: {
+      kind: "mistake",
+      itemId: "listen-review",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      speak: "안녕"
+    }
+  };
+  const cards = { [dueCard.id]: { ...dueCard } };
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+
+  const gradeSkippedReview = (entry) => {
+    answered.push(entry);
+    const current = cards[entry.question.id];
+    if (!current) return false;
+    if (entry.skipped) {
+      current.dueAt = now + 10 * 60 * 1000;
+      current.lastSeenAt = now;
+      return true;
+    }
+    current.correct += entry.correct ? 1 : 0;
+    current.wrong += entry.correct ? 0 : 1;
+    current.dueAt = now + 10 * 60 * 1000;
+    return true;
+  };
+
+  const props = {
+    questions: [{
+      id: dueCard.id,
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer: (entry) => {
+      const card = cards[entry.question.id];
+      if (!card) return false;
+      return gradeSkippedReview(entry);
+    }
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = hooks.render(DrillRunner, props);
+  findButton(tree, "跳过音频题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(answered.length, 1);
+  assert.equal(answered[0].skipped, true);
+  assert.equal(answered[0].correct, false);
+  assert.equal(cards[dueCard.id].correct, 0);
+  assert.equal(cards[dueCard.id].wrong, 2);
+  assert.equal(cards[dueCard.id].dueAt > now, true);
+  assert.match(textContent(tree), /已跳过/);
+});
+
 test("DrillRunner keeps a new audio question pending until its own playback resolves", async () => {
   const hooks = createHookHarness();
   const speechCalls = [];
@@ -1438,6 +1595,7 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         return true;
@@ -1513,6 +1671,7 @@ test("DrillRunner keeps audio alive when a parent recreates an equivalent questi
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         return true;
@@ -1564,6 +1723,7 @@ test("DrillRunner survives StrictMode audio effect replay and still stops on tea
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         playing = true;
@@ -1619,6 +1779,7 @@ test("DrillRunner lets a resumed answered audio question advance", () => {
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         return true;
@@ -1791,6 +1952,11 @@ function createActiveMediaHarness() {
     streams,
     tracks
   };
+}
+
+function mockGestureBlockedPlaybackError(error) {
+  const name = typeof error === "string" ? error : error?.error || error?.name || error?.reason;
+  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture";
 }
 
 function findButton(tree, label) {

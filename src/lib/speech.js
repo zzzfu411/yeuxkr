@@ -124,6 +124,24 @@ export function getKoreanVoiceStatus() {
   return voiceProbeCompleted ? "missing" : "loading";
 }
 
+export function isGestureBlockedPlaybackError(error) {
+  if (!error) return false;
+  if (typeof error === "string") {
+    return error === "NotAllowedError" || error === "play-rejected" || error === "needs-gesture";
+  }
+  if (typeof error !== "object") return false;
+  if (error.reason === "needs-gesture") return true;
+  const nested = error.error;
+  const name = typeof error.name === "string"
+    ? error.name
+    : typeof nested === "string"
+      ? nested
+      : typeof nested?.name === "string"
+        ? nested.name
+        : "";
+  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture";
+}
+
 export function listKoreanVoices() {
   if (!canSpeak()) return [];
   return getAvailableKoreanVoices();
@@ -256,11 +274,37 @@ function playBundledSpeech(text, source, options) {
     dispatchSpeechEvent({ type: SPEECH_EVENT_PLAYBACK_END, requestId, engine: "bundled" });
     if (typeof options.onend === "function") options.onend.call(this, event);
   };
+  const detachBlockedAudio = () => {
+    audio.onplaying = null;
+    audio.onended = null;
+    audio.onerror = null;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {
+      // A blocked element should not prevent the synthesis fallback.
+    }
+    if (activeAudio === audio) activeAudio = null;
+  };
+  const recoverFromGestureBlock = (event, detail) => {
+    if (requestId !== activePlaybackRequestId || activeAudio !== audio) return;
+    detachBlockedAudio();
+    if (canSpeak() && getAvailableKoreanVoices().length) {
+      const started = speakNow(text, { ...options, cancel: false });
+      if (started) return;
+    }
+    if (requestId === activePlaybackRequestId) activePlaybackRequestId = 0;
+    reportPlaybackFailure(options, "needs-gesture", detail, requestId, event);
+  };
   const fail = (event, error) => {
     if (requestId !== activePlaybackRequestId || activeAudio !== audio) return;
+    const detail = typeof error === "string" && error ? error : "media-playback-failed";
+    if (isGestureBlockedPlaybackError(detail) || isGestureBlockedPlaybackError(event?.error)) {
+      recoverFromGestureBlock(event, detail);
+      return;
+    }
     activePlaybackRequestId = 0;
     activeAudio = null;
-    const detail = typeof error === "string" && error ? error : "media-playback-failed";
     reportPlaybackFailure(options, "audio-error", detail, requestId, event);
   };
   audio.onerror = function handleAudioError(event) {
@@ -274,7 +318,12 @@ function playBundledSpeech(text, source, options) {
     }
     return true;
   } catch (error) {
-    fail({ error }, typeof error?.name === "string" ? error.name : "play-threw");
+    const detail = typeof error?.name === "string" ? error.name : "play-threw";
+    if (isGestureBlockedPlaybackError(detail) || isGestureBlockedPlaybackError(error)) {
+      recoverFromGestureBlock({ error }, detail);
+      return true;
+    }
+    fail({ error }, detail);
     return false;
   }
 }

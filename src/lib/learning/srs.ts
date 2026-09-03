@@ -215,6 +215,31 @@ export function computeNextReview(card: SrsCard, isCorrect: boolean, now = Date.
   };
 }
 
+export const AUDIO_SKIP_DEFER_MS = BOX_INTERVALS[1];
+
+export function applyDeferToState(
+  state: SrsState,
+  id: string,
+  now = Date.now(),
+  delayMs = AUDIO_SKIP_DEFER_MS
+): { state: SrsState; card: SrsCard } | null {
+  const current = state.cards[id];
+  if (!current) return null;
+  const delay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : AUDIO_SKIP_DEFER_MS;
+  const card: SrsCard = {
+    ...current,
+    dueAt: now + delay,
+    lastSeenAt: now
+  };
+  return {
+    state: {
+      cards: { ...state.cards, [id]: card },
+      history: state.history
+    },
+    card
+  };
+}
+
 export function applyGradeToState(
   state: SrsState,
   id: string,

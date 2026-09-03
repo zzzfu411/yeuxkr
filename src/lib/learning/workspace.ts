@@ -18,7 +18,7 @@ import { assessLessonAttempt } from "./lesson-assessment.ts";
 import { checkLessonTaskEvidence, lessonCompletionTask, normalizeLessonTaskEvidence } from "./lesson-evidence.ts";
 import { defaultProfile, defaultProgress, nowIso, parseJson, readJson, STORAGE_KEYS, todayKey, useClientNow, useStorageRaw, writeJson } from "./storage.ts";
 import { addOutputEntry, clearOutputEntriesByMaterial, defaultOutputState, getOutputState, getOutputStateFromRaw, saveOutputState, type OutputEntry } from "./output.ts";
-import { applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
+import { applyDeferToState, applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
 import { defaultLessonPracticeState, getLessonPracticeState, saveLessonPracticeState } from "./lesson-session.ts";
 import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftState } from "./drafts.ts";
 import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
@@ -1267,13 +1267,17 @@ export function applyReviewProgress(progress: LearningProgress, card: SrsCard, i
   return next;
 }
 
-export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, options?: { allowEarly?: boolean }) {
+export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, options?: { allowEarly?: boolean; skipped?: boolean }) {
   const previousProgress = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, defaultProgress()));
   const previousSrs = getSrsState();
   const current = previousSrs.cards[card.id];
   if (!current) return false;
   const at = Date.now();
   if ((current.dueAt > at && !options?.allowEarly) || !sameReviewCardSnapshot(current, card)) return false;
+  if (options?.skipped) {
+    const deferred = applyDeferToState(previousSrs, card.id, at);
+    return Boolean(deferred && saveSrsState(deferred.state));
+  }
   const graded = applyGradeToState(previousSrs, card.id, isCorrect, at);
   if (!graded) return false;
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { BOX_INTERVALS } from "./helpers/srs-core.mjs";
 import { todayKey } from "../src/lib/learning/storage.ts";
 
-const { applyGradeToState, boxForIntervalDays, cardIntervalDays, computeNextReview, getSrsStateFromRaw, MAX_INTERVAL_DAYS } = await import("../src/lib/learning/srs.ts");
+const { applyDeferToState, applyGradeToState, AUDIO_SKIP_DEFER_MS, boxForIntervalDays, cardIntervalDays, computeNextReview, getSrsStateFromRaw, MAX_INTERVAL_DAYS } = await import("../src/lib/learning/srs.ts");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -38,6 +38,21 @@ test("mature intervals can now grow far beyond the old 21-day ceiling", () => {
 test("todayKey uses the local calendar date", () => {
   const date = new Date(2026, 5, 8, 0, 30, 0);
   assert.equal(todayKey(date), "2026-06-08");
+});
+
+test("audio skip defers a card without changing box or grade counts", () => {
+  const now = 1_000_000;
+  const result = applyDeferToState({
+    cards: { "mistake:listen": vocabCard({ id: "mistake:listen", box: 2, correct: 4, wrong: 1, dueAt: now - 1 }) },
+    history: [{ id: "mistake:listen", isCorrect: true, at: now - 10, box: 2 }]
+  }, "mistake:listen", now);
+
+  assert.equal(result?.card.box, 2);
+  assert.equal(result?.card.correct, 4);
+  assert.equal(result?.card.wrong, 1);
+  assert.equal(result?.card.dueAt, now + AUDIO_SKIP_DEFER_MS);
+  assert.equal(result?.card.lastSeenAt, now);
+  assert.equal(result?.state.history.length, 1);
 });
 
 test("learning cards climb the Leitner ladder and reset to box 0 on a miss", () => {
