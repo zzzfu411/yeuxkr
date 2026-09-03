@@ -141,16 +141,13 @@ export function isGestureBlockedPlaybackError(error) {
     return isGestureBlockToken(error);
   }
   if (typeof error !== "object") return false;
-  if (error.reason === "needs-gesture") return true;
   const nested = error.error;
-  const name = typeof error.name === "string"
-    ? error.name
-    : typeof nested === "string"
-      ? nested
-      : typeof nested?.name === "string"
-        ? nested.name
-        : "";
-  return isGestureBlockToken(name);
+  const candidates = [
+    error.reason,
+    typeof nested === "string" ? nested : nested?.name,
+    error.name
+  ];
+  return candidates.some((value) => isGestureBlockToken(value));
 }
 
 export function listKoreanVoices() {
