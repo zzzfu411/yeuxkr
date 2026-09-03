@@ -1758,6 +1758,119 @@ test("DrillRunner survives StrictMode audio effect replay and still stops on tea
   assert.equal(playing, false);
 });
 
+test("DrillRunner watchdog treats accepted playback without onstart as started, not unavailable", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const timeouts = [];
+  const window = {
+    setTimeout(fn, ms) {
+      timeouts.push({ fn, ms });
+      return timeouts.length;
+    },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{ id: "dictation-watchdog", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+
+  const watchdog = timeouts.find((timer) => timer.ms === 5000);
+  assert.ok(watchdog, "autoplay should arm a 5s start-event watchdog");
+  watchdog.fn();
+  tree = hooks.render(DrillRunner, props);
+
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"), "answering should unblock after accepted playback");
+  assert.ok(findButton(tree, "播放"));
+  assert.ok(findButton(tree, "慢速重播"));
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.doesNotMatch(textContent(tree), /当前设备无法播放韩语/);
+  assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  input.props.onChange("안녕");
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findButton(tree, "提交").props.disabled, false);
+});
+
+test("DrillRunner still offers skip when speak is rejected or hard-fails", async () => {
+  for (const failure of ["speak-false", "onerror"]) {
+    const hooks = createHookHarness();
+    const speechCalls = [];
+    const window = {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    };
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": { checkAnswer: () => true },
+      "@/lib/learning/srs": { recordMistake: () => ({}) },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean(text, options) {
+          speechCalls.push({ text, options });
+          return failure !== "speak-false";
+        },
+        stopSpeech() {}
+      }
+    }, { queueMicrotask, window });
+    const props = {
+      questions: [{ id: `listen-${failure}`, type: "listen", prompt: "听选", answer: "안녕", choices: ["안녕", "학교"], speak: "안녕" }],
+      finishLabel: "完成"
+    };
+
+    let tree = hooks.render(DrillRunner, props);
+    await Promise.resolve();
+    if (failure === "onerror") {
+      assert.equal(speechCalls.length, 1);
+      speechCalls[0].options.onerror({ error: "network" });
+    }
+    tree = hooks.render(DrillRunner, props);
+
+    assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null, `${failure} must hide choices`);
+    assert.ok(findButton(tree, "跳过音频题"), `${failure} must offer skip`);
+    assert.match(textContent(tree), /当前设备无法播放韩语/);
+  }
+});
+
 test("DrillRunner lets a resumed answered audio question advance", () => {
   const hooks = createHookHarness();
   const speechCalls = [];

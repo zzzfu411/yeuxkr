@@ -209,9 +209,12 @@ export function DrillRunner({
       }
       playbackTimeout = window.setTimeout(() => {
         if (!active) return;
-        setAudioPlayback((current) => current.questionId === questionId && current.status !== "pending"
-          ? current
-          : { questionId, status: "failed" });
+        setAudioPlayback((current) => {
+          if (current.questionId !== questionId || current.status !== "pending") {
+            return current;
+          }
+          return { questionId, status: started ? "started" : "failed" };
+        });
       }, 5000);
     });
     return () => {
