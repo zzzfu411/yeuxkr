@@ -77,6 +77,34 @@ test("mistake summary separates due, repeated, stabilizing, and mastered cards",
   });
 });
 
+test("mistake insights preserve source labels for question and card IDs", () => {
+  const ids = [
+    ["hq:ga", "韩文结构"],
+    ["pq:plain-aspirated-k", "发音辨析"],
+    ["vq:dict:v-annyeonghaseyo", "词汇题"],
+    ["gq:g-topic-subject", "语法题"],
+    ["nq:pragmatics:p-first-meeting", "自然表达"],
+    ["nq:nuance:n-thanks", "自然表达"],
+    ["mq:im-cafe-real-speed", "情境听读"],
+    ["oq:output-1", "输出改写"],
+    ["scq:sc-liaison", "音变辨析"],
+    ["lesson:l01-hangul-map:1", "课程练习"],
+    ["progress:mixed", "综合测验"],
+    ["native:pragmatics:p-first-meeting", "自然表达"],
+    ["soundChange:sc-liaison", "音变辨析"]
+  ];
+  const state = {
+    cards: Object.fromEntries(ids.map(([itemId]) => {
+      const id = `mistake:${itemId}`;
+      return [id, card(id, { payload: { itemId } })];
+    })),
+    history: []
+  };
+
+  const labelsByItem = new Map(buildMistakeInsights(state).map((item) => [item.itemId, item.sourceLabel]));
+  for (const [itemId, label] of ids) assert.equal(labelsByItem.get(itemId), label);
+});
+
 test("buildRetrainQuestions turns mistake payloads into full drill questions", () => {
   const state = {
     cards: {

@@ -15,7 +15,7 @@ import {
 
 type VoiceStatus = "unsupported" | "loading" | "ready" | "missing";
 type PlaybackError = {
-  reason?: "unsupported" | "voice-unavailable" | "synthesis-error" | "asset-unavailable" | "audio-error";
+  reason?: "unsupported" | "voice-unavailable" | "synthesis-error" | "asset-unavailable" | "audio-error" | "needs-gesture";
   error?: string;
   offline?: boolean;
 };
@@ -121,6 +121,9 @@ function getPlaybackErrorMessage(error: PlaybackError) {
   }
   if (error.reason === "asset-unavailable") {
     return "本次内容没有课程录音，且当前浏览器没有可用的韩语系统语音。";
+  }
+  if (error.reason === "needs-gesture" || error.error === "NotAllowedError" || error.error === "play-rejected" || error.error === "not-allowed") {
+    return "浏览器阻止了本次自动播放；点一次「听」或「播放」即可继续，不代表设备无法播放韩语。";
   }
   if (error.reason === "audio-error") {
     return error.error === "NotAllowedError"

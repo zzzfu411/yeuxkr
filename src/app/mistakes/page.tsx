@@ -37,7 +37,7 @@ export default function MistakesPage() {
   };
 
   const startRetrain = (ids: string[] | null) => {
-    const questions = buildRetrainQuestions(srsState, ids);
+    const questions = buildRetrainQuestions(srsState, ids, ids?.length ?? 8);
     setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
     setRetrainSession((value) => value + 1);
     setRetrainQuestions(questions.length ? questions : null);
@@ -107,7 +107,7 @@ export default function MistakesPage() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = srsState.cards[entry.question.id];
-              if (card && !gradeReviewCardAndProgress(card, entry.correct, { allowEarly: true })) {
+              if (!card || !gradeReviewCardAndProgress(card, entry.correct, { allowEarly: true, skipped: Boolean(entry.skipped) })) {
                 setRetrainError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
                 return false;
               }

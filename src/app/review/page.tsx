@@ -15,6 +15,7 @@ import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { buildLearningWorkspace, gradeReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
 
 const REVIEW_STORAGE_REFRESH_KEYS = new Set([STORAGE_KEYS.profile, STORAGE_KEYS.progress, STORAGE_KEYS.srs]);
+const LEARNING_REFRESH_EVENT_TYPES = new Set(["kirina:learning", "kirina:learning-batch", "storage"]);
 
 export default function ReviewPage() {
   const [mounted, setMounted] = useState(false);
@@ -50,7 +51,7 @@ function ReviewContent() {
   useEffect(() => {
     const refreshQueue = (event: Event) => {
       if (!reviewRefreshEventMatches(event)) return;
-      if (event.type === "kirina:learning" && questions.length) return;
+      if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) return;
       setReviewError("");
       setSessionKey((value) => value + 1);
     };
@@ -93,7 +94,7 @@ function ReviewContent() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = dueCards.find((item) => item.id === entry.question.id);
-              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
+              if (!card || !gradeReviewCardAndProgress(card, entry.correct, { skipped: Boolean(entry.skipped) })) {
                 setReviewError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
                 return false;
               } else {

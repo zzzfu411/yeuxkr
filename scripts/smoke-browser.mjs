@@ -277,10 +277,18 @@ const selfStudyMarker = await returningPage.evaluate(() => window.__kirinaSmokeM
 if (selfStudyMarker !== "self-study-link") issues.push("self-study module links should use client-side navigation without a full page reload");
 await returningPage.goto(`${baseUrl}/review`, { waitUntil: "networkidle" });
 await expectText(returningPage, "回访错题");
+const activeReviewAnswer = returningPage.getByRole("textbox", { name: "输入答案" });
+await activeReviewAnswer.fill("정");
+await returningPage.evaluate(() => {
+  window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.progress.v2"] } }));
+});
+if (await activeReviewAnswer.inputValue() !== "정") {
+  issues.push("an active review queue should keep the learner's draft across batch refresh events");
+}
 await returningPage.evaluate(() => {
   localStorage.removeItem("kirina.srs.v2");
-  window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.srs.v2"] } }));
 });
+await returningPage.reload({ waitUntil: "networkidle" });
 await expectText(returningPage, "现在没有到期复习");
 await returningPage.evaluate(() => {
   localStorage.setItem("kirina.srs.v2", JSON.stringify({
@@ -1110,6 +1118,35 @@ await page.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
 await expectText(page, "自编情境听读：先听，再写，再复述。");
 await expectText(page, "前置课程");
 await expectText(page, "前置课程还没完成，暂时不显示原文和朗读");
+const sameMaterialDraftMarker = "当前材料草稿不应因重复点击而丢失。";
+await page.getByLabel("复述完成").fill(sameMaterialDraftMarker);
+const continueSameMaterial = page.getByRole("link", { name: "继续", exact: true });
+if (await continueSameMaterial.count()) {
+  await continueSameMaterial.click();
+  await page.waitForURL(/material=im-cafe-real-speed/);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const sameMaterialUrlDraft = await page.getByLabel("复述完成").inputValue();
+  if (sameMaterialUrlDraft !== sameMaterialDraftMarker) {
+    issues.push(`opening the active immersion material URL should preserve its draft, found ${sameMaterialUrlDraft}`);
+  }
+  await page.getByLabel("听写完成").fill("同一材料链接不应停掉自动保存。");
+  await page.waitForTimeout(80);
+  const savedAfterSameMaterialUrl = await page.evaluate(() => {
+    const drafts = JSON.parse(localStorage.getItem("kirina.drafts.v1") ?? "{}");
+    return drafts.immersion?.["im-cafe-real-speed"]?.dictationEvidence ?? "";
+  });
+  if (savedAfterSameMaterialUrl !== "同一材料链接不应停掉自动保存。") {
+    issues.push(`same-material URL navigation should keep immersion autosave armed, found ${savedAfterSameMaterialUrl}`);
+  }
+} else {
+  issues.push("immersion compass should offer a continue link to the current material");
+}
+await page.locator(".is-active").getByRole("button", { name: "咖啡店点单听读" }).click();
+await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const sameMaterialDraft = await page.getByLabel("复述完成").inputValue();
+if (sameMaterialDraft !== sameMaterialDraftMarker) {
+  issues.push(`clicking the active immersion material should preserve its draft, found ${sameMaterialDraft}`);
+}
 await page.getByRole("button", { name: "显示译文" }).click();
 if (await page.getByRole("button", { name: "完成练习并加入复习" }).isEnabled()) issues.push("material completion should require evidence before enabling");
 await page.getByLabel("听写完成").fill("포장해 주세요.");

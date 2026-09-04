@@ -14,7 +14,7 @@ import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } 
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
 import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
 import { buildGateQuestions } from "../src/lib/learning/gate.ts";
-import { ensureCard, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
+import { BOX_INTERVALS, ensureCard, getDueCardsFromState, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
 import { buildLessonBridge, lessonReviewCardIds, lessonsWithoutTransferMaterials } from "../src/lib/learning/lesson-bridge.ts";
 import { hangulQuestionId, lessonReviewCardId, materialCardId, materialRetellQuestionId, mistakeCardId, nativeCardId, outputCardId, outputTransferQuestionId, pronunciationCardId, pronunciationQuestionId, soundChangeCardId, vocabCardId, vocabClozeQuestionId, vocabDictationQuestionId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -778,6 +778,46 @@ test("quiz session commits mistake SRS and progress together", () => {
   assert.equal(progress.practiceItems["gq:g-topic-subject"].streak, 1);
 });
 
+test("re-queued mature quiz mistakes restart on the learning ladder", () => {
+  store.clear();
+  const questionId = "vq:v-annyeonghaseyo";
+  const cardId = mistakeCardId(questionId);
+  saveSrsState({
+    cards: {
+      [cardId]: {
+        id: cardId,
+        box: 6,
+        dueAt: Date.now() - 1,
+        correct: 8,
+        wrong: 1,
+        lastSeenAt: Date.now() - 1000,
+        ease: 2.5,
+        intervalDays: 100,
+        lapses: 2,
+        payload: { kind: "mistake", itemId: questionId, prompt: "旧题面", answer: "old" }
+      }
+    },
+    history: []
+  });
+
+  assert.equal(commitQuizSession("mixed:restart-mature", [{
+    question: { id: questionId, prompt: "新题面", answer: "hello" },
+    correct: false
+  }], 0), true);
+
+  const queued = getSrsState().cards[cardId];
+  assert.equal(queued.box, 0);
+  assert.equal(queued.intervalDays, undefined);
+  assert.equal(queued.ease, undefined);
+  assert.equal(queued.lapses, undefined);
+
+  assert.equal(gradeReviewCardAndProgress(queued, true), true);
+  const graded = getSrsState().cards[cardId];
+  assert.equal(graded.box, 1);
+  assert.equal(graded.intervalDays, BOX_INTERVALS[1] / (1000 * 60 * 60 * 24));
+  assert.equal(graded.dueAt > Date.now(), true);
+});
+
 test("quiz session does not write progress when mistake SRS save fails", () => {
   store.clear();
   blockedWriteKeys.add("kirina.srs.v2");
@@ -902,6 +942,60 @@ test("a stale review card snapshot cannot be graded twice", () => {
   assert.equal(JSON.parse(store.get(progressStorageKey)).practiceItems["single-submit"].correct, 1);
 });
 
+test("a stale review card snapshot cannot be graded after its payload changes", () => {
+  store.clear();
+  const now = Date.now();
+  const id = "mistake:payload-change";
+  saveSrsState({
+    cards: {
+      [id]: {
+        id,
+        box: 0,
+        dueAt: now - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: {
+          kind: "mistake",
+          itemId: "payload-change",
+          prompt: "old prompt",
+          answer: "same answer",
+          acceptable: ["same answer"],
+          choices: ["same answer", "other answer"]
+        }
+      }
+    },
+    history: []
+  });
+
+  const submitted = getSrsState().cards[id];
+  const before = getSrsState().cards[id];
+  const updated = ensureCard(id, {
+    kind: "mistake",
+    itemId: "payload-change",
+    prompt: "new prompt",
+    answer: "new answer",
+    acceptable: ["new acceptable answer"],
+    choices: ["same answer", "new choice"]
+  });
+  assert.equal(updated?.payload.prompt, "new prompt");
+  assert.equal(updated?.payload.answer, "new answer");
+  assert.equal(updated?.payload.acceptable?.[0], "new acceptable answer");
+
+  assert.equal(gradeReviewCardAndProgress(submitted, true), false);
+  const after = getSrsState().cards[id];
+  assert.equal(after.box, before.box);
+  assert.equal(after.dueAt, before.dueAt);
+  assert.equal(after.correct, before.correct);
+  assert.equal(after.wrong, before.wrong);
+  assert.equal(after.lastSeenAt, before.lastSeenAt);
+  assert.deepEqual(getSrsState().history, []);
+  assert.equal(after.payload.prompt, "new prompt");
+  assert.equal(after.payload.answer, "new answer");
+  assert.equal(after.payload.acceptable?.[0], "new acceptable answer");
+  assert.equal(store.has(progressStorageKey), false);
+});
+
 test("early practice can grade a not-yet-due card when allowed", () => {
   store.clear();
   const now = Date.now();
@@ -931,6 +1025,50 @@ test("early practice can grade a not-yet-due card when allowed", () => {
   const progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.practiceItems["future-practice"].correct, 1);
   assert.equal(progress.completedTasks?.["system:review"], undefined);
+});
+
+test("skipping a review audio card defers it without counting listening evidence", () => {
+  store.clear();
+  const now = Date.now();
+  const id = "mistake:listen-skip";
+  saveSrsState({
+    cards: {
+      [id]: {
+        id,
+        box: 2,
+        dueAt: now - 1000,
+        correct: 3,
+        wrong: 1,
+        lastSeenAt: now - 5000,
+        ease: 2.2,
+        intervalDays: 8 / 24,
+        lapses: 0,
+        payload: {
+          kind: "mistake",
+          itemId: "listen-skip",
+          type: "listen",
+          prompt: "听选",
+          answer: "안녕",
+          speak: "안녕"
+        }
+      }
+    },
+    history: []
+  });
+
+  const submitted = getSrsState().cards[id];
+  assert.equal(getDueCardsFromState(getSrsState(), 30, now).some((card) => card.id === id), true);
+  assert.equal(gradeReviewCardAndProgress(submitted, false, { skipped: true }), true);
+
+  const after = getSrsState().cards[id];
+  assert.equal(after.correct, 3);
+  assert.equal(after.wrong, 1);
+  assert.equal(after.box, 2);
+  assert.equal(after.ease, 2.2);
+  assert.equal(after.dueAt > now, true);
+  assert.equal(getDueCardsFromState(getSrsState(), 30, now).some((card) => card.id === id), false);
+  assert.deepEqual(getSrsState().history, []);
+  assert.equal(store.has(progressStorageKey), false);
 });
 
 test("due review is not marked completed when new cards are due later the same day", () => {
@@ -1893,6 +2031,44 @@ test("lesson session commits progress, review cards, and mistake cards together"
   assert.equal(progress.practiceItems[firstQuestion.id].lastSource, "lesson");
   assert.equal(progress.practiceItems[secondQuestion.id].correct, 1);
   assert.equal(progress.practiceItems[secondQuestion.id].streak, 1);
+});
+
+test("re-queued mature lesson mistakes restart on the learning ladder", () => {
+  store.clear();
+  seedOnboardedProfile();
+  const lesson = lessons.find((item) => item.id === "l01-hangul-map");
+  const question = { ...lesson.drills[0], id: lessonReviewCardId(lesson.id, 0) };
+  const cardId = mistakeCardId(question.id);
+  saveSrsState({
+    cards: {
+      [cardId]: {
+        id: cardId,
+        box: 6,
+        dueAt: Date.now() - 1,
+        correct: 7,
+        wrong: 2,
+        lastSeenAt: Date.now() - 1000,
+        ease: 2.4,
+        intervalDays: 90,
+        lapses: 3,
+        payload: { kind: "mistake", itemId: question.id, prompt: "旧题面", answer: "old" }
+      }
+    },
+    history: []
+  });
+
+  assert.equal(commitLessonSession(lesson.id, [{ question, correct: false }], 67), true);
+
+  const queued = getSrsState().cards[cardId];
+  assert.equal(queued.box, 0);
+  assert.equal(queued.intervalDays, undefined);
+  assert.equal(queued.ease, undefined);
+  assert.equal(queued.lapses, undefined);
+
+  assert.equal(gradeReviewCardAndProgress(queued, true), true);
+  const graded = getSrsState().cards[cardId];
+  assert.equal(graded.box, 1);
+  assert.equal(graded.intervalDays, BOX_INTERVALS[1] / (1000 * 60 * 60 * 24));
 });
 
 test("lesson session does not write progress when lesson SRS save fails", () => {

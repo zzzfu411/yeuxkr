@@ -18,7 +18,7 @@ import { assessLessonAttempt } from "./lesson-assessment.ts";
 import { checkLessonTaskEvidence, lessonCompletionTask, normalizeLessonTaskEvidence } from "./lesson-evidence.ts";
 import { defaultProfile, defaultProgress, nowIso, parseJson, readJson, STORAGE_KEYS, todayKey, useClientNow, useStorageRaw, writeJson } from "./storage.ts";
 import { addOutputEntry, clearOutputEntriesByMaterial, defaultOutputState, getOutputState, getOutputStateFromRaw, saveOutputState, type OutputEntry } from "./output.ts";
-import { applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
+import { applyDeferToState, applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, getSrsStateFromRaw, removeCard, saveSrsState, summarizeSrsState, type SrsCard, type SrsState } from "./srs.ts";
 import { defaultLessonPracticeState, getLessonPracticeState, saveLessonPracticeState } from "./lesson-session.ts";
 import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftState } from "./drafts.ts";
 import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
@@ -1267,13 +1267,17 @@ export function applyReviewProgress(progress: LearningProgress, card: SrsCard, i
   return next;
 }
 
-export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, options?: { allowEarly?: boolean }) {
+export function gradeReviewCardAndProgress(card: SrsCard, isCorrect: boolean, options?: { allowEarly?: boolean; skipped?: boolean }) {
   const previousProgress = normalizeLearningProgress(readJson(STORAGE_KEYS.progress, defaultProgress()));
   const previousSrs = getSrsState();
   const current = previousSrs.cards[card.id];
   if (!current) return false;
   const at = Date.now();
   if ((current.dueAt > at && !options?.allowEarly) || !sameReviewCardSnapshot(current, card)) return false;
+  if (options?.skipped) {
+    const deferred = applyDeferToState(previousSrs, card.id, at);
+    return Boolean(deferred && saveSrsState(deferred.state));
+  }
   const graded = applyGradeToState(previousSrs, card.id, isCorrect, at);
   if (!graded) return false;
 
@@ -1296,7 +1300,28 @@ function sameReviewCardSnapshot(current: SrsCard, submitted: SrsCard) {
     current.lastSeenAt === submitted.lastSeenAt &&
     current.ease === submitted.ease &&
     current.intervalDays === submitted.intervalDays &&
-    current.lapses === submitted.lapses;
+    current.lapses === submitted.lapses &&
+    sameReviewCardPayload(current.payload, submitted.payload);
+}
+
+function sameReviewCardPayload(current: SrsCard["payload"], submitted: SrsCard["payload"]) {
+  return current.kind === submitted.kind &&
+    current.itemId === submitted.itemId &&
+    current.type === submitted.type &&
+    current.prompt === submitted.prompt &&
+    current.answer === submitted.answer &&
+    sameStringList(current.acceptable, submitted.acceptable) &&
+    sameStringList(current.choices, submitted.choices) &&
+    current.explain === submitted.explain &&
+    current.speak === submitted.speak &&
+    current.clozeText === submitted.clozeText &&
+    current.hint === submitted.hint;
+}
+
+function sameStringList(current?: string[], submitted?: string[]) {
+  if (current === submitted) return true;
+  if (!current || !submitted || current.length !== submitted.length) return false;
+  return current.every((value, index) => value === submitted[index]);
 }
 
 type QuizAnswerCommitEntry = {
@@ -1383,6 +1408,9 @@ export function commitQuizSession(quizId: string, answers: QuizAnswerCommitEntry
       },
       box: 0,
       dueAt: at,
+      ease: undefined,
+      intervalDays: undefined,
+      lapses: undefined,
       correct: current.correct,
       wrong: current.wrong + 1,
       lastSeenAt: at
@@ -2082,6 +2110,9 @@ function addLessonMistakeCardsToState(state: SrsState, lessonId: string, answers
       id,
       box: 0,
       dueAt: at,
+      ease: undefined,
+      intervalDays: undefined,
+      lapses: undefined,
       correct: current?.correct ?? 0,
       wrong: (current?.wrong ?? 0) + 1,
       lastSeenAt: at,
