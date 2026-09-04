@@ -220,7 +220,10 @@ export function DrillRunner({
     return () => {
       active = false;
       if (playbackTimeout !== undefined) window.clearTimeout(playbackTimeout);
-      if (playbackStarted) stopSpeech();
+      if (playbackStarted) {
+        stopSpeech();
+        if (playedListenRef.current === questionId) playedListenRef.current = "";
+      }
     };
   }, [finished, hasExistingAnswer, index, questionId, questionSpeak, questionType, voiceStatus]);
 

@@ -1812,6 +1812,71 @@ test("DrillRunner survives StrictMode audio effect replay and still stops on tea
   assert.equal(playing, false);
 });
 
+test("leaving a pending audio question and returning retries autoplay instead of staying locked", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+      }
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [
+      { id: "choice-1", type: "choice", prompt: "已答", answer: "A", choices: ["A", "B"] },
+      { id: "listen-return", type: "listen", prompt: "听选", answer: "안녕", choices: ["안녕", "학교"], speak: "안녕" }
+    ],
+    initialAnswers: [{ questionId: "choice-1", answer: "A", correct: true }],
+    initialIndex: 1,
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+
+  findButton(tree, "上一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(stops, 1);
+  assert.match(textContent(tree), /已答/);
+
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 2, "returning to the unanswered listen item should autoplay again");
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
+});
+
 test("DrillRunner watchdog treats accepted playback without onstart as started, not unavailable", async () => {
   const hooks = createHookHarness();
   const speechCalls = [];
