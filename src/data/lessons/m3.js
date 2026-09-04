@@ -593,7 +593,7 @@ export const m3Lessons = [
           "只有敬语",
           "没有词汇"
         ],
-        explain: "真实材料常依赖语境。"
+        explain: "自然表达常依赖语境。"
       },
       {
         type: "listen",

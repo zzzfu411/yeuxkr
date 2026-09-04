@@ -69,7 +69,7 @@ const abilityLabels: Record<AbilityId, string> = {
   vocabulary: "词汇搭配",
   grammar: "句型语法",
   pragmatics: "场景语用",
-  native: "母语者表达"
+  native: "自然表达"
 };
 
 export const ABILITY_LABELS = abilityLabels;
@@ -1458,15 +1458,15 @@ function taskForMasteredLessonRetrain(progress: LearningProgress): StudyTask | n
   return {
     id: `system:retrain-${lesson.id}`,
     kind: "lesson",
-    title: `回炉「${lesson.title}」`,
-    detail: `${hit[1]} 道这节已达标课的旧题最近又错了。先回去修断点，再推新课。`,
+    title: `回头复习“${lesson.title}”`,
+    detail: `这节课最近有 ${hit[1]} 道题再次答错。先复习一遍，再继续新课。`,
     href: `/learn/${lesson.id}`,
     minutes: lesson.duration ?? 12,
     ability: mapFocusToAbilities(lesson.focus),
     source: "system",
     priority: 92,
     lane: "bridge",
-    reason: "已掌握课出现集中回潮时，不该假装主线仍然稳。"
+    reason: "学过的内容开始变模糊，趁现在补回来。"
   };
 }
 
@@ -1481,15 +1481,15 @@ function taskForPracticeRepair(progress: LearningProgress, priority = 86): Study
   return {
     id: TASK_IDS.systemPracticeRepair,
     kind: backToLesson ? "lesson" : "quiz",
-    title: backToLesson ? "回到错过的那节课" : "修复最近错过的具体题",
-    detail: `${weakItems.length} 个具体题最后一次没有答对，来自${sourceLabels || "练习"}记录；${backToLesson ? "先把这节未达标课的断点修掉。" : "先用迁移测验把它们重新答对。"}`,
+    title: backToLesson ? "回到还没掌握的课程" : "重练最近答错的题",
+    detail: `${weakItems.length} 道题上次没有答对，来自${sourceLabels || "练习"}。${backToLesson ? "先回到对应课程看讲解。" : "先做一组综合测验，把它们重新答对。"}`,
     href,
     minutes: Math.min(14, Math.max(6, weakItems.length * 2)),
     ability: abilitiesForPracticeItems(weakItems),
     source: "system",
     priority,
     lane: "bridge",
-    reason: "逐题历史已经显示出具体断点，先修掉它们，再继续推新内容会更稳。",
+    reason: "先处理明确的错题，再学新内容会更稳。",
     completionLabel: "薄弱已修复"
   };
 }
@@ -1511,14 +1511,14 @@ function buildTaskPool(
       id: TASK_IDS.systemReview,
       kind: "review",
       title: "处理到期复习",
-      detail: `${dueCount} 张卡片已经到期，先把记忆债清掉。`,
+      detail: `${dueCount} 张卡片已经到期，先复习这些内容。`,
       href: "/review",
       minutes: Math.min(12, Math.max(5, dueCount * 2)),
       ability: ["script", "vocabulary"],
       source: "system",
       priority: 100,
       lane: "core",
-      reason: "先清掉到期队列，避免旧内容拖住新输入。"
+      reason: "先复习到期内容，再学新课。"
     });
   }
 
@@ -1529,14 +1529,14 @@ function buildTaskPool(
         id: `system:library-${gap.key}`,
         kind: gap.key === "hangul" ? "hangul" : gap.key === "vocab" ? "vocabulary" : gap.key === "grammar" ? "grammar" : gap.key === "materials" ? "immersion" : "native",
         title: `先补${gap.label}`,
-        detail: `现在 ${gap.current}/${gap.target}。主线下一课「${nextLesson.title}」要等这项过关，否则只算旁路预览。`,
+        detail: `目前 ${gap.current}/${gap.target}。补到目标后，主线下一课“${nextLesson.title}”才会计入进度。`,
         href: gap.href,
         minutes: 12,
         ability: [gap.ability],
         source: "system",
         priority: 96 - index,
         lane: "core",
-        reason: "图书馆门槛未满时，不把新课伪装成今天最该做的事。"
+        reason: "先补齐这一阶段需要的基础内容。"
       });
     }
     tasks.push({
@@ -1551,10 +1551,10 @@ function buildTaskPool(
       priority: !libraryGate.ok ? 64 : dueCount >= 8 ? 50 : dueCount > 0 ? 70 : profile.studyMode === "guided" ? 90 : 65,
       lane: "core",
       reason: !libraryGate.ok
-        ? "先修课已开，但韩文库/词汇/语法/材料还没达到这一阶段的门槛。"
+        ? "前置课已完成，但这一阶段所需的韩文、词汇、语法或听读数量还不够。"
         : dueCount > 0
-          ? "先把到期复习清掉，再推新课。"
-          : (profile.studyMode === "guided" ? "主线推进到下一课。" : "主线还没断，但优先级稍低于到期复习。")
+          ? "先完成到期复习，再开始新课。"
+          : (profile.studyMode === "guided" ? "继续下一节主线课程。" : "可以继续主线，但先做已到期的复习更合适。")
     });
   }
 
@@ -1575,7 +1575,7 @@ function buildTaskPool(
         id: TASK_IDS.openReviewRhythm,
         kind: "review",
         title: reviewBlock?.title ?? "复习",
-        detail: reviewBlock?.detail ?? "先处理 SRS 到期卡片，只复习已经学过的内容。",
+        detail: reviewBlock?.detail ?? "先处理今天到期的内容。",
         href: "/review",
         minutes: reviewBlock?.minutes ?? Math.min(10, profile.minutesGoal),
         ability: plan.modules.slice(0, 2).map((module: any) => moduleToAbility(module.id)).filter(isAbilityId),
@@ -1601,7 +1601,7 @@ function buildTaskPool(
         source: "self",
         priority: 84 - index * 3,
         lane: "self",
-        reason: `自学方案中优先照顾「${studyModule.title}」。`
+        reason: `你的自学计划把“${studyModule.title}”排在前面。`
       });
     }
   }
@@ -1611,15 +1611,15 @@ function buildTaskPool(
     tasks.push({
       id: TASK_IDS.systemImmersion,
       kind: "immersion",
-      title: "真实材料输入与输出",
-      detail: `${readyMaterial.title} 已满足先修：听写、复述，再把输出弱点送回复习。`,
+      title: "情境听读与复述",
+      detail: `“${readyMaterial.title}”已经解锁。听写一句，再用韩语复述并保存改写。`,
       href: immersionMaterialHref(readyMaterial.id),
       minutes: Math.min(24, Math.max(14, readyMaterial.minutes)),
       ability: mapFocusToAbilities(readyMaterial.focus),
       source: "system",
       priority: profile.selfStudyGoal === "media" || profile.selfStudyGoal === "native" || ["m2", "m3", "m4"].includes(String(nextLesson?.milestone ?? "")) ? 88 : 66,
       lane: "bridge",
-      reason: readyMaterial.recommendedLessons.length ? "真实材料已经满足先修，适合正式进入输入输出闭环。" : "先把材料加入观察队列，等待先修补齐。"
+      reason: readyMaterial.recommendedLessons.length ? "前置课程已完成，可以开始这段听读。" : "先看看内容说明，前置课程完成后再正式练习。"
     });
   }
 
@@ -1702,7 +1702,7 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
       ? {
           id: TASK_IDS.openNextLesson,
           kind: "lesson",
-          title: libraryGate.ok ? "继续课程线" : "先补库再上课",
+          title: libraryGate.ok ? "继续主线课程" : "先补基础内容",
           detail: libraryGate.ok
             ? nextLesson.title
             : `「${nextLesson.title}」还差${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}`,
@@ -1712,22 +1712,22 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
           source: "guided",
           priority: libraryGate.ok ? 70 : 48,
           lane: "core",
-          reason: libraryGate.ok ? "先接上下一节核心课，学习链最稳。" : "图书馆门槛未满时，开放入口也先送去补库。"
+          reason: libraryGate.ok ? "接着学习下一课。" : "补齐这一阶段所需内容后，再开始下一课。"
         }
       : {
           id: TASK_IDS.openReview,
           kind: "review",
-          title: "核心路径已完成",
-          detail: "进入复习、词汇扩展和母语者表达训练。",
+          title: "主线课程已完成",
+          detail: "继续复习、扩充词汇，并练习更自然的表达。",
           href: "/review",
           minutes: 12,
           ability: ["vocabulary"],
           source: "system",
           priority: 70,
           lane: "core",
-          reason: "核心课已经跑通，先回到复习闭环。"
+          reason: "主线已完成，先保持复习节奏。"
         },
-    { ...taskForAbility(weak, profile, 68), lane: "bridge" as const, reason: "优先补当前最弱的一项能力。"},
+    { ...taskForAbility(weak, profile, 68), lane: "bridge" as const, reason: "先练当前最薄弱的一项。"},
     {
       id: TASK_IDS.openSelfPlan,
       kind: "checkpoint",
@@ -1739,52 +1739,52 @@ function buildOpenStudyTasks(profile: UserProfile, progress: LearningProgress, n
       source: "self",
       priority: 60,
       lane: "self",
-      reason: "自学方案需要先被确认，之后首页才会按这个节奏重排。",
+      reason: "保存方案后，首页会按这个节奏安排任务。",
       completionLabel: "今日已确认",
       completionAsset: "selfStudy"
     },
     {
       id: TASK_IDS.openImmersion,
       kind: "immersion",
-      title: readyMaterial ? "真实材料实验室" : "真实材料预览",
+      title: readyMaterial ? "开始情境听读" : "预览情境听读",
       detail: readyMaterial
-        ? `${readyMaterial.title} 已满足先修，可以正式完成并加入 SRS。`
-        : "先修未满时只能看说明和留草稿；原文朗读和输出存档要等前置课达标。",
+        ? `“${readyMaterial.title}”已经解锁，可以开始听写、复述和改写。`
+        : "前置课未完成时，可以看说明和留草稿；原文、朗读和保存功能会暂时关闭。",
       href: readyMaterial ? immersionMaterialHref(readyMaterial.id) : previewMaterial ? immersionMaterialHref(previewMaterial.id) : "/immersion",
       minutes: readyMaterial?.minutes ?? 18,
       ability: readyMaterial ? mapFocusToAbilities(readyMaterial.focus) : ["listening", "pragmatics", "native"],
       source: "system",
       priority: readyMaterial ? 62 : 42,
       lane: readyMaterial ? "bridge" : "expansion",
-      reason: readyMaterial ? "先修已达标，材料可以正式进闭环。" : "先把这段材料当预览池，不要把它当完成。"
+      reason: readyMaterial ? "前置课已完成，可以正式练习。" : "现在只作预览，不会计为完成。"
     },
     ...(practiceRepairTask ? [practiceRepairTask] : []),
     ...(retrainTask ? [retrainTask] : []),
     ...(mistakeSummary.total ? [{
       id: TASK_IDS.openMistakes,
       kind: "review" as const,
-      title: "薄弱项地图",
-      detail: `${mistakeSummary.total} 张错题卡，其中 ${mistakeSummary.due} 张已经到期。先看错因分布，再决定回课程、词汇、语法还是材料。`,
+      title: "整理错题",
+      detail: `共有 ${mistakeSummary.total} 张错题卡，其中 ${mistakeSummary.due} 张已经到期。先重练，再回到对应内容看讲解。`,
       href: "/mistakes",
       minutes: Math.min(12, Math.max(5, mistakeSummary.total * 2)),
       ability: ["vocabulary", "grammar", "listening"] as AbilityId[],
       source: "system" as const,
       priority: 58,
       lane: "bridge" as const,
-      reason: "把反复出错的点汇总成修复顺序，避免只刷到期卡却不知道弱在哪里。"
+      reason: "把反复出错的内容集中处理。"
     }] : []),
     {
       id: TASK_IDS.openQuiz,
       kind: "quiz",
-      title: "综合迁移测验",
-      detail: "混合韩文、发音、词汇和语法，检查能不能跨模块调用。",
+      title: "综合测验",
+      detail: "混合韩文、发音、词汇和语法，看看换个题型还能不能答对。",
       href: "/quiz",
       minutes: 10,
       ability: ["script", "listening", "vocabulary", "grammar"],
       source: "system",
       priority: 55,
       lane: "bridge",
-      reason: "把已学内容拉到同一张桌上，检查迁移是否成立。"
+      reason: "用一组混合题检查已经学过的内容。"
     }
   ];
   return tasks;
@@ -1835,14 +1835,14 @@ function taskForAbility(ability: AbilityId, profile: UserProfile, priority: numb
     },
     vocabulary: {
       kind: "vocabulary",
-      title: "词汇带场景入册",
-      detail: "只把能造句的词加入 SRS，避免背孤立中文释义。",
+      title: "用场景记词",
+      detail: "听发音、看例句，再用这个词造一个自己的句子。",
       href: "/vocabulary",
       minutes: 12
     },
     grammar: {
       kind: "grammar",
-      title: "句型骨架工坊",
+      title: "用一个新句型",
       detail: "选一个语法骨架，替换主语、宾语、时间，造 3 个自己的句子。",
       href: "/grammar",
       minutes: 12
@@ -1856,7 +1856,7 @@ function taskForAbility(ability: AbilityId, profile: UserProfile, priority: numb
     },
     native: {
       kind: "native",
-      title: "母语者缓冲表达",
+      title: "让表达更自然",
       detail: "把直接判断改成柔和、留余地、有上下文的韩语表达。",
       href: "/native#nuance",
       minutes: 14
@@ -1868,7 +1868,7 @@ function taskForAbility(ability: AbilityId, profile: UserProfile, priority: numb
     vocabulary: "先积累能造句的词，减少孤立背词带来的断裂。",
     grammar: "先补句型骨架，后面的输出和复述才更顺。",
     pragmatics: "先把关系和场景带进表达，不然对话会显得机械。",
-    native: "先练语气缓冲和上下文动作，母语者层才不会悬空。"
+    native: "先练语气和关系距离，让表达更自然。"
   };
   return {
     id: abilityTaskId(ability),
@@ -1901,17 +1901,17 @@ function taskForNativeBridge(
   return {
     id: "system:native-bridge",
     kind: "native",
-    title: "母语者桥接",
+    title: "自然表达练习",
     detail: nativeEvidence > 0
-      ? `当前已累计 ${nativeEvidence} 条桥接证据，把关系、语气和材料输出接回同一条线。`
-      : "如果目标是母语者级表达，现在开始把语用、材料和输出证据串起来。",
+      ? `已经保存 ${nativeEvidence} 条练习记录。继续换关系、换场景说同一个意思。`
+      : "从一个常用场景开始，练习礼貌距离、语气和自然接话。",
     href: "/native",
     minutes: 14,
     ability: ["pragmatics", "native"],
     source: profile.selfStudyGoal === "native" ? "self" : "system",
     priority,
     lane: "bridge",
-    reason: "母语者层不再是单独专区，而是从真实材料和输出证据里长出来。"
+    reason: "自然表达需要在听读、复述和真实交流中反复练习。"
   };
 }
 

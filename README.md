@@ -6,33 +6,33 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 
 ![学习工作台](docs/screenshots/hero-workspace.png)
 
-<p align="center"><em>学习工作台：路径推荐、到期复习和能力护照收在同一张今日地图上。</em></p>
+<p align="center"><em>学习工作台：把今日课程、到期复习和学习进度放在同一页。</em></p>
 
 ### 产品界面
 
 | Hangul Studio | Immersion Lab |
 |:---:|:---:|
 | ![韩文实验室](docs/screenshots/hangul.png) | ![情境材料](docs/screenshots/immersion.png) |
-| 韩文实验室：拆音节块、听对立，再把掌握项送进 SRS。 | 咖啡店真实语速：逐句听读、遮译文听写与复述检查。 |
+| 韩文实验室：拆音节块、辨听相近发音，再把掌握项加入复习。 | 自编咖啡店情境：逐句听读、遮住译文听写，再用韩语复述。 |
 
 | 五阶段路径 | 间隔复习 |
 |:---:|:---:|
-| ![学习路径](docs/screenshots/path.png) | ![SRS 复习](docs/screenshots/review.png) |
-| 五阶段能力路线：从文字对齐走到母语者语用。 | 到期队列：韩文、词汇和错题进入同一套间隔复习。 |
+| ![学习路径](docs/screenshots/path.png) | ![间隔复习](docs/screenshots/review.png) |
+| 五阶段学习路线：从读写韩文逐步走到自然表达。 | 到期队列：韩文、词汇和错题使用同一套间隔复习。 |
 
 ![咖啡店点单课](docs/screenshots/lesson.png)
 
-<p align="center"><em>课程页：目标、讲解、听读和练习共用同一份进度证据。</em></p>
+<p align="center"><em>课程页：目标、讲解、听读和练习会汇总到同一份学习记录。</em></p>
 
 ## 当前能力
 
 - Next.js 16 + React 19 + TypeScript + Tailwind。
 - Node.js `>=20.9.0`（与 Next 16 / sharp 0.35 的运行时要求一致）。
 - Web App manifest 与图标位于 `public/`；课程始终联网加载，不注册 Service Worker 或离线学习包。
-- 学习方式支持“路径推荐”和“自由自学”，两者共用同一套进度、SRS、输出档案和能力护照。
-- `LearningWorkspace` 会综合课程进度、自学目标、能力短板和 SRS 到期状态，生成推荐任务和自由入口。
-- 课程练习、综合测验、韩文、词汇、语法、语用、真实材料和输出弱点会进入统一复习闭环；答错会写入 mistake SRS。
-- `Immersion Lab` 提供真实材料输入、逐句播放、遮译文听写、复述提示、输出草稿、自评 rubric 和 output SRS。
+- 学习方式支持“路径推荐”和“自由自学”，两者共用课程进度、间隔复习、输出档案和学习记录。
+- `LearningWorkspace` 会参考课程进度、自学目标、薄弱项和到期复习，推荐下一项任务，也保留自由入口。
+- 课程练习、综合测验、韩文、词汇、语法、语用、情境听读和输出弱点都能加入复习；答错的题会进入错题复习。
+- `Immersion Lab` 使用自编情境脚本，支持逐句播放、遮住译文听写、复述提示、输出草稿、自评和后续复习。
 - 课程朗读优先使用 `public/assets/audio/ko/` 中的 1212 条统一韩语 MP3；未收录的动态内容才回退到浏览器系统韩语语音。
 - 图片资产通过 `my-image-gen` / imagegen 工作流生成后接入 `public/assets/generated/`，页面通过 `src/data/visuals/assets.ts` 引用，并由 `src/data/visuals/manifest.ts` 记录 provider、prompt、源 PNG 和 WebP 派生关系。
 
@@ -70,8 +70,8 @@ npm run audit:prod
 ```text
 src/app/                  # Next App Router 页面
 src/components/           # 布局、UI、学习组件、视觉组件
-src/data/                 # 韩语课程、韩文、词汇、语法、语用、自学规划、能力护照
-src/data/native-roadmap.js # 母语者路线扩容蓝图
+src/data/                 # 韩语课程、韩文、词汇、语法、语用、自学规划、学习进度
+src/data/native-roadmap.js # 长期进阶路线蓝图
 src/data/visuals/         # 视觉资产索引和 image-gen manifest
 src/lib/learning/          # 学习工作台、进度、SRS、测验逻辑
 public/assets/generated/   # imagegen 生成并接入的页面资产
@@ -109,14 +109,14 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 内容规模与路线
 
-当前内容规模：60 节核心课、722 个词、83 个语法点、20 个语用场景、12 个语义细差集合和 29 组分层真实材料（基础真实场景、连续理解、母语者桥接）。这个规模可以支撑从零基础进入真实材料和 C1 bridge preview，但不等同完整母语者水平。
+当前内容规模：60 节主线课、722 个词、83 个语法点、20 个语用场景、12 组近义表达和 29 组自编情境听读材料。它适合从零基础逐步进入中级内容，但没有经过正式的 CEFR 定级，也不代表学完就达到母语者水平。
 
-长期母语者路线由 `src/data/native-roadmap.js` 维护，目标包括：
+长期进阶路线由 `src/data/native-roadmap.js` 维护，规划包括：
 
 - 5000+ 可调用词汇与搭配
-- 200+ 分级真实材料
+- 200+ 分级原生材料
 - 120+ 口语/写作输出档案
 - 24+ 阶段检查点
 - 新闻、职场、学术、社交媒体、亲密关系、敬语、口语缩略、幽默、暗示、反讽和立场边界训练
 
-原则：每个可达阶段都必须由课程、真实材料、输出档案、复习记录和检查点共同证明，不能用站内分数把 30 节核心课包装成完整母语者终点。
+原则：站内分数只用于反馈当前学习情况，不能当作语言等级证书。若要判断长期能力，还需要结合原生材料、口语和写作作品、复习记录以及阶段检查。

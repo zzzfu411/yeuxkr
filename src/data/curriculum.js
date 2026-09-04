@@ -38,7 +38,7 @@ export const milestones = [
     id: "m4",
     title: "语域桥接",
     range: "Month 14-18",
-    outcome: "能按关系、场合和书面/口语距离调整敬语、软化、拒绝和半语，而不是假装已经接近母语者。",
+    outcome: "能按关系和场合调整敬语、缓和表达、拒绝和半语；这些课程只是长期进阶的一部分。",
     acceptanceLevelId: "native-layer",
     modules: ["register", "discourse", "native-collocations"]
   }

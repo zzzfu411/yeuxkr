@@ -38,9 +38,9 @@ export default function PathPage() {
     : dueReview
       ? "先清到期复习"
       : !nextLibraryGate.ok
-        ? `先补${nextLibraryGate.missing[0]?.label ?? "库"}`
+        ? `先补${nextLibraryGate.missing[0]?.label ?? "基础内容"}`
         : retrain
-          ? "先回炉旧课"
+          ? "先复习旧课"
           : "继续当前建议课";
   const scores = workspace.progress.lessonScores;
   const milestoneProgressById = new Map(milestones.map((milestone: any) => [
@@ -89,26 +89,26 @@ export default function PathPage() {
     setShowAllStages(false);
   };
 
-  const coreQueueTitle = focusedMilestone ? `${focusedMilestone.title}课程窗口` : showAllStages ? `${lessons.length} 节核心课轨道` : "当前路线窗口";
+  const coreQueueTitle = focusedMilestone ? `${focusedMilestone.title}课程` : showAllStages ? `${lessons.length} 节主线课程` : "当前阶段";
   const coreQueueCopy = focusedMilestone
-    ? "正在只显示这一阶段的核心课程，适合从阶段概览直接落到可执行课表。需要重新看当前位置或全路线时，可以随时切换。"
+    ? "这里只显示所选阶段。可以随时回到当前阶段，或展开全部课程。"
     : showAllStages
-      ? "课程按阶段串成一条可推进的路线。节点会显示当前建议、已达标和建议先修状态。"
-      : "默认只展示当前阶段和相邻阶段，让学习者先看清下一步；需要全局盘点时再展开完整路线。";
+      ? "课程按阶段排列，并标出当前建议、已完成内容和前置要求。"
+      : "先看当前阶段和相邻阶段。想查看全貌时，再展开全部课程。";
 
   return (
     <div className="grid gap-6">
       <PageHeader
         kicker="Learning Path"
-        title="路径不是目录，而是能力迁移地图。"
-        copy={`这条路线从韩文字母、声音、基础句型，走向连续日常、叙述材料和语域桥接。课程需要上一课达到 ${UNLOCK_SCORE}%，并且韩文、词汇、语法、材料达到当前阶段门槛，才写入核心路径。母语者水平不在这 60 节核心课里兑现。`}
+        title="按顺序学，也能随时回看。"
+        copy={`课程从韩文和发音开始，逐步进入日常对话、叙述和语气。上一课达到 ${UNLOCK_SCORE}%，并补齐本阶段所需内容后，下一课才会解锁。`}
         compact
       />
 
       <ModuleHero
-        kicker="From 0 to Native Layer"
-        title="五阶段能力路线。"
-        copy={`当前路径包含 ${lessons.length} 节核心课。课程完成记录学习投入，能力验收则检查材料、输出和关卡证据；两者都达标，阶段才算真正通过。`}
+        kicker="Five Stages"
+        title="五个阶段，60 节主线课程。"
+        copy={`每个阶段都有课程和练习要求。完成课程，并通过对应的听读、输出和阶段检查，才会进入下一阶段。`}
         asset="path"
       >
         {workspace.nextLesson ? (
@@ -122,7 +122,7 @@ export default function PathPage() {
       </ModuleHero>
 
       <section className="grid gap-3" aria-labelledby="stage-progress-title">
-        <h2 id="stage-progress-title" className="sr-only">阶段课程与能力验收进度</h2>
+        <h2 id="stage-progress-title" className="sr-only">阶段课程与能力检查进度</h2>
         <div className="nav-scroll -mx-4 grid auto-cols-[17rem] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid-flow-row lg:grid-cols-5 lg:px-0">
         {milestones.map((milestone: any, index: number) => {
           const stageProgress = milestoneProgressById.get(milestone.id);
@@ -130,9 +130,9 @@ export default function PathPage() {
           const isCurrentStage = milestone.id === currentMilestoneId;
           const isFocusedStage = milestone.id === focusedMilestoneId;
           const stageStatus = stageProgress.complete
-            ? "阶段已验收"
+            ? "阶段检查已完成"
             : stageProgress.course.complete
-              ? "课程完成，待验收"
+              ? "课程完成，待阶段检查"
               : "课程推进中";
           return (
             <article
@@ -250,9 +250,9 @@ export default function PathPage() {
                     );
                     const kicker = needsOnboarding && !mastered
                       ? "先入门"
-                      : isCurrent ? "当前建议" : mastered ? "已达标" : enterable ? "可学习" : unlocked ? "先补库" : "建议先修";
+                      : isCurrent ? "当前建议" : mastered ? "已完成" : enterable ? "可学习" : unlocked ? "还需补基础" : "先学前置课";
                     const detail = !enterable
-                      ? `${lesson.subtitle}${missing.length ? ` 建议先修：${missing.map((item: any) => item.title).join("、")}` : ""}${libraryGate.missing.length ? ` 先补${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}` : ""}`
+                      ? `${lesson.subtitle}${missing.length ? ` 建议先学：${missing.map((item: any) => item.title).join("、")}` : ""}${libraryGate.missing.length ? ` 先补${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}` : ""}`
                       : lesson.subtitle;
                     const rowHref = needsOnboarding && !mastered
                       ? "/onboarding"
@@ -267,7 +267,7 @@ export default function PathPage() {
                         ? `打开 ${lesson.title}`
                         : !unlocked
                           ? `先去 ${actionable?.title ?? "当前可上课"}`
-                          : `先补${libraryGate.missing[0]?.label ?? "库"}`;
+                          : `先补${libraryGate.missing[0]?.label ?? "基础内容"}`;
                     return (
                       <TrackRow
                         key={lesson.id}
@@ -276,7 +276,7 @@ export default function PathPage() {
                         kicker={kicker}
                         title={lesson.title}
                         detail={detail}
-                        meta={`${lesson.duration} min`}
+                        meta={`${lesson.duration} 分钟`}
                         completed={mastered}
                         active={isCurrent}
                         href={rowHref}
@@ -304,9 +304,9 @@ export default function PathPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Passport Gates"
-          title="阶段验收证据"
-          copy={`每个阶段都需要课程、材料、输出和检查点共同证明。核心课把学习者带到扎实 A2 / B1 语域桥接；真正接近母语者是长期作品集，不会被 ${lessons.length} 节课伪装成终点。`}
+          kicker="Stage Progress"
+          title="阶段进度"
+          copy={`课程、情境听读、输出和阶段检查会共同更新这里。等级只表示站内学习进度，不是 CEFR 认证。`}
         />
         <div className="grid gap-3 lg:grid-cols-2">
           {proficiencyLevels.map((level: any) => {
@@ -316,8 +316,8 @@ export default function PathPage() {
               <article key={level.id} className={`rounded-none border p-4 ${isCurrent ? "border-[var(--green)] bg-[var(--green-soft)]" : isNext ? "border-[var(--border)] bg-[var(--yellow-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">{level.band}</span>
-                  {isCurrent ? <span className="rounded-none bg-[var(--green-soft)] px-2 py-1 text-xs font-black text-[var(--celadon)]">当前证据</span> : null}
-                  {isNext ? <span className="rounded-none bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一关</span> : null}
+                  {isCurrent ? <span className="rounded-none bg-[var(--green-soft)] px-2 py-1 text-xs font-black text-[var(--celadon)]">当前阶段</span> : null}
+                  {isNext ? <span className="rounded-none bg-[rgba(183,135,63,0.16)] px-2 py-1 text-xs font-black text-[var(--brass)]">下一阶段</span> : null}
                 </div>
                 <h3 className="mt-2 font-serif text-2xl font-black">{level.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{level.summary}</p>
@@ -344,9 +344,9 @@ export default function PathPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Native Roadmap"
-          title="母语者路线扩容蓝图"
-          copy="当前核心课负责把学习者带到 C1 预备桥接。真正接近母语者需要继续扩充词汇搭配、真实材料、输出作品集和检查点，这里把后续工程拆成可验收的阶段。"
+          kicker="Long-term Roadmap"
+          title="长期进阶路线"
+          copy="站内课程结束后，还需要大量原生材料、词汇搭配、反复修改的口语与写作，以及来自真实交流的反馈。这里列出后续练习方向，不把它算进当前等级。"
         />
         <div className="grid gap-3 xl:grid-cols-3">
           {nativeRoadmapStages.map((stage, index) => (
@@ -431,14 +431,14 @@ function StageProgressSummary({ progress, expanded = false }: { progress: StageP
       />
       <StageProgressBar
         icon={<ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />}
-        label="能力验收"
+        label="阶段检查"
         value={progress.acceptance.progress}
         detail={`${progress.acceptance.met}/${progress.acceptance.total} 项通过${progress.acceptance.band ? ` · ${progress.acceptance.band}` : ""}`}
         color="bg-[var(--celadon)]"
       />
       {visibleRequirements.length ? (
         <div>
-          <span className="block text-xs font-black text-[var(--muted)]">{expanded ? "验收明细" : "关键证据"}</span>
+          <span className="block text-xs font-black text-[var(--muted)]">{expanded ? "进度明细" : "主要要求"}</span>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {visibleRequirements.map((requirement) => (
               <span
@@ -467,7 +467,7 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
         <span className="shrink-0 font-mono">{value}%</span>
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]"
+        className="h-2 overflow-hidden rounded-full bg-[var(--track)]"
         role="progressbar"
         aria-label={`${label}：${detail}`}
         aria-valuemin={0}
@@ -480,5 +480,3 @@ function StageProgressBar({ icon, label, value, detail, color }: { icon: React.R
     </div>
   );
 }
-
-

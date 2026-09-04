@@ -33,11 +33,11 @@ export function TaskCard({
             </span>
           ) : null}
         </div>
-        <h3 className={cn("truncate font-serif font-black leading-tight", compact ? "text-lg" : "text-xl")}>{task.title}</h3>
+        <h3 className={cn("line-clamp-2 break-words font-serif font-black leading-tight", compact ? "text-lg" : "text-xl")}>{task.title}</h3>
         <p className={cn("line-clamp-2 font-bold text-[var(--muted)]", compact ? "text-xs leading-5" : "text-sm leading-5")}>{task.detail}</p>
         {featured && task.reason ? <p className="mt-1 line-clamp-2 text-xs font-bold leading-5 text-[var(--muted)]">{task.reason}</p> : null}
       </div>
-      <span className="hidden font-mono text-xs font-black text-[var(--muted)] sm:inline">{task.minutes} min</span>
+      <span className="hidden font-mono text-xs font-black text-[var(--muted)] sm:inline">{task.minutes} 分钟</span>
       <Link href={task.href} className="pl-play" aria-label={`打开${task.title}`}>
         <ArrowRight className="h-3.5 w-3.5" />
       </Link>

@@ -3,7 +3,7 @@ import { allVocab } from "./vocab/index.js";
 export const vocabLevels = [
   { id: "survival", label: "生存核心", target: "0-800 词", description: "先让学习者能打招呼、点餐、问路、表达需要。" },
   { id: "daily", label: "日常扩展", target: "800-2500 词", description: "覆盖工作、学校、社交、媒体和情绪表达。" },
-  { id: "native", label: "母语者表达", target: "2500+ 词", description: "处理搭配、语域、惯用语、新闻和抽象讨论。" }
+  { id: "native", label: "自然表达", target: "2500+ 词", description: "练习搭配、语域、惯用语、新闻和抽象讨论。" }
 ];
 
 // 词条可选扩展字段（schema v2，向后兼容）：

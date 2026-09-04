@@ -40,10 +40,10 @@ export const selfStudyGoals = [
   },
   {
     id: "native",
-    title: "高级表达长期路线",
+    title: "自然表达长期路线",
     durationWeeks: 36,
     targetHours: 2000,
-    outcome: "建立抽象讨论、语气与关系调节的长期作品集，持续向母语者水平推进。",
+    outcome: "持续练习抽象讨论、语气和关系距离，并建立可反复修改的长期作品集。",
     emphasis: ["native", "pragmatics", "grammar", "vocabulary"]
   }
 ];
@@ -121,7 +121,7 @@ export function normalizeDailyMinutes(input, fallback = selfStudyIntensity[1].mi
 function buildDailyTemplate(minutes, intensity, modules) {
   if (minutes <= 5) {
     return [
-      { title: "复习", minutes: 2, detail: "只处理最到期的 SRS 卡片，避免记忆债继续堆积。" },
+      { title: "复习", minutes: 2, detail: "只处理今天到期的卡片。" },
       { title: "新输入", minutes: 1, detail: modules[0]?.daily ?? moduleMap.script.daily },
       { title: "主动输出", minutes: 1, detail: modules[1]?.daily ?? moduleMap.grammar.daily },
       { title: "记录", minutes: 1, detail: "写 1 个今天能说出口的韩语词、短句或最不稳的音。" }
@@ -137,7 +137,7 @@ function buildDailyTemplate(minutes, intensity, modules) {
   const adjustedOutputMinutes = Math.max(1, outputMinutes - Math.max(0, overflow));
 
   return [
-    { title: "复习", minutes: reviewMinutes, detail: "先处理 SRS 到期卡片，只复习已经学过的内容。" },
+    { title: "复习", minutes: reviewMinutes, detail: "先处理今天到期的内容。" },
     { title: "新输入", minutes: inputMinutes, detail: modules[0]?.daily ?? moduleMap.script.daily },
     { title: "主动输出", minutes: adjustedOutputMinutes, detail: modules[1]?.daily ?? moduleMap.grammar.daily },
     { title: "记录", minutes: minutes - reviewMinutes - inputMinutes - adjustedOutputMinutes, detail: "写 1 句今天能说出口的韩语，标记最不稳的音或句型。" }
@@ -196,7 +196,7 @@ function buildWeeklyRhythm(intensity, modules) {
       day: `周${day}`,
       active,
       title: active ? studyModule.title : "轻复盘",
-      detail: active ? studyModule.daily : "只做 5 分钟 SRS 或听一遍本周最难的句子。"
+      detail: active ? studyModule.daily : "只做 5 分钟到期复习，或听一遍本周最难的句子。"
     };
   });
 }

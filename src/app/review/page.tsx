@@ -94,7 +94,7 @@ function ReviewContent() {
             onAnswer={(entry) => {
               const card = dueCards.find((item) => item.id === entry.question.id);
               if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
-                setReviewError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
+                setReviewError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
                 return false;
               } else {
                 setReviewError("");
@@ -113,7 +113,7 @@ function ReviewContent() {
               <p className="mt-2 leading-7 text-[var(--muted)]">
                 {needsOnboardingFunnel(profile, progress)
                   ? "先完成入门，再把卡片送进复习队列。"
-                  : "先回路径或词汇页积累证据；综合测验只抽已经学过的内容。"}
+                  : "先学一课或加入几个词。综合测验只会抽取你已经学过的内容。"}
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Button asChild>
@@ -200,8 +200,8 @@ function ReviewHeader() {
   return (
     <PageHeader
       kicker="복습 · Review"
-      title="复习先于新课。"
-      copy="SRS 是按间隔重复出现的复习卡。答对会延后出现；答错会提前下次复习，新卡回到盒子 0，成熟卡则缩短原有间隔。课程错题、韩文和词汇卡片都会进入这里。"
+      title="先复习到期内容，再学新课。"
+      copy="间隔复习（SRS）会根据你的答案安排下次出现时间。答得稳，间隔会变长；答错了，很快会再见到它。"
       compact
     >
       <Button asChild variant="secondary">
@@ -217,9 +217,9 @@ function ReviewHeader() {
 function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: number; shaky: number } }) {
   return (
     <ModuleHero
-      kicker="간격 기록 · SRS notes"
-      title="到期先清掉，新的才稳。"
-      copy="复习队列只处理已经学过或自己送进来的材料；盒子数字越小，越需要近期照顾。答错会降低盒号并缩短间隔，答对会延后出现。"
+      kicker="간격 기록 · Review notes"
+      title="今天该复习什么？"
+      copy="这里都是你已经学过的内容。先做已到期和薄弱的卡片，其余会按计划稍后出现。"
       asset="review"
     >
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

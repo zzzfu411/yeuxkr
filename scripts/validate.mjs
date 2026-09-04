@@ -775,8 +775,8 @@ assert(smokeBrowser.includes("desktop-1440") && smokeBrowser.includes("tablet-76
 assert(smokeBrowser.includes("visibleElementOverflow") && smokeBrowser.includes("getBoundingClientRect"), "browser smoke should detect clipped visible elements hidden by overflow-x rules");
 assert(smokeBrowser.includes("verifyLearningDataPanel") && smokeBrowser.includes("learning data reset should preserve unmanaged localStorage entries") && smokeBrowser.includes("已持久"), "browser smoke should cover learning data export/import/reset/storage health controls");
 assert(smokeBrowser.includes("home self-study mode switch should persist self") && smokeBrowser.includes("home guided mode switch should persist guided"), "browser smoke should click and verify home study mode switching");
-assert(smokeBrowser.includes("self-study checkpoint should keep the record button disabled for weak evidence") && smokeBrowser.includes("需要可复查证据"), "browser smoke should cover weak self-study checkpoint evidence feedback");
-assert(smokeBrowser.includes("叙述与材料入口课程窗口") && smokeBrowser.includes("慢速新闻入口"), "browser smoke should cover focusing a path stage into the core course window");
+assert(smokeBrowser.includes("self-study checkpoint should keep the record button disabled for weak evidence") && smokeBrowser.includes("请先完成一课或加入一项学习内容"), "browser smoke should cover weak self-study checkpoint evidence feedback");
+assert(smokeBrowser.includes("叙述与材料入口课程") && smokeBrowser.includes("慢速新闻入口"), "browser smoke should cover focusing a path stage into the core course window");
 assert(smokeBrowser.includes('empty review state should expose "') && smokeBrowser.includes("积累词汇"), "browser smoke should cover empty review next-step actions");
 const globalsCss = readFileSync("src/app/globals.css", "utf8");
 const appShellSource = readFileSync("src/components/layout/app-shell.tsx", "utf8");
@@ -846,8 +846,8 @@ const onboardingFlowSource = readFileSync("src/components/learning/onboarding-fl
 assert(onboardingFlowSource.includes("KoreanInput") && onboardingFlowSource.includes("speakKorean") && onboardingFlowSource.includes("onboardedAt"), "onboarding flow should cover keyboard practice, voice check, and persist onboardedAt");
 assert(onboardingFlowSource.includes('"/learn/l01-hangul-map"'), "onboarding flow should land learners on the first lesson");
 assert(lessonClientSource.includes("getLessonPracticeSession") && lessonClientSource.includes("saveLessonPracticeSession") && lessonClientSource.includes("clearLessonPracticeSession"), "lesson client should restore, persist, and clear in-progress lesson sessions");
-assert(lessonClientSource.includes("sessionSaveError") && lessonClientSource.includes("断点没有写入本地存储"), "lesson client should warn when in-progress resume state cannot be saved");
-assert(lessonClientSource.includes("sessionClearError") && lessonClientSource.includes("重试清理断点"), "lesson client should warn and retry when a saved lesson cannot clear stale resume state");
+assert(lessonClientSource.includes("sessionSaveError") && lessonClientSource.includes("练习进度没有保存"), "lesson client should warn when in-progress resume state cannot be saved");
+assert(lessonClientSource.includes("sessionClearError") && lessonClientSource.includes("重试清理"), "lesson client should warn and retry when a saved lesson cannot clear stale resume state");
 assert(workspaceSource.includes("practiceItems") && workspaceSource.includes("recordPracticeItem") && workspaceSource.includes("normalizePracticeItems"), "workspace should keep normalized item-level practice history across formal lesson, review, and quiz work");
 assert(workspaceSource.includes('recordPracticeItem(next, entry.question.id, entry.correct, "lesson")') && workspaceSource.includes('recordPracticeItem(next, practiceItemIdForCard(card), isCorrect, "review")') && workspaceSource.includes('recordPracticeItem(next, entry.question.id, entry.correct, "quiz")'), "formal study commits should update item-level practice history for lessons, reviews, and quizzes");
 assert(workspaceSource.includes("getWeakPracticeItems") && workspaceSource.includes("TASK_IDS.systemPracticeRepair") && workspaceSource.includes("taskForPracticeRepair"), "workspace should turn item-level weak practice history into a concrete repair task");
@@ -916,7 +916,7 @@ assert(nativePage.includes("showAll || hiddenItemCount"), "native page should le
 assert(nativePage.includes("visibleLines = showAllLines ? item.lines : item.lines.slice(0, 1)"), "native cards should default to one key rehearsal line");
 assert(nativePage.includes("展开完整排练"), "native cards should let learners expand complete dialogue rehearsals");
 assert(nativePage.includes("hasCompleteNativePracticeEvidence") && nativePage.includes("if (!learned) return"), "native cards should enroll SRS only after listen-retell-transfer evidence");
-assert(nativePage.includes("disabled") && nativePage.includes("保存证据并加入 SRS") && nativePage.includes("再用下方按钮加入 SRS"), "native cards should enroll from evidence, not a disabled shortcut button");
+assert(nativePage.includes("disabled={enrollBlocked || !evidenceComplete") && nativePage.includes("保存练习并加入复习"), "native cards should enroll only after the practice is complete");
 assert(workspaceSource.includes("if (!set.has(itemId)) return false") && workspaceSource.includes("toggleNativeItem"), "toggleNativeItem should only unenroll native SRS items");
 assert(!workspaceSource.includes("const completeTask"), "workspace hook should not expose a click-to-complete task API");
 assert(lessonClientSource.includes("dueCount") && lessonClientSource.includes("先清到期复习") && lessonClientSource.includes("reviewFirst"), "lesson result should prefer due review over the next lesson");
@@ -930,7 +930,7 @@ assert(compassLogicSource.includes("pathSpineDetail"), "compass path track copy 
 assert((learningCompassSource.match(/href: funnel \? "\/onboarding"/g) ?? []).length >= 7, "compass route tracks should send un-onboarded learners to onboarding");
 assert(homePage.includes('kicker="All Entrances"') && homePage.includes("{isFirstVisit ? null : ("), "home page should hide free module entrances until onboarding is done");
 assert(quizPage.includes("followUp") && quizPage.includes("先清到期复习"), "quiz results should offer the current next action instead of only another quiz");
-assert(immersionPage.includes("先补第") && immersionPage.includes("lockedCtaLesson") && immersionPage.includes("firstActionableLesson"), "immersion hero should send locked materials to the currently enterable missing lesson");
+assert(immersionPage.includes("先学第") && immersionPage.includes("lockedCtaLesson") && immersionPage.includes("firstActionableLesson"), "immersion hero should send locked materials to the currently enterable missing lesson");
 assert(hangulPage.includes("OnboardingGateNotice") && vocabularyPage.includes("OnboardingGateNotice") && grammarPage.includes("OnboardingGateNotice") && nativePage.includes("OnboardingGateNotice") && nativePage.includes("enrollBlocked"), "library and native pages should warn un-onboarded learners before mastery enrollment");
 assert(selfStudyPage.includes("OnboardingGateNotice") && selfStudyPage.includes("enrollBlocked"), "self-study page should block plan writes until onboarding is done");
 assert(workspaceSource.includes("priority: 92") && workspaceSource.includes("pinnedRetrain") && workspaceSource.includes("system:retrain-"), "retrain tasks should stay pinned in the recommended six");
@@ -939,11 +939,11 @@ assert(lessonAssessmentSource.includes("listeningSkipped") && lessonAssessmentSo
 assert(immersionPage.includes("<ModuleHero"), "immersion page should use the shared module hero before the workbench");
 assert(immersionPage.includes('id="material-workbench"'), "immersion page should anchor the execution workbench from the hero");
 assert(immersionPage.includes("clearArchiveConfirmId") && immersionPage.includes("确认清除完成记录") && immersionPage.includes("!clearMaterialArchive(active.id)"), "immersion archive clearing should require explicit confirmation for completed material and preserve UI state on storage failure");
-assert(immersionPage.includes("getImmersionMaterialDraft") && immersionPage.includes("saveImmersionMaterialDraft") && immersionPage.includes("已恢复这段材料的未完成草稿"), "immersion page should restore and autosave long-form material drafts");
+assert(immersionPage.includes("getImmersionMaterialDraft") && immersionPage.includes("saveImmersionMaterialDraft") && immersionPage.includes("已恢复上次的草稿"), "immersion page should restore and autosave long-form material drafts");
 assert(selfStudyPage.includes("visibleRhythm = showFullRhythm ? plan.weeklyRhythm : plan.weeklyRhythm.filter"), "self-study page should keep the default weekly rhythm focused on active study days");
 assert(selfStudyPage.includes("getSelfStudyCheckpointDrafts") && selfStudyPage.includes("saveSelfStudyCheckpointDraft") && selfStudyPage.includes("clearSelfStudyCheckpointDraft"), "self-study page should restore, autosave, and clear checkpoint evidence drafts");
 assert(selfStudyPage.includes("展开完整周节奏"), "self-study page should let learners expand the full weekly rhythm");
-assert(selfStudyPage.includes("weakEvidence") && selfStudyPage.includes("aria-describedby={weakEvidence ? evidenceHintId : undefined}") && selfStudyPage.includes("需要可复查证据"), "self-study checkpoints should explain why weak evidence cannot be recorded without repeating hints on empty checkpoints");
+assert(selfStudyPage.includes("weakEvidence") && selfStudyPage.includes("aria-describedby={weakEvidence ? evidenceHintId : undefined}") && selfStudyPage.includes("请先完成一课或加入一项学习内容"), "self-study checkpoints should explain why weak evidence cannot be recorded without repeating hints on empty checkpoints");
 assert(selfStudyPage.indexOf("<ModuleHero") < selfStudyPage.indexOf('<section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]"'), "self-study page should show the generated plan summary before the planner/detail split");
 assert(selfStudyPage.indexOf("<ModuleHero") < selfStudyPage.indexOf("<LearningCompass") && selfStudyPage.indexOf("<LearningCompass") < selfStudyPage.indexOf('id="planner"'), "self-study page should show current plan, then compact context, then the planner");
 assert(selfStudyPage.includes('id="planner" className="order-1'), "self-study planner should be reachable before long detail sections on mobile");

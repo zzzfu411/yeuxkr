@@ -56,7 +56,7 @@ export default function VocabularyPage() {
   const activeFilters = [
     levelFilter !== "all" ? levelLabel(levelFilter) : null,
     categoryFilter !== "all" ? categoryLabel(categoryFilter) : null,
-    onlyLearned ? "已加入 SRS" : null,
+    onlyLearned ? "已加入复习" : null,
     query.trim() ? `搜索：${query.trim()}` : null
   ].filter(Boolean);
   const resetFilters = () => {
@@ -87,18 +87,18 @@ export default function VocabularyPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="Lexicon Atlas"
-        title="词汇不是清单，是可调用的场景库存。"
-        copy="每个词都带例句、语气和场景。只把能造句的词加入 SRS，系统会把它们带回复习。"
+        title="学会放进句子里的词。"
+        copy="每个词都有例句和使用提示。能自己造句后，再把它加入间隔复习。"
         compact
       />
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把词汇掌握写入核心路径。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，之后的词汇练习才会计入学习进度。" />
       <LibraryGateNotice focus="vocab" />
 
       <ModuleHero
         kicker={`${filteredVocab.length}/${vocab.length} entries`}
-        title="按场景取词，而不是背一列中文释义。"
-        copy={`当前站内样例库有 ${vocab.length} 个可练词条，按 level/category/场景组织，覆盖生存、日常和母语者表达入口。800、2500、5000 词是后续扩容目标层级，不会被当前词条数冒充。`}
+        title="按场景找词，比照着清单背更好用。"
+        copy={`这里有 ${vocab.length} 个可练词条，按阶段和场景整理。更大的词汇量是长期目标，不会混进当前进度。`}
         asset="vocabulary"
         imageClassName="min-h-80 rounded-none border-0"
       >
@@ -115,7 +115,7 @@ export default function VocabularyPage() {
         <SectionHeading
           kicker="Lexicon Console"
           title="先练一小组，再展开整座词库"
-          copy="按目标场景、阶段和自己已经入册的词切换。搜索会同时匹配韩语、中文、罗马音、例句和提示。"
+          copy="按阶段、场景或已学状态筛选。也可以搜索韩语、中文、罗马音和例句。"
           action={activeFilters.length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               重置筛选
@@ -123,7 +123,7 @@ export default function VocabularyPage() {
           ) : null}
         />
         <div className="grid gap-4">
-          <SearchField label="搜索词汇" value={query} onChange={setQuery} placeholder="输入 韩语 / 中文 / romanization / 场景提示" />
+          <SearchField label="搜索词汇" value={query} onChange={setQuery} placeholder="输入韩语、中文、罗马音或场景" />
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
             <SegmentedFilter
               label="层级"
@@ -137,17 +137,17 @@ export default function VocabularyPage() {
               options={[{ id: "all", label: "全部" }, ...vocabCategories.map((category: any) => ({ id: category.id, label: `${category.label} ${categoryCounts[category.id] ?? 0}` }))]}
               onChange={setCategoryFilter}
             />
-            <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
+            <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredVocab.length} filters={activeFilters} />
           {!focusedFilterActive ? (
             <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
-                当前先显示 {visibleVocab.length} 个今日词汇切片；每个词都可以播放、造句、加入 SRS。熟悉后再展开剩余 {hiddenVocabCount} 个词。
+                先练这 {visibleVocab.length} 个词：听发音、看例句，再试着造句。还有 {hiddenVocabCount} 个词可以展开。
               </span>
               {showAll || hiddenVocabCount ? (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起到今日切片" : "展开全部词汇"}
+                  {showAll ? "收起" : "展开全部词汇"}
                 </Button>
               ) : null}
             </div>
@@ -157,13 +157,13 @@ export default function VocabularyPage() {
 
       {!filteredVocab.length ? (
         <Surface>
-          <EmptyState title="没有匹配的词" copy="换一个搜索词，或先重置层级、场景和 SRS 筛选。" onAction={resetFilters} />
+          <EmptyState title="没有匹配的词" copy="换一个搜索词，或重置阶段、场景和复习筛选。" onAction={resetFilters} />
         </Surface>
       ) : null}
 
       {vocabLevels.map((level: any) => (
         <Surface key={level.id} variant="plain" className={(byLevel[level.id] ?? []).length ? "" : "hidden"}>
-          <SectionHeading kicker={`当前 ${byLevel[level.id]?.length ?? 0} shown · 匹配 ${levelCounts[level.id] ?? 0} · 扩容目标 ${level.target}`} title={level.label} copy={level.description} />
+          <SectionHeading kicker={`显示 ${byLevel[level.id]?.length ?? 0} · 匹配 ${levelCounts[level.id] ?? 0} · 长期目标 ${level.target}`} title={level.label} copy={level.description} />
           <div>
             {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => (
               <TrackRow
@@ -208,7 +208,7 @@ export default function VocabularyPage() {
                 </div>
                 {learned.has(item.id) ? (
                   <Button className="mt-3" type="button" variant="secondary" size="sm" onClick={() => toggleVocabSrs(item.id)}>
-                    已掌握 · 点击移出
+                    已加入复习 · 点击移出
                   </Button>
                 ) : (
                   <Button
@@ -220,7 +220,7 @@ export default function VocabularyPage() {
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
                   >
-                    测一测 · 加入掌握
+                    测一测，再加入复习
                   </Button>
                 )}
                 {gateItemId === item.id && !learned.has(item.id) ? (
@@ -278,7 +278,7 @@ function normalizeSearch(value: string) {
 function SrsError() {
   return (
     <InlineAlert>
-      这张词汇卡没有写入成功，请释放浏览器存储空间或关闭隐私限制后再试。
+      这张词汇卡没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
     </InlineAlert>
   );
 }

@@ -45,8 +45,8 @@ export default function MistakesPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="오답 노트 · Mistake notebook"
-        title="把反复出错的地方变成下一次的学习路线。"
-        copy="错题本直接读取 SRS 里的错题卡：先处理到期和反复错的，再回到来源模块补结构。这里不是惩罚清单，而是把复习、测验和自学重新接起来的弱项地图。"
+        title="错在哪里，就从哪里补。"
+        copy="先重练已到期和反复出错的题。若同一知识点总出错，再回到对应课程、词汇或语法查看讲解。"
         compact
       >
         <div className="flex flex-wrap gap-2">
@@ -67,8 +67,8 @@ export default function MistakesPage() {
 
       <ModuleHero
         kicker="다시 보는 자리 · Return & repair"
-        title={summary.total ? `${summary.due} 个到期，${summary.repeated} 个反复错。` : "暂时没有错题债。"}
-        copy="每张错题都保留原题、正确答案、错误次数和间隔复习盒子。清掉到期项以后，再把反复错的知识点送回课程、词汇、语法或材料输入。"
+        title={summary.total ? `${summary.due} 个到期，${summary.repeated} 个反复错。` : "暂时没有待重练的错题。"}
+        copy="每张卡会保留原题、正确答案和练习次数。做完到期题后，再回到对应内容补一遍。"
         asset="review"
         imageSize="22rem"
         imageClassName="min-h-64 rounded-none border-0"
@@ -81,7 +81,7 @@ export default function MistakesPage() {
         </div>
       </ModuleHero>
 
-      {status === "removed" ? <InlineAlert tone="success">这张错题已经移出本地 SRS；如果以后再次答错，它会重新回来。</InlineAlert> : null}
+      {status === "removed" ? <InlineAlert tone="success">这张错题已移出复习。如果以后再次答错，它会重新回来。</InlineAlert> : null}
       {status === "error" ? <InlineAlert>这张错题没有成功移出，请释放浏览器存储空间后再试。</InlineAlert> : null}
       {retrainError ? <InlineAlert>{retrainError}</InlineAlert> : null}
       <LearningCompass workspace={workspace} active="mistakes" condensed />
@@ -91,7 +91,7 @@ export default function MistakesPage() {
           <SectionHeading
             kicker="다시 쓰기 · Retrain"
             title="错题定向重练"
-            copy="做对会按间隔延后这张卡，做错会缩短间隔并提前再现。练完这组再回到优先队列。"
+            copy="做对后，这张卡会晚些再出现；做错后，它会更早回来。"
             action={
               <Button type="button" variant="secondary" size="sm" onClick={() => setRetrainQuestions(null)}>
                 退出重练
@@ -105,7 +105,7 @@ export default function MistakesPage() {
             onAnswer={(entry) => {
               const card = srsState.cards[entry.question.id];
               if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
-                setRetrainError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
+                setRetrainError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
                 return false;
               }
               setRetrainError("");
@@ -121,7 +121,7 @@ export default function MistakesPage() {
             <SectionHeading
               kicker="오늘의 순서 · Today's order"
               title="优先处理队列"
-              copy="排序会优先看是否到期、错误次数、正确次数和盒子位置。越靠前，越值得今天先处理。"
+              copy="已到期、错误较多的题会排在前面。"
               action={
                 <Button type="button" size="sm" disabled={!dueIds.length} onClick={() => startRetrain(dueIds)}>
                   <Play className="h-4 w-4" />
@@ -149,9 +149,9 @@ export default function MistakesPage() {
             <Surface>
               <SectionHeading kicker="세 장 · Three leaves" title="三步修复方案" />
               <div className="grid gap-3">
-                <PlanStep index={1} title="先清到期" detail="进入复习页，把已经到期的错题先重新写对，避免它们拖住新课输入。" href="/review" />
-                <PlanStep index={2} title="回到来源" detail="反复错的题不要只背答案，按来源回到词汇、语法、韩文结构或真实材料页补原理。" href="/path" />
-                <PlanStep index={3} title="再做迁移" detail="清完一轮后做综合测验，检查能不能在不同题型和语境里调用。" href="/quiz" />
+                <PlanStep index={1} title="先做已到期的题" detail="进入复习页，把今天该做的错题重新答一遍。" href="/review" />
+                <PlanStep index={2} title="回去看讲解" detail="同一点反复出错时，回到对应课程、词汇、语法或听读页。" href="/path" />
+                <PlanStep index={3} title="换道题再试" detail="最后做一组综合测验，看看换个题型还能不能答对。" href="/quiz" />
               </div>
             </Surface>
 
@@ -183,7 +183,7 @@ export default function MistakesPage() {
               <p className="eyebrow">빈 장 · Clean leaf</p>
               <h2 className="inkline mt-2 font-serif text-3xl font-normal">当前没有可追踪错题。</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                继续做课程、测验或到期复习。答错的题会自动回收到这里，并按 SRS 的间隔规则安排下一次见面。
+                继续学习或做测验。以后答错的题会自动来到这里，并安排下一次复习。
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild>
@@ -195,7 +195,7 @@ export default function MistakesPage() {
                 <Button asChild variant="secondary">
                   <Link href="/quiz">
                     <CircleAlert className="h-4 w-4" />
-                    做迁移测验
+                    做综合测验
                   </Link>
                 </Button>
               </div>

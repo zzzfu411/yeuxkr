@@ -37,12 +37,12 @@ const navGroups = [
     ]
   },
   {
-    label: "能力材料",
+    label: "词句与听读",
     items: [
       { href: "/vocabulary", label: "词汇", en: "Words", icon: LibraryBig },
       { href: "/grammar", label: "语法", en: "Grammar", icon: BookOpen },
-      { href: "/immersion", label: "材料", en: "Tape", icon: Radio },
-      { href: "/native", label: "母语者", en: "Native", icon: MessagesSquare }
+      { href: "/immersion", label: "听读", en: "Listen", icon: Radio },
+      { href: "/native", label: "自然表达", en: "Tone", icon: MessagesSquare }
     ]
   }
 ];
@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         跳到正文
       </a>
       <div className="editorial-shell">
-        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-md">
+        <header className="sticky top-0 z-[46] border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-md">
         <div className="mx-auto grid w-full min-w-0 max-w-[1320px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
           <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-2.5">
             <span className="seal-mark hidden h-8 w-8 text-sm sm:inline-grid" aria-hidden="true">기</span>

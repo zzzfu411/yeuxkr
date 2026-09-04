@@ -81,56 +81,56 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
     {
       id: "prerequisite",
       label: "01",
-      title: missingPrerequisites.length ? "先补前置课" : !libraryOk && !mastered ? "先补图书馆" : "前置已对齐",
+      title: missingPrerequisites.length ? "先学前置课" : !libraryOk && !mastered ? "先补基础内容" : "可以开始本课",
       detail: missingPrerequisites.length
         ? `建议先把 ${missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")} 达到 ${UNLOCK_SCORE}%。`
         : !libraryOk && !mastered
-          ? `先把${libraryMissing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}补上，本课才写入核心路径。`
-          : "这节课已经站在正确的路径位置上。",
+          ? `还需${libraryMissing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}。补齐后，本课才会计入主线进度。`
+          : "前置要求已满足，可以开始本课。",
       href: missingPrerequisites[0] ? `/learn/${missingPrerequisites[0].id}` : libraryMissing[0]?.href ?? "/path",
       done: !missingPrerequisites.length && (mastered || libraryOk)
     },
     {
       id: "lesson",
       label: "02",
-      title: mastered ? "课程已达标" : unlocked ? "完成本课练习" : "仅记录预览分",
+      title: mastered ? "本课已完成" : unlocked ? "完成本课练习" : "当前只能预览",
       detail: mastered
-        ? `最高分 ${Number(progress.lessonScores[lesson.id] ?? 0)}%，复习卡已可进入 SRS。`
+        ? `最高分 ${Number(progress.lessonScores[lesson.id] ?? 0)}%，本课内容已加入间隔复习。`
         : unlocked
-          ? `达到 ${UNLOCK_SCORE}% 后写入核心路径，并生成 ${reviewCards} 张复习卡。`
-          : `先修未达标时，练习只保存预览分数；不会生成复习卡或解锁后续课。`,
+          ? `达到 ${UNLOCK_SCORE}% 后，本课会计入主线进度，并生成 ${reviewCards} 张复习卡。`
+          : "前置要求尚未满足。本次只保存预览分数，不会生成复习卡或解锁后续课程。",
       href: `/learn/${lesson.id}`,
       done: mastered
     },
     {
       id: "review",
       label: "03",
-      title: mastered ? "复习卡已生成" : unlocked ? "达标后生成整课复习" : "先不写入 SRS",
+      title: mastered ? "复习卡已生成" : unlocked ? "完成后加入复习" : "暂不加入复习",
       detail: mastered
-        ? reviewCards ? `${reviewCards} 个本课题目已经可以成为长期记忆材料，错题也会进入复习队列。` : "本课暂无可复习题目。"
+        ? reviewCards ? `本课有 ${reviewCards} 道题进入间隔复习，答错的题也会加入错题本。` : "本课暂无可复习题目。"
         : unlocked
-          ? `达到 ${UNLOCK_SCORE}% 后才生成整课复习卡；未达标尝试只保留具体错题，避免把不稳内容伪装成已达标。`
-          : "旁路预览不会写入错题或整课复习，避免把未满足先修的内容伪装成已达标。",
+          ? `达到 ${UNLOCK_SCORE}% 后才会生成整课复习卡；未达标时只保留具体错题。`
+          : "预览不会生成错题或整课复习，也不会计为完成。",
       href: mastered || (unlocked && score > 0) ? "/review" : `/learn/${lesson.id}`,
       done: mastered
     },
     {
       id: "transfer",
       label: "04",
-      title: dueMaterial ? mastered ? "迁移到真实材料" : "达标后迁移到材料" : lockedMaterial ? "等待材料前置课" : mastered ? "等待材料迁移" : "达标后再迁移",
+      title: dueMaterial ? mastered ? "到情境听读里再用一次" : "完成后进入情境听读" : lockedMaterial ? "听读内容尚未解锁" : mastered ? "等待新的听读内容" : "完成后再综合运用",
       detail: dueMaterial
         ? mastered
-          ? `${dueMaterial.title} · ${dueMaterial.minutes} min，把本课知识放进听写、复述和输出。`
+          ? `${dueMaterial.title} · ${dueMaterial.minutes} 分钟。用本课内容做听写、复述和改写。`
           : unlocked
-            ? `先把本课达到 ${UNLOCK_SCORE}%，再用 ${dueMaterial.title} 做听写、复述和输出迁移。`
-            : `补齐先修后，再用 ${dueMaterial.title} 做听写、复述和输出迁移。`
+            ? `先让本课达到 ${UNLOCK_SCORE}%，再到“${dueMaterial.title}”做听写、复述和改写。`
+            : `补齐前置要求后，再到“${dueMaterial.title}”做听写、复述和改写。`
         : lockedMaterial
           ? mastered
             ? `材料还需要先完成 ${lockedMaterial.missingPrerequisiteIds.length} 节前置课；当前不会跳进未解锁材料。`
             : `先把本课达到 ${UNLOCK_SCORE}%，材料还需要完成 ${lockedMaterial.missingPrerequisiteIds.length} 节前置课；当前不会跳进未解锁材料。`
         : mastered
-          ? "当前材料库暂未绑定这节课，可以回到路径查看后续路线，或用综合测验做跨模块检查。"
-          : `本课达到 ${UNLOCK_SCORE}% 后，再进入后续路线或综合测验。`,
+          ? "当前还没有与本课直接对应的听读内容。可以继续下一课，或做一组综合测验。"
+          : `本课达到 ${UNLOCK_SCORE}% 后，再继续后续课程或综合测验。`,
       href: dueMaterial && mastered ? dueMaterial.href : mastered ? "/path" : `/learn/${lesson.id}`,
       done: Boolean(dueMaterial?.completed)
     }

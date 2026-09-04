@@ -126,7 +126,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             </Link>
           </Button>
           <p className="eyebrow mt-5">
-            Lesson {lesson.order} · {lesson.duration} min
+            第 {lesson.order} 课 · {lesson.duration} 分钟
           </p>
           <h1 className="inkline mt-2 max-w-4xl font-serif text-4xl font-normal leading-tight md:text-6xl">
             {lesson.title}
@@ -159,16 +159,16 @@ export function LessonClient({ lesson }: { lesson: any }) {
           ) : null}
           {needsOnboarding ? (
             <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
-              还没完成三分钟入门。先确认目标和韩文输入，第一课才会写入核心路径。
+              还没完成三分钟入门。先确认目标和韩文输入，第一课才会计入学习进度。
               <Link href="/onboarding" className="ml-2 underline decoration-2 underline-offset-2">
                 去入门
               </Link>
             </div>
           ) : !unlocked ? (
             <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
-              这是旁路预览：
+              当前是预览：
               {missingPrerequisites.length
-                ? `核心路径建议先把 ${missingPrerequisites.map((item: any) => item.title).join("、")} 达到 ${UNLOCK_SCORE}%。`
+                ? `建议先把 ${missingPrerequisites.map((item: any) => item.title).join("、")} 学到 ${UNLOCK_SCORE}%。`
                 : null}
               {libraryGate.missing.length
                 ? `先把${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}补上。`
@@ -191,7 +191,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             ))}
           </div>
           <div className="mt-5 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3">
-            <p className="eyebrow">能力证据</p>
+            <p className="eyebrow">本课会练</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {bridge.abilities.map((ability) => (
                 <span key={ability} className="border-b border-[var(--line)] px-2 py-1 text-xs font-medium text-[var(--ink-soft)]">
@@ -275,7 +275,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                 <div>
                   <strong className="font-serif text-2xl font-normal">先完成三分钟入门</strong>
                   <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
-                    确认目标和韩文输入后，第一课才会写入核心路径。
+                    确认目标和韩文输入后，第一课才会计入学习进度。
                   </p>
                 </div>
                 <Button asChild size="sm">
@@ -289,19 +289,19 @@ export function LessonClient({ lesson }: { lesson: any }) {
               <>
             {restoredSession && restoredSession.answers.length ? (
               <div className="mb-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--muted)]">
-                已恢复上次练习：第 {restoredSession.currentIndex + 1} 题，已保存 {restoredSession.answers.length}/{questions.length} 个回答。完成保存后会自动清除这个断点。
+                已恢复上次进度：第 {restoredSession.currentIndex + 1} 题，已保存 {restoredSession.answers.length}/{questions.length} 个回答。完成本课后会自动清除。
               </div>
             ) : null}
             {sessionSaveError ? (
               <div className="mb-4 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-medium leading-6 text-[var(--seal-ink)]">
-                本次练习断点没有写入本地存储。你可以继续完成本页，但刷新或离开后可能无法恢复到当前题；请释放浏览器存储空间后再继续长期学习。
+                练习进度没有保存。你可以继续完成本页，但刷新或离开后可能需要重做；请释放浏览器存储空间后再试。
               </div>
             ) : null}
             {sessionClearError ? (
               <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <span>成绩已经写入进度，但本课断点没有清理成功。刷新后可能还会恢复旧练习，请释放浏览器存储空间后重试清理。</span>
+                <span>成绩已保存，但上次练习状态没有清理成功。刷新后可能还会看到旧进度，请释放浏览器存储空间后重试。</span>
                 <Button type="button" variant="secondary" size="sm" onClick={retryClearLessonSession}>
-                  重试清理断点
+                  重试清理
                 </Button>
               </div>
             ) : null}
@@ -429,9 +429,9 @@ function LessonResultActions({
   if (saveError) {
     return (
       <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-4">
-        <strong className="font-serif text-2xl font-normal text-[var(--seal-ink)]">成绩没有写入本地进度</strong>
+        <strong className="font-serif text-2xl font-normal text-[var(--seal-ink)]">成绩没有保存</strong>
         <p className="text-sm font-bold leading-6 text-[var(--muted)]">
-          请释放浏览器存储空间或关闭隐私限制后再试。页面不会离开，避免误以为已经完成。
+          请释放浏览器存储空间或关闭隐私限制后再试。当前页面会保留，方便你重新保存。
         </p>
         <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>
           重新保存
@@ -445,8 +445,8 @@ function LessonResultActions({
       return (
         <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <strong className="font-serif text-2xl font-normal">固定题已达标，还差{completionGateLabel ?? "本课作品"}</strong>
-            <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">先完成并保存作品证据，本课才会写入核心路径。</p>
+            <strong className="font-serif text-2xl font-normal">课程题目已通过，还差{completionGateLabel ?? "本课作品"}</strong>
+            <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">先完成并保存本课作品，课程才会计入主线进度。</p>
           </div>
           {completionGateHref ? (
             <Button asChild size="sm">
@@ -460,7 +460,7 @@ function LessonResultActions({
       return (
         <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <strong className="font-serif text-2xl font-normal">总分达标，分项还没过</strong>
+            <strong className="font-serif text-2xl font-normal">总分达到要求，听力或输出还没过</strong>
             <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">{lessonAssessmentMessage(assessment)}</p>
           </div>
           <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>保存本次结果</Button>
@@ -481,8 +481,8 @@ function LessonResultActions({
           <strong className="font-serif text-2xl font-normal">{unlocked ? "成绩已保存，但还未达标" : "预览成绩已保存"}</strong>
           <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
             {unlocked
-              ? `${lessonAssessmentMessage(assessment)} 核心路径需要总分与分项同时达标，才会生成整课复习卡并解锁下一课。`
-              : "这次只记录预览分数；核心路径仍建议先补齐前置课。"}
+              ? `${lessonAssessmentMessage(assessment)} 总分和各项要求都达到后，才会生成整课复习卡并解锁下一课。`
+              : "这次只保存预览分数；建议先完成前置课。"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -516,11 +516,11 @@ function LessonResultActions({
         <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
           {unlocked
             ? reviewFirst
-              ? `总分、主动输出与听辨分项均已核验。现在有 ${dueCount} 张到期卡，先清复习再继续下一课。`
+              ? `本课已完成。现在有 ${dueCount} 张到期卡，先复习再继续下一课。`
               : libraryFirst
-                ? `总分、主动输出与听辨分项均已核验。下一课还差图书馆门槛，先补库再上课。`
-                : `总分、主动输出与听辨分项均已核验。你可以继续下一课，或把 ${bridge.reviewCards} 张复习卡送回长期记忆。`
-            : "这次只记录预览分数；核心路径仍建议先补齐前置课。"}
+                ? "本课已完成。下一课还需要补齐阶段基础内容。"
+                : `本课已完成。可以继续下一课，或稍后复习这 ${bridge.reviewCards} 张卡。`
+            : "这次只保存预览分数；建议先完成前置课。"}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -556,7 +556,7 @@ function LessonResultActions({
         )}
         {bridge.transferMaterials.some((material) => material.available) ? (
           <Button asChild variant="ghost" size="sm">
-            <Link href={bridge.transferMaterials.find((material) => material.available && !material.completed)?.href ?? bridge.transferMaterials.find((material) => material.available)!.href}>练真实材料</Link>
+            <Link href={bridge.transferMaterials.find((material) => material.available && !material.completed)?.href ?? bridge.transferMaterials.find((material) => material.available)!.href}>去做情境听读</Link>
           </Button>
         ) : null}
       </div>
@@ -569,9 +569,9 @@ function lessonAssessmentMessage(assessment: LessonAssessmentResult) {
   if (!assessment.overallPassed) missing.push(`总分需达到 ${UNLOCK_SCORE}%`);
   if (!assessment.productionPassed) missing.push("主动输入、听写或翻译题需达到 60%");
   if (assessment.listeningRequired && !assessment.listeningPassed) {
-    missing.push(assessment.listeningDeferred || assessment.listeningSkipped ? "至少需要答对一题听辨或听写，跳过音频不能写入核心路径" : "听辨题需达到 60%");
+    missing.push(assessment.listeningDeferred || assessment.listeningSkipped ? "至少答对一题听辨或听写；跳过音频时，本课不能计入主线进度" : "听辨题需达到 60%");
   }
-  return missing.length ? missing.join("；") : "本次分项已达标。";
+  return missing.length ? missing.join("；") : "各项要求都已达到。";
 }
 
 function LessonTaskEvidencePanel({
@@ -641,13 +641,13 @@ function LessonTaskEvidencePanel({
         if (cancelled) return;
         if (!blob) {
           if (!invalidateRecordingRef.current(lessonId, evidence.recordingId!)) {
-            setMessage("录音实体不存在，但学习进度未能同步撤回；请释放存储空间后刷新重试。");
+            setMessage("录音文件不存在，但学习进度没有同步更新；请释放存储空间后刷新重试。");
             return;
           }
           setRecordedSeconds(0);
           setRecordingId("");
           recordingIdRef.current = "";
-          setMessage("已保存的录音实体不存在，需要重新录音或完成听后复现。");
+          setMessage("已保存的录音文件不存在，需要重新录音或完成听后复现。");
           return;
         }
         const nextUrl = URL.createObjectURL(blob);
@@ -701,7 +701,7 @@ function LessonTaskEvidencePanel({
     const requestId = ++recordingRequestRef.current;
     setMessage("");
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setMessage("当前浏览器不能录音，请使用下方听后复现作为替代验收。");
+      setMessage("当前浏览器不能录音，可以用下方的听后复现完成本课。");
       startingRecordingRef.current = false;
       setStartingRecording(false);
       return;
@@ -745,7 +745,7 @@ function LessonTaskEvidencePanel({
         if (!nextRecordingId) {
           setRecordedSeconds(0);
           setRecordingId("");
-          setMessage("录音无法写入浏览器数据库，请使用听后复现作为替代验收。");
+          setMessage("录音没有保存。可以用下方的听后复现完成本课。");
           return;
         }
         if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -789,7 +789,7 @@ function LessonTaskEvidencePanel({
       chunksRef.current = [];
       if (mountedRef.current && requestId === recordingRequestRef.current) {
         setRecording(false);
-        setMessage("没有取得麦克风权限或录音启动失败，请使用下方听后复现作为替代验收。");
+        setMessage("没有取得麦克风权限或录音启动失败，可以用下方的听后复现完成本课。");
       }
     } finally {
       if (mountedRef.current && requestId === recordingRequestRef.current) {
@@ -810,7 +810,7 @@ function LessonTaskEvidencePanel({
       return;
     }
     if (!check.ready) {
-      setMessage("作品还未满足系统检查，请补齐未通过项。");
+      setMessage("作品还没满足完成条件，请补齐未通过项。");
       return;
     }
     const expectedRecordingId = draftBaseRecordingIdRef.current;
@@ -822,12 +822,12 @@ function LessonTaskEvidencePanel({
       savedRecordingIdRef.current = recordingId;
       draftBaseRecordingIdRef.current = recordingId;
     }
-    setMessage(ok ? "本课作品已保存，可以完成固定题验收。" : "作品没有写入本地进度，请释放存储空间后重试。");
+    setMessage(ok ? "本课作品已保存，可以继续完成课程题目。" : "作品没有保存，请释放存储空间后重试。");
   };
 
   return (
     <Surface id="lesson-task-evidence" className="scroll-mt-40 lg:scroll-mt-28">
-      <SectionHeading kicker="Required Evidence" title={task.title} />
+      <SectionHeading kicker="Required Work" title={task.title} />
       <p className="max-w-3xl leading-7 text-[var(--muted)]">{task.prompt}</p>
 
       {task.source ? (
@@ -841,7 +841,7 @@ function LessonTaskEvidencePanel({
           </div>
           {task.kind === "retell" ? (
             <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-medium">打开原文，听完后请合上</summary>
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">打开原文，听完后请合上</summary>
               <p className="hangul-display mt-3 text-lg font-bold leading-8" lang="ko">{task.source}</p>
             </details>
           ) : (
@@ -855,7 +855,7 @@ function LessonTaskEvidencePanel({
           <div>
             <strong>最后一轮录音</strong>
             <p className="mt-1 text-sm font-bold text-[var(--muted)]">
-              {recordedSeconds ? `已录 ${recordedSeconds.toFixed(1)} 秒。` : "录完后先回听，再保存验收。"}
+              {recordedSeconds ? `已录 ${recordedSeconds.toFixed(1)} 秒。` : "录完后先回听，再保存作品。"}
             </p>
             {audioUrl ? <audio className="mt-3 w-full" controls src={audioUrl} /> : null}
           </div>
@@ -895,7 +895,7 @@ function LessonTaskEvidencePanel({
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button type="button" onClick={save} disabled={!check.ready || recording || startingRecording}>保存作品</Button>
-        {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">已保存有效证据</span> : null}
+        {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">作品已保存</span> : null}
         {message ? <span className="text-sm font-bold text-[var(--muted)]" role="status">{message}</span> : null}
       </div>
     </Surface>
@@ -968,13 +968,13 @@ function CapstoneEvidencePanel({
         if (cancelled) return;
         if (!blob) {
           if (!invalidateRecordingRef.current(savedRecordingId)) {
-            setRecordingMessage("录音实体不存在，但终课进度未能同步撤回；请释放存储空间后刷新重试。");
+            setRecordingMessage("录音文件不存在，但终课完成状态没有同步更新；请释放存储空间后刷新重试。");
             return;
           }
           recordingIdRef.current = "";
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
           setStatus("idle");
-          setRecordingMessage("已保存的录音实体不存在，终课证据已撤回，请重新录制。");
+          setRecordingMessage("已保存的录音文件不存在，终课完成状态已撤回，请重新录制。");
           return;
         }
         const nextAudioUrl = URL.createObjectURL(blob);
@@ -1074,14 +1074,14 @@ function CapstoneEvidencePanel({
 
         if (blob.size === 0) {
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setRecordingMessage("没有取得有效音频数据，本次录音不计入终课证据，请重新录制。");
+          setRecordingMessage("没有取得有效音频数据，这段录音不能用于完成终课，请重新录制。");
           return;
         }
 
         const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
         if (!nextRecordingId) {
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
+          setRecordingMessage("录音没有保存，不能用于完成终课。请释放浏览器存储空间后重试。");
           return;
         }
         if (!mountedRef.current || requestId !== recordingRequestRef.current) {
@@ -1176,9 +1176,9 @@ function CapstoneEvidencePanel({
     <Surface className="border-[var(--line)]">
       <div id="capstone-evidence" className="scroll-mt-40 lg:scroll-mt-28">
         <SectionHeading
-          kicker="Capstone Evidence"
+          kicker="Capstone Work"
           title="保存终课作品，再确认达标"
-          copy="固定题只能检查结构识别。终课还必须留下至少两分钟的真实口语录音、可复查的韩语输出稿、弱点和目标改写，才能成为作品证据。"
+          copy="课程题目只能检查结构识别。录制至少两分钟口语，并保存韩语输出稿、弱点和目标改写后，终课才算完成。"
         />
         <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--seal-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
@@ -1285,7 +1285,7 @@ function CapstoneEvidencePanel({
               保存终课作品
             </Button>
             <p role="status" aria-live="polite" className="min-h-5 text-sm font-bold text-[var(--muted)]">
-              {status === "saved" ? "终课作品已保存，可以完成固定题并确认达标。" : status === "error" ? "作品未能写入本地存储，请释放空间后重试。" : ready ? "作品证据已完整，可以保存。" : "完成至少 120 秒真实录音，并补齐系统结构检查、四项自检、弱点和韩语目标改写；文本或勾选不能替代录音。"}
+              {status === "saved" ? "终课作品已保存，可以完成课程题目并确认结果。" : status === "error" ? "作品没有保存，请释放空间后重试。" : ready ? "完成条件已满足，可以保存。" : "录制至少 120 秒口语，再完成结构检查、四项自检、弱点和韩语目标改写。文本或勾选不能替代录音。"}
             </p>
           </div>
         </div>
@@ -1309,8 +1309,8 @@ function LessonBridgePanel({
     <Surface>
       <SectionHeading
         kicker="Lesson Bridge"
-        title="做完这一课后，知识要流向哪里"
-        copy="课程不是孤立题组。达标后会进入核心路径、复习卡、真实材料和能力护照；未达标时先回到前置课或重做本课。"
+        title="完成本课后，接下来做什么"
+        copy="本课完成后会计入主线进度，并生成复习卡。之后可以继续下一课，或到情境听读里再用一次。"
       />
       <div className="grid gap-3 xl:grid-cols-4">
         {bridge.steps.map((step) => (
@@ -1339,12 +1339,12 @@ function LessonBridgePanel({
             复习产物
           </p>
           <strong className="mt-2 block font-serif text-3xl">{bridge.reviewCards}</strong>
-          <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">本课可进入 SRS 的题目数。错题会先进入错题卡，达标课程会生成整课复习卡。</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">本课可加入间隔复习的题目数。答错会先进入错题本，完成课程后会生成整课复习卡。</p>
         </div>
         <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4">
           <p className="eyebrow inline-flex items-center gap-2">
             <Radio className="h-4 w-4" />
-            真实材料迁移
+            情境听读
           </p>
           {bridge.transferMaterials.length ? (
             <div className="mt-3 grid gap-2">
@@ -1357,7 +1357,7 @@ function LessonBridgePanel({
                   >
                     {material.completed ? "已完成 · " : ""}
                     {material.title}
-                    <span className="ml-2 font-mono text-xs text-[var(--muted)]">{material.minutes} min</span>
+                    <span className="ml-2 font-mono text-xs text-[var(--muted)]">{material.minutes} 分钟</span>
                   </Link>
                 ) : (
                   <div
@@ -1368,10 +1368,10 @@ function LessonBridgePanel({
                     <span className="inline-flex items-center gap-2 text-[var(--ink)]">
                       <LockKeyhole className="h-4 w-4 text-[var(--ink-mute)]" />
                       {material.title}
-                      <span className="font-mono text-xs text-[var(--muted)]">{material.minutes} min</span>
+                      <span className="font-mono text-xs text-[var(--muted)]">{material.minutes} 分钟</span>
                     </span>
                     <span className="font-mono text-xs font-medium text-[var(--ink-mute)]">
-                      {!bridge.mastered ? "达标后解锁材料迁移" : `还需 ${material.missingPrerequisiteIds.length} 节材料前置课`}
+                      {!bridge.mastered ? "完成本课后开放" : `还需 ${material.missingPrerequisiteIds.length} 节前置课`}
                     </span>
                   </div>
                 )
@@ -1393,22 +1393,22 @@ function LessonBridgePanel({
         </p>
         <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">
           {needsOnboarding
-            ? "先完成三分钟入门后，本课才会写入核心路径。"
+            ? "先完成三分钟入门，本课才会计入主线进度。"
             : bridge.mastered
             ? dueCount > 0
-              ? `已达标。现在有 ${dueCount} 张到期卡，先清复习再继续${bridge.nextLesson ? `第 ${bridge.nextLesson.order} 课` : "后续路线"}。`
+              ? `本课已完成。现在有 ${dueCount} 张到期卡，先复习再继续${bridge.nextLesson ? `第 ${bridge.nextLesson.order} 课` : "后续课程"}。`
               : libraryLabel
-                ? `已达标。下一课还差图书馆门槛，${libraryLabel}再上课。`
+                ? `本课已完成。先${libraryLabel}，再开始下一课。`
                 : bridge.nextLesson
-                  ? `已达标，下一课是第 ${bridge.nextLesson.order} 课：${bridge.nextLesson.title}。`
-                  : "核心课程已达标，下一步应转向真实材料、输出档案和母语者作品集。"
+                  ? `本课已完成。下一课是第 ${bridge.nextLesson.order} 课：${bridge.nextLesson.title}。`
+                  : "主线课程已完成。接下来保持复习，并逐步加入原生材料和长期作品练习。"
             : bridge.unlocked
-              ? `本课可学习；达到 ${UNLOCK_SCORE}% 后会正式写入核心路径。`
+              ? `本课可学习；达到 ${UNLOCK_SCORE}% 后会计入主线进度。`
               : bridge.missingPrerequisites.length
-                ? `旁路预览中；先补 ${bridge.missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")} 更稳。`
+                ? `当前是预览；建议先学 ${bridge.missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")}。`
                 : libraryLabel
-                  ? `旁路预览中；${libraryLabel}后才会写入核心路径。`
-                  : "旁路预览中；先补齐前置课或图书馆门槛更稳。"}
+                  ? `当前是预览；${libraryLabel}后才会计入主线进度。`
+                  : "当前是预览。先完成前置课或补齐阶段基础内容。"}
         </p>
       </div>
     </Surface>

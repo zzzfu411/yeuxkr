@@ -1437,7 +1437,7 @@ test("immersion recommendations wait for material prerequisites", () => {
   const zeroBasis = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided", selfStudyGoal: "native" }), normalizeLearningProgress(defaultProgress()), 0);
   assert.equal(zeroBasis.recommended.some((task) => task.id === "system:immersion"), false);
   const preview = zeroBasis.openStudy.find((task) => task.id === "open:immersion");
-  assert.equal(preview.title, "真实材料预览");
+  assert.equal(preview.title, "预览情境听读");
   assert.equal(preview.href, "/immersion?material=im-cafe-real-speed");
 
   const readyProgress = normalizeLearningProgress({
@@ -1447,7 +1447,7 @@ test("immersion recommendations wait for material prerequisites", () => {
   const ready = buildLearningWorkspace(normalizeUserProfile({ studyMode: "guided", selfStudyGoal: "native" }), readyProgress, 0);
   const immersionTask = ready.recommended.find((task) => task.id === "system:immersion");
   assert.equal(immersionTask.href, "/immersion?material=im-cafe-real-speed");
-  assert.equal(ready.openStudy.find((task) => task.id === "open:immersion").title, "真实材料实验室");
+  assert.equal(ready.openStudy.find((task) => task.id === "open:immersion").title, "开始情境听读");
 });
 
 test("material completion binds a concrete reviewable output entry", () => {
@@ -2087,9 +2087,9 @@ test("lesson bridge connects prerequisites, review cards, transfer materials, an
   assert.equal(blockedBridge.mastered, false);
   assert.equal(blockedBridge.missingPrerequisites.length > 0, true);
   assert.equal(blockedBridge.steps.find((step) => step.id === "prerequisite").done, false);
-  assert.equal(blockedBridge.steps.find((step) => step.id === "lesson").title, "仅记录预览分");
-  assert.equal(blockedBridge.steps.find((step) => step.id === "review").title, "先不写入 SRS");
-  assert.equal(blockedBridge.steps.find((step) => step.id === "transfer").title, "等待材料前置课");
+  assert.equal(blockedBridge.steps.find((step) => step.id === "lesson").title, "当前只能预览");
+  assert.equal(blockedBridge.steps.find((step) => step.id === "review").title, "暂不加入复习");
+  assert.equal(blockedBridge.steps.find((step) => step.id === "transfer").title, "听读内容尚未解锁");
   assert.equal(blockedBridge.transferMaterials.some((material) => material.id === "im-cafe-real-speed"), true);
   assert.equal(blockedBridge.transferMaterials.find((material) => material.id === "im-cafe-real-speed").available, false);
   assert.equal(blockedBridge.steps.find((step) => step.id === "transfer").href, `/learn/${cafeLesson.id}`);
@@ -2118,7 +2118,7 @@ test("lesson bridge keeps lessons without material bindings explicit", () => {
   assert.equal(Boolean(unboundLessonId), true);
   assert.equal(bridge.transferMaterials.length, 0);
   assert.equal(transferStep.href, `/learn/${lesson.id}`);
-  assert.equal(transferStep.title, "达标后再迁移");
+  assert.equal(transferStep.title, "完成后再综合运用");
 });
 
 test("lesson bridge transfer completion uses validated material ids when provided", () => {
@@ -2700,7 +2700,7 @@ test("self-study checkpoints expose focused ability evidence", () => {
     selfStudyFocus: "conversation",
     minutesGoal: 30
   });
-  const nativeCheckpoint = plan.checkpoints.find((checkpoint) => checkpoint.title === "母语者表达检查");
+  const nativeCheckpoint = plan.checkpoints.find((checkpoint) => checkpoint.title === "自然表达检查");
   const midterm = plan.checkpoints.find((checkpoint) => checkpoint.title === "中期检查");
   const scriptCheckpoint = plan.checkpoints.find((checkpoint) => checkpoint.title === "韩文与收音检查");
 

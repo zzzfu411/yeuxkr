@@ -467,16 +467,16 @@ test("MasteryGate reports a failed persistence write and retries without another
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   let addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /没有写入本地存储/);
-  assert.doesNotMatch(textContent(addon), /已写入掌握记录/);
+  assert.match(textContent(addon), /学习记录和复习卡没有保存/);
+  assert.doesNotMatch(textContent(addon), /小测已通过，正在保存/);
   assert.equal(saveAttempts, 1);
 
   saveSucceeds = true;
-  findButton(addon, "重试写入").props.onClick();
+  findButton(addon, "重试保存").props.onClick();
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /正在写入掌握记录/);
+  assert.match(textContent(addon), /小测已通过，正在保存/);
   assert.equal(saveAttempts, 2);
 });
 

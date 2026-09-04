@@ -36,7 +36,7 @@ export default function QuizPage() {
   const saveQuizResult = useCallback((score: number, answers: Parameters<typeof commitQuizSession>[1]) => {
     if (savedQuizId === quizId) return true;
     if (!commitQuizSession(quizId, answers, score)) {
-      setSaveError("测验结果没有写入本地进度，请释放浏览器存储空间后重试。");
+      setSaveError("测验结果没有保存。请释放浏览器空间后重试。");
       return false;
     }
     setSavedQuizId(quizId);
@@ -48,8 +48,8 @@ export default function QuizPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="Mixed Quiz"
-        title="已学内容迁移测验。"
-        copy="题目默认只从已经学过、错过或加入过的韩文、发音、词汇、语法、真实材料和输出改写里抽取。未达标课里的断点也会进这张桌子。答错会进入错题 SRS，低分只说明下一轮复习该照顾哪里。"
+        title="综合测验：只考你学过的内容。"
+        copy="题目来自课程、韩文、词汇、语法、情境听读和你保存过的改写。答错会加入错题复习，方便之后重练。"
         compact
       >
         {questions.length ? (
@@ -68,8 +68,8 @@ export default function QuizPage() {
           recordMistakes={false}
           finishLabel="查看结果"
           emptyState={{
-            title: "还没有可迁移的题目。",
-            detail: "测验只抽已经有证据的内容：完成过的课、到期复习卡、真实材料听写复述，以及绑定过的韩语输出。先补一段证据，题目会自然出现。",
+            title: "还没有可出的题目。",
+            detail: "先完成一课、加入几个词，或保存一段听写和复述。学过的内容会自动出现在这里。",
             action: (
               <>
                 <Button asChild>
@@ -91,7 +91,7 @@ export default function QuizPage() {
                     <Button asChild variant="secondary">
                       <Link href="/immersion">
                         <Radio className="h-4 w-4" />
-                        积累材料
+                        去做听读
                       </Link>
                     </Button>
                   </>
@@ -107,7 +107,7 @@ export default function QuizPage() {
                 </p>
               ) : savedQuizId === quizId ? (
                 <p className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6 text-[var(--celadon)]">
-                  测验结果已写入进度。
+                  测验结果已保存。
                 </p>
               ) : null}
               <div className="flex flex-wrap gap-2">
@@ -136,8 +136,8 @@ export default function QuizPage() {
 
       <ModuleHero
         kicker="Transfer Check"
-        title="把已学知识拉到同一张桌上。"
-        copy="这组题不按模块排队，重点检查你能不能在声音、拼写、词义、句型和自己的真实输出之间快速切换。低分不是失败，而是告诉 SRS 下一轮该优先照顾哪里。"
+        title="换个题型，看看还能不能答对。"
+        copy="题目会混合声音、拼写、词义和句型。分数不理想时，错题会进入复习，告诉你下一轮先补哪里。"
         asset="quiz"
         imageSize="22rem"
         imageClassName="min-h-64 rounded-none border-0"

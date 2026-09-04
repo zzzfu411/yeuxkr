@@ -109,7 +109,7 @@ export default function SettingsPage() {
               </div>
             </div>
             {status === "saved" ? <InlineAlert tone="success">设置已保存。</InlineAlert> : null}
-            {status === "error" ? <InlineAlert>设置没有写入本地存储，请检查浏览器存储权限。</InlineAlert> : null}
+            {status === "error" ? <InlineAlert>设置没有保存。请允许本站使用浏览器存储后重试。</InlineAlert> : null}
           </div>
         </Surface>
 
@@ -119,7 +119,7 @@ export default function SettingsPage() {
             <SpeechSettings />
           </Surface>
           <Surface>
-            <SectionHeading kicker="Data" title="备份与迁移" copy="学习数据只存在本浏览器。换设备或清缓存前，用页面顶部的「导出」按钮保存备份文件，再用「导入」恢复。麦克风录音不会写入备份，迁移后相关口语证据需要重新录制。" />
+            <SectionHeading kicker="Data" title="备份与迁移" copy="学习数据只存在当前浏览器。换设备或清理缓存前，请先从页面顶部导出备份，再在新设备导入。麦克风录音不会随备份导出，换设备后需要重新录制。" />
             <p className="flex items-center gap-2 text-sm font-bold text-[var(--muted)]">
               <Save className="h-4 w-4" aria-hidden="true" />
               顶部工具栏：导出 / 导入 / 存储 / 重置

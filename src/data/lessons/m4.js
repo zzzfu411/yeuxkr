@@ -643,7 +643,7 @@ export const m4Lessons = [
     id: "l30-native-capstone",
     order: 45,
     milestone: "m4",
-    title: "母语者层输出总复盘",
+    title: "自然表达总复盘",
     subtitle: "从信息正确到表达合适。",
     duration: 20,
     focus: [
@@ -658,8 +658,8 @@ export const m4Lessons = [
     ],
     teach: [
       {
-        title: "母语者层：合适比正确更难",
-        body: "母语者层不等于零错误，而是能根据对象和语境调整同一句话。同样是婉拒明天的安排，对朋友说 내일 좀 힘들 것 같아，对上级说 죄송하지만 내일은 어려울 것 같습니다——信息一样，语体、敬语、缓冲全在随关系变化。这一课把 M4 的敬语、缓和、拒绝、讨论串成一次完整输出。",
+        title: "自然表达：合适比正确更难",
+        body: "自然表达不等于零错误，而是能根据对象和语境调整同一句话。比如婉拒明天的安排，对朋友可以说 내일 좀 힘들 것 같아，对上级则说 죄송하지만 내일은 어려울 것 같습니다。信息一样，语气、敬语和缓冲方式会随关系变化。这一课把 M4 的敬语、缓和、拒绝和讨论串成一次完整输出。",
         speak: "죄송하지만 내일은 좀 어려울 것 같습니다.",
         romanization: "joesonghajiman naeireun jom eoryeoul geot gatseumnida",
         examples: [
@@ -706,14 +706,14 @@ export const m4Lessons = [
         romanization: "je saenggageneun dosi saenghwari pyeonhagin hajiman gyeolguk maeumui yeoyuga deo jungyohan geot gatayo"
       },
       {
-        title: "复盘进 SRS，闭环继续",
-        body: "输出里卡壳的词、拿不准的句型、说僵了的表达，全部送进 SRS 复习队列。错误不是失败，而是下一轮学习最好的输入。M4 到此收官，但循环不停：输出 → 自查 → 复习 → 再输出，每一圈都离“合适的韩语”更近一步。"
+        title: "把卡住的地方加入复习",
+        body: "把输出时卡住的词、拿不准的句型和不够自然的表达加入复习。M4 到这里结束，之后继续输出、自查、复习，再换个场景试一次。"
       }
     ],
     drills: [
       {
         type: "choice",
-        prompt: "母语者层输出最该自查？",
+        prompt: "自然表达最该自查什么？",
         answer: "信息顺序、语气、敬语和连接",
         choices: [
           "信息顺序、语气、敬语和连接",
@@ -742,7 +742,7 @@ export const m4Lessons = [
           "只换主题",
           "跳过复盘"
         ],
-        explain: "闭环来自输出后的复盘。"
+        explain: "输出后复盘，下一次才更容易说得自然。"
       },
       {
         type: "choice",

@@ -18,7 +18,7 @@ import { useLearningWorkspace } from "@/lib/learning/workspace";
 const levelLabels: Record<string, string> = {
   foundation: "基础骨架",
   growth: "连续表达",
-  native: "母语者语法"
+  native: "进阶语法"
 };
 
 export default function GrammarPage() {
@@ -56,7 +56,7 @@ export default function GrammarPage() {
   const levelCounts = countBy(filteredPoints, "level");
   const activeFilters = [
     levelFilter !== "all" ? levelLabels[levelFilter] ?? levelFilter : null,
-    onlyLearned ? "已加入 SRS" : null,
+    onlyLearned ? "已加入复习" : null,
     query.trim() ? `搜索：${query.trim()}` : null
   ].filter(Boolean);
   const resetFilters = () => {
@@ -86,18 +86,18 @@ export default function GrammarPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="Sentence Workshop"
-        title="语法以“能说什么”为单位。"
-        copy="这里不是术语索引，而是句型工坊。每个结构都要能替换、扩展、改写，最后进入真实表达。"
+        title="按“想说什么”来学语法。"
+        copy="先看结构和例句，再换成自己的内容。能独立造句后，再把它加入复习。"
         compact
       />
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把语法掌握写入核心路径。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，之后的语法练习才会计入学习进度。" />
       <LibraryGateNotice focus="grammar" />
 
       <ModuleHero
         kicker={`${filteredPoints.length}/${grammarPoints.length} patterns`}
-        title="从骨架到语气。"
-        copy="韩语语法不该孤立背规则。新的学习模型会把语法点和课程、词汇、输出任务连接起来，让用户从理解走到调用。"
+        title="先看懂结构，再说自己的句子。"
+        copy="语法会和课程、词汇及输出练习一起出现，帮助你把规则真正用起来。"
         asset="grammar"
         imageClassName="min-h-80 rounded-none border-0"
       >
@@ -106,7 +106,7 @@ export default function GrammarPage() {
             <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
               <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
               <strong className="mt-1 block">{label}</strong>
-              <span className="text-sm font-bold text-[var(--ocean)]">{levelCounts[id] ?? 0} shown</span>
+              <span className="text-sm font-bold text-[var(--ocean)]">显示 {levelCounts[id] ?? 0}</span>
             </div>
           ))}
         </div>
@@ -116,7 +116,7 @@ export default function GrammarPage() {
         <SectionHeading
           kicker="Pattern Console"
           title="筛选要练的句型"
-          copy="搜索会同时匹配结构、中文含义、韩语例句、坑点提示。先按层级缩小范围，再把能造句的结构加入 SRS。"
+          copy="可以按阶段筛选，也可以搜索结构、含义或例句。先练一小组，能造句后再加入间隔复习。"
           action={activeFilters.length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               重置筛选
@@ -124,7 +124,7 @@ export default function GrammarPage() {
           ) : null}
         />
         <div className="grid gap-4">
-          <SearchField label="搜索语法" value={query} onChange={setQuery} placeholder="输入 结构 / 韩语例句 / 中文含义 / 坑点" />
+          <SearchField label="搜索语法" value={query} onChange={setQuery} placeholder="输入结构、韩语例句或中文含义" />
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
             <SegmentedFilter
               label="语法层级"
@@ -132,17 +132,17 @@ export default function GrammarPage() {
               options={[{ id: "all", label: "全部" }, ...Object.entries(levelLabels).map(([id, label]) => ({ id, label: `${label} ${levelCounts[id] ?? 0}` }))]}
               onChange={setLevelFilter}
             />
-            <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
+            <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredPoints.length} filters={activeFilters} />
           {!focusedFilterActive ? (
             <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
-                当前先显示 {visiblePoints.length} 个今日句型切片；每个句型都需要先听例句、替换成自己的句子，再加入 SRS。掌握后再展开剩余 {hiddenPointCount} 个句型。
+                先练这 {visiblePoints.length} 个句型：听例句，再造一个自己的句子。还有 {hiddenPointCount} 个句型可以展开。
               </span>
               {showAll || hiddenPointCount ? (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起到今日切片" : "展开全部句型"}
+                  {showAll ? "收起" : "展开全部句型"}
                 </Button>
               ) : null}
             </div>
@@ -152,13 +152,13 @@ export default function GrammarPage() {
 
       {!filteredPoints.length ? (
         <Surface>
-          <EmptyState title="没有匹配的语法点" copy="换一个搜索词，或重置层级和 SRS 筛选。" onAction={resetFilters} />
+          <EmptyState title="没有匹配的语法点" copy="换一个搜索词，或重置阶段和复习筛选。" onAction={resetFilters} />
         </Surface>
       ) : null}
 
       {Object.entries(byLevel).map(([level, points]) => (
         <Surface key={level} variant="plain">
-          <SectionHeading kicker={`${level} · 当前 ${points.length} shown · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
+          <SectionHeading kicker={`${level} · 显示 ${points.length} · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
           <div>
             {points.map((point: any, pointIndex: number) => (
               <TrackRow
@@ -202,7 +202,7 @@ export default function GrammarPage() {
                 </div>
                 {learned.has(point.id) ? (
                   <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
-                    已掌握 · 点击移出
+                    已加入复习 · 点击移出
                   </Button>
                 ) : (
                   <Button
@@ -214,7 +214,7 @@ export default function GrammarPage() {
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === point.id ? "" : point.id))}
                   >
-                    测一测 · 加入语法复习
+                    测一测，再加入复习
                   </Button>
                 )}
                 {gateItemId === point.id && !learned.has(point.id) ? (
@@ -264,7 +264,7 @@ function normalizeSearch(value: string) {
 function SrsError() {
   return (
     <InlineAlert className="mt-3">
-      这张语法卡没有写入成功，请释放浏览器存储空间或关闭隐私限制后再试。
+      这张语法卡没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
     </InlineAlert>
   );
 }

@@ -105,7 +105,7 @@ function sourceLabelForItem(itemId: string) {
   if (itemId.startsWith("gq:")) return "语法题";
   if (itemId.startsWith("lesson:")) return "课程练习";
   if (itemId.startsWith("progress:")) return "综合测验";
-  if (itemId.startsWith("material:")) return "真实材料";
+  if (itemId.startsWith("material:")) return "情境听读";
   if (itemId.startsWith("output:")) return "输出改写";
   if (itemId.startsWith("hangul:")) return "韩文结构";
   if (itemId.startsWith("pronunciation:")) return "发音辨析";

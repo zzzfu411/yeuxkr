@@ -11,7 +11,7 @@ export function AbilityBars({ ability }: { ability: Record<AbilityId, number> })
             <span className="font-mono">{value}</span>
           </div>
           <div
-            className="h-2 overflow-hidden rounded-full bg-[rgba(24,28,27,0.12)]"
+            className="h-2 overflow-hidden rounded-full bg-[var(--track)]"
             role="progressbar"
             aria-labelledby={`ability-${id}`}
             aria-valuemin={0}

@@ -75,8 +75,8 @@ export default function SelfStudyPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="Self Study"
-        title="自学不是没有路径，而是你拥有调度权。"
-        copy="先决定今天跟随主线还是自主调度，再把目标、强度、重点和检查证据连成一张可执行的学习合约。"
+        title="按自己的时间安排，也别丢掉学习顺序。"
+        copy="选择目标、每天能学多久，以及当前最想练什么。保存后，首页会按这个计划安排任务。"
         compact
       >
         <div className="flex flex-wrap gap-2">
@@ -95,12 +95,12 @@ export default function SelfStudyPage() {
         </div>
       </PageHeader>
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把自学方案写入工作台。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，再保存你的学习计划。" />
 
       <ModuleHero
         kicker={`Current Plan · ${plan.intensity.title} · ${plan.focus.title}`}
         title={plan.goal.title}
-        copy={`${plan.goal.outcome} 当前投入约每周 ${plan.weeklyHours} 小时，周期按约 ${plan.goal.targetHours} 小时目标量动态估算。`}
+        copy={`${plan.goal.outcome} 按当前安排，每周约 ${plan.weeklyHours} 小时。预计周期会随每天可用时间调整。`}
         asset="selfStudy"
         imageSize="18rem"
         imageClassName="min-h-56 rounded-none border-t border-[var(--line)] lg:min-h-full lg:border-l lg:border-t-0"
@@ -122,7 +122,7 @@ export default function SelfStudyPage() {
         <SectionHeading
           kicker="Start Here"
           title="今天先完成这三步"
-          copy="这些不是另一套任务。它们直接来自工作台推荐，并共用课程掌握、SRS、错题和能力证据。"
+          copy="这里显示今天最值得先做的内容，与首页使用同一份课程、复习和错题记录。"
         />
         <div>
           {todayTasks.map((task, index) => (
@@ -140,7 +140,7 @@ export default function SelfStudyPage() {
           </div>
           <div className="grid gap-3">
             <p className="eyebrow text-[var(--ink-soft)]">Choice Architecture</p>
-            <h2 className="font-serif text-3xl font-black leading-tight md:text-4xl">两种学习方式，共用同一份证据。</h2>
+            <h2 className="font-serif text-3xl font-black leading-tight md:text-4xl">两种学习方式，共用同一份进度。</h2>
             <div className="grid gap-3 md:grid-cols-2">
               <ModeCard active={draft.studyMode === "guided"} title="按路径学习" detail="主线课负责先后顺序，适合零基础一路推进；自学设置仍会影响复习和弱项排序。" />
               <ModeCard active={draft.studyMode === "self"} title="自由自学" detail="你决定目标与节奏，系统把每日模板、模块入口和检查点收进同一个工作台。" />
@@ -149,13 +149,13 @@ export default function SelfStudyPage() {
         </div>
         <div className="studio-panel paper-rail grid gap-3 p-5">
           <p className="eyebrow">Plan Thread</p>
-          <h2 className="font-serif text-3xl font-black leading-tight">今天的方案会怎样流动</h2>
+          <h2 className="font-serif text-3xl font-black leading-tight">每天怎么学</h2>
           <div className="grid gap-2">
             {[
-              ["1", "先清复习", plan.dailyTemplate[0]?.detail ?? "先处理到期 SRS。"],
-              ["2", "再进新输入", plan.dailyTemplate[1]?.detail ?? "进入当前最重要模块。"],
-              ["3", "必须有输出", plan.dailyTemplate[2]?.detail ?? "写或说一句可复查的韩语。"],
-              ["4", "检查点收口", "用录音、正确率、韩语复述或短文证明它真的掌握了。"]
+              ["1", "先复习", plan.dailyTemplate[0]?.detail ?? "先处理今天到期的内容。"],
+              ["2", "再学一点新的", plan.dailyTemplate[1]?.detail ?? "进入当前最重要的模块。"],
+              ["3", "说或写一句", plan.dailyTemplate[2]?.detail ?? "用韩语留下一段自己的表达。"],
+              ["4", "记下结果", "保存正确率、录音、韩语复述或短文，方便之后回看。"]
             ].map(([step, title, detail]) => (
               <div key={step} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
                 <span className="grid h-9 w-9 place-items-center rounded-none bg-[var(--ink)] font-mono text-xs font-black text-[var(--surface-solid)]">{step}</span>
@@ -217,19 +217,19 @@ export default function SelfStudyPage() {
                 />
               </label>
               <Button type="button" onClick={applyPlan} disabled={enrollBlocked}>
-                {enrollBlocked ? "先完成入门" : saveStatus === "saved" ? "已应用到工作台" : "保存并应用到工作台"}
+                {enrollBlocked ? "先完成入门" : saveStatus === "saved" ? "计划已保存" : "保存学习计划"}
               </Button>
               {saveStatus === "error" ? (
                 <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
-                  本机进度暂时无法写入，请释放浏览器存储空间或关闭隐私限制后再试。
+                  学习计划没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
                 </p>
               ) : null}
               {saveStatus === "saved" ? (
                 <div className="grid gap-2 rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6">
-                  <p className="text-[var(--celadon)]">今日自学规划已确认，首页会按这个方案重新排序推荐任务。</p>
+                  <p className="text-[var(--celadon)]">学习计划已保存，首页推荐已经重新排序。</p>
                   <div className="grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-[var(--muted)]">
-                    <span>{planDraft.studyMode === "self" ? "首页优先：自学计划、弱项模块、复习节奏。" : "首页优先：下一课、到期复习、路径转移任务。"}</span>
-                    <span>仍会记录：课程掌握、真实材料、输出档案、错题 SRS 和检查点证据。</span>
+                    <span>{planDraft.studyMode === "self" ? "首页会优先显示自学计划、薄弱内容和到期复习。" : "首页会优先显示下一课和到期复习。"}</span>
+                    <span>课程、情境听读、输出、错题和阶段检查都会继续保存。</span>
                   </div>
                 </div>
               ) : null}
@@ -242,7 +242,7 @@ export default function SelfStudyPage() {
             <SectionHeading
               kicker="Daily Template"
               title="每日执行模板"
-              copy="复习、新输入、主动输出和记录共同组成每日建议；首页会依据你真正完成的课程、复习、材料、输出与检查点动态重排。"
+              copy="每天安排复习、新内容和一次主动表达。你完成任务后，首页会自动调整下一项。"
             />
             <div>
               {plan.dailyTemplate.map((item: any, index: number) => (
@@ -250,7 +250,7 @@ export default function SelfStudyPage() {
                   key={item.title}
                   index={index + 1}
                   glyph={String(index + 1)}
-                  kicker={`${item.minutes} min`}
+                  kicker={`${item.minutes} 分钟`}
                   title={item.title}
                   detail={item.detail}
                 />
@@ -262,7 +262,7 @@ export default function SelfStudyPage() {
             <SectionHeading
               kicker="Phases"
               title="阶段路线"
-              copy="完整自学方案会先固定声音和文字，再进入句型、真实场景、语气和作品集，不会一上来就把高级表达堆给零基础学习者。"
+              copy="先学稳韩文和发音，再进入句型、日常场景、语气和长期作品。"
             />
             <div>
               {plan.phases.map((phase: any, index: number) => (
@@ -316,8 +316,8 @@ export default function SelfStudyPage() {
             <Surface>
               <SectionHeading
                 kicker="Checkpoints"
-                title="证据闸门"
-                copy="自学可以自由，但不能空口完成。检查点保存周度复盘与可复查记录；能力分仍只来自课程答题、SRS、真实材料和输出作品。"
+                title="阶段检查"
+                copy="每隔一段时间，用正确率、录音、韩语复述或短文记下学习结果。这里只保存复盘，不会替代课程成绩。"
               />
               <div>
                 {visibleCheckpoints.map((item: any, index: number) => {
@@ -334,7 +334,7 @@ export default function SelfStudyPage() {
                     key={item.title}
                     index={index + 1}
                     glyph={String(index + 1)}
-                    kicker={completed ? "已通过" : "检查点"}
+                    kicker={completed ? "已完成" : "阶段检查"}
                     title={item.title}
                     detail={`关联训练：${checkpointAbilities(item, plan.modules).map((ability) => ABILITY_LABELS[ability]).join(" / ")}`}
                     completed={completed}
@@ -342,7 +342,7 @@ export default function SelfStudyPage() {
                   >
                     <p className="text-sm leading-6 text-[var(--muted)]">{item.detail}</p>
                     <label className="mt-3 grid gap-2 text-sm font-extrabold">
-                      检查证据
+                      学习记录
                       <textarea
                         className="focus-ring min-h-20 resize-none rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 py-2 text-sm font-medium"
                         value={evidence}
@@ -357,7 +357,7 @@ export default function SelfStudyPage() {
                           setCheckpointErrors((current) => {
                             const next = { ...current };
                             if (draftSaved) delete next[checkpointId];
-                            else next[checkpointId] = "检查点草稿断点没有写入本地存储。当前输入还在页面里，但刷新或离开后可能无法恢复。";
+                            else next[checkpointId] = "草稿没有保存。当前输入还在页面里，但刷新或离开后可能丢失。";
                             return next;
                           });
                         }}
@@ -365,7 +365,7 @@ export default function SelfStudyPage() {
                     </label>
                     {weakEvidence ? (
                       <p id={evidenceHintId} className="mt-2 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-xs font-bold leading-5 text-[var(--brass)]">
-                        需要可复查证据：先有一课或入册记录，再写下含韩语的录音时长、正确率或输出句子。
+                        请先完成一课或加入一项学习内容，再写下包含韩语的录音、正确率或输出句子。
                       </p>
                     ) : null}
                     <Button
@@ -377,7 +377,7 @@ export default function SelfStudyPage() {
                        onClick={() => {
                          if (enrollBlocked) return;
                          if (!saveSelfStudyCheckpoint(planDraft, checkpointId, evidence, checkpointAbilities(item, plan.modules))) {
-                           setCheckpointErrors((current) => ({ ...current, [checkpointId]: "证据没有保存成功，请稍后重试。" }));
+                           setCheckpointErrors((current) => ({ ...current, [checkpointId]: "学习记录没有保存，请稍后重试。" }));
                            return;
                          }
                          const draftCleared = clearSelfStudyCheckpointDraft(checkpointId);
@@ -390,12 +390,12 @@ export default function SelfStudyPage() {
                          setCheckpointErrors((current) => {
                            const next = { ...current };
                            if (draftCleared) delete next[checkpointId];
-                           else next[checkpointId] = "检查点已记录，但草稿断点没有清理成功；正式证据已保存。";
+                           else next[checkpointId] = "阶段检查已保存，但旧草稿没有清理成功。";
                            return next;
                          });
                        }}
                      >
-                       {completed ? "已记录" : "记录检查点"}
+                       {completed ? "已保存" : "保存阶段检查"}
                      </Button>
                      {checkpointErrors[checkpointId] ? (
                        <p className="mt-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
@@ -408,8 +408,8 @@ export default function SelfStudyPage() {
               </div>
               {hiddenCheckpointCount ? (
                 <details className="mt-3 rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-                  <summary className="cursor-pointer text-sm font-black text-[var(--muted)]">
-                    后续 {hiddenCheckpointCount} 个检查点将在当前项完成后顺序开放
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-black text-[var(--muted)]">
+                    后续 {hiddenCheckpointCount} 个阶段检查会依次开放
                   </summary>
                   <ol className="mt-3 grid gap-2 text-sm font-bold leading-6 text-[var(--muted)]">
                     {plan.checkpoints.slice(visibleCheckpointCount).map((item: any) => <li key={item.title}>{item.title}</li>)}

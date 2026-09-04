@@ -1,19 +1,19 @@
 export const proficiencyMetrics = {
   lessons: "核心课程",
   hangul: "韩文掌握",
-  vocabulary: "词汇入册",
+  vocabulary: "已学词汇",
   grammar: "语法点",
   native: "语用/语气",
-  materials: "真实材料",
-  outputs: "输出档案",
-  checkpoints: "检查点证据",
+  materials: "情境听读",
+  outputs: "已保存输出",
+  checkpoints: "阶段检查",
   capstone: "最终整合课",
   scriptAbility: "韩文字母能力",
   listeningAbility: "听辨能力",
   vocabularyAbility: "词汇调用能力",
   grammarAbility: "句型语法能力",
   pragmaticsAbility: "场景语用能力",
-  nativeAbility: "母语者表达能力"
+  nativeAbility: "自然表达能力"
 };
 
 export const proficiencyLevels = [
@@ -21,7 +21,7 @@ export const proficiencyLevels = [
     id: "seed",
     band: "A0",
     title: "起步工作台",
-    summary: "知道学习从韩文、声音、复习和输出证据开始，而不是先背孤立单词。",
+    summary: "从韩文、发音、复习和主动表达开始，而不是只背孤立单词。",
     requirements: []
   },
   {
@@ -68,7 +68,7 @@ export const proficiencyLevels = [
     id: "media-discourse",
     band: "站内 B1 入口",
     title: "叙述与材料入口",
-    summary: "站内证据足以开始挑战慢速新闻、社交短评和观点段落，并做短复述；这不是正式 CEFR 认证，也还不是母语者层。",
+    summary: "完成这些站内练习后，可以尝试慢速新闻、社交短评和观点段落，并做简短复述。这不是正式 CEFR 认证。",
     requirements: [
       { metric: "lessons", target: 53 },
       { metric: "vocabulary", target: 320 },
@@ -83,8 +83,8 @@ export const proficiencyLevels = [
   {
     id: "native-layer",
     band: "站内 B1-B2 语域桥接",
-    title: "语域与关系距离桥接",
-    summary: "站内证据已覆盖敬语、软化、拒绝、半语和书面距离的基础调节。这是进入长期作品集前的桥接层，不等同 C1，更不是母语者水平。",
+    title: "语域与关系距离",
+    summary: "练习敬语、缓和、拒绝、半语和书面表达的基本差别。这是进入长期作品集前的站内阶段，不等同 C1。",
     requirements: [
       { metric: "lessons", target: 60 },
       { metric: "capstone", target: 1 },
@@ -100,15 +100,15 @@ export const proficiencyLevels = [
   },
   {
     id: "native-portfolio",
-    band: "C2+ roadmap",
-    title: "长期母语者作品集",
-    summary: "真正接近母语者需要大量语料、输出修订、话题迁移和社会语用反馈；这是完整学习路线的长期扩容目标。",
+    band: "长期路线",
+    title: "长期进阶作品集",
+    summary: "更自然的高阶表达需要大量原生语料、反复修改、跨话题练习和真实交流反馈。",
     expansionOnly: true,
     roadmapTargets: [
       "5000+ 可调用词汇与搭配",
-      "200+ 分级真实材料",
+      "200+ 分级原生材料",
       "120+ 口语/写作输出档案",
-      "新闻、职场、学术、社交媒体、亲密关系等话题域迁移",
+      "在新闻、职场、学术、社交媒体和亲密关系等话题中综合运用",
       "敬语、方言/口语缩略、幽默、暗示、反讽和立场边界训练"
     ],
     requirements: [

@@ -22,7 +22,7 @@ export default function HomePage() {
   const profile = workspace.profile;
   const primary = workspace.recommended[0];
   const heroAction = isFirstVisit
-    ? { href: "/onboarding", title: "完成三分钟入门设置", detail: "选目标、试听韩语并完成键盘检查。", minutes: 3 }
+    ? { href: "/onboarding", title: "完成三分钟入门", detail: "选好目标，试听韩语，再打出一个韩文字。", minutes: 3 }
     : primary;
   const handleStudyMode = (studyMode: "guided" | "self") => {
     setConfirmReset(false);
@@ -48,14 +48,14 @@ export default function HomePage() {
         <VisualPanel asset="hero" priority sizes="100vw" treatment="ambient" className="absolute inset-0 rounded-none border-0" />
         <div className="relative z-10 flex min-h-[34rem] items-end p-5 pb-10 md:min-h-[38rem] md:p-10 md:pb-12">
           <div className="relative flex w-full max-w-2xl flex-col justify-end">
-            <p className="eyebrow">오늘의 한국어 · {profile.minutesGoal} min</p>
+            <p className="eyebrow">오늘의 한국어 · {profile.minutesGoal} 分钟</p>
             <h1 className="inkline mt-3 w-fit max-w-full font-serif text-5xl font-normal leading-[1.04] tracking-normal md:text-6xl">
               Kirina Korean
             </h1>
             <p className="hangul-display mt-2 text-xl text-[var(--ink-soft)]" lang="ko">오늘, 한 장의 한국어.</p>
             {heroAction ? (
               <div className="mt-6 max-w-xl border-l border-[var(--seal)] pl-4">
-                <p className="font-script text-sm text-[var(--muted)]">Next · {heroAction.minutes} min</p>
+                <p className="font-script text-sm text-[var(--muted)]">下一项 · {heroAction.minutes} 分钟</p>
                 <p className="mt-1 font-serif text-2xl leading-tight">{heroAction.title}</p>
                 <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{heroAction.detail}</p>
               </div>
@@ -89,7 +89,7 @@ export default function HomePage() {
         <SectionHeading
           kicker="오늘 · Today"
           title="今日一页"
-          copy={isFirstVisit ? "先完成三分钟入门，确认目标和韩文输入后再进第一课。" : "从最该处理的一项开始；完成后，今日顺序会按复习、主线和短板重新整理。"}
+          copy={isFirstVisit ? "花三分钟选好目标、试听韩语，再进入第一课。" : "先做排在最前的一项。每完成一项，今天的顺序都会重新整理。"}
         />
         <div className="grid gap-0">
           {(isFirstVisit ? [ONBOARDING_TASK] : workspace.recommended).map((task, index) => (
@@ -101,9 +101,9 @@ export default function HomePage() {
       <section className="grid gap-4 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
         <Surface>
           <SectionHeading
-            kicker="Passport"
-            title="能力护照"
-            copy="护照只承认证据已经覆盖的能力。当前内容库能证明从零基础到真实材料入口和 C1 预备桥接，真正接近母语者还需要长期作品集扩容。"
+            kicker="Progress"
+            title="学习进度"
+            copy="这里只根据你完成的课程、复习和输出更新。等级是站内学习参考，不是 CEFR 证书。"
           />
           <div className="grid gap-3 rounded-none border border-[var(--line)] bg-[var(--wash-1)] p-4">
             <span className="eyebrow">{workspace.proficiency.current.band}</span>
@@ -113,7 +113,7 @@ export default function HomePage() {
         </Surface>
 
         <Surface>
-          <SectionHeading kicker="Open Studio" title="自由学习入口" copy="你可以绕过推荐，直接进入任意模块。系统仍会记录进度和复习材料，所以探索不会把学习链打断。" />
+          <SectionHeading kicker="Open Studio" title="想自己选？" copy="可以直接打开任意模块。课程进度和复习安排仍会照常保存。" />
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem]">
             <div className="grid gap-2">
               {isFirstVisit ? null : (
@@ -154,17 +154,17 @@ export default function HomePage() {
               </div>
               {modeStatus === "error" ? (
                 <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
-                  学习模式暂时无法写入本机进度，请释放浏览器存储空间后再试。
+                  学习方式没有保存。请释放浏览器空间后再试。
                 </p>
               ) : null}
               {modeStatus === "saved" ? (
                 <p className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] p-3 text-sm font-bold leading-6 text-[var(--celadon)]">
-                  {isFirstVisit ? "学习模式已记下。完成入门后，首页会按这个节奏整理今日页。" : "学习模式已更新，首页推荐会按新的节奏重新排序。"}
+                  {isFirstVisit ? "学习方式已保存。完成入门后，首页会按这个节奏安排今天的内容。" : "学习方式已更新，今天的推荐也已重新排序。"}
                 </p>
               ) : null}
               {confirmReset ? (
                 <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--cinnabar)]">
-                  再点一次将清空学习偏好、课程进度、SRS、错题、输出、草稿、录音引用和母语作品集；此操作无法撤销。
+                  再点一次会清空学习偏好、课程进度、复习卡、错题、草稿、录音记录和作品集。此操作无法撤销。
                 </p>
               ) : null}
             </div>
@@ -188,8 +188,8 @@ export default function HomePage() {
       <section>
         <SectionHeading
           kicker="All Entrances"
-          title="模块入口"
-          copy="每个入口都连接同一个本地进度、错题 SRS 和能力证据。"
+          title="全部入口"
+          copy="无论从哪里开始，学习记录、错题和复习安排都会保存在同一份本地进度里。"
         />
         <div className="grid gap-0">
           {workspace.openStudy.map((task, index) => (
@@ -206,8 +206,8 @@ export default function HomePage() {
         <Metric label="语法点" value={String(contentCounts.grammar)} />
         <Metric label="语用场景" value={String(contentCounts.pragmatics)} />
         <Metric label="语义细差" value={String(contentCounts.nuance)} />
-        <Metric label="真实材料" value={String(contentCounts.materials)} />
-        <Metric label="输出档案" value={String(workspace.stats.outputEntries)} />
+        <Metric label="情境听读" value={String(contentCounts.materials)} />
+        <Metric label="写作与复述" value={String(workspace.stats.outputEntries)} />
         <Metric label="练习轨迹" value={`${workspace.stats.weakPracticeItems}/${workspace.stats.practiceItems}`} />
       </section>
     </div>

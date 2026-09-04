@@ -70,12 +70,12 @@ export default function NativePage() {
   const pragmaticItems = visibleItems.filter((item) => item.track === "pragmatics");
   const nuanceItems = visibleItems.filter((item) => item.track === "nuance");
   const portfolioRows = [
-    { label: "词汇入册", value: portfolioEvidence.vocabulary, target: stageTargets.vocabulary, href: "/vocabulary" },
-    { label: "已入册搭配", value: portfolioEvidence.collocations, target: stageTargets.collocations, href: "/vocabulary" },
-    { label: "母语者表达", value: portfolioEvidence.native, target: stageTargets.native, href: "/native" },
-    { label: "材料完成", value: portfolioEvidence.materials, target: stageTargets.materials, href: "/immersion" },
-    { label: "输出档案", value: portfolioEvidence.outputTasks, target: stageTargets.outputTasks, href: "/immersion" },
-    { label: "检查点", value: portfolioEvidence.checkpoints, target: stageTargets.checkpoints, href: "/self-study" }
+    { label: "已学词汇", value: portfolioEvidence.vocabulary, target: stageTargets.vocabulary, href: "/vocabulary" },
+    { label: "已学搭配", value: portfolioEvidence.collocations, target: stageTargets.collocations, href: "/vocabulary" },
+    { label: "自然表达", value: portfolioEvidence.native, target: stageTargets.native, href: "/native" },
+    { label: "情境听读", value: portfolioEvidence.materials, target: stageTargets.materials, href: "/immersion" },
+    { label: "已保存输出", value: portfolioEvidence.outputTasks, target: stageTargets.outputTasks, href: "/immersion" },
+    { label: "阶段检查", value: portfolioEvidence.checkpoints, target: stageTargets.checkpoints, href: "/self-study" }
   ];
   const stageProgress = Math.round(
     portfolioRows.reduce((sum, row) => sum + Math.min(1, row.value / Math.max(1, row.target)), 0) / portfolioRows.length * 100
@@ -83,7 +83,7 @@ export default function NativePage() {
   const activeFilters = [
     trackFilter !== "all" ? trackOptions.find((item) => item.id === trackFilter)?.label ?? trackFilter : null,
     levelFilter !== "all" ? levelFilter : null,
-    onlyLearned ? "已加入 SRS" : null,
+    onlyLearned ? "已加入复习" : null,
     query.trim() ? `搜索：${query.trim()}` : null
   ];
   const resetFilters = () => {
@@ -114,20 +114,20 @@ export default function NativePage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Native Layer"
-        title="最后拉开差距的是关系、语气和上下文。"
-        copy="同一句中文，在陌生人、朋友、前辈面前会变成不同韩语。母语者层不是炫技，而是知道什么时候留余地。"
+        kicker="Natural Korean"
+        title="同一个意思，换个关系就要换种说法。"
+        copy="面对朋友、店员、同事或前辈，韩语的礼貌程度和语气会不同。这里练的是说得合适，不是堆高级词。"
         compact
       />
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把母语者表达写入核心路径。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，之后的自然表达练习才会计入学习进度。" />
       <LibraryGateNotice focus="native" />
 
       <section className="grid gap-4 border-y border-[var(--line)] py-5">
         <SectionHeading
           kicker="Rehearsal Console"
-          title="今日母语者切片：先排练一句真的会用的表达"
-          copy="搜索、筛选、播放、加入 SRS 都在这里完成。默认只给 6 张卡，是为了让你把每张都听、复述、换关系，而不是把高级表达当词条浏览。"
+          title="今天先练 6 个自然表达"
+          copy="每张卡先听一句，再用自己的韩语复述，最后换一种关系改写。完成后可以加入间隔复习。"
           action={activeFilters.filter(Boolean).length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               重置筛选
@@ -149,17 +149,17 @@ export default function NativePage() {
               options={levelOptions}
               onChange={setLevelFilter}
             />
-            <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
+            <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredItems.length} filters={activeFilters} unit="expressions" />
           {!focusedFilterActive ? (
             <div className="grid gap-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <span>
-                当前先显示 {visibleItems.length} 个今日母语者切片，混合场景语用和语气细差；每张卡都要听、复述、换一个关系场景再加入 SRS。熟悉后再展开剩余 {hiddenItemCount} 个表达。
+                先练这 {visibleItems.length} 个表达。听过、复述过，并换一种关系改写后，再加入复习。还有 {hiddenItemCount} 个表达可以展开。
               </span>
               {showAll || hiddenItemCount ? (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起到今日切片" : "展开全部表达"}
+                  {showAll ? "收起" : "展开全部表达"}
                 </Button>
               ) : null}
             </div>
@@ -169,7 +169,7 @@ export default function NativePage() {
 
       {!filteredItems.length ? (
         <Surface>
-          <EmptyState title="没有匹配的母语者表达" copy="换一个搜索词，或重置轨道、层级和 SRS 筛选。" onAction={resetFilters} />
+          <EmptyState title="没有匹配的表达" copy="换一个搜索词，或重置类型、阶段和复习筛选。" onAction={resetFilters} />
         </Surface>
       ) : null}
 
@@ -224,8 +224,8 @@ export default function NativePage() {
       <section className="grid gap-4">
         <SectionHeading
           kicker="Today"
-          title="今天让语气更自然"
-          copy="不要只收藏表达。每个动作都要回到材料、输出或复习。"
+          title="今天把一句话说得更合适"
+          copy="先听，再复述，然后换一种关系改写。"
         />
         <div>
           {currentStage.todayActions.map((action, index) => (
@@ -244,8 +244,8 @@ export default function NativePage() {
 
       <ModuleHero
         kicker="Dialogue Theater"
-        title="从“正确”到“合适”。"
-        copy="这里训练缓冲、转折、评价、复述和距离感。之后的课程扩展会把真实材料和输出反馈接进这层。"
+        title="语法正确，还要符合场合。"
+        copy="这里练缓冲、转折、评价和礼貌距离。学过的表达会在情境听读和复习里再次出现。"
         asset="native"
         imageClassName="min-h-80 rounded-none border-0"
       />
@@ -284,10 +284,10 @@ export default function NativePage() {
             <div className="mt-3 flex items-end justify-between gap-3">
               <strong className="font-serif text-5xl leading-none">{stageProgress}%</strong>
               <span className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] px-3 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
-                {inAppPortfolioComplete ? "站内阶段已跑通" : "证据收集中"}
+                {inAppPortfolioComplete ? "站内阶段已完成" : "练习记录积累中"}
               </span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[rgba(24,28,27,0.1)]">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--track)]">
               <div className="h-full bg-[var(--celadon)]" style={{ width: `${stageProgress}%` }} />
             </div>
           </div>
@@ -321,7 +321,7 @@ function LongTermNativePortfolio() {
   const handleAdd = (draft: NativePortfolioDraft) => {
     const saved = addEntry(draft);
     setNotice(saved
-      ? { tone: "success", text: "作品集证据已保存在本机。" }
+      ? { tone: "success", text: "作品已保存在本机。" }
       : { tone: "error", text: "作品没有保存，请检查必填内容或浏览器存储空间。" });
     if (saved) {
       setFormKey((value) => value + 1);
@@ -339,7 +339,7 @@ function LongTermNativePortfolio() {
   const handleDelete = (entryId: string) => {
     const deleted = deleteEntry(entryId);
     setNotice(deleted
-      ? { tone: "success", text: "这条作品集证据及其修订记录已删除。" }
+      ? { tone: "success", text: "这条作品及其修订记录已删除。" }
       : { tone: "error", text: "删除没有完成，请检查浏览器存储状态。" });
     return deleted;
   };
@@ -347,9 +347,9 @@ function LongTermNativePortfolio() {
   return (
     <section id="long-term-portfolio" className="grid gap-5 border-t border-[var(--line)] pt-6">
       <SectionHeading
-        kicker="External Evidence Studio"
-        title="长期母语者路线作品集"
-        copy={`把站外材料、练习投入、导师反馈和作品版本留在同一条可复查记录里。长期扩容目标保留 ${nativeRoadmapTotals.vocabulary.toLocaleString()}+ 词、${nativeRoadmapTotals.collocations.toLocaleString()}+ 搭配、${nativeRoadmapTotals.materials.toLocaleString()}+ 材料和 ${nativeRoadmapTotals.outputTasks.toLocaleString()}+ 输出；这些不会冒充站内分数。`}
+        kicker="Long-term Practice"
+        title="长期进阶作品集"
+        copy={`把站外材料、练习时间、反馈和每次修改保存在一起。${nativeRoadmapTotals.vocabulary.toLocaleString()}+ 词、${nativeRoadmapTotals.collocations.toLocaleString()}+ 搭配和大量原生材料都是长期方向，不会计入当前站内等级。`}
         action={(
           <Button type="button" variant={showComposer ? "ghost" : "primary"} size="sm" onClick={() => setShowComposer((value) => !value)}>
             <Plus className="h-4 w-4" />
@@ -374,7 +374,7 @@ function LongTermNativePortfolio() {
       <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-3 border-l-4 border-[var(--brass)] bg-[var(--yellow-soft)] p-4">
         <ShieldCheck className="mt-0.5 h-5 w-5 text-[var(--brass)]" />
         <p className="text-sm font-bold leading-6 text-[var(--muted)]">
-          独立证据仓：这里保存的是长期作品集证据，不会写入上方站内能力分、C1 阶段进度或 SRS 完成数。
+          这里保存长期作品，不会改变上方的站内等级、课程进度或复习数量。
         </p>
       </div>
       {notice?.tone === "error" ? <InlineAlert>{notice.text}</InlineAlert> : null}
@@ -401,8 +401,8 @@ function LongTermNativePortfolio() {
           />
         )) : (
           <div className="border-y border-dashed border-[var(--line)] py-8 text-center">
-            <strong className="font-serif text-xl">还没有站外作品证据</strong>
-            <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">第一条记录会从外部材料来源和作品正文开始。</p>
+            <strong className="font-serif text-xl">还没有站外作品</strong>
+            <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">可以从一篇文章、一段节目或一次导师任务开始。</p>
           </div>
         )}
       </div>
@@ -433,7 +433,7 @@ function NativePortfolioForm({
       return;
     }
     const saved = onSubmit(draft, revisionNote);
-    setError(saved ? "" : "本地写入失败，内容仍保留在表单中。");
+    setError(saved ? "" : "没有保存成功，内容仍保留在表单中。");
   };
   const fieldClass = "focus-ring min-h-11 rounded-none border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-2 font-bold text-[var(--ink)] focus:border-[var(--ocean)]";
 
@@ -442,7 +442,7 @@ function NativePortfolioForm({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">{isRevision ? "Revision" : "New evidence"}</p>
-          <h3 className="mt-1 font-serif text-2xl font-black">{isRevision ? "保存一个新版本" : "录入一条站外作品证据"}</h3>
+          <h3 className="mt-1 font-serif text-2xl font-black">{isRevision ? "保存一个新版本" : "添加一条站外作品"}</h3>
         </div>
         {onCancel ? (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>取消修订</Button>
@@ -487,7 +487,7 @@ function NativePortfolioForm({
       {error ? <InlineAlert>{error}</InlineAlert> : null}
       <Button type="submit" variant="primary" size="sm" className="w-fit">
         {isRevision ? <FilePenLine className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-        {isRevision ? "保存新版本" : "保存作品证据"}
+        {isRevision ? "保存新版本" : "保存作品"}
       </Button>
     </form>
   );
@@ -704,15 +704,15 @@ function NativeCard({
         </span>
         {learned ? (
           <Button type="button" variant={confirmRemove ? "ghost" : "secondary"} size="sm" onClick={handleToggle}>
-            {confirmRemove ? "确认移出复习" : "已加入 SRS"}
+            {confirmRemove ? "确认移出复习" : "已加入复习"}
           </Button>
         ) : (
-          <p className="text-xs font-black leading-5 text-[var(--muted)]">先听、复述并做关系迁移，再用下方按钮加入 SRS。</p>
+          <p className="text-xs font-black leading-5 text-[var(--muted)]">先听一句，用韩语复述，再换一种关系改写。</p>
         )}
       </div>
       {confirmRemove ? (
         <p className="rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-xs font-bold leading-5 text-[var(--cinnabar)]">
-          再点一次才会移出 SRS；已经提交的护照证据会保留。
+          再点一次才会移出复习；已经保存的练习记录会保留。
         </p>
       ) : null}
       {hasError ? <SrsError /> : null}
@@ -736,7 +736,7 @@ function NativeCard({
         </span>
         <span className="inline-flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-[var(--brass)]" />
-          再加入 SRS
+          再加入复习
         </span>
       </div>
       {item.contrast.length ? (
@@ -787,11 +787,11 @@ function NativeCard({
             已实际播放关键台词
           </label>
           <span className={`rounded-none border px-2 py-1 font-mono text-[0.68rem] font-black uppercase ${evidenceSaved ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]" : "border-[var(--border)] bg-[var(--yellow-soft)] text-[var(--brass)]"}`}>
-            {evidenceSaved ? "证据已入护照" : evidenceDirty ? "有未保存修改" : "证据未完成"}
+            {evidenceSaved ? "练习记录已保存" : evidenceDirty ? "有未保存修改" : "练习尚未完成"}
           </span>
         </div>
         <p id={`native-listening-note-${item.id}`} className="text-xs font-bold leading-5 text-[var(--muted)]">
-          点击上方任一句播放，语音真正开始后才会记录听辨步骤；手动勾选不计入证据。
+          点击上方任一句播放。声音真正开始后，才会记录“已听”；手动勾选不算。
         </p>
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
           韩语复述
@@ -803,7 +803,7 @@ function NativeCard({
           />
         </label>
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
-          关系迁移
+          换一种关系
           <textarea
             className="focus-ring min-h-20 resize-y rounded-none border border-[var(--line)] bg-[var(--card)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={transfer}
@@ -813,11 +813,11 @@ function NativeCard({
         </label>
         {hasEvidenceError ? (
           <InlineAlert>
-            母语者证据没有保存：需要勾选听辨，并填写两段可复查的韩语复述与关系迁移。
+            还不能保存：请先完成听辨，再填写韩语复述和关系改写。
           </InlineAlert>
         ) : null}
         <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={enrollBlocked || !evidenceComplete || evidenceSaved} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
-          {enrollBlocked ? "先完成入门" : evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存证据并加入 SRS"}
+          {enrollBlocked ? "先完成入门" : evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存练习并加入复习"}
         </Button>
       </div>
       </div>
@@ -828,7 +828,7 @@ function NativeCard({
 function SrsError() {
   return (
     <InlineAlert>
-      这张母语者表达卡没有写入成功，请释放浏览器存储空间或关闭隐私限制后再试。
+      这张表达卡没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
     </InlineAlert>
   );
 }

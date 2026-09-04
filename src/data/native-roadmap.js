@@ -2,9 +2,9 @@ export const nativeRoadmapStages = [
   {
     id: "in-app-bridge",
     scope: "in-app",
-    band: "站内 B1-B2 bridge",
-    title: "站内桥接证据闭环",
-    target: "用当前内容库先跑通韩文、词汇、语法、真实材料、输出改写和检查点的完整证据链。这不是 C1。",
+    band: "站内 B1-B2 过渡",
+    title: "完成站内基础练习",
+    target: "完成韩文、词汇、语法、情境听读、改写和阶段检查。这是站内进度，不是 C1 认证。",
     weeks: "4-8 周",
     deliverables: {
       vocabulary: 64,
@@ -16,22 +16,22 @@ export const nativeRoadmapStages = [
     },
     domains: ["点餐与服务", "问路交通", "社交缓冲", "慢速新闻", "短观点表达"],
     gates: [
-      "每个材料至少包含听写、复述、目标改写和 SRS 回流",
-      "输出档案只承认已经进入 SRS 的韩语目标改写",
-      "检查点必须包含正确率、录音、韩语复述或短文证据"
+      "每段听读都要完成听写、复述和目标改写",
+      "目标改写需要加入间隔复习",
+      "阶段检查至少记录正确率、录音、韩语复述或短文中的一项"
     ],
     todayActions: [
-      { title: "完成一段真实材料", href: "/immersion", task: "听写 1 句、韩语复述 1 句，并保存一条目标改写。" },
-      { title: "做一次迁移测验", href: "/quiz", task: "用混合题检查声音、词汇、语法和材料复述是否能互相调用。" },
-      { title: "记录自学检查点", href: "/self-study", task: "用正确率、录音内容或韩语短文证明本周确实掌握了一个模块。" }
+      { title: "完成一段情境听读", href: "/immersion", task: "听写 1 句，用韩语复述 1 句，再保存一条目标改写。" },
+      { title: "做一次综合测验", href: "/quiz", task: "用混合题复习发音、词汇、语法和听读内容。" },
+      { title: "记录一次阶段检查", href: "/self-study", task: "保存本周的正确率、录音内容或韩语短文。" }
     ]
   },
   {
     id: "in-app-domain-transfer",
     scope: "in-app",
-    band: "站内 B2 preview",
-    title: "站内话题迁移预演",
-    target: "把当前站内所有语用、语法、材料和输出任务串成可复查的小型作品集。",
+    band: "站内 B2 预览",
+    title: "换个话题再练",
+    target: "把站内的语用、语法、听读和输出整理成一份可以回看的小型作品集。",
     weeks: "8-12 周",
     deliverables: {
       vocabulary: 88,
@@ -43,22 +43,22 @@ export const nativeRoadmapStages = [
     },
     domains: ["服务对话", "交通与生活", "媒体短评", "观点写作", "关系距离", "学习规划"],
     gates: [
-      "同一任务至少提供正式体、半正式体、亲近日常体三种表达",
-      "输出档案必须保留原稿、弱点、目标改写和自评 rubric",
-      "综合测验必须覆盖词汇、语法、语用、材料复述和输出改写"
+      "同一个意思至少练习正式、半正式和亲近日常三种说法",
+      "作品保留原稿、需要改进的地方、目标改写和自评",
+      "综合测验覆盖词汇、语法、语用、听读复述和输出改写"
     ],
     todayActions: [
       { title: "改写同一意图", href: "/native", task: "把同一句意图改成陌生人、朋友、前辈三种关系版本。" },
-      { title: "补一条输出档案", href: "/immersion", task: "写韩语草稿，标出弱点，再保存更自然的目标改写。" },
-      { title: "回到到期复习", href: "/review", task: "优先清掉 output、material、native 类卡片，避免高级表达只停在看懂。" }
+      { title: "保存一段输出", href: "/immersion", task: "写韩语草稿，标出需要改进的地方，再保存更自然的改写。" },
+      { title: "完成到期复习", href: "/review", task: "优先复习输出、听读和自然表达卡，别只停在看懂。" }
     ]
   },
   {
     id: "external-bridge-expansion",
     scope: "external",
-    band: "B2 -> C1 expansion",
-    title: "站外桥接扩容",
-    target: "当站内资源跑通后，把同一套证据链扩展到真实语料、搭配和输出修订。",
+    band: "B2 → C1 长期练习",
+    title: "扩充站外材料",
+    target: "完成站内内容后，开始积累原生语料、常用搭配和反复修改的输出。",
     weeks: "12-18 周",
     deliverables: {
       vocabulary: 800,
@@ -71,21 +71,21 @@ export const nativeRoadmapStages = [
     domains: ["日常协商", "服务场景", "健康与求助", "社交短评", "慢速新闻"],
     gates: [
       "每 120 个词必须绑定 20 个搭配和 12 个可替换句框",
-      "每个阶段检查点必须要求韩语录音或韩语短文证据",
-      "不得把看懂材料当成完成，必须保存目标改写并延迟复测"
+      "每次阶段检查都要留下韩语录音或短文",
+      "看懂不等于会用；保存目标改写，并在之后重新测试"
     ],
     todayActions: [
-      { title: "扩展真实材料池", href: "/immersion", task: "按同一格式加入新的听写、复述和输出任务，再送入 SRS。" },
-      { title: "迁移一个语气动作", href: "/native", task: "把站内学过的缓冲表达迁移到一个新话题或新关系里。" },
-      { title: "做一次证据盘点", href: "/self-study", task: "把新增材料、输出和检查点写成可复查的阶段记录。" }
+      { title: "扩充原生材料", href: "/immersion", task: "为新材料安排听写、复述和改写，再加入间隔复习。" },
+      { title: "换个场景使用", href: "/native", task: "把学过的缓冲表达用到一个新话题或新关系中。" },
+      { title: "回看阶段记录", href: "/self-study", task: "整理新增材料、输出和阶段检查。" }
     ]
   },
   {
     id: "native-portfolio-expansion",
     scope: "external",
-    band: "C2 roadmap",
-    title: "母语者作品集扩容",
-    target: "建立真正长期的高阶作品集：大量语料、反复修订、社会语用反馈和语域切换。",
+    band: "长期高阶路线",
+    title: "长期作品集",
+    target: "持续积累原生语料、反复修改作品，并从真实交流中获得语用和语域反馈。",
     weeks: "36+ 周",
     deliverables: {
       vocabulary: 5000,
@@ -99,12 +99,12 @@ export const nativeRoadmapStages = [
     gates: [
       "每个输出主题至少经历草稿、目标改写、复盘和延迟复测",
       "材料库按速度、语域、话题、任务类型和文化负载标注",
-      "不得用站内分数替代真实语料量和输出作品集证据"
+      "站内分数不能替代原生材料数量、作品质量和真实交流反馈"
     ],
     todayActions: [
       { title: "建立主题作品集", href: "/immersion", task: "围绕一个新闻、职场或社交主题保存草稿、弱点、目标改写和自评。" },
-      { title: "复测旧输出", href: "/review", task: "等输出卡到期后重新说/写一遍，检查是否仍能自然调用。" },
-      { title: "扩展下一阶段计划", href: "/path", task: "按材料、词汇、搭配、输出和检查点五类证据规划下一轮扩容。" }
+      { title: "复测旧输出", href: "/review", task: "等输出卡到期后重新说或写一遍，看看还能不能自然表达。" },
+      { title: "安排下一阶段", href: "/path", task: "按材料、词汇、搭配、输出和阶段检查规划下一轮练习。" }
     ]
   }
 ];
@@ -120,9 +120,9 @@ export const nativeRoadmapTotals = nativeRoadmapStages.at(-1)?.deliverables ?? {
 
 export const nativeRoadmapPrinciples = [
   "先把 A0-A2 的声音、文字和基本输出做稳，再进入高级表达。",
-  "高级不是更难的单句，而是同一意图在关系、媒介、立场和语域之间迁移。",
-  "每个可达等级都必须由课程、真实材料、输出档案、复习记录和检查点共同证明。",
-  "母语者路线必须保留长期作品集目标，不能被 30 节核心课伪装成终点。"
+  "高阶表达不只是更难的单句，还要能根据关系、媒介、立场和语域换一种说法。",
+  "站内等级参考课程、情境听读、输出、复习和阶段检查，但不等于正式语言认证。",
+  "接近母语者是长期目标，不能用有限的站内课程替代原生语料、作品修改和真实交流。"
 ];
 
 const inAppEvidenceKeys = ["vocabulary", "collocations", "native", "materials", "outputTasks", "checkpoints"];

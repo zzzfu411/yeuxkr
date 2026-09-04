@@ -69,7 +69,7 @@ export function HangulKeyboard({
       {ROWS.map((row, rowIndex) => (
         <div
           key={rowIndex}
-          className="mx-auto grid w-full max-w-[33rem] gap-px min-[360px]:gap-1 sm:gap-1.5"
+          className="hangul-key-row mx-auto grid w-full max-w-[33rem] gap-px min-[360px]:gap-1 sm:gap-1.5"
           style={{ gridTemplateColumns: `repeat(${row.length + (rowIndex === 2 ? 2 : 0)}, minmax(24px, 1fr))` }}
         >
           {rowIndex === 2 ? (

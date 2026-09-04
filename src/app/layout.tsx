@@ -21,7 +21,7 @@ function getMetadataBase() {
 
 export const metadata: Metadata = {
   title: "Kirina Korean | YEUX KR 韩语手帖",
-  description: "在纸上读、听、写韩语。课程、复习与真实材料收进同一本学习手帖。",
+  description: "在纸上读、听、写韩语。课程、复习与情境听读收进同一本学习手帖。",
   metadataBase: getMetadataBase(),
   manifest: "/manifest.webmanifest",
   openGraph: {

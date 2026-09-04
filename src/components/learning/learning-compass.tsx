@@ -14,50 +14,50 @@ import { cn } from "@/lib/utils";
 const contextConfig: Record<CompassContext, { kicker: string; title: string; copy: string; asset: DisplayVisualAssetId }> = {
   workspace: {
     kicker: "Study Compass",
-    title: "路径、自学、复习和真实材料共用同一套证据。",
-    copy: "不管今天从哪个入口开始，系统都会把动作回收到课程掌握、能力短板、SRS 和输出档案里。",
+    title: "从哪里开始，进度都记在一起。",
+    copy: "课程、自学、复习和情境听读共用同一份学习记录。",
     asset: "workspace"
   },
   path: {
     kicker: "Route Spine",
-    title: "主线负责先后顺序，自学负责个人节奏。",
-    copy: "核心课按先修推进；自由入口仍会显示下一课、弱项和真实材料，不会把你从主线里切出去。",
+    title: "主线安排顺序，自学保留你的节奏。",
+    copy: "课程按前后关系解锁；想自由练习时，也随时能看到下一课和需要补的内容。",
     asset: "path"
   },
   self: {
     kicker: "Self Study Contract",
-    title: "自学计划会回写到首页推荐和能力护照。",
-    copy: "目标、强度和重点不是孤立设置；它们会改变今天的推荐顺序，并通过检查点留下证据。",
+    title: "自学计划会改变今天的推荐顺序。",
+    copy: "选好目标、强度和重点后，首页会按这个节奏安排任务。阶段检查会保存你的复盘。",
     asset: "selfStudy"
   },
   review: {
     kicker: "Review Loop",
-    title: "复习不是单独刷卡，而是在修补整条学习链。",
-    copy: "课程错题、词汇、语法、真实材料输出都会回到这里。清空到期队列后，首页才会更放心地把你推向新输入。",
+    title: "到期内容先复习，记忆会更稳。",
+    copy: "课程错题、词汇、语法和听读改写都会来到这里。做完后，再继续学新内容。",
     asset: "review"
   },
   mistakes: {
     kicker: "Weak Point Map",
-    title: "错题本把复习债变成可执行的修复路线。",
-    copy: "薄弱项来自同一套 SRS 卡片，不另开一套记录。先看反复错和到期错题，再回到课程、词汇、语法或材料页补结构。",
+    title: "反复错的题，回到原处补一遍。",
+    copy: "先做已到期和反复出错的题，再回课程、词汇、语法或听读页查看讲解。",
     asset: "review"
   },
   quiz: {
     kicker: "Transfer Lab",
-    title: "测验把分散模块拉到同一次迁移里。",
-    copy: "题目只来自已学内容和已验证输出。答错会进入错题 SRS，答对会作为能力证据写回护照。",
+    title: "换个题型，检查是不是真的会了。",
+    copy: "题目只来自你学过的内容。答错会加入错题复习，之后可以再练。",
     asset: "quiz"
   },
   immersion: {
     kicker: "Input Output Loop",
-    title: "真实材料必须连到听写、复述、输出和复习。",
-    copy: "材料完成不只点亮进度，还要绑定韩语输出改写，避免输入和表达训练分家。",
+    title: "听一段，写一句，再用韩语复述。",
+    copy: "站内内容是自编情境脚本，由录音或设备语音播放。完成听写和改写后，内容会加入复习。",
     asset: "immersion"
   },
   native: {
-    kicker: "Native Bridge",
-    title: "母语者层从语用证据和作品集里长出来。",
-    copy: "关系、场合、直接度和语气动作会进入复习；长期母语者目标保留为作品集路线。",
+    kicker: "Natural Expression",
+    title: "同一句话，换个关系就要换种说法。",
+    copy: "这里练场合、礼貌距离和语气。自然表达需要长期练习，不由站内分数决定。",
     asset: "native"
   }
 };
@@ -124,45 +124,45 @@ export function LearningCompass({
     {
       id: "review",
       href: funnel ? "/onboarding" : "/review",
-      label: "复习闭环",
+      label: "间隔复习",
       icon: RefreshCcw,
-      stat: reviewTask ? `${reviewTask.minutes} min` : "SRS",
-      detail: reviewTask?.detail ?? "把课程、词汇、语法、材料输出送回长期记忆",
+      stat: reviewTask ? `${reviewTask.minutes} 分钟` : "待复习",
+      detail: reviewTask?.detail ?? "按到期时间复习课程、词汇、语法和听读内容",
       active: active === "review"
     },
     {
       id: "mistakes",
       href: funnel ? "/onboarding" : "/mistakes",
-      label: "薄弱项地图",
+      label: "错题整理",
       icon: CircleAlert,
       stat: mistakeStat,
       detail: workspace.stats.mistakeCards
-        ? `${workspace.stats.mistakeCards} 张错题卡，先处理 ${workspace.stats.dueMistakes} 张到期项，再回来源模块补结构`
-        : "暂无错题债；测验或课程答错后会自动回收到这里",
+        ? `${workspace.stats.mistakeCards} 张错题，其中 ${workspace.stats.dueMistakes} 张已经到期`
+        : "暂无错题；课程或测验答错后会自动出现在这里",
       active: active === "mistakes"
     },
     {
       id: "quiz",
       href: funnel ? "/onboarding" : "/quiz",
-      label: "迁移测验",
+      label: "综合测验",
       icon: BookOpenCheck,
-      stat: "Mix",
-      detail: "只抽已学内容、有效材料复述和已绑定输出改写",
+      stat: "混合",
+      detail: "只考学过的课程、词句、听读和已保存的改写",
       active: active === "quiz"
     },
     {
       id: "immersion",
       href: funnel ? "/onboarding" : "/immersion",
-      label: "真实材料",
+      label: "情境听读",
       icon: Radio,
       stat: `${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials}`,
-      detail: `完成度 ${materialPercent}% · 输出档案 ${workspace.stats.outputEntries}`,
+      detail: `完成 ${materialPercent}% · 已保存 ${workspace.stats.outputEntries} 段输出`,
       active: active === "immersion"
     },
     {
       id: "native",
       href: funnel ? "/onboarding" : "/native",
-      label: "母语者桥接",
+      label: "自然表达",
       icon: Sparkles,
       stat: String(nativeEvidence),
       detail: `${workspace.proficiency.current.band} · ${workspace.proficiency.current.title}`,
@@ -247,7 +247,7 @@ export function LearningCompass({
           <div className="mt-5 grid gap-3 border-t border-[var(--line)] pt-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-5">
             <span className="inline-flex items-center gap-2 text-xs text-[var(--seal)]">
               <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
-              下一阶段证据
+              下一阶段还需
             </span>
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
               {nextRequirements.map((item) => (
@@ -278,14 +278,14 @@ export function LearningCompass({
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--muted)] md:text-base">{config.copy}</p>
           <div className="mt-6 grid border-y border-[var(--line)] md:grid-cols-2">
             <div className="py-4 pr-4 md:border-r md:border-[var(--line)]">
-              <span className="text-xs text-[var(--seal)]">当前证据</span>
+              <span className="text-xs text-[var(--seal)]">当前进度</span>
               <strong className="mt-1 block font-serif text-xl font-normal leading-tight md:text-2xl">{workspace.proficiency.current.band} · {workspace.proficiency.current.title}</strong>
               <p className="mt-2 text-xs leading-5 text-[var(--muted)]">弱项优先：{weakLabels}</p>
             </div>
             <div className="border-t border-[var(--line)] py-4 md:border-t-0 md:pl-4">
               <span className="text-xs text-[var(--ink-soft)]">下一动作</span>
               <strong className="mt-1 block font-serif text-xl font-normal leading-tight md:text-2xl">{primary?.title ?? "进入自由练习"}</strong>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{primary?.detail ?? "从复习、真实材料或母语者表达继续积累证据。"}</p>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{primary?.detail ?? "可以继续复习、情境听读或自然表达练习。"}</p>
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -349,7 +349,7 @@ export function LearningCompass({
         <div className="surface paper-rail relative grid gap-4 p-4 pt-7 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-6 md:p-5 md:pt-8">
           <span className="inline-flex items-center gap-2 text-xs text-[var(--seal)]">
             <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
-            下一阶段证据
+            下一阶段还需
           </span>
           <div className="grid grid-cols-2 gap-x-5 gap-y-4 md:grid-cols-4">
             {nextRequirements.map((item) => (

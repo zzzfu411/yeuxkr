@@ -15,7 +15,7 @@ const statusLabels: Record<Exclude<PanelStatus, "idle">, string> = {
   imported: "已导入",
   reset: "已重置",
   invalid: "文件无效",
-  error: "未写入"
+  error: "未保存"
 };
 
 export function LearningDataPanel() {
@@ -120,13 +120,13 @@ export function LearningDataPanel() {
           if (!(event.currentTarget as HTMLDetailsElement).open) setConfirmReset(false);
         }}
       >
-        <summary className="focus-ring inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <summary className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">学习数据</span>
-          {status !== "idle" ? <span className={`font-script text-xs font-normal ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
+          {status !== "idle" ? <span className={`hidden font-script text-xs font-normal sm:inline ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
           <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
-        <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid w-[min(20rem,calc(100vw-1.5rem))] gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
+        <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto overscroll-contain rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
           <span className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 -rotate-2 border-x border-dashed border-[var(--tape-edge)] bg-[var(--tape)] opacity-70" aria-hidden="true" />
           <div>
             <p className="eyebrow">Local Data</p>
@@ -150,7 +150,7 @@ export function LearningDataPanel() {
               保护存储
             </Button>
           </div>
-          <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品（最大 4 MB）；麦克风录音不会导出，迁移后需重新录制相关证据。</p>
+          <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品，最大 4 MB。麦克风录音不会导出，换设备后需要重新录制。</p>
           {confirmReset ? <p className="border-l-2 border-[var(--seal)] pl-2 text-xs font-normal leading-5 text-[var(--cinnabar)]">再次点击会清空本机课程、复习卡、输出档案和录音。</p> : null}
           <div className="flex min-h-6 flex-wrap gap-2" aria-live="polite">
             {status !== "idle" ? (

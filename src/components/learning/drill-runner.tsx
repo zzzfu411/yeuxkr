@@ -266,7 +266,7 @@ export function DrillRunner({
         hint: question.hint
       });
       if (!mistakeCard) {
-        setSrsError("错题没有写入本地复习队列，请释放浏览器存储空间后再继续。");
+        setSrsError("错题没有保存到复习队列。请释放浏览器空间后再继续。");
         return;
       }
       setSrsError("");
@@ -336,7 +336,7 @@ export function DrillRunner({
           <p className="eyebrow">Empty Queue</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[var(--muted)]">
-            {emptyState?.detail ?? "先完成一些课程、复习卡片或真实材料，系统会自动把可练习内容放到这里。"}
+            {emptyState?.detail ?? "先完成一课、加入一些复习卡，或做一段情境听读。学过的内容会自动出现在这里。"}
           </p>
           {emptyState?.action ? <div className="mt-4 flex flex-wrap gap-2">{emptyState.action}</div> : null}
         </div>
@@ -355,7 +355,7 @@ export function DrillRunner({
             <p className="mt-3 leading-7 text-[var(--muted)]">{score >= 85 ? "这组很稳，可以进入下一步。" : score >= 65 ? "已经有骨架了，把错题再听一遍会更扎实。" : "先不要急着推进，重做这一组更划算。"}</p>
             {skippedCount ? (
               <p className="mt-2 text-sm font-bold leading-6 text-[var(--brass-text)]">
-                {skippedCount} 道音频题因设备缺少韩语语音而跳过，未计入分数或听力证据。
+                {skippedCount} 道音频题因设备没有韩语语音而跳过，未计入分数或听力成绩。
               </p>
             ) : null}
           </div>
@@ -441,7 +441,7 @@ export function DrillRunner({
         {audioUnavailable && !existing ? (
           <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
             <p>当前设备无法播放韩语，这道音频题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
-            <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补回这项证据。</p>
+            <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补上听力成绩。</p>
           </div>
         ) : null}
 
@@ -462,7 +462,7 @@ export function DrillRunner({
 
         {question.type === "translate" && question.hint ? (
           <details className="mt-4 text-sm font-bold text-[var(--muted)]">
-            <summary className="cursor-pointer">需要提示？</summary>
+            <summary className="min-h-11 cursor-pointer py-3">需要提示？</summary>
             <p className="mt-1 leading-6">{question.hint}</p>
           </details>
         ) : null}
@@ -532,7 +532,7 @@ export function DrillRunner({
             aria-atomic="true"
             tabIndex={-1}
           >
-            <strong>{existing.skipped ? "已跳过：本题不计分，也不产生听力证据。" : existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
+            <strong>{existing.skipped ? "已跳过：本题不计分，也不计入听力成绩。" : existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
             {question.type === "dictation" && !existing.correct && !existing.skipped ? (
               <DictationDiff expected={question.answer} actual={existing.answer} />
             ) : null}
