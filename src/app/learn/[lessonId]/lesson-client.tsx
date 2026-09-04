@@ -432,13 +432,6 @@ function LessonResultActions({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
-  useEffect(() => {
-    if (savedScore !== null) return;
-    if (!saveError) return;
-    savingRef.current = false;
-    setSaving(false);
-  }, [savedScore, saveError]);
-
   const handleSave = () => {
     if (savingRef.current) return;
     savingRef.current = true;
