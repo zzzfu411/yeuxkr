@@ -147,7 +147,7 @@ export default function SelfStudyPage() {
             </div>
           </div>
         </div>
-        <div className="studio-panel paper-rail grid gap-3 p-5">
+        <div className="studio-panel paper-rail relative grid gap-3 p-5">
           <p className="eyebrow">Plan Thread</p>
           <h2 className="font-serif text-3xl font-black leading-tight">每天怎么学</h2>
           <div className="grid gap-2">
@@ -463,7 +463,7 @@ function ChoiceGroup({
         {options.map((item) => (
           <label
             key={item.id}
-            className={`focus-ring grid min-h-11 place-items-center rounded-none border px-3 text-center text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[rgba(23,63,115,0.22)] ${
+            className={`focus-ring grid min-h-11 place-items-center rounded-none border px-3 text-center text-sm font-extrabold focus-within:border-[var(--ocean)] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--ocean)_22%,transparent)] ${
               value === item.id ? "border-[var(--ocean)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]" : "border-[var(--line)] bg-[var(--card)]"
             }`}
           >

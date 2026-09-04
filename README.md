@@ -93,7 +93,7 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 图片资产
 
-当前视觉资产仍登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的纸色叠印接入新纸面。新的韩纸静物 / 朱印插画应在 imagegen 可用时替换旧的 editorial 摄影，而不是热链库存图。
+当前视觉资产登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的纸色叠印接入新纸面。hero、hangul 与 empty 已替换为原创韩纸静物 / 朱印图像，其余资产沿用同一登记与校验流程。
 
 生成美学约束：低饱和韩纸、石墨与水墨、可见纸纤维、充足留白、Hangul 活字 / 笔触、砚台静物、首尔街巷或咖啡馆淡彩，以及面积很小的褪色朱印。禁止 KAZAM / player-desk chrome、neo-brutal 黄块与热粉按钮、硬偏移阴影、鱼仔主角、水印、UI 截图和生成式可读乱码。
 

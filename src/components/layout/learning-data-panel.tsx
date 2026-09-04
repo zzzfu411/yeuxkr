@@ -190,5 +190,5 @@ function storageHealthClassName(health: LearningStorageHealth | null) {
   if (!health) return "border-[var(--line)] bg-[var(--wash-1)] text-[var(--muted)]";
   if (health.status === "secure") return "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon-text)]";
   if (health.status === "critical" || health.status === "error") return "border-[var(--seal)] bg-[var(--seal-soft)] text-[var(--cinnabar)]";
-  return "border-[rgba(197,148,77,0.42)] bg-[rgba(197,148,77,0.12)] text-[var(--brass-text)]";
+  return "border-[color-mix(in_srgb,var(--brass)_42%,var(--line))] bg-[color-mix(in_srgb,var(--brass)_12%,transparent)] text-[var(--brass-text)]";
 }

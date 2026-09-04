@@ -63,6 +63,7 @@ function ImmersionContent() {
   const [checkedSelfCheckByMaterial, setCheckedSelfCheckByMaterial] = useState<Record<string, string[]>>({});
   const [selectedOutputByMaterial, setSelectedOutputByMaterial] = useState<Record<string, string>>({});
   const suppressDraftSaveRef = useRef(false);
+  const hydratedMaterialRef = useRef("");
   const completed = new Set(workspace.evidence.validMaterialIds);
   const masteredLessons = useMemo(() => {
     const completedLessons = new Set(workspace.progress.completedLessons);
@@ -185,11 +186,13 @@ function ImmersionContent() {
 
   useEffect(() => {
     let cancelled = false;
+    hydratedMaterialRef.current = "";
     queueMicrotask(() => {
       if (cancelled) return;
       suppressDraftSaveRef.current = false;
       setActiveDraftReady(false);
       const savedDraft = getImmersionMaterialDraft(active.id);
+      hydratedMaterialRef.current = active.id;
       setDictationEvidence(savedDraft?.dictationEvidence ?? "");
       setRetellEvidence(savedDraft?.retellEvidence ?? "");
       setDraft(savedDraft?.draft ?? "");
@@ -218,7 +221,7 @@ function ImmersionContent() {
   }, [active.id]);
 
   useEffect(() => {
-    if (!activeDraftReady || suppressDraftSaveRef.current) return;
+    if (!activeDraftReady || suppressDraftSaveRef.current || hydratedMaterialRef.current !== active.id) return;
     const saved = saveImmersionMaterialDraft(active.id, {
       dictationEvidence,
       retellEvidence,
@@ -448,7 +451,7 @@ function ImmersionContent() {
       </ModuleHero>
 
       <LearningCompass workspace={workspace} active="immersion" condensed />
-      {draftRestoredFor === active.id ? (
+      {draftRestoredFor === active.id && !completed.has(active.id) ? (
         <InlineAlert tone="success">
           已恢复上次的草稿。完成练习或保存输出后，草稿会自动清理。
         </InlineAlert>

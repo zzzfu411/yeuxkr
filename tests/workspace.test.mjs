@@ -902,6 +902,37 @@ test("a stale review card snapshot cannot be graded twice", () => {
   assert.equal(JSON.parse(store.get(progressStorageKey)).practiceItems["single-submit"].correct, 1);
 });
 
+test("early practice can grade a not-yet-due card when allowed", () => {
+  store.clear();
+  const now = Date.now();
+  saveSrsState({
+    cards: {
+      "mistake:future-practice": {
+        id: "mistake:future-practice",
+        box: 1,
+        dueAt: now + 60_000,
+        correct: 1,
+        wrong: 1,
+        lastSeenAt: now - 1000,
+        payload: { kind: "mistake", itemId: "future-practice", prompt: "prompt", answer: "answer" }
+      }
+    },
+    history: []
+  });
+
+  const card = getSrsState().cards["mistake:future-practice"];
+  assert.equal(gradeReviewCardAndProgress(card, true), false);
+  assert.equal(getSrsState().cards[card.id].correct, 1);
+  assert.equal(gradeReviewCardAndProgress(card, true, { allowEarly: true }), true);
+
+  const after = getSrsState().cards[card.id];
+  assert.equal(after.correct, 2);
+  assert.equal(after.dueAt > now, true);
+  const progress = JSON.parse(store.get(progressStorageKey));
+  assert.equal(progress.practiceItems["future-practice"].correct, 1);
+  assert.equal(progress.completedTasks?.["system:review"], undefined);
+});
+
 test("due review is not marked completed when new cards are due later the same day", () => {
   const progress = normalizeLearningProgress({
     ...defaultProgress(),

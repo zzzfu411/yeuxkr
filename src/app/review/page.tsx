@@ -146,7 +146,7 @@ function ReviewContent() {
                 )}
               </div>
             </div>
-            <VisualPanel asset="empty" treatment="inset" className="min-h-52 border-0 shadow-none" />
+            <VisualPanel asset="empty" priority treatment="inset" className="min-h-52 border-0 shadow-none" />
           </div>
         )}
         {reviewError ? (
@@ -188,7 +188,7 @@ function ReviewLoading() {
             <h2 className="inkline mt-2 font-serif text-3xl font-normal">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
           </div>
-          <VisualPanel asset="review" decorative treatment="inset" className="min-h-52 border-0 shadow-none" />
+          <VisualPanel asset="review" priority decorative treatment="inset" className="min-h-52 border-0 shadow-none" />
         </div>
       </Surface>
       <ReviewStatusHero srs={{ total: 0, due: 0, mature: 0, shaky: 0 }} />

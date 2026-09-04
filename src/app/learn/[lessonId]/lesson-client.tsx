@@ -73,9 +73,11 @@ export function LessonClient({ lesson }: { lesson: any }) {
     ? { ...workspace.progress.lessonScores, [lesson.id]: Math.max(workspace.progress.lessonScores[lesson.id] ?? 0, savedScore) }
     : workspace.progress.lessonScores;
   const task = lessonCompletionTask(lesson);
-  const taskCheck = checkLessonTaskEvidence(task, workspace.progress.lessonTaskEvidence[lesson.id]);
+  const taskEvidence = workspace.progress.lessonTaskEvidence[lesson.id];
+  const taskCheck = checkLessonTaskEvidence(task, taskEvidence);
   const isCapstone = lesson.id === CAPSTONE_LESSON_ID;
-  const capstoneReady = !isCapstone || isValidCapstoneEvidence(workspace.progress.capstoneEvidence);
+  const capstoneEvidence = workspace.progress.capstoneEvidence;
+  const capstoneReady = !isCapstone || isValidCapstoneEvidence(capstoneEvidence);
   const completionGateReady = capstoneReady && taskCheck.ready;
   const savedCorePass = savedScore !== null && unlocked && (completed || (savedScore >= UNLOCK_SCORE && savedAssessmentReady && completionGateReady));
   if (savedCorePass) savedCompletedIds.add(lesson.id);
@@ -253,7 +255,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
           {isCapstone ? (
             <CapstoneEvidencePanel
-              evidence={workspace.progress.capstoneEvidence}
+              evidence={capstoneEvidence}
               onSave={saveCapstoneEvidence}
               onInvalidateRecording={invalidateCapstoneRecording}
             />
@@ -263,7 +265,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             <LessonTaskEvidencePanel
               lessonId={lesson.id}
               task={task}
-              evidence={workspace.progress.lessonTaskEvidence[lesson.id]}
+              evidence={taskEvidence}
               onSave={saveLessonTaskEvidence}
               onInvalidateRecording={invalidateLessonTaskRecording}
             />
@@ -574,24 +576,50 @@ function lessonAssessmentMessage(assessment: LessonAssessmentResult) {
   return missing.length ? missing.join("；") : "各项要求都已达到。";
 }
 
+type LessonTaskDraftSnapshot = {
+  kind: LessonCompletionTask["kind"];
+  text: string;
+  recordedSeconds: number;
+  recordingId: string;
+};
+
+function lessonTaskDraftSnapshot(taskKind: LessonCompletionTask["kind"], evidence?: LessonTaskEvidencePanelProps["evidence"]): LessonTaskDraftSnapshot {
+  return {
+    kind: evidence?.kind ?? taskKind,
+    text: evidence?.text ?? "",
+    recordedSeconds: evidence?.recordedSeconds ?? 0,
+    recordingId: evidence?.recordingId ?? ""
+  };
+}
+
+function sameLessonTaskDraft(left: LessonTaskDraftSnapshot, right: LessonTaskDraftSnapshot) {
+  return left.kind === right.kind
+    && left.text === right.text
+    && left.recordedSeconds === right.recordedSeconds
+    && left.recordingId === right.recordingId;
+}
+
+type LessonTaskEvidencePanelProps = {
+  lessonId: string;
+  task: LessonCompletionTask;
+  evidence?: { kind: "paragraph" | "retell" | "shadowing"; text: string; recordedSeconds: number; recordingId?: string; updatedAt: string };
+  onSave: (lessonId: string, input: unknown, expectedRecordingId: string) => boolean;
+  onInvalidateRecording: (lessonId: string, recordingId: string) => boolean;
+};
+
 function LessonTaskEvidencePanel({
   lessonId,
   task,
   evidence,
   onSave,
   onInvalidateRecording
-}: {
-  lessonId: string;
-  task: LessonCompletionTask;
-  evidence?: { kind: "paragraph" | "retell" | "shadowing"; text: string; recordedSeconds: number; recordingId?: string; updatedAt: string };
-  onSave: (lessonId: string, input: unknown, expectedRecordingId: string) => boolean;
-  onInvalidateRecording: (lessonId: string, recordingId: string) => boolean;
-}) {
+}: LessonTaskEvidencePanelProps) {
   const [text, setText] = useState(evidence?.text ?? "");
   const [recordedSeconds, setRecordedSeconds] = useState(evidence?.recordedSeconds ?? 0);
   const [recordingId, setRecordingId] = useState(evidence?.recordingId ?? "");
   const [recording, setRecording] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
+  const [savingRecording, setSavingRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [message, setMessage] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -605,7 +633,16 @@ function LessonTaskEvidencePanel({
   const invalidateRecordingRef = useRef(onInvalidateRecording);
   const mountedRef = useRef(true);
   const startingRecordingRef = useRef(false);
+  const savingRecordingRef = useRef(false);
+  const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const incomingDraft = useMemo(
+    () => lessonTaskDraftSnapshot(task.kind, evidence),
+    [evidence, task.kind]
+  );
+  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
+  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
+  const draftBaselineRef = useRef(incomingDraft);
   const draftEvidence = useMemo(() => ({ kind: task.kind, text, recordedSeconds, recordingId: recordingId || undefined, updatedAt: new Date(0).toISOString() }), [recordedSeconds, recordingId, task.kind, text]);
   const check = checkLessonTaskEvidence(task, draftEvidence);
   const saved = Boolean(
@@ -625,6 +662,29 @@ function LessonTaskEvidencePanel({
     savedRecordingIdRef.current = nextSavedRecordingId;
     invalidateRecordingRef.current = onInvalidateRecording;
   }, [evidence?.recordingId, onInvalidateRecording]);
+
+  useEffect(() => {
+    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
+    const previousDraft = draftBaselineRef.current;
+    const currentDraft = { kind: task.kind, text, recordedSeconds, recordingId };
+    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
+    draftBaselineRef.current = incomingDraft;
+    if (
+      recording
+      || startingRecording
+      || savingRecording
+      || startingRecordingRef.current
+      || savingRecordingRef.current
+      || !sameLessonTaskDraft(currentDraft, previousDraft)
+    ) return;
+    setText(incomingDraft.text);
+    setRecordedSeconds(incomingDraft.recordedSeconds);
+    setRecordingId(incomingDraft.recordingId);
+    recordingIdRef.current = incomingDraft.recordingId;
+    savedRecordingIdRef.current = incomingDraft.recordingId;
+    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
+    setMessage("");
+  }, [incomingDraft, incomingDraftSignature, recordedSeconds, recording, recordingId, savingRecording, startingRecording, task.kind, text]);
 
   useEffect(() => {
     let cancelled = false;
@@ -695,7 +755,7 @@ function LessonTaskEvidencePanel({
   }, []);
 
   const startRecording = async () => {
-    if (recording || startingRecordingRef.current) return;
+    if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
     startingRecordingRef.current = true;
     setStartingRecording(true);
     const requestId = ++recordingRequestRef.current;
@@ -735,33 +795,47 @@ function LessonTaskEvidencePanel({
         streamRef.current = null;
         recorderRef.current = null;
         setRecording(false);
-        if (!blob.size) {
-          setRecordedSeconds(0);
-          setRecordingId("");
-          setMessage("没有取得有效音频数据，请重新录音或使用听后复现。");
-          return;
-        }
-        const nextRecordingId = await saveLearningRecording(blob, "shadowing", replaceableRecordingId);
-        if (!nextRecordingId) {
+        const saveToken = ++recordingSaveTokenRef.current;
+        savingRecordingRef.current = true;
+        setSavingRecording(true);
+        try {
+          if (!blob.size) {
+            setRecordedSeconds(0);
+            setRecordingId("");
+            setMessage("没有取得有效音频数据，请重新录音或使用听后复现。");
+            return;
+          }
+          const nextRecordingId = await saveLearningRecording(blob, "shadowing", replaceableRecordingId);
+          if (!nextRecordingId) {
+            setRecordedSeconds(0);
+            setRecordingId("");
+            setMessage("录音没有保存。可以用下方的听后复现完成本课。");
+            return;
+          }
+          if (!mountedRef.current || requestId !== recordingRequestRef.current) {
+            await deleteLearningRecording(nextRecordingId);
+            return;
+          }
+          if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
+            void deleteLearningRecording(previousRecordingId);
+          }
+          recordingIdRef.current = nextRecordingId;
+          setRecordingId(nextRecordingId);
+          setRecordedSeconds(Math.round(seconds * 10) / 10);
+          const nextUrl = URL.createObjectURL(blob);
+          if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = nextUrl;
+          setAudioUrl(nextUrl);
+        } catch {
           setRecordedSeconds(0);
           setRecordingId("");
           setMessage("录音没有保存。可以用下方的听后复现完成本课。");
-          return;
+        } finally {
+          if (recordingSaveTokenRef.current === saveToken) {
+            savingRecordingRef.current = false;
+            if (mountedRef.current) setSavingRecording(false);
+          }
         }
-        if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-          await deleteLearningRecording(nextRecordingId);
-          return;
-        }
-        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
-          void deleteLearningRecording(previousRecordingId);
-        }
-        recordingIdRef.current = nextRecordingId;
-        setRecordingId(nextRecordingId);
-        setRecordedSeconds(Math.round(seconds * 10) / 10);
-        const nextUrl = URL.createObjectURL(blob);
-        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = nextUrl;
-        setAudioUrl(nextUrl);
       };
       startedAtRef.current = performance.now();
       activeRecorder.start();
@@ -805,8 +879,8 @@ function LessonTaskEvidencePanel({
   };
 
   const save = () => {
-    if (recording || startingRecording) {
-      setMessage("录音进行中，先停止后再保存作品。");
+    if (recording || startingRecording || savingRecording) {
+      setMessage(savingRecording ? "录音保存中，请稍候再保存作品。" : "录音进行中，先停止后再保存作品。");
       return;
     }
     if (!check.ready) {
@@ -865,9 +939,9 @@ function LessonTaskEvidencePanel({
               停止
             </Button>
           ) : (
-            <Button type="button" onClick={startRecording} disabled={startingRecording}>
+            <Button type="button" onClick={startRecording} disabled={startingRecording || savingRecording}>
               <Mic className="h-4 w-4" aria-hidden="true" />
-              {startingRecording ? "请求麦克风" : "开始录音"}
+              {savingRecording ? "保存录音" : startingRecording ? "请求麦克风" : "开始录音"}
             </Button>
           )}
         </div>
@@ -894,12 +968,22 @@ function LessonTaskEvidencePanel({
         ))}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={save} disabled={!check.ready || recording || startingRecording}>保存作品</Button>
+        <Button type="button" onClick={save} disabled={!check.ready || recording || startingRecording || savingRecording}>保存作品</Button>
         {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">作品已保存</span> : null}
         {message ? <span className="text-sm font-bold text-[var(--muted)]" role="status">{message}</span> : null}
       </div>
     </Surface>
   );
+}
+
+function sameCapstoneDraft(left: Omit<CapstoneEvidence, "updatedAt">, right: Omit<CapstoneEvidence, "updatedAt">) {
+  return left.transcript === right.transcript
+    && left.weakPoint === right.weakPoint
+    && left.targetRewrite === right.targetRewrite
+    && left.recordedSeconds === right.recordedSeconds
+    && left.recordingId === right.recordingId
+    && left.rubric.length === right.rubric.length
+    && left.rubric.every((item, index) => item === right.rubric[index]);
 }
 
 function CapstoneEvidencePanel({
@@ -912,17 +996,19 @@ function CapstoneEvidencePanel({
   onInvalidateRecording: (recordingId: string) => boolean;
 }) {
   const savedRecordingId = evidence?.recordingId ?? "";
-  const [draft, setDraft] = useState<Omit<CapstoneEvidence, "updatedAt">>(() => ({
+  const incomingDraft = useMemo(() => ({
     transcript: evidence?.transcript ?? "",
     weakPoint: evidence?.weakPoint ?? "",
     targetRewrite: evidence?.targetRewrite ?? "",
-    rubric: evidence?.rubric ?? [],
+    rubric: [...(evidence?.rubric ?? [])],
     recordedSeconds: evidence?.recordedSeconds ?? 0,
     recordingId: evidence?.recordingId ?? ""
-  }));
+  }), [evidence?.recordedSeconds, evidence?.recordingId, evidence?.rubric, evidence?.targetRewrite, evidence?.transcript, evidence?.weakPoint]);
+  const [draft, setDraft] = useState<Omit<CapstoneEvidence, "updatedAt">>(() => incomingDraft);
   const [status, setStatus] = useState<"idle" | "saved" | "error">(() => isValidCapstoneEvidence(evidence) ? "saved" : "idle");
   const [recording, setRecording] = useState(false);
   const [startingRecording, setStartingRecording] = useState(false);
+  const [savingRecording, setSavingRecording] = useState(false);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [recordingMessage, setRecordingMessage] = useState("");
@@ -938,11 +1024,16 @@ function CapstoneEvidencePanel({
   const invalidateRecordingRef = useRef(onInvalidateRecording);
   const mountedRef = useRef(true);
   const startingRecordingRef = useRef(false);
+  const savingRecordingRef = useRef(false);
+  const recordingSaveTokenRef = useRef(0);
   const recordingRequestRef = useRef(0);
+  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
+  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
+  const draftBaselineRef = useRef(incomingDraft);
   const hangulCount = countHangulCharacters(draft.transcript);
   const systemChecks = capstoneSystemChecks(draft.transcript);
   const recordingCheck = capstoneRecordingCheck(draft.recordedSeconds, draft.recordingId);
-  const ready = !recording && isValidCapstoneEvidence({ ...draft, updatedAt: evidence?.updatedAt ?? "" });
+  const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence({ ...draft, updatedAt: evidence?.updatedAt ?? "" });
 
   useEffect(() => {
     if (recordingIdRef.current === savedRecordingIdRef.current) {
@@ -951,6 +1042,27 @@ function CapstoneEvidencePanel({
     savedRecordingIdRef.current = savedRecordingId;
     invalidateRecordingRef.current = onInvalidateRecording;
   }, [onInvalidateRecording, savedRecordingId]);
+
+  useEffect(() => {
+    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
+    const previousDraft = draftBaselineRef.current;
+    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
+    draftBaselineRef.current = incomingDraft;
+    if (
+      recording
+      || startingRecording
+      || savingRecording
+      || startingRecordingRef.current
+      || savingRecordingRef.current
+      || !sameCapstoneDraft(draft, previousDraft)
+    ) return;
+    setDraft(incomingDraft);
+    recordingIdRef.current = incomingDraft.recordingId;
+    savedRecordingIdRef.current = incomingDraft.recordingId;
+    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
+    setStatus(isValidCapstoneEvidence(evidence) ? "saved" : "idle");
+    setRecordingMessage("");
+  }, [draft, evidence, incomingDraft, incomingDraftSignature, recording, savingRecording, startingRecording]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1026,7 +1138,7 @@ function CapstoneEvidencePanel({
   }, []);
 
   const startRecording = async () => {
-    if (recording || startingRecordingRef.current) return;
+    if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
     startingRecordingRef.current = true;
     setStartingRecording(true);
     const requestId = ++recordingRequestRef.current;
@@ -1071,35 +1183,47 @@ function CapstoneEvidencePanel({
         recorderRef.current = null;
         setRecording(false);
         setRecordingElapsed(seconds);
+        const saveToken = ++recordingSaveTokenRef.current;
+        savingRecordingRef.current = true;
+        setSavingRecording(true);
+        try {
+          if (blob.size === 0) {
+            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
+            setRecordingMessage("没有取得有效音频数据，这段录音不能用于完成终课，请重新录制。");
+            return;
+          }
 
-        if (blob.size === 0) {
-          setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setRecordingMessage("没有取得有效音频数据，这段录音不能用于完成终课，请重新录制。");
-          return;
-        }
-
-        const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
-        if (!nextRecordingId) {
+          const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
+          if (!nextRecordingId) {
+            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
+            setRecordingMessage("录音没有保存，不能用于完成终课。请释放浏览器存储空间后重试。");
+            return;
+          }
+          if (!mountedRef.current || requestId !== recordingRequestRef.current) {
+            await deleteLearningRecording(nextRecordingId);
+            return;
+          }
+          if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
+            void deleteLearningRecording(previousRecordingId);
+          }
+          recordingIdRef.current = nextRecordingId;
+          const nextAudioUrl = URL.createObjectURL(blob);
+          if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = nextAudioUrl;
+          setAudioUrl(nextAudioUrl);
+          setDraft((current) => ({ ...current, recordedSeconds: seconds, recordingId: nextRecordingId }));
+          setRecordingMessage(seconds >= CAPSTONE_MIN_RECORDED_SECONDS
+            ? "录音时长已达标，请先回听，再保存终课作品。"
+            : `本次录音 ${seconds.toFixed(1)} 秒，还需至少 ${(CAPSTONE_MIN_RECORDED_SECONDS - seconds).toFixed(1)} 秒。`);
+        } catch {
           setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
           setRecordingMessage("录音没有保存，不能用于完成终课。请释放浏览器存储空间后重试。");
-          return;
+        } finally {
+          if (recordingSaveTokenRef.current === saveToken) {
+            savingRecordingRef.current = false;
+            if (mountedRef.current) setSavingRecording(false);
+          }
         }
-        if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-          await deleteLearningRecording(nextRecordingId);
-          return;
-        }
-        if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
-          void deleteLearningRecording(previousRecordingId);
-        }
-        recordingIdRef.current = nextRecordingId;
-        const nextAudioUrl = URL.createObjectURL(blob);
-        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = nextAudioUrl;
-        setAudioUrl(nextAudioUrl);
-        setDraft((current) => ({ ...current, recordedSeconds: seconds, recordingId: nextRecordingId }));
-        setRecordingMessage(seconds >= CAPSTONE_MIN_RECORDED_SECONDS
-          ? "录音时长已达标，请先回听，再保存终课作品。"
-          : `本次录音 ${seconds.toFixed(1)} 秒，还需至少 ${(CAPSTONE_MIN_RECORDED_SECONDS - seconds).toFixed(1)} 秒。`);
       };
 
       startedAtRef.current = performance.now();
@@ -1160,6 +1284,10 @@ function CapstoneEvidencePanel({
   };
 
   const saveCapstone = () => {
+    if (recording || startingRecording || savingRecording) {
+      setRecordingMessage(savingRecording ? "录音保存中，请稍候再保存终课作品。" : "录音进行中，先停止后再保存终课作品。");
+      return;
+    }
     const expectedRecordingId = draftBaseRecordingIdRef.current;
     const saved = onSave(draft, expectedRecordingId);
     if (saved && expectedRecordingId && draft.recordingId && expectedRecordingId !== draft.recordingId) {
@@ -1205,9 +1333,9 @@ function CapstoneEvidencePanel({
               停止录音
             </Button>
           ) : (
-            <Button type="button" onClick={startRecording} disabled={startingRecording}>
+            <Button type="button" onClick={startRecording} disabled={startingRecording || savingRecording}>
               <Mic className="h-4 w-4" aria-hidden="true" />
-              {startingRecording ? "请求麦克风" : draft.recordedSeconds > 0 ? "重新录音" : "开始录音"}
+              {savingRecording ? "保存录音" : startingRecording ? "请求麦克风" : draft.recordedSeconds > 0 ? "重新录音" : "开始录音"}
             </Button>
           )}
         </div>

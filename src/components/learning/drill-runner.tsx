@@ -331,7 +331,7 @@ export function DrillRunner({
 
   if (!questions.length) {
     return (
-      <div className="grid overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="p-5">
           <p className="eyebrow">Empty Queue</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
@@ -340,14 +340,14 @@ export function DrillRunner({
           </p>
           {emptyState?.action ? <div className="mt-4 flex flex-wrap gap-2">{emptyState.action}</div> : null}
         </div>
-        <VisualPanel asset="empty" decorative className="min-h-52 rounded-none border-0" />
+        <VisualPanel asset="empty" priority decorative className="min-h-52 rounded-none border-0" />
       </div>
     );
   }
 
   if (finished) {
     return (
-      <article className="overflow-hidden rounded-none border border-[var(--line)] bg-[var(--card)]">
+      <article className="rounded-none border border-[var(--line)] bg-[var(--card)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
             <p className="eyebrow">Result</p>
@@ -514,7 +514,7 @@ export function DrillRunner({
                 <input type="radio" name="answer" value={choice} checked={(existing?.answer ?? value) === choice} disabled={!!existing} onChange={() => setValue(choice)} />
                 <span lang={hasKoreanText(choice) ? "ko" : undefined}>{choice}</span>
                 {choiceIndex < 9 ? (
-                  <kbd className="hidden rounded border border-[var(--line)] bg-[rgba(24,28,27,0.04)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
+                  <kbd className="hidden rounded border border-[var(--line)] bg-[var(--wash-1)] px-1.5 font-mono text-[0.65rem] font-black text-[var(--muted)] sm:inline-block" aria-hidden="true">
                     {choiceIndex + 1}
                   </kbd>
                 ) : null}

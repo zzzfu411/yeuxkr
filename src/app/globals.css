@@ -304,8 +304,16 @@ html[data-theme="dark"] .visual-panel img {
 }
 
 .surface:has(> .paper-tape)::after,
+.surface:has(.studio-panel)::after,
+.surface:has(.paper-rail > .paper-tape)::after,
 .studio-panel:has(> .paper-tape)::after {
   content: none;
+}
+
+/* Framed panels already provide the hanging tape; media panels must not add a second one. */
+.surface .visual-panel > .paper-tape,
+.studio-panel .visual-panel > .paper-tape {
+  display: none;
 }
 
 .dark-slab {
@@ -684,7 +692,6 @@ html[data-theme="dark"] .visual-panel img {
 }
 
 .seal-mark {
-  display: inline-grid;
   min-width: 2.25rem;
   min-height: 2.25rem;
   place-items: center;
@@ -697,6 +704,8 @@ html[data-theme="dark"] .visual-panel img {
   transform: rotate(-6deg);
   filter: url(#roughen);
 }
+
+.seal-mark:not(.hidden) { display: inline-grid; }
 
 .inkline { position: relative; display: inline-block; padding-bottom: 0.15em; }
 .inkline::after {

@@ -49,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="zh-CN"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
     >
       <head>
         <script

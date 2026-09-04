@@ -12,8 +12,8 @@ export interface VisualAssetManifestEntry {
   derivative: "png-source-and-webp-display" | "png-source-and-pwa-icons";
 }
 
-const aesthetic = "Seoul Transit Editorial: cool white hanji, ink black, celadon green, deep ocean blue, restrained cinnabar and brass, realistic domain objects, varied camera composition, no people, no watermark, no readable text or fabricated letters.";
-const generatedAt = "2026-07-15";
+const aesthetic = "YEUX KR hanji still life: warm gray paper near #d8d3cc, diluted graphite and ink wash, visible paper fibers, generous negative space, restrained muted celadon, and one tiny faded vermilion seal; no people, no UI, no watermark, no readable text, no fabricated letters or gibberish.";
+const generatedAt = "2026-09-01";
 
 export const visualAssetManifest: Record<VisualAssetId, VisualAssetManifestEntry> = Object.fromEntries(
   Object.values(visualAssets).map((asset) => [

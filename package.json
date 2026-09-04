@@ -19,8 +19,8 @@
     "speech:prepare": "node scripts/build-speech-corpus.mjs",
     "speech:generate": "python scripts/generate-speech-assets.py scripts/speech-corpus.json public/assets/audio/ko",
     "check": "npm run validate && npm run lint && npm run typecheck && npm run test && npm run build",
-    "smoke:http": "node scripts/http-smoke.mjs",
-    "smoke:browser": "node scripts/smoke-browser.mjs",
+    "smoke:http": "node --import tsx scripts/http-smoke.mjs",
+    "smoke:browser": "node --import tsx scripts/smoke-browser.mjs",
     "check:smoke": "node scripts/check-smoke.mjs",
     "check:all": "npm run check && npm run check:smoke"
   },

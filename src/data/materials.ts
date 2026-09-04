@@ -39,7 +39,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     id: "im-cafe-real-speed",
     level: "foundation",
     kind: "dialogue",
-    title: "咖啡店真实语速点单",
+    title: "咖啡店点单听读",
     sourceLabel: "생활 대화",
     minutes: 14,
     focus: ["listening", "pragmatics", "vocabulary"],
