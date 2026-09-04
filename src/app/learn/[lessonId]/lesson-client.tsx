@@ -364,7 +364,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                     const saved = completeLesson(lesson.id, score, answers);
                     if (!saved) {
                       setSaveError(true);
-                      return;
+                      return false;
                     }
                     const cleared = clearLessonPracticeSession(lesson.id);
                     setSessionClearError(!cleared);
@@ -373,6 +373,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                     setSaveError(false);
                     setSavedAssessmentReady(assessment.corePassed);
                     setSavedScore(score);
+                    return true;
                   }}
                 />
               )}
@@ -426,8 +427,29 @@ function LessonResultActions({
   libraryHref?: string;
   libraryLabel?: string;
   onRetry: () => void;
-  onSave: (score: number, assessment: LessonAssessmentResult) => void;
+  onSave: (score: number, assessment: LessonAssessmentResult) => boolean | void;
 }) {
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+
+  useEffect(() => {
+    if (savedScore !== null) return;
+    if (!saveError) return;
+    savingRef.current = false;
+    setSaving(false);
+  }, [savedScore, saveError]);
+
+  const handleSave = () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    const saved = onSave(score, assessment);
+    if (saved === false) {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
   if (saveError) {
     return (
       <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-4">
@@ -435,7 +457,7 @@ function LessonResultActions({
         <p className="text-sm font-bold leading-6 text-[var(--muted)]">
           请释放浏览器存储空间或关闭隐私限制后再试。页面不会离开，避免误以为已经完成。
         </p>
-        <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>
+        <Button type="button" size="sm" disabled={saving} onClick={handleSave}>
           重新保存
         </Button>
       </div>
@@ -465,12 +487,12 @@ function LessonResultActions({
             <strong className="font-serif text-2xl font-normal">总分达标，分项还没过</strong>
             <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">{lessonAssessmentMessage(assessment)}</p>
           </div>
-          <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>保存本次结果</Button>
+          <Button type="button" size="sm" disabled={saving} onClick={handleSave}>保存本次结果</Button>
         </div>
       );
     }
     return (
-      <Button type="button" onClick={() => onSave(score, assessment)}>
+      <Button type="button" disabled={saving} onClick={handleSave}>
         继续
       </Button>
     );

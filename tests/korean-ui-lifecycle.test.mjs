@@ -434,6 +434,80 @@ test("re-recording overwrites an unsaved recording instead of orphaning its blob
   }
 });
 
+test("LessonResultActions latches the first save click until success or error retry", () => {
+  const hooks = createHookHarness();
+  const { LessonResultActions } = loadLessonEvidencePanels(hooks, {});
+  let saves = 0;
+  const props = createLessonResultActionsProps({
+    onSave() {
+      saves += 1;
+      return true;
+    }
+  });
+
+  let tree = hooks.render(LessonResultActions, props);
+  const continueButton = findButton(tree, "继续");
+  continueButton.props.onClick();
+  continueButton.props.onClick();
+  assert.equal(saves, 1);
+
+  tree = hooks.render(LessonResultActions, props);
+  assert.equal(findButton(tree, "继续").props.disabled, true);
+
+  const previewHooks = createHookHarness();
+  const previewPanels = loadLessonEvidencePanels(previewHooks, {});
+  let previewSaves = 0;
+  let previewTree = previewHooks.render(previewPanels.LessonResultActions, createLessonResultActionsProps({
+    score: 80,
+    assessment: {
+      overallPassed: true,
+      productionRequired: true,
+      productionPassed: false,
+      productionCorrect: 0,
+      productionTotal: 1,
+      listeningRequired: false,
+      listeningPassed: true,
+      listeningDeferred: false,
+      listeningSkipped: false,
+      listeningCorrect: 0,
+      listeningTotal: 0,
+      corePassed: false
+    },
+    onSave() {
+      previewSaves += 1;
+      return true;
+    }
+  }));
+  const previewButton = findButton(previewTree, "保存本次结果");
+  previewButton.props.onClick();
+  previewButton.props.onClick();
+  assert.equal(previewSaves, 1);
+
+  const errorHooks = createHookHarness();
+  const errorPanels = loadLessonEvidencePanels(errorHooks, {});
+  let retries = 0;
+  let errorTree = errorHooks.render(errorPanels.LessonResultActions, createLessonResultActionsProps({
+    saveError: true,
+    onSave() {
+      retries += 1;
+      return false;
+    }
+  }));
+  const retryButton = findButton(errorTree, "重新保存");
+  retryButton.props.onClick();
+  assert.equal(retries, 1);
+  errorTree = errorHooks.render(errorPanels.LessonResultActions, createLessonResultActionsProps({
+    saveError: true,
+    onSave() {
+      retries += 1;
+      return true;
+    }
+  }));
+  findButton(errorTree, "重新保存").props.onClick();
+  findButton(errorTree, "重新保存").props.onClick();
+  assert.equal(retries, 2);
+});
+
 test("recording controls stay locked until the asynchronous blob write finishes", async (context) => {
   const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
   assert.match(source, /disabled={!check\.ready \|\| recording \|\| startingRecording \|\| savingRecording}/);
@@ -2120,8 +2194,40 @@ function loadLessonEvidencePanels(hooks, {
     queueMicrotask,
     window
   }, (source) => source
+    .replace("function LessonResultActions", "export function LessonResultActions")
     .replace("function LessonTaskEvidencePanel", "export function LessonTaskEvidencePanel")
     .replace("function CapstoneEvidencePanel", "export function CapstoneEvidencePanel"));
+}
+
+function createLessonResultActionsProps(overrides = {}) {
+  return {
+    savedScore: null,
+    saveError: false,
+    score: 90,
+    unlocked: true,
+    corePathSaved: false,
+    bridge: { reviewCards: 0, transferMaterials: [] },
+    assessment: {
+      overallPassed: true,
+      productionRequired: false,
+      productionPassed: true,
+      productionCorrect: 0,
+      productionTotal: 0,
+      listeningRequired: false,
+      listeningPassed: true,
+      listeningDeferred: false,
+      listeningSkipped: false,
+      listeningCorrect: 0,
+      listeningTotal: 0,
+      corePassed: true
+    },
+    completionGateReady: true,
+    onRetry() {},
+    onSave() {
+      return true;
+    },
+    ...overrides
+  };
 }
 
 function createShadowingPanelProps(overrides = {}) {
