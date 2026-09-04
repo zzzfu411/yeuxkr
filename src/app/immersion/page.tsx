@@ -408,7 +408,7 @@ function ImmersionContent() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="몰입 · Immersion"
+        kicker="몰입 · 情境听读"
         title="自编情境听读：先听，再写，再复述。"
         copy="站内内容是自编韩语脚本，由预生成录音或设备语音播放，不是原生节目。每段都要完成听写、复述和一次自己的改写。"
         compact
@@ -417,7 +417,7 @@ function ImmersionContent() {
       <LibraryGateNotice focus="materials" />
 
       <ModuleHero
-        kicker={`자료 기록 · ${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials} materials`}
+        kicker={`자료 기록 · 已完成 ${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials} 段`}
         title="一次只练一段。"
         copy="先听关键句，再完成听写、复述、自检和改写。步骤没做完时，内容只会保存为草稿，不计为完成。"
         asset="immersion"
@@ -460,7 +460,7 @@ function ImmersionContent() {
 
       <section id="material-workbench" className="scroll-mt-40 grid gap-5 lg:scroll-mt-28 xl:grid-cols-[22rem_minmax(0,1fr)]">
         <Surface className="h-fit xl:sticky xl:top-24">
-          <SectionHeading kicker="자료 목록 · Materials" title="情境听读" />
+          <SectionHeading kicker="자료 목록 · 场景列表" title="情境听读" />
           <div>
             {queuedMaterials.map((material, materialIndex) => {
               const missingIds = getMissingMaterialPrerequisiteIds(material, masteredLessons);
@@ -575,7 +575,7 @@ function ImmersionContent() {
 
           <div id="material-listen-practice" className="scroll-mt-40 lg:scroll-mt-28" tabIndex={-1}>
             <Surface>
-              <SectionHeading kicker="한 줄씩 · Listen" title="逐句听读" />
+              <SectionHeading kicker="한 줄씩 · 一句一句听" title="逐句听读" />
               <div className="grid gap-3">
                 {prerequisitesReady ? active.lines.map((line, index) => (
                   <article key={line.ko} className="paper-rail grid gap-3 border border-[var(--line)] p-4 shadow-[inset_0_1px_0_var(--sheen)] md:grid-cols-[3rem_minmax(0,1fr)_auto]">
@@ -600,7 +600,7 @@ function ImmersionContent() {
 
           <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <Surface>
-              <SectionHeading kicker="첫 장 · Step 1" title="遮译文听写" />
+              <SectionHeading kicker="첫 장면 · 第一步" title="遮译文听写" />
               <div className="grid gap-2">
                 {prerequisitesReady ? active.dictation.map((item, index) => (
                   <div key={item} className="paper-rail border border-[var(--line)] p-3 shadow-[inset_0_1px_0_var(--sheen)]">
@@ -633,7 +633,7 @@ function ImmersionContent() {
             </Surface>
 
             <Surface>
-              <SectionHeading kicker="둘째 장 · Step 2" title="复述检查" />
+              <SectionHeading kicker="둘째 장면 · 第二步" title="复述检查" />
               <div className="grid gap-2">
                 {active.retellPrompts.map((item) => (
                   <div key={item} className="border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3 text-sm leading-6 text-[var(--ink-soft)]">
@@ -679,7 +679,7 @@ function ImmersionContent() {
 
           <section className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <Surface>
-              <SectionHeading kicker="셋째 장 · Step 3" title="自检清单" />
+              <SectionHeading kicker="셋째 장면 · 第三步" title="自检清单" />
               <div className="grid gap-2">
                 {active.selfCheck.map((item, index) => {
                   const checked = effectiveSelfCheck.includes(item);
@@ -714,7 +714,7 @@ function ImmersionContent() {
 
             <Surface>
               <SectionHeading
-                kicker="마무리 · Finish"
+                kicker="마무리 · 收尾"
                 title="完成条件"
                 copy="五个步骤都完成后，这段听读和对应改写才会计入学习进度，并加入间隔复习。"
               />
@@ -727,7 +727,7 @@ function ImmersionContent() {
           </section>
 
           <Surface>
-            <SectionHeading kicker="넷째 장 · Step 4" title="输出任务与自评" copy={active.outputMission} />
+            <SectionHeading kicker="넷째 장면 · 第四步" title="输出任务与自评" copy={active.outputMission} />
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <label className="grid gap-2 text-sm font-medium">
                 输出草稿
@@ -808,7 +808,7 @@ function ImmersionContent() {
 
           <Surface>
             <SectionHeading
-              kicker="보관한 글 · Archive"
+              kicker="보관한 글 · 已保存"
               title="输出档案"
               copy="这里保存草稿、需要改进的地方、目标改写和自评。完成整段练习后，目标改写会加入间隔复习。"
               action={
@@ -901,7 +901,7 @@ function ImmersionContent() {
             ) : (
               <div className="paper-rail relative border border-[var(--line)] p-4 pt-7 shadow-[inset_0_1px_0_var(--sheen)]">
                 <span className="paper-tape left-6 top-[-7px]" aria-hidden="true" />
-                <p className="eyebrow">빈 기록 · Empty archive</p>
+                <p className="eyebrow">빈 기록 · 还没有保存</p>
                 <h3 className="inkline mt-2 font-serif text-2xl font-normal">还没有保存这段材料的输出</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">完成一段复述或观点短文后保存，下一次回来就能看到自己的表达轨迹。</p>
               </div>
@@ -927,7 +927,7 @@ function ImmersionFallback() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="몰입 · Immersion"
+        kicker="몰입 · 情境听读"
         title="正在准备情境听读。"
         copy="正在读取听读内容、学习记录和已保存的输出。"
       />
@@ -935,7 +935,7 @@ function ImmersionFallback() {
         <div className="paper-rail relative grid min-h-48 place-items-center border border-[var(--line)] p-6 pt-8 text-center shadow-[inset_0_1px_0_var(--sheen)]">
           <span className="paper-tape left-1/2 top-[-7px] -translate-x-1/2" aria-hidden="true" />
           <div>
-            <p className="eyebrow">잠시 · Loading</p>
+            <p className="eyebrow">잠시 · 稍等一下</p>
             <p className="inkline mt-2 font-serif text-3xl font-normal">正在打开对应材料</p>
           </div>
         </div>

@@ -46,7 +46,7 @@ export default function MistakesPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="오답 노트 · Mistake notebook"
+        kicker="오답 노트 · 错题本"
         title="错在哪里，就从哪里补。"
         copy="先重练已到期和反复出错的题。若同一知识点总出错，再回到对应课程、词汇或语法查看讲解。"
         compact
@@ -68,7 +68,7 @@ export default function MistakesPage() {
       </PageHeader>
 
       <ModuleHero
-        kicker="다시 보는 자리 · Return & repair"
+        kicker="다시 배우기 · 回来补一遍"
         title={summary.total ? `${summary.due} 个到期，${summary.repeated} 个反复错。` : "暂时没有待重练的错题。"}
         copy="每张卡会保留原题、正确答案和练习次数。做完到期题后，再回到对应内容补一遍。"
         asset="review"
@@ -91,7 +91,7 @@ export default function MistakesPage() {
       {retrainQuestions ? (
         <Surface>
           <SectionHeading
-            kicker="다시 쓰기 · Retrain"
+            kicker="다시 풀기 · 定向重练"
             title="错题定向重练"
             copy="做对后，这张卡会晚些再出现；做错后，它会更早回来。"
             action={
@@ -122,7 +122,7 @@ export default function MistakesPage() {
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Surface>
             <SectionHeading
-              kicker="오늘의 순서 · Today's order"
+              kicker="오늘의 순서 · 今天的顺序"
               title="优先处理队列"
               copy="已到期、错误较多的题会排在前面。"
               action={
@@ -150,7 +150,7 @@ export default function MistakesPage() {
 
           <aside className="grid h-fit gap-4 xl:sticky xl:top-24">
             <Surface>
-              <SectionHeading kicker="세 장 · Three leaves" title="三步修复方案" />
+              <SectionHeading kicker="세 단계 · 三步" title="三步修复方案" />
               <div className="grid gap-3">
                 <PlanStep index={1} title="先做已到期的题" detail="进入复习页，把今天该做的错题重新答一遍。" href="/review" />
                 <PlanStep index={2} title="回去看讲解" detail="同一点反复出错时，回到对应课程、词汇、语法或听读页。" href="/path" />
@@ -159,7 +159,7 @@ export default function MistakesPage() {
             </Surface>
 
             <Surface>
-              <SectionHeading kicker="오늘의 네 점 · Four marks" title="今天最该照看的 4 个点" />
+              <SectionHeading kicker="오늘 먼저 · 今天先看" title="今天最该照看的 4 个点" />
               <div>
                 {urgent.map((item, index) => (
                   <TrackRow
@@ -183,7 +183,7 @@ export default function MistakesPage() {
           <div className="studio-panel relative grid md:grid-cols-[minmax(0,1fr)_18rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
-              <p className="eyebrow">빈 장 · Clean leaf</p>
+              <p className="eyebrow">빈 기록 · 现在没有错题</p>
               <h2 className="inkline mt-2 font-serif text-3xl font-normal">当前没有可追踪错题。</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                 继续学习或做测验。以后答错的题会自动来到这里，并安排下一次复习。
@@ -298,7 +298,7 @@ function PlanStep({ index, title, detail, href }: { index: number; title: string
     <TrackRow
       index={index}
       glyph={String(index)}
-      kicker={`Step ${index}`}
+      kicker={`第 ${index} 步`}
       title={title}
       detail={detail}
       href={href}

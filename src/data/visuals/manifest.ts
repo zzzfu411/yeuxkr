@@ -2,7 +2,7 @@ import { visualAssets, type VisualAssetId } from "./assets.ts";
 
 export interface VisualAssetManifestEntry {
   id: VisualAssetId;
-  provider: "my-image-gen";
+  provider: "openai-imagegen";
   label: string;
   aesthetic: string;
   prompt: string;
@@ -12,15 +12,15 @@ export interface VisualAssetManifestEntry {
   derivative: "png-source-and-webp-display" | "png-source-and-pwa-icons";
 }
 
-const aesthetic = "YEUX KR hanji still life: warm gray paper near #d8d3cc, diluted graphite and ink wash, visible paper fibers, generous negative space, restrained muted celadon, and one tiny faded vermilion seal; no people, no UI, no watermark, no readable text, no fabricated letters or gibberish.";
-const generatedAt = "2026-09-01";
+const aesthetic = "Original Korean slice-of-life drama frame: seasonal natural light, porcelain white, mist blue, subtitle navy, muted camellia and leaf green, believable everyday texture, restrained 35mm grain, generous breathing room; no copied shows or actors, no readable text, no logos, no watermark, no fake interface.";
+const generatedAt = "2026-09-05";
 
 export const visualAssetManifest: Record<VisualAssetId, VisualAssetManifestEntry> = Object.fromEntries(
   Object.values(visualAssets).map((asset) => [
     asset.id,
     {
       id: asset.id,
-      provider: "my-image-gen",
+      provider: "openai-imagegen",
       label: asset.manifestLabel,
       aesthetic,
       prompt: `${asset.promptSummary} ${aesthetic}`,

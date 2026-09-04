@@ -74,7 +74,7 @@ export default function SelfStudyPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Self Study"
+        kicker="나만의 공부 · 自由自学"
         title="按自己的时间安排，也别丢掉学习顺序。"
         copy="选择目标、每天能学多久，以及当前最想练什么。保存后，首页会按这个计划安排任务。"
         compact
@@ -98,7 +98,7 @@ export default function SelfStudyPage() {
       <OnboardingGateNotice copy="先完成三分钟入门，再保存你的学习计划。" />
 
       <ModuleHero
-        kicker={`Current Plan · ${plan.intensity.title} · ${plan.focus.title}`}
+        kicker={`现在的计划 · ${plan.intensity.title} · ${plan.focus.title}`}
         title={plan.goal.title}
         copy={`${plan.goal.outcome} 按当前安排，每周约 ${plan.weeklyHours} 小时。预计周期会随每天可用时间调整。`}
         asset="selfStudy"
@@ -120,7 +120,7 @@ export default function SelfStudyPage() {
 
       <Surface>
         <SectionHeading
-          kicker="Start Here"
+          kicker="오늘 먼저 · 今天先做"
           title="今天先完成这三步"
           copy="这里显示今天最值得先做的内容，与首页使用同一份课程、复习和错题记录。"
         />
@@ -148,7 +148,7 @@ export default function SelfStudyPage() {
           </div>
         </div>
         <div className="studio-panel paper-rail relative grid gap-3 p-5">
-          <p className="eyebrow">Plan Thread</p>
+          <p className="eyebrow">计划怎么走</p>
           <h2 className="font-serif text-3xl font-black leading-tight">每天怎么学</h2>
           <div className="grid gap-2">
             {[
@@ -172,7 +172,7 @@ export default function SelfStudyPage() {
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div id="planner" className="order-1 h-fit scroll-mt-40 lg:order-2 lg:scroll-mt-28 lg:sticky lg:top-24">
           <Surface>
-            <SectionHeading kicker="Planner" title="学习控制台" />
+            <SectionHeading kicker="내 계획 · 我的计划" title="安排学习节奏" />
             <div className="grid gap-5">
               <ChoiceGroup
                 label="学习方式"
@@ -240,7 +240,7 @@ export default function SelfStudyPage() {
         <div className="order-2 grid gap-5 lg:order-1">
           <Surface>
             <SectionHeading
-              kicker="Daily Template"
+              kicker="하루 순서 · 每日顺序"
               title="每日执行模板"
               copy="每天安排复习、新内容和一次主动表达。你完成任务后，首页会自动调整下一项。"
             />
@@ -260,7 +260,7 @@ export default function SelfStudyPage() {
 
           <Surface>
             <SectionHeading
-              kicker="Phases"
+              kicker="배우는 단계 · 学习阶段"
               title="阶段路线"
               copy="先学稳韩文和发音，再进入句型、日常场景、语气和长期作品。"
             />
@@ -290,7 +290,7 @@ export default function SelfStudyPage() {
           <section className="grid gap-5 xl:grid-cols-2">
             <Surface>
               <SectionHeading
-                kicker="Week Rhythm"
+                kicker="한 주 리듬 · 每周节奏"
                 title="每周节奏"
                 copy={showFullRhythm ? "完整 7 天节奏会显示执行日、复盘日和休息日。" : "默认只显示需要真正执行学习任务的日子，完整周节奏可随时展开。"}
                 action={hiddenRhythmDays || showFullRhythm ? (
@@ -315,7 +315,7 @@ export default function SelfStudyPage() {
             </Surface>
             <Surface>
               <SectionHeading
-                kicker="Checkpoints"
+                kicker="중간 점검 · 阶段检查"
                 title="阶段检查"
                 copy="每隔一段时间，用正确率、录音、韩语复述或短文记下学习结果。这里只保存复盘，不会替代课程成绩。"
               />

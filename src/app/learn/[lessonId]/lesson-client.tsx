@@ -23,6 +23,22 @@ import { ABILITY_LABELS, libraryCountsForWrite, useLearningWorkspace } from "@/l
 import type { CapstoneEvidence } from "@/lib/learning/types";
 import { speakKorean } from "@/lib/speech";
 
+const focusLabels: Record<string, string> = {
+  discourse: "篇章组织",
+  grammar: "语法",
+  listening: "听力",
+  media: "媒体听读",
+  native: "自然表达",
+  pragmatics: "场景语用",
+  script: "字形",
+  sentence: "造句",
+  sound: "发音",
+  speaking: "口语",
+  time: "时间表达",
+  travel: "出行",
+  vocab: "词汇"
+};
+
 const lessonVisualMap: Partial<Record<string, DisplayVisualAssetId>> = Object.fromEntries([
   ...["l01-hangul-map", "l02-vowels", "l31-compound-vowels", "l03-consonants", "l32-tense-aspirated", "l33-batchim", "l34-sound-changes"].map((id) => [id, "lessonPronunciation"]),
   ...["l06-cafe", "l11-shopping-price"].map((id) => [id, "lessonCafe"]),
@@ -137,7 +153,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <div className="mt-4 flex flex-wrap gap-2">
             {lesson.focus.map((item: string) => (
               <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] px-3 py-1 text-sm font-medium">
-                {item}
+                {focusLabels[item] ?? item}
               </span>
             ))}
           </div>
@@ -184,7 +200,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
       <div id="lesson-content" className="grid scroll-mt-40 gap-5 lg:scroll-mt-28 lg:grid-cols-[24rem_minmax(0,1fr)]">
         <aside className="surface h-fit p-5 lg:sticky lg:top-24">
-          <p className="eyebrow">Objectives</p>
+          <p className="eyebrow">这一课</p>
           <div className="mt-4 grid gap-2">
             {lesson.objectives.map((item: string) => (
               <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-3 text-sm font-medium leading-6">
@@ -206,14 +222,14 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
         <div className="grid gap-5">
           <Surface>
-            <SectionHeading kicker="Teach" title="先建立直觉" />
+            <SectionHeading kicker="先学一点" title="先建立直觉" />
             <div>
               {lesson.teach.map(normalizeTeachEntry).map((entry: ReturnType<typeof normalizeTeachEntry>, index: number) => (
                 <TrackRow
                   key={`${index}-${entry.body}`}
                   index={index + 1}
                   glyph={String(index + 1)}
-                  kicker="Teach"
+                  kicker="先学一点"
                   title={entry.title || `步骤 ${index + 1}`}
                   detail={entry.body}
                   expanded
@@ -901,13 +917,13 @@ function LessonTaskEvidencePanel({
 
   return (
     <Surface id="lesson-task-evidence" className="scroll-mt-40 lg:scroll-mt-28">
-      <SectionHeading kicker="Required Work" title={task.title} />
+      <SectionHeading kicker="本课任务" title={task.title} />
       <p className="max-w-3xl leading-7 text-[var(--muted)]">{task.prompt}</p>
 
       {task.source ? (
         <div className="mt-4 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <strong className="eyebrow">Practice Source · 原文</strong>
+            <strong className="eyebrow">跟读原文</strong>
             <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(task.source!)}>
               <Volume2 className="h-4 w-4" aria-hidden="true" />
               播放
@@ -1304,7 +1320,7 @@ function CapstoneEvidencePanel({
     <Surface className="border-[var(--line)]">
       <div id="capstone-evidence" className="scroll-mt-40 lg:scroll-mt-28">
         <SectionHeading
-          kicker="Capstone Work"
+          kicker="收尾练习"
           title="保存终课作品，再确认达标"
           copy="课程题目只能检查结构识别。录制至少两分钟口语，并保存韩语输出稿、弱点和目标改写后，终课才算完成。"
         />
@@ -1436,7 +1452,7 @@ function LessonBridgePanel({
   return (
     <Surface>
       <SectionHeading
-        kicker="Lesson Bridge"
+        kicker="学完之后"
         title="完成本课后，接下来做什么"
         copy="本课完成后会计入主线进度，并生成复习卡。之后可以继续下一课，或到情境听读里再用一次。"
       />

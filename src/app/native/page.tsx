@@ -114,7 +114,7 @@ export default function NativePage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Natural Korean"
+        kicker="말투 · 自然表达"
         title="同一个意思，换个关系就要换种说法。"
         copy="面对朋友、店员、同事或前辈，韩语的礼貌程度和语气会不同。这里练的是说得合适，不是堆高级词。"
         compact
@@ -125,7 +125,7 @@ export default function NativePage() {
 
       <section className="grid gap-4 border-y border-[var(--line)] py-5">
         <SectionHeading
-          kicker="Rehearsal Console"
+          kicker="오늘의 연습 · 今天先练"
           title="今天先练 6 个自然表达"
           copy="每张卡先听一句，再用自己的韩语复述，最后换一种关系改写。完成后可以加入间隔复习。"
           action={activeFilters.filter(Boolean).length ? (
@@ -175,7 +175,7 @@ export default function NativePage() {
 
       {pragmaticItems.length ? (
         <section className="grid gap-4">
-          <SectionHeading kicker="Pragmatics" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
+          <SectionHeading kicker="상황과 관계 · 场合与关系" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
           <div>
             {pragmaticItems.map((item, index) => (
               <NativeCard
@@ -199,7 +199,7 @@ export default function NativePage() {
 
       {nuanceItems.length ? (
         <section className="grid gap-4">
-          <SectionHeading kicker="Nuance" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
+          <SectionHeading kicker="말의 온도 · 语气细差" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
           <div id="nuance">
             {nuanceItems.map((item, index) => (
               <NativeCard
@@ -223,7 +223,7 @@ export default function NativePage() {
 
       <section className="grid gap-4">
         <SectionHeading
-          kicker="Today"
+          kicker="오늘 · 今天"
           title="今天把一句话说得更合适"
           copy="先听，再复述，然后换一种关系改写。"
         />
@@ -233,7 +233,7 @@ export default function NativePage() {
               key={`${currentStage.id}:${action.title}`}
               index={index + 1}
               glyph={String(index + 1)}
-              kicker={`Step ${index + 1}`}
+              kicker={`第 ${index + 1} 步`}
               title={action.title}
               detail={action.task}
               href={action.href}
@@ -243,7 +243,7 @@ export default function NativePage() {
       </section>
 
       <ModuleHero
-        kicker="Dialogue Theater"
+        kicker="대화 연습 · 对话排练"
         title="语法正确，还要符合场合。"
         copy="这里练缓冲、转折、评价和礼貌距离。学过的表达会在情境听读和复习里再次出现。"
         asset="native"
@@ -280,7 +280,7 @@ export default function NativePage() {
 
         <div className="grid content-between gap-4 border-y border-[var(--line)] py-4">
           <div>
-            <p className="eyebrow">Gate Meter</p>
+            <p className="eyebrow">完成情况</p>
             <div className="mt-3 flex items-end justify-between gap-3">
               <strong className="font-serif text-5xl leading-none">{stageProgress}%</strong>
               <span className="rounded-none border border-[var(--green)] bg-[var(--green-soft)] px-3 py-1 font-mono text-xs font-black uppercase text-[var(--celadon)]">
@@ -347,7 +347,7 @@ function LongTermNativePortfolio() {
   return (
     <section id="long-term-portfolio" className="grid gap-5 border-t border-[var(--line)] pt-6">
       <SectionHeading
-        kicker="Long-term Practice"
+        kicker="오래 연습하기 · 长期练习"
         title="长期进阶作品集"
         copy={`把站外材料、练习时间、反馈和每次修改保存在一起。${nativeRoadmapTotals.vocabulary.toLocaleString()}+ 词、${nativeRoadmapTotals.collocations.toLocaleString()}+ 搭配和大量原生材料都是长期方向，不会计入当前站内等级。`}
         action={(
@@ -387,7 +387,7 @@ function LongTermNativePortfolio() {
       <div className="grid gap-3">
         <div className="flex items-end justify-between gap-3 border-b border-[var(--line)] pb-3">
           <div>
-            <p className="eyebrow">Saved works</p>
+            <p className="eyebrow">已保存的作品</p>
             <h3 className="mt-1 font-serif text-2xl font-black">本地作品与修订记录</h3>
           </div>
           <span className="font-mono text-xs font-black text-[var(--muted)]">{state.entries.length} ITEMS</span>
@@ -441,7 +441,7 @@ function NativePortfolioForm({
     <form className="grid gap-4 border-y border-[var(--line)] py-5" onSubmit={handleSubmit}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">{isRevision ? "Revision" : "New evidence"}</p>
+          <p className="eyebrow">{isRevision ? "继续修改" : "新作品"}</p>
           <h3 className="mt-1 font-serif text-2xl font-black">{isRevision ? "保存一个新版本" : "添加一条站外作品"}</h3>
         </div>
         {onCancel ? (

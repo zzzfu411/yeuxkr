@@ -13,49 +13,49 @@ import { cn } from "@/lib/utils";
 
 const contextConfig: Record<CompassContext, { kicker: string; title: string; copy: string; asset: DisplayVisualAssetId }> = {
   workspace: {
-    kicker: "Study Compass",
+    kicker: "학습 안내 · 学习安排",
     title: "从哪里开始，进度都记在一起。",
     copy: "课程、自学、复习和情境听读共用同一份学习记录。",
     asset: "workspace"
   },
   path: {
-    kicker: "Route Spine",
+    kicker: "배우는 순서 · 学习顺序",
     title: "主线安排顺序，自学保留你的节奏。",
     copy: "课程按前后关系解锁；想自由练习时，也随时能看到下一课和需要补的内容。",
     asset: "path"
   },
   self: {
-    kicker: "Self Study Contract",
+    kicker: "나의 계획 · 我的计划",
     title: "自学计划会改变今天的推荐顺序。",
     copy: "选好目标、强度和重点后，首页会按这个节奏安排任务。阶段检查会保存你的复盘。",
     asset: "selfStudy"
   },
   review: {
-    kicker: "Review Loop",
+    kicker: "다시 볼 때 · 到期复习",
     title: "到期内容先复习，记忆会更稳。",
     copy: "课程错题、词汇、语法和听读改写都会来到这里。做完后，再继续学新内容。",
     asset: "review"
   },
   mistakes: {
-    kicker: "Weak Point Map",
+    kicker: "다시 배우기 · 错题重练",
     title: "反复错的题，回到原处补一遍。",
     copy: "先做已到期和反复出错的题，再回课程、词汇、语法或听读页查看讲解。",
     asset: "review"
   },
   quiz: {
-    kicker: "Transfer Lab",
+    kicker: "실력 확인 · 换题检查",
     title: "换个题型，检查是不是真的会了。",
     copy: "题目只来自你学过的内容。答错会加入错题复习，之后可以再练。",
     asset: "quiz"
   },
   immersion: {
-    kicker: "Input Output Loop",
+    kicker: "듣고 말하기 · 听读复述",
     title: "听一段，写一句，再用韩语复述。",
     copy: "站内内容是自编情境脚本，由录音或设备语音播放。完成听写和改写后，内容会加入复习。",
     asset: "immersion"
   },
   native: {
-    kicker: "Natural Expression",
+    kicker: "말투와 거리 · 语气与距离",
     title: "同一句话，换个关系就要换种说法。",
     copy: "这里练场合、礼貌距离和语气。自然表达需要长期练习，不由站内分数决定。",
     asset: "native"

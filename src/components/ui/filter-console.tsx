@@ -177,7 +177,7 @@ export function EmptyState({
   return (
     <div className="grid gap-5 p-1 md:grid-cols-[minmax(0,1fr)_15rem] md:items-center">
       <div>
-        <p className="eyebrow">No Match</p>
+        <p className="eyebrow">没有找到</p>
         <h2 className="mt-1 font-brush text-2xl font-normal">{title}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p>
         <Button className="mt-4 w-fit" type="button" variant="secondary" onClick={onAction}>

@@ -47,7 +47,7 @@ export default function QuizPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Mixed Quiz"
+        kicker="섞어서 풀기 · 综合测验"
         title="综合测验：只考你学过的内容。"
         copy="题目来自课程、韩文、词汇、语法、情境听读和你保存过的改写。答错会加入错题复习，方便之后重练。"
         compact
@@ -135,7 +135,7 @@ export default function QuizPage() {
       </Surface>
 
       <ModuleHero
-        kicker="Transfer Check"
+        kicker="바꿔서 풀기 · 换题检查"
         title="换个题型，看看还能不能答对。"
         copy="题目会混合声音、拼写、词义和句型。分数不理想时，错题会进入复习，告诉你下一轮先补哪里。"
         asset="quiz"

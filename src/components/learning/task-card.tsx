@@ -4,6 +4,13 @@ import { cn } from "@/lib/utils";
 import { KIND_LABEL, taskGlyph } from "@/lib/learning/player";
 import type { StudyTask } from "@/lib/learning/types";
 
+const laneLabels: Record<string, string> = {
+  self: "自学",
+  core: "主线",
+  bridge: "衔接",
+  expansion: "拓展"
+};
+
 export function TaskCard({
   task,
   featured = false,
@@ -25,7 +32,7 @@ export function TaskCard({
       <div className="min-w-0 py-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--ocean)]">{KIND_LABEL[task.kind]}</span>
-          {task.lane ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{task.lane}</span> : null}
+          {task.lane ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{laneLabels[task.lane] ?? task.lane}</span> : null}
           {task.completed ? (
             <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-[var(--celadon)]">
               <Check className="h-3.5 w-3.5" />

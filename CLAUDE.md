@@ -4,7 +4,7 @@
 
 这是一个 Next.js 在线学习应用，不再是无构建静态 SPA。项目目标是稳定、可维护，并保持与 Yasashi Japanese 不同的审美方向。
 
-当前视觉方向是 **YEUX KR 纸本家族**：与 yeuxark.com 同一套低饱和纸站语言。产品名仍是 Kirina Korean。四种纸色（原纸 / 月白 / 淡青 / 夜墨），正文 LXGW WenKai Screen，题签 Ma Shan Zheng，英文 Caveat。不要回到 KAZAM 黄块、热粉播放键或 void 黑底。详细约定见 `design/art-direction.md`。
+当前视觉方向是 **四季片场**：用原创韩国生活剧式场景、季节光线、冷瓷白、雾蓝、山茶粉和克制的字幕排版组织学习。四个主题是春日、雨季、晚秋与蓝夜；正文使用系统 sans，展示标题与韩文使用 Noto Serif KR。不要恢复纸纹、胶带、印章、毛笔/手写字体、常驻左栏、厚重 SaaS 卡片或纯黑控制台。详细约定见 `design/art-direction.md`，调研与改版记录见 `design/kdrama-redesign.md`。
 
 ## 关键约定
 
@@ -15,7 +15,7 @@
 - 测验/课程题目走 `src/lib/learning/quiz.ts` 和 `DrillRunner`，答错应进入 mistake SRS。
 - TTS 统一走 `src/lib/speech.js` 的 `speakKorean` / `speakSequence`。
 - 不注册 Service Worker 或提供离线学习包；`PwaRegister` 只负责清理历史 Worker/缓存，并可保留需要联网的桌面入口。
-- 图片资产必须来自 `imagegen` 或 `my-image-gen`，最终放入 `public/assets/generated/`，并登记到 `src/data/visuals/assets.ts`。
+- 图片资产必须来自 `imagegen` 或经用户授权的图像生成工作流，最终放入 `public/assets/generated/`，并登记到 `src/data/visuals/assets.ts` 与 `src/data/visuals/manifest.ts`。
 
 ## 验证
 

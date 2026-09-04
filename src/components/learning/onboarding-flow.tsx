@@ -52,7 +52,7 @@ export function OnboardingFlow() {
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-5">
       <div className="grid gap-3 border-b border-[var(--line)] pb-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <p className="eyebrow">Onboarding · 入门设置</p>
+        <p className="eyebrow">첫 만남 · 第一次见面</p>
         <ol className="grid grid-cols-4 gap-px border-x border-[var(--line)]" aria-label="设置进度">
           {STEP_TITLES.map((title, index) => (
             <li
@@ -82,7 +82,7 @@ export function OnboardingFlow() {
         <Surface className="p-0 md:p-0">
           <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
             <div className="paper-rail relative p-5 pt-8 md:p-8 md:pt-10">
-              <p className="eyebrow">첫 장 · First leaf</p>
+              <p className="eyebrow">첫 장면 · 先认识一下</p>
               <h1 className="inkline mt-3 font-serif text-4xl font-normal leading-tight md:text-5xl">你好，从这里开始学韩语。</h1>
               <p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">
                 接下来选目标、试听韩语，再打出一个韩文字。大约三分钟，完成后直接进入第一课。
@@ -100,9 +100,6 @@ export function OnboardingFlow() {
                 >
                   我已有基础，直接进工作台
                 </Button>
-                <span className="seal-mark ml-auto hidden h-12 w-12 text-sm sm:inline-grid" aria-hidden="true">
-                  첫글
-                </span>
               </div>
             </div>
             <VisualPanel
@@ -118,7 +115,7 @@ export function OnboardingFlow() {
 
       {step === 1 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">둘째 장 · Intention</p>
+          <p className="eyebrow">둘째 장면 · 想先学会什么</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">这次学韩语，最想先做到什么？</h1>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {GOAL_OPTIONS.map((option, index) => (
@@ -176,7 +173,7 @@ export function OnboardingFlow() {
 
       {step === 2 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">셋째 장 · Voice check</p>
+          <p className="eyebrow">셋째 장면 · 听一听</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">先确认你能听到韩语。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
             许多练习需要播放韩语。点一下试听，能听到“<span lang="ko">안녕하세요</span>”（你好）就可以继续。
@@ -220,7 +217,7 @@ export function OnboardingFlow() {
 
       {step === 3 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">넷째 장 · First syllable</p>
+          <p className="eyebrow">넷째 장면 · 打出第一个字</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">用屏幕键盘打出第一个韩文字。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
             不用安装韩语输入法。打开“韩文键盘”，先按 <strong className="hangul-display" lang="ko">ㄱ</strong>，再按{" "}

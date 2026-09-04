@@ -129,7 +129,7 @@ export function LearningDataPanel() {
         <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto overscroll-contain rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
           <span className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 -rotate-2 border-x border-dashed border-[var(--tape-edge)] bg-[var(--tape)] opacity-70" aria-hidden="true" />
           <div>
-            <p className="eyebrow">Local Data</p>
+            <p className="eyebrow">本机学习记录</p>
             <strong className="mt-1 block font-brush text-xl font-normal">备份与存储</strong>
           </div>
           <div className="grid grid-cols-2 gap-2">

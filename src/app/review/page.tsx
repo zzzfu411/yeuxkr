@@ -84,7 +84,7 @@ function ReviewContent() {
       <ReviewHeader />
 
       <Surface>
-        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
+        <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
         {questions.length ? (
           <DrillRunner
             key={sessionKey}
@@ -108,7 +108,7 @@ function ReviewContent() {
           <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
-              <p className="eyebrow">오늘은 맑음 · Clear today</p>
+              <p className="eyebrow">오늘은 맑음 · 今天没有到期项</p>
               <h2 className="inkline mt-2 font-serif text-3xl font-normal">现在没有到期复习</h2>
               <p className="mt-2 leading-7 text-[var(--muted)]">
                 {needsOnboardingFunnel(profile, progress)
@@ -180,11 +180,11 @@ function ReviewLoading() {
     <div className="grid gap-6">
       <ReviewHeader />
       <Surface>
-        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
+        <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
         <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
           <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
           <div className="paper-rail p-5 pt-8">
-            <p className="eyebrow">잠시 · A quiet moment</p>
+            <p className="eyebrow">잠시 · 正在读取</p>
             <h2 className="inkline mt-2 font-serif text-3xl font-normal">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
           </div>
@@ -199,7 +199,7 @@ function ReviewLoading() {
 function ReviewHeader() {
   return (
     <PageHeader
-      kicker="복습 · Review"
+      kicker="복습 · 复习"
       title="先复习到期内容，再学新课。"
       copy="间隔复习（SRS）会根据你的答案安排下次出现时间。答得稳，间隔会变长；答错了，很快会再见到它。"
       compact
@@ -217,7 +217,7 @@ function ReviewHeader() {
 function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: number; shaky: number } }) {
   return (
     <ModuleHero
-      kicker="간격 기록 · Review notes"
+      kicker="다시 만날 때 · 下次再见"
       title="今天该复习什么？"
       copy="这里都是你已经学过的内容。先做已到期和薄弱的卡片，其余会按计划稍后出现。"
       asset="review"

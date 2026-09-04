@@ -333,7 +333,7 @@ export function DrillRunner({
     return (
       <div className="grid rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="p-5">
-          <p className="eyebrow">Empty Queue</p>
+          <p className="eyebrow">今天没有题了</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[var(--muted)]">
             {emptyState?.detail ?? "先完成一课、加入一些复习卡，或做一段情境听读。学过的内容会自动出现在这里。"}
@@ -350,7 +350,7 @@ export function DrillRunner({
       <article className="rounded-none border border-[var(--line)] bg-[var(--card)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
-            <p className="eyebrow">Result</p>
+            <p className="eyebrow">这轮结果</p>
             <h2 ref={resultHeadingRef} className="focus-ring mt-2 font-serif text-5xl font-black" tabIndex={-1}>{score}%</h2>
             <p className="mt-3 leading-7 text-[var(--muted)]">{score >= 85 ? "这组很稳，可以进入下一步。" : score >= 65 ? "已经有骨架了，把错题再听一遍会更扎实。" : "先不要急着推进，重做这一组更划算。"}</p>
             {skippedCount ? (
@@ -390,7 +390,7 @@ export function DrillRunner({
     <article className={`rounded-none border p-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="eyebrow">Practice</p>
+          <p className="eyebrow">正在练习</p>
           <h2 className="mt-1 font-serif text-2xl font-black">练习 {index + 1} / {questions.length}</h2>
         </div>
         <div className="border border-[var(--line)] bg-[var(--paper-hi)] px-4 py-2 font-script text-sm text-[var(--ink-soft)]">{score}%</div>

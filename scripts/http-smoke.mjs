@@ -131,7 +131,7 @@ async function validateManifest(input) {
   if (input?.lang !== "zh-CN") failures.push(`${manifestPath}: should declare zh-CN language`);
   if (input?.display !== "standalone") failures.push(`${manifestPath}: display should be standalone`);
   if (!Array.isArray(input?.display_override) || !input.display_override.includes("standalone")) failures.push(`${manifestPath}: display_override should keep standalone fallback`);
-  if (input?.background_color !== "#d8d3cc") failures.push(`${manifestPath}: background color should match app shell`);
+  if (input?.background_color !== "#f4f6f5") failures.push(`${manifestPath}: background color should match app shell`);
   if (!Array.isArray(input?.categories) || !input.categories.includes("education")) failures.push(`${manifestPath}: should declare education category`);
 
   const iconPurposes = new Set();

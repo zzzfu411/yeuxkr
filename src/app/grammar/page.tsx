@@ -85,7 +85,7 @@ export default function GrammarPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Sentence Workshop"
+        kicker="문장 만들기 · 造句"
         title="按“想说什么”来学语法。"
         copy="先看结构和例句，再换成自己的内容。能独立造句后，再把它加入复习。"
         compact
@@ -95,7 +95,7 @@ export default function GrammarPage() {
       <LibraryGateNotice focus="grammar" />
 
       <ModuleHero
-        kicker={`${filteredPoints.length}/${grammarPoints.length} patterns`}
+        kicker={`${filteredPoints.length}/${grammarPoints.length} 个句型`}
         title="先看懂结构，再说自己的句子。"
         copy="语法会和课程、词汇及输出练习一起出现，帮助你把规则真正用起来。"
         asset="grammar"
@@ -114,7 +114,7 @@ export default function GrammarPage() {
 
       <Surface>
         <SectionHeading
-          kicker="Pattern Console"
+          kicker="골라 연습하기 · 选择练习"
           title="筛选要练的句型"
           copy="可以按阶段筛选，也可以搜索结构、含义或例句。先练一小组，能造句后再加入间隔复习。"
           action={activeFilters.length ? (

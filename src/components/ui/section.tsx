@@ -18,18 +18,18 @@ export function PageHeader({
   compact?: boolean;
 }) {
   return (
-    <section className={cn("mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end", compact && "mb-3", className)}>
-      <div className="max-w-4xl">
+    <section className={cn("page-header", compact && "page-header--compact", className)}>
+      <div className="max-w-[72ch]">
         <p className="eyebrow">{kicker}</p>
         <h1 className={cn(
-          "inkline mt-3 max-w-5xl font-serif font-normal leading-[1.08] tracking-normal",
-          compact ? "text-4xl md:text-5xl" : "text-4xl md:text-6xl"
+          "page-title",
+          compact ? "text-[clamp(2.25rem,5vw,4.4rem)]" : "text-[clamp(2.6rem,6vw,5.8rem)]"
         )}>
           {title}
         </h1>
         {copy ? (
           <p className={cn(
-            "max-w-3xl leading-7 text-[var(--muted)]",
+            "max-w-[64ch] leading-7 text-[var(--muted)]",
             compact ? "mt-3 text-sm md:text-base" : "mt-4 text-base md:text-lg"
           )}>
             {copy}
@@ -68,7 +68,7 @@ export function ModuleHero({
   copy,
   asset,
   children,
-  imageClassName = "min-h-72 rounded-none border-t border-[var(--line)] lg:min-h-full lg:border-l lg:border-t-0",
+  imageClassName = "min-h-64 border-0 lg:min-h-full",
   imageSize = "24rem",
   objectPosition = "center",
   overlay = "none",
@@ -90,12 +90,11 @@ export function ModuleHero({
   imageAlt?: string;
 }) {
   return (
-    <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.44fr)]">
-      <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
-      <div className="paper-rail relative p-5 pt-8 md:p-7 md:pt-9">
+    <section className="module-hero studio-panel">
+      <div className="module-hero__copy">
         <p className="eyebrow">{kicker}</p>
-        <h2 className="mt-3 font-serif text-3xl font-normal leading-[1.12] md:text-4xl">{title}</h2>
-        {copy ? <p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">{copy}</p> : null}
+        <h2>{title}</h2>
+        {copy ? <p>{copy}</p> : null}
         {children ? <div className="mt-5">{children}</div> : null}
       </div>
       <VisualPanel
@@ -125,10 +124,10 @@ export function SectionHeading({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="section-heading">
       <div>
         {kicker ? <p className="eyebrow">{kicker}</p> : null}
-        <h2 className="inkline mt-2 font-serif text-2xl font-normal leading-tight">{title}</h2>
+        <h2>{title}</h2>
         {copy ? <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p> : null}
       </div>
       {action}

@@ -34,7 +34,7 @@ try {
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 980 }, deviceScaleFactor: 1 });
+const page = configureSmokePage(await browser.newPage({ viewport: { width: 1440, height: 980 }, deviceScaleFactor: 1 }));
 const issues = [];
 
 page.on("console", (message) => {
@@ -91,7 +91,7 @@ await page.goto(baseUrl, { waitUntil: "networkidle" });
 await page.screenshot({ path: fileURLToPath(new URL("app-home-wide.png", outDir)), fullPage: false });
 await page.screenshot({ path: fileURLToPath(new URL("home-onboarding.png", outDir)), fullPage: true });
 await expectText(page, "完成三分钟入门");
-const onboardingLink = page.getByRole("link", { name: "开始今日一页", exact: true });
+const onboardingLink = page.getByRole("link", { name: "开始这一集", exact: true });
 if (await onboardingLink.count() !== 1) {
   issues.push("first-visit home should expose exactly one onboarding action");
 } else {
@@ -123,10 +123,12 @@ const legacyCachesAfterReload = await page.evaluate(async () => (
 ));
 if (legacyCachesAfterReload) issues.push(`legacy offline cache survived a real reload cleanup: ${legacyCachesAfterReload}`);
 await page.screenshot({ path: fileURLToPath(new URL("home-dashboard.png", outDir)), fullPage: true });
+console.log("[browser smoke] home loaded; checking local learning data");
 await verifyLearningDataPanel(page, outDir, issues);
+console.log("[browser smoke] local learning data checks passed; checking returning learner flow");
 
 const returningContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const returningPage = await returningContext.newPage();
+const returningPage = configureSmokePage(await returningContext.newPage());
 returningPage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`returning ${message.type()}: ${message.text()}`);
 });
@@ -191,18 +193,28 @@ await returningPage.evaluate(() => {
   }));
 });
 await returningPage.reload({ waitUntil: "networkidle" });
+console.log("[browser smoke] returning learner state restored");
 await expectText(returningPage, "45 分钟");
-await expectText(returningPage, "路径推荐");
+const guidedModeButton = returningPage.getByRole("button", { name: "按路径", exact: true });
+if (await guidedModeButton.getAttribute("aria-pressed") !== "true") {
+  issues.push("returning learner home should show guided mode as selected");
+}
 await returningPage.getByRole("button", { name: "自学" }).click();
 await expectText(returningPage, "学习方式已更新");
-await expectText(returningPage, "自由自学");
+if (await returningPage.getByRole("button", { name: "自学", exact: true }).getAttribute("aria-pressed") !== "true") {
+  issues.push("self-study mode switch should show self-study as selected");
+}
+console.log("[browser smoke] home study mode switched to self-study");
 const homeSelfModeState = await returningPage.evaluate(() => {
   const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
   return profile.studyMode;
 });
 if (homeSelfModeState !== "self") issues.push(`home self-study mode switch should persist self, found ${homeSelfModeState}`);
 await returningPage.getByRole("button", { name: "按路径" }).click();
-await expectText(returningPage, "路径推荐");
+if (await guidedModeButton.getAttribute("aria-pressed") !== "true") {
+  issues.push("guided mode switch should show guided mode as selected");
+}
+console.log("[browser smoke] home study mode switched back to guided");
 const homeGuidedModeState = await returningPage.evaluate(() => {
   const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
   return profile.studyMode;
@@ -215,6 +227,7 @@ const returningMinutes = await returningPage.getByLabel("每日可用分钟").in
 if (returningMinutes !== "45") issues.push(`returning self-study minutes mismatch: ${returningMinutes}`);
 await returningPage.getByRole("button", { name: "保存学习计划" }).click();
 await expectText(returningPage, "学习计划已保存");
+console.log("[browser smoke] self-study plan saved");
 const selfPlanTaskState = await returningPage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
   const profile = JSON.parse(localStorage.getItem("kirina.profile.v2") ?? "{}");
@@ -240,6 +253,7 @@ if (restoredCheckpointDraft !== "随便看看") issues.push(`self-study checkpoi
 await returningPage.getByLabel("学习记录").first().fill("录音 75 秒，能解释 힘들 것 같아요 的缓冲语气。");
 await returningPage.getByRole("button", { name: "保存阶段检查" }).first().click();
 await expectText(returningPage, "已保存");
+console.log("[browser smoke] self-study checkpoint saved");
 const checkpointState = await returningPage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
   const checkpointId = progress.completedCheckpoints?.[0];
@@ -258,6 +272,7 @@ await returningPage.evaluate(() => {
 await returningPage.getByRole("link", { name: "自然表达" }).first().click();
 await returningPage.waitForURL("**/native", { waitUntil: "networkidle" });
 await expectText(returningPage, "同一个意思，换个关系就要换种说法。");
+console.log("[browser smoke] client-side module navigation passed");
 const selfStudyMarker = await returningPage.evaluate(() => window.__kirinaSmokeMarker).catch(() => null);
 if (selfStudyMarker !== "self-study-link") issues.push("self-study module links should use client-side navigation without a full page reload");
 await returningPage.goto(`${baseUrl}/review`, { waitUntil: "networkidle" });
@@ -300,6 +315,7 @@ await returningPage.getByRole("button", { name: "结束复习" }).click();
 await expectText(returningPage, "100%");
 await returningPage.getByRole("button", { name: "继续" }).click();
 await expectText(returningPage, "现在没有到期复习");
+console.log("[browser smoke] due review flow completed");
 for (const linkName of ["继续路径", "查看错题", "积累词汇", "先补韩文"]) {
   const actionCount = await returningPage.getByRole("link", { name: linkName }).count();
   if (!actionCount) issues.push(`empty review state should expose "${linkName}" action`);
@@ -336,9 +352,10 @@ await returningPage.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
 await expectText(returningPage, "아이스 아메리카노 하나 포장해 주세요.");
 await expectText(returningPage, "弱点：포장해 주세요");
 await returningContext.close();
+console.log("[browser smoke] returning learner flow passed; checking route shells");
 
 const resetConfirmContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const resetConfirmPage = await resetConfirmContext.newPage();
+const resetConfirmPage = configureSmokePage(await resetConfirmContext.newPage());
 await resetConfirmPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
 await resetConfirmPage.evaluate(() => {
   localStorage.setItem("kirina.progress.v2", JSON.stringify({
@@ -375,7 +392,7 @@ for (const route of ["/path", "/hangul", "/vocabulary", "/grammar", "/native", "
 }
 
 const quizContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const quizAutoSavePage = await quizContext.newPage();
+const quizAutoSavePage = configureSmokePage(await quizContext.newPage());
 quizAutoSavePage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`quiz autosave ${message.type()}: ${message.text()}`);
 });
@@ -467,7 +484,7 @@ if (quizAutoSaveState.firstSource !== "quiz") issues.push(`quiz auto-save should
 await quizContext.close();
 
 const pathContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const pathPage = await pathContext.newPage();
+const pathPage = configureSmokePage(await pathContext.newPage());
 pathPage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`path ${message.type()}: ${message.text()}`);
 });
@@ -830,7 +847,7 @@ if (grammarStateAfterReAdd.learnedGrammar !== 1) issues.push(`re-adding grammar 
 if (grammarStateAfterReAdd.grammarCards !== 1) issues.push(`re-adding grammar should restore one SRS card: ${grammarStateAfterReAdd.grammarCards}`);
 
 const lessonSessionFailureContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const lessonSessionFailurePage = await lessonSessionFailureContext.newPage();
+const lessonSessionFailurePage = configureSmokePage(await lessonSessionFailureContext.newPage());
 lessonSessionFailurePage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`lesson-session-failure ${message.type()}: ${message.text()}`);
 });
@@ -900,7 +917,7 @@ if (lessonReviewState.firstPrompt !== l01Lesson.drills[0].prompt) issues.push(`f
 if (lessonReviewState.thirdAnswer !== l01Lesson.drills[2].answer) issues.push(`third lesson SRS answer mismatch: ${lessonReviewState.thirdAnswer}`);
 
 const lowScoreContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const lowScorePage = await lowScoreContext.newPage();
+const lowScorePage = configureSmokePage(await lowScoreContext.newPage());
 lowScorePage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`low-score ${message.type()}: ${message.text()}`);
 });
@@ -939,7 +956,7 @@ await expectText(lowScorePage, `练习 1 / ${l01Lesson.drills.length}`);
 await lowScoreContext.close();
 
 const transferLockContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const transferLockPage = await transferLockContext.newPage();
+const transferLockPage = configureSmokePage(await transferLockContext.newPage());
 transferLockPage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`transfer-lock ${message.type()}: ${message.text()}`);
 });
@@ -978,7 +995,7 @@ if (!lockedTransferCards) issues.push("unmastered lesson bridge should show an e
 await transferLockContext.close();
 
 const mistakeContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const mistakePage = await mistakeContext.newPage();
+const mistakePage = configureSmokePage(await mistakeContext.newPage());
 mistakePage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`mistake ${message.type()}: ${message.text()}`);
 });
@@ -1024,7 +1041,7 @@ if (lessonMistakeAfterSave.firstMistakeAnswer !== "ㄱ + ㅏ") issues.push(`save
 await mistakeContext.close();
 
 const blockedMistakeContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const blockedMistakePage = await blockedMistakeContext.newPage();
+const blockedMistakePage = configureSmokePage(await blockedMistakeContext.newPage());
 await openOnboardedLesson(blockedMistakePage, "l01-hangul-map");
 await blockedMistakePage.evaluate(() => {
   window.__kirinaOriginalSetItem = Storage.prototype.setItem;
@@ -1053,7 +1070,7 @@ if (blockedMistakeState.lessonCards !== 0) issues.push(`blocked lesson save shou
 await blockedMistakeContext.close();
 
 const lockedLessonContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
-const lockedLessonPage = await lockedLessonContext.newPage();
+const lockedLessonPage = configureSmokePage(await lockedLessonContext.newPage());
 lockedLessonPage.on("console", (message) => {
   if (["error", "warning"].includes(message.type())) issues.push(`locked ${message.type()}: ${message.text()}`);
 });
@@ -1281,7 +1298,7 @@ if (failedOutputState.activeEntries !== 0) issues.push(`failed output save shoul
 if (failedOutputState.activeOutputCards !== 0) issues.push(`failed output save should not create output SRS cards, found ${failedOutputState.activeOutputCards}`);
 
 const keyboardContext = await browser.newContext({ viewport: { width: 320, height: 720 }, deviceScaleFactor: 1 });
-const keyboardPage = await keyboardContext.newPage();
+const keyboardPage = configureSmokePage(await keyboardContext.newPage());
 await openOnboardedLesson(keyboardPage, "l01-hangul-map");
 await answerDrill(keyboardPage, l01Lesson.drills[0]);
 await keyboardPage.getByRole("button", { name: "下一题" }).click();
@@ -1325,18 +1342,22 @@ const mobileRoutes = [
   ["/quiz", "mobile-quiz.png"],
   ["/learn/l06-cafe", "mobile-lesson-cafe.png"]
 ];
+const primaryNavigationRoutes = new Set(["/", "/path", "/hangul", "/review", "/immersion"]);
 for (const viewport of viewportChecks) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   for (const [route, screenshotName] of mobileRoutes) {
     await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
-    await page.waitForFunction(() => {
-      const active = document.querySelector('nav[aria-label="主导航"] [aria-current="page"]');
-      const nav = active?.closest('nav[aria-label="主导航"]');
-      if (!(active instanceof HTMLElement) || !(nav instanceof HTMLElement)) return false;
-      const activeRect = active.getBoundingClientRect();
-      const navRect = nav.getBoundingClientRect();
-      return activeRect.left >= navRect.left - 8 && activeRect.right <= navRect.right + 8;
-    }, { timeout: 2000 }).catch(() => {});
+    const expectsPrimaryNavigation = primaryNavigationRoutes.has(route) || route.startsWith("/learn/");
+    if (expectsPrimaryNavigation) {
+      await page.waitForFunction(() => {
+        const active = document.querySelector('nav[aria-label="主导航"] > [aria-current="page"]');
+        const nav = active?.closest('nav[aria-label="主导航"]');
+        if (!(active instanceof HTMLElement) || !(nav instanceof HTMLElement)) return false;
+        const activeRect = active.getBoundingClientRect();
+        const navRect = nav.getBoundingClientRect();
+        return activeRect.left >= navRect.left - 8 && activeRect.right <= navRect.right + 8;
+      }, { timeout: 2000 }).catch(() => {});
+    }
     if (viewport.width === 390) {
       await warmLazyMedia(page);
       if (route === "/") {
@@ -1349,19 +1370,26 @@ for (const viewport of viewportChecks) {
       return doc.scrollWidth > doc.clientWidth + 2 ? { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth } : null;
     });
     if (overflow) issues.push(`${viewport.label} horizontal overflow on ${route}: ${JSON.stringify(overflow)}`);
-    const activeNavVisibility = await page.evaluate(() => {
-      const active = document.querySelector('nav[aria-label="主导航"] [aria-current="page"]');
-      const nav = active?.closest('nav[aria-label="主导航"]');
-      if (!(active instanceof HTMLElement) || !(nav instanceof HTMLElement)) return { found: false, visible: false };
-      const activeRect = active.getBoundingClientRect();
-      const navRect = nav.getBoundingClientRect();
-      return {
-        found: true,
-        visible: activeRect.left >= navRect.left - 8 && activeRect.right <= navRect.right + 8
-      };
-    });
-    if (!activeNavVisibility.found || !activeNavVisibility.visible) {
-      issues.push(`${viewport.label} active navigation item is outside the visible navigation viewport on ${route}`);
+    if (expectsPrimaryNavigation) {
+      const activeNavVisibility = await page.evaluate(() => {
+        const active = document.querySelector('nav[aria-label="主导航"] > [aria-current="page"]');
+        const nav = active?.closest('nav[aria-label="主导航"]');
+        if (!(active instanceof HTMLElement) || !(nav instanceof HTMLElement)) return { found: false, visible: false };
+        const activeRect = active.getBoundingClientRect();
+        const navRect = nav.getBoundingClientRect();
+        return {
+          found: true,
+          visible: activeRect.left >= navRect.left - 8 && activeRect.right <= navRect.right + 8
+        };
+      });
+      if (!activeNavVisibility.found || !activeNavVisibility.visible) {
+        issues.push(`${viewport.label} active primary navigation item is outside the visible navigation viewport on ${route}`);
+      }
+    } else {
+      const activeSecondaryNavigation = await page.locator('nav[aria-label="主导航"] details [aria-current="page"]').count();
+      if (activeSecondaryNavigation !== 1) {
+        issues.push(`${viewport.label} secondary route should be marked inside the more-scenes menu on ${route}`);
+      }
     }
     if (viewport.width <= 360) {
       const headerControlOverlap = await page.evaluate(() => {
@@ -1423,7 +1451,7 @@ async function verifyLearningDataPanel(page, outDir, issues) {
   await dataPanel.getByRole("button", { name: "导出", exact: true }).waitFor({ state: "visible" });
 
   const download = await Promise.all([
-    page.waitForEvent("download"),
+    page.waitForEvent("download", { timeout: 8000 }),
     dataPanel.getByRole("button", { name: "导出", exact: true }).click()
   ]).then(([download]) => download).catch((error) => {
     issues.push(`learning data export did not start a download: ${error.message}`);
@@ -1436,7 +1464,7 @@ async function verifyLearningDataPanel(page, outDir, issues) {
   const invalidBackupPath = fileURLToPath(new URL("invalid-kirina-backup.json", outDir));
   writeFileSync(invalidBackupPath, JSON.stringify({ version: 99, app: "kirina-korean", entries: {} }));
   const fileChooser = await Promise.all([
-    page.waitForEvent("filechooser"),
+    page.waitForEvent("filechooser", { timeout: 8000 }),
     dataPanel.getByRole("button", { name: "导入", exact: true }).click()
   ]).then(([chooser]) => chooser).catch((error) => {
     issues.push(`learning data import did not open a file chooser: ${error.message}`);
@@ -1493,6 +1521,12 @@ async function openOnboardedLesson(targetPage, lessonId) {
   await targetPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await ensureOnboarded(targetPage);
   await targetPage.goto(`${baseUrl}/learn/${lessonId}`, { waitUntil: "networkidle" });
+}
+
+function configureSmokePage(targetPage) {
+  targetPage.setDefaultTimeout(8_000);
+  targetPage.setDefaultNavigationTimeout(15_000);
+  return targetPage;
 }
 
 async function expectText(page, text) {

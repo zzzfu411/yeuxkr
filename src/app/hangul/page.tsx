@@ -49,7 +49,7 @@ export default function HangulPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Hangul Studio"
+        kicker="한글 · 韩文"
         title="先认清字形，再听清发音。"
         copy="韩文字母会组合成音节块。这里可以拆结构、听对比，也能把学会的内容加入间隔复习。"
         compact
@@ -59,7 +59,7 @@ export default function HangulPage() {
       <LibraryGateNotice focus="hangul" />
 
       <ModuleHero
-        kicker="Syllable Lab"
+        kicker="글자 조립 · 拼字"
         title="拆开一个音节，看看每个字母放在哪里。"
         copy="音节块由初声、中声和可选的终声组成。罗马音只作提示，发音请以字母位置、IPA 和音频为准。"
         asset="hangul"
@@ -84,7 +84,7 @@ export default function HangulPage() {
 
       {hangulGroups.map((group: any) => (
         <Surface key={group.id} variant="plain">
-          <SectionHeading kicker={group.track} title={group.title} copy={group.summary} />
+          <SectionHeading kicker={group.track === "sound" ? "소리 · 发音" : "글자 · 字形"} title={group.title} copy={group.summary} />
           <div>
             {group.items.map((item: any, itemIndex: number) => {
               const soundRole = getSoundRole(group.id);
@@ -176,7 +176,7 @@ export default function HangulPage() {
       ))}
 
       <Surface variant="plain">
-        <SectionHeading kicker="Minimal Pairs" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
+        <SectionHeading kicker="소리 비교 · 对比发音" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
         <div id="pairs">
           {pronunciationPairs.map((pair: any, pairIndex: number) => (
             <TrackRow
@@ -237,7 +237,7 @@ export default function HangulPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Sound Change Lab"
+          kicker="이어 읽기 · 连读音变"
           title="音变实验室"
           copy="韩语“写的”和“读的”经常不一样。每条规则都把标准拼写与实际读音并列；播放时边听边对照方括号里的读法，若设备语音与标注不一致，以标注为准。"
         />

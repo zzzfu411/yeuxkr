@@ -1,12 +1,12 @@
 # Kirina Korean
 
-Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。界面属于 **YEUX KR 纸本家族**：以 yeuxark.com 的低饱和个人纸站为亲缘，把韩纸纤维、稀释墨、手写路标和克制朱印带进完整的韩语学习流程。它不是杂志式作品集、SaaS 仪表盘或音乐播放器桌面；路径、复习和材料被整理成一册可以长期使用的个人学习图集。
+Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。新版采用 **四季片场** 视觉：把每天的学习安排成一集安静的韩国生活剧，用季节光线、原创日常场景和清楚的字幕式排版，引导学习者知道现在学什么、为什么学、学完去哪里。
 
-视觉提供原纸、月白、淡青与夜墨四种纸色。正文使用 LXGW WenKai Screen，毛笔题签使用 Ma Shan Zheng，英文批注使用 Caveat，大型韩文与细读内容保留 Noto Serif KR；夜墨是带纤维和层次的深紫墨纸，而非纯黑屏幕。
+视觉提供春日、雨季、晚秋与蓝夜四种季节主题。正文使用清楚的系统 sans，大型标题与韩文细读使用 Noto Serif KR；冷瓷白、雾蓝、山茶粉和新叶绿随季节改变，但学习结构保持一致。
 
 ![学习工作台](docs/screenshots/hero-workspace.png)
 
-<p align="center"><em>学习工作台：把今日课程、到期复习和学习进度放在同一页。</em></p>
+<p align="center"><em>今日片场：一幅季节场景、一个下一步，以及当天最值得完成的三幕学习。</em></p>
 
 ### 产品界面
 
@@ -34,7 +34,7 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 - 课程练习、综合测验、韩文、词汇、语法、语用、情境听读和输出弱点都能加入复习；答错的题会进入错题复习。
 - `Immersion Lab` 使用自编情境脚本，支持逐句播放、遮住译文听写、复述提示、输出草稿、自评和后续复习。
 - 课程朗读优先使用 `public/assets/audio/ko/` 中的 1212 条统一韩语 MP3；未收录的动态内容才回退到浏览器系统韩语语音。
-- 图片资产通过 `my-image-gen` / imagegen 工作流生成后接入 `public/assets/generated/`，页面通过 `src/data/visuals/assets.ts` 引用，并由 `src/data/visuals/manifest.ts` 记录 provider、prompt、源 PNG 和 WebP 派生关系。
+- 图片资产通过 OpenAI ImageGen 工作流生成后接入 `public/assets/generated/`，页面通过 `src/data/visuals/assets.ts` 引用，并由 `src/data/visuals/manifest.ts` 记录 provider、prompt、源 PNG 和 WebP 派生关系。
 
 ## 命令
 
@@ -93,11 +93,11 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 图片资产
 
-当前视觉资产登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的纸色叠印接入新纸面。hero、hangul 与 empty 已替换为原创韩纸静物 / 朱印图像，其余资产沿用同一登记与校验流程。
+当前视觉资产登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的场景调色、字幕遮罩与局部 film grain 接入页面。23 个登记项均已替换为同一套原创四季场景。
 
-生成美学约束：低饱和韩纸、石墨与水墨、可见纸纤维、充足留白、Hangul 活字 / 笔触、砚台静物、首尔街巷或咖啡馆淡彩，以及面积很小的褪色朱印。禁止 KAZAM / player-desk chrome、neo-brutal 黄块与热粉按钮、硬偏移阴影、鱼仔主角、水印、UI 截图和生成式可读乱码。
+生成美学约束：原创韩国生活剧照感、季节自然光、可信的日常质感、35mm 轻颗粒、充足留白、低饱和蓝绿与少量山茶粉。禁止复制剧照、演员肖像、片名标志、可读伪文字、水印、假 UI、霓虹赛博、奢华棚拍和宝丽来拼贴。
 
-页面通过连续纸面、grain、vignette、轻微 roughen、胶带角、日期行和柔和纸影组织内容，圆角约为 `3px`。所有图像与控件都必须同时适配原纸、月白、淡青和夜墨；视觉层可以重构，课程、SRS、quiz engine、workspace model、speech 和进度数据契约保持不变。
+页面通过宽银幕 Hero、开放排版、三幕列表、季节色温与轻量浮动“下一集”组织内容。普通内容面、大场景和控件使用不同层级的圆角；所有图像与控件都必须同时适配春日、雨季、晚秋和蓝夜。视觉层可以重构，课程、SRS、quiz engine、workspace model、speech 和进度数据契约保持不变。
 
 每张资产都需要：
 

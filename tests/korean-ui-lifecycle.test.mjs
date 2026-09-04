@@ -803,30 +803,31 @@ test("mistakes retrain grades cards even when they are not yet due", () => {
   assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
 });
 
-test("paper frames clip media inside the panel instead of hanging tape", () => {
+test("cinematic scene frames clip media and keep film texture inside the image", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
   const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
   const css = readFileSync("src/app/globals.css", "utf8");
-  assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
+  assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
-  assert.match(visual, /\{treatment !== "ambient" \? <span className="paper-tape left-6 top-\[-7px\]"/);
+  assert.match(visual, /<div className="film-grain pointer-events-none absolute inset-0"/);
+  assert.doesNotMatch(visual, /paper-tape/);
   assert.match(section, /"surface relative p-4 md:p-5"/);
-  assert.match(section, /className="studio-panel relative grid lg:grid-cols-\[minmax\(0,1fr\)_minmax\(18rem,0\.44fr\)\]"/);
+  assert.match(section, /className="module-hero studio-panel"/);
   assert.doesNotMatch(section, /surface relative overflow-hidden p-4/);
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
-  assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
-  assert.match(css, /\.surface:has\(\.studio-panel\)::after/);
-  assert.match(css, /\.surface:has\(\.paper-rail > \.paper-tape\)::after/);
-  assert.match(css, /\.surface \.visual-panel > \.paper-tape,[\s\S]*\.studio-panel \.visual-panel > \.paper-tape/);
+  assert.match(css, /\.film-grain \{/);
+  assert.match(css, /\.module-hero \{/);
+  assert.match(css, /\.paper-tape \{ display: none !important; \}/);
+  assert.match(css, /--hero-radius:/);
   assert.doesNotMatch(drill, /<div className="grid overflow-hidden rounded-none border/);
   assert.doesNotMatch(drill, /<article className="overflow-hidden rounded-none border/);
   assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
 });
 
-test("paper progress tracks adapt to the active theme", () => {
+test("progress tracks adapt to the active seasonal theme", () => {
   for (const file of ["src/app/path/page.tsx", "src/app/native/page.tsx", "src/components/learning/ability-bars.tsx"]) {
     const source = readFileSync(file, "utf8");
     assert.match(source, /bg-\[var\(--track\)\]/, `${file} should use the theme-aware track color`);
@@ -834,7 +835,7 @@ test("paper progress tracks adapt to the active theme", () => {
   }
 });
 
-test("paper status washes keep the active theme palette", () => {
+test("status washes keep the active seasonal theme palette", () => {
   const storagePanel = readFileSync("src/components/layout/learning-data-panel.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
   const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");

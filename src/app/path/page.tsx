@@ -16,6 +16,30 @@ import { proficiencyLevels, proficiencyMetrics } from "@/data/proficiency";
 import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
 import { libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
 
+const moduleLabels: Record<string, string> = {
+  hangul: "韩文",
+  pronunciation: "发音",
+  "starter-vocab": "起步词汇",
+  particles: "助词",
+  "yo-style": "礼貌敬体",
+  "survival-dialogues": "生活对话",
+  connectors: "连接表达",
+  "daily-vocab": "日常词汇",
+  "listening-shadowing": "听力跟读",
+  media: "媒体听读",
+  nuance: "语气细差",
+  paragraph: "段落表达",
+  register: "语域",
+  discourse: "篇章组织",
+  "native-collocations": "自然搭配"
+};
+
+function rangeLabel(range: string) {
+  if (range.startsWith("Week ")) return `第 ${range.slice(5).replace("-", "–")} 周`;
+  if (range.startsWith("Month ")) return `第 ${range.slice(6).replace("-", "–")} 个月`;
+  return range;
+}
+
 export default function PathPage() {
   const { workspace } = useLearningWorkspace();
   const [showAllStages, setShowAllStages] = useState(false);
@@ -99,14 +123,14 @@ export default function PathPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Learning Path"
+        kicker="배우는 길 · 学习路线"
         title="按顺序学，也能随时回看。"
         copy={`课程从韩文和发音开始，逐步进入日常对话、叙述和语气。上一课达到 ${UNLOCK_SCORE}%，并补齐本阶段所需内容后，下一课才会解锁。`}
         compact
       />
 
       <ModuleHero
-        kicker="Five Stages"
+        kicker="다섯 단계 · 五个阶段"
         title="五个阶段，60 节主线课程。"
         copy={`每个阶段都有课程和练习要求。完成课程，并通过对应的听读、输出和阶段检查，才会进入下一阶段。`}
         asset="path"
@@ -123,7 +147,7 @@ export default function PathPage() {
 
       <section className="grid gap-3" aria-labelledby="stage-progress-title">
         <h2 id="stage-progress-title" className="sr-only">阶段课程与能力检查进度</h2>
-        <div className="nav-scroll -mx-4 grid auto-cols-[17rem] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid-flow-row lg:grid-cols-5 lg:px-0">
+        <div className="nav-scroll -mx-4 grid auto-cols-[17rem] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid-flow-row lg:grid-cols-3 lg:px-0 xl:grid-cols-5">
         {milestones.map((milestone: any, index: number) => {
           const stageProgress = milestoneProgressById.get(milestone.id);
           if (!stageProgress) return null;
@@ -149,7 +173,7 @@ export default function PathPage() {
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">Stage {String(index + 1).padStart(2, "0")}</span>
+                <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">第 {String(index + 1).padStart(2, "0")} 阶段</span>
                 <span className={`rounded-none px-2 py-1 text-xs font-black ${
                   stageProgress.complete
                     ? "bg-[var(--green-soft)] text-[var(--celadon)]"
@@ -158,14 +182,14 @@ export default function PathPage() {
                       : "bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
                 }`}>{stageStatus}</span>
               </div>
-              <span className="mt-2 block font-mono text-xs font-black uppercase text-[var(--ocean)]">{milestone.range}</span>
+              <span className="mt-2 block font-mono text-xs font-black uppercase text-[var(--ocean)]">{rangeLabel(milestone.range)}</span>
               <h3 id={`stage-${milestone.id}-title`} className="mt-1 font-serif text-2xl font-black leading-tight">{milestone.title}</h3>
               <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">{milestone.outcome}</p>
               <StageProgressSummary progress={stageProgress} />
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {milestone.modules.slice(0, 3).map((item: string) => (
                   <span key={item} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-2 py-1 text-xs font-bold text-[var(--ocean)]">
-                    {item}
+                    {moduleLabels[item] ?? item}
                   </span>
                 ))}
               </div>
@@ -196,7 +220,7 @@ export default function PathPage() {
       <div id="core-queue" className="scroll-mt-40 lg:scroll-mt-28" tabIndex={-1}>
       <Surface variant="plain">
         <SectionHeading
-          kicker="Core Queue"
+          kicker="지금 배울 것 · 当前课程"
           title={coreQueueTitle}
           copy={coreQueueCopy}
           action={
@@ -304,7 +328,7 @@ export default function PathPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Stage Progress"
+          kicker="지금까지 · 学到哪里"
           title="阶段进度"
           copy={`课程、情境听读、输出和阶段检查会共同更新这里。等级只表示站内学习进度，不是 CEFR 认证。`}
         />
@@ -344,7 +368,7 @@ export default function PathPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Long-term Roadmap"
+          kicker="그다음 · 之后怎么学"
           title="长期进阶路线"
           copy="站内课程结束后，还需要大量原生材料、词汇搭配、反复修改的口语与写作，以及来自真实交流的反馈。这里列出后续练习方向，不把它算进当前等级。"
         />

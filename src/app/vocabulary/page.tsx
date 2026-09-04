@@ -86,7 +86,7 @@ export default function VocabularyPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Lexicon Atlas"
+        kicker="장면 속 단어 · 场景词汇"
         title="学会放进句子里的词。"
         copy="每个词都有例句和使用提示。能自己造句后，再把它加入间隔复习。"
         compact
@@ -96,7 +96,7 @@ export default function VocabularyPage() {
       <LibraryGateNotice focus="vocab" />
 
       <ModuleHero
-        kicker={`${filteredVocab.length}/${vocab.length} entries`}
+        kicker={`${filteredVocab.length}/${vocab.length} 条词汇`}
         title="按场景找词，比照着清单背更好用。"
         copy={`这里有 ${vocab.length} 个可练词条，按阶段和场景整理。更大的词汇量是长期目标，不会混进当前进度。`}
         asset="vocabulary"
@@ -113,7 +113,7 @@ export default function VocabularyPage() {
 
       <Surface>
         <SectionHeading
-          kicker="Lexicon Console"
+          kicker="골라 연습하기 · 选择练习"
           title="先练一小组，再展开整座词库"
           copy="按阶段、场景或已学状态筛选。也可以搜索韩语、中文、罗马音和例句。"
           action={activeFilters.length ? (
