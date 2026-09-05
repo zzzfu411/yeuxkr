@@ -6,14 +6,14 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 
 ![学习工作台](docs/screenshots/hero-workspace.png)
 
-<p align="center"><em>今日片场：一幅季节场景、一个下一步，以及当天最值得完成的三幕学习。</em></p>
+<p align="center"><em>今日片场：春日默认主题下一幅季节场景、一个下一步，以及当天最值得完成的三幕学习。页眉可切换春日 / 雨季 / 晚秋 / 蓝夜。</em></p>
 
 ### 产品界面
 
 | Hangul Studio | Immersion Lab |
 |:---:|:---:|
 | ![韩文实验室](docs/screenshots/hangul.png) | ![情境材料](docs/screenshots/immersion.png) |
-| 韩文实验室：拆音节块、辨听相近发音，再把掌握项加入复习。 | 自编咖啡店情境：逐句听读、遮住译文听写，再用韩语复述。 |
+| 韩文实验室：拆音节块、辨听相近发音，再把掌握项加入复习。 | 自编咖啡店情境：逐句听读、遮住译文听写；未完成的草稿会自动保存，点到当前材料也不会丢掉。 |
 
 | 五阶段路径 | 间隔复习 |
 |:---:|:---:|
@@ -22,7 +22,7 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 
 ![咖啡店点单课](docs/screenshots/lesson.png)
 
-<p align="center"><em>课程页：目标、讲解、听读和练习会汇总到同一份学习记录。</em></p>
+<p align="center"><em>课程页：咖啡店点单的目标、讲解、听读和练习会汇总到同一份学习记录。</em></p>
 
 ## 当前能力
 
