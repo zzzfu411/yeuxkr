@@ -1614,7 +1614,7 @@ test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable 
   tree = hooks.render(DrillRunner, props);
 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
-  assert.doesNotMatch(textContent(tree), /当前设备无法播放韩语/);
+  assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
   assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
   assert.ok(findButton(tree, "听"));
@@ -2021,7 +2021,7 @@ test("DrillRunner watchdog treats accepted playback without onstart as started, 
   assert.ok(findButton(tree, "播放"));
   assert.ok(findButton(tree, "慢速重播"));
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
-  assert.doesNotMatch(textContent(tree), /当前设备无法播放韩语/);
+  assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
   assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
   assert.equal(findButton(tree, "提交").props.disabled, true);
 
@@ -2076,7 +2076,7 @@ test("DrillRunner still offers skip when speak is rejected or hard-fails", async
 
     assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null, `${failure} must hide choices`);
     assert.ok(findButton(tree, "跳过音频题"), `${failure} must offer skip`);
-    assert.match(textContent(tree), /当前设备无法播放韩语/);
+    assert.match(textContent(tree), /这次未能播放韩语音频/);
   }
 });
 
