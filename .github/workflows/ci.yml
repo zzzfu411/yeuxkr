@@ -41,6 +41,7 @@ jobs:
       - name: Install browser runtime
         run: npx playwright install --with-deps chromium
       - name: Production HTTP and browser regression
+        shell: bash
         run: |
           mkdir -p .browser-check
           npm run check:smoke 2>&1 | tee .browser-check/smoke.log

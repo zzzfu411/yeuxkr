@@ -86,7 +86,11 @@ for (const path of paths) {
         if (pageTitles.has(title) && pageTitles.get(title) !== path) failures.push(`${path}: duplicate title with ${pageTitles.get(title)}`);
         pageTitles.set(title, path);
         const origin=getSiteOrigin();
-        if(origin && !privateRoutes.has(path) && !html.includes(`href="${new URL(path,origin).href}"`)) failures.push(`${path}: missing canonical`);
+        if (origin && !privateRoutes.has(path)) {
+          const canonical = html.match(/<link\b(?=[^>]*\brel="canonical")[^>]*\bhref="([^"]+)"/)?.[1];
+          // Next may serialize the root URL without a trailing slash; compare URL identities.
+          if (!canonical || new URL(canonical).href !== new URL(path, origin).href) failures.push(`${path}: missing or incorrect canonical`);
+        }
         if(privateRoutes.has(path) && !/name="robots" content="noindex/.test(html)) failures.push(`${path}: missing noindex`);
       }
     }
