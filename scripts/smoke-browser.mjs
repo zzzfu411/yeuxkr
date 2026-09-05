@@ -1570,12 +1570,6 @@ async function openOnboardedLesson(targetPage, lessonId) {
 function configureSmokePage(targetPage) {
   targetPage.setDefaultTimeout(8_000);
   targetPage.setDefaultNavigationTimeout(15_000);
-  targetPage.addInitScript(() => {
-    const style = document.createElement("style");
-    style.id = "kirina-smoke-scroll-gutter";
-    style.textContent = "button, [role='button'], input, textarea { scroll-margin-top: 7rem; scroll-margin-bottom: 6rem; }";
-    document.documentElement.appendChild(style);
-  });
   return targetPage;
 }
 
