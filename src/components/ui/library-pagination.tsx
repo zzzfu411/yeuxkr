@@ -5,6 +5,8 @@ import { Button } from "./button";
 
 export function useLibraryPage<T>(items: T[], filterKey: string, pageSize: number) {
   const [selection, setSelection] = useState({ filterKey, page: 0 });
+  // Remember every filter change so returning to an earlier filter cannot revive its old page.
+  if (selection.filterKey !== filterKey) setSelection({ filterKey, page: 0 });
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const page = selection.filterKey === filterKey ? Math.min(selection.page, pages - 1) : 0;
   return {

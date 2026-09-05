@@ -94,7 +94,10 @@ export async function auditRegression(browser, baseUrl, outDir) {
     await page.getByLabel('搜索词汇').fill('안녕하세요');
     assert.ok(await cards.count()<=12);
     assert.ok(await pager.getByRole('button',{name:'上一页'}).isDisabled());
-    evidence.checks.push('pagination bounds, next-page contents, filter reset, focus');
+    await page.getByLabel('搜索词汇').fill('');
+    assert.ok(await pager.getByRole('button',{name:'上一页'}).isDisabled(), 'returning to the original filter must keep page one');
+    assert.equal(await cards.first().textContent(),initial);
+    evidence.checks.push('pagination bounds, next-page contents, filter reset and return, focus');
 
     // Another tab removes the exact card shown in an active session.
     await page.evaluate(()=>{
