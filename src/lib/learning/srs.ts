@@ -1,7 +1,7 @@
 "use client";
 
 import { parseJson, readJson, writeJson, STORAGE_KEYS } from "./storage.ts";
-import { lessons } from "../../data/curriculum.js";
+import { lessons } from "../../data/curriculum-runtime.js";
 import { grammarPoints } from "../../data/grammar.js";
 import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
 import { vocab } from "../../data/lexicon.js";
@@ -212,6 +212,31 @@ export function computeNextReview(card: SrsCard, isCorrect: boolean, now = Date.
     ease: clampRuntimeEase(ease - 0.2),
     intervalDays: nextIntervalDays,
     lapses: lapses + 1
+  };
+}
+
+export const AUDIO_SKIP_DEFER_MS = BOX_INTERVALS[1];
+
+export function applyDeferToState(
+  state: SrsState,
+  id: string,
+  now = Date.now(),
+  delayMs = AUDIO_SKIP_DEFER_MS
+): { state: SrsState; card: SrsCard } | null {
+  const current = state.cards[id];
+  if (!current) return null;
+  const delay = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : AUDIO_SKIP_DEFER_MS;
+  const card: SrsCard = {
+    ...current,
+    dueAt: now + delay,
+    lastSeenAt: now
+  };
+  return {
+    state: {
+      cards: { ...state.cards, [id]: card },
+      history: state.history
+    },
+    card
   };
 }
 

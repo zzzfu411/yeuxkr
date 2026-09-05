@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { getLibraryGateForLesson, type LibraryCounts } from "@/lib/learning/path-gates";
-import { libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
+import { libraryCountsForWrite } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export function LibraryGateNotice({ focus }: { focus?: keyof LibraryCounts } = {}) {
   const { workspace } = useLearningWorkspace();
@@ -16,7 +17,7 @@ export function LibraryGateNotice({ focus }: { focus?: keyof LibraryCounts } = {
     <div className="rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass)]">
       主线下一课「{workspace.nextLesson.title}」还差
       {ordered.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}
-      。先补库，练习才写入核心路径。
+      。补齐后，练习才会计入主线进度。
       <span className="mt-2 flex flex-wrap gap-2">
         {ordered.map((gap) => (
           <Link key={gap.key} href={gap.href} className="underline decoration-2 underline-offset-2">

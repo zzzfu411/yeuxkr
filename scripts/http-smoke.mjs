@@ -1,6 +1,7 @@
 import { lessons } from "../src/data/curriculum.js";
 import { visualAssets } from "../src/data/visuals/assets.ts";
 import { BUNDLED_SPEECH_ASSETS } from "../src/data/speech-assets.generated.js";
+import { getSiteOrigin, privateRoutes, sitePages } from "../src/lib/site-metadata.ts";
 
 const baseArg = process.argv.find((arg) => arg.startsWith("--base="));
 const baseUrl = baseArg?.slice("--base=".length) ?? process.env.KIRINA_URL;
@@ -12,6 +13,7 @@ if (!baseUrl) {
 
 const manifestPath = "/manifest.webmanifest";
 const failures = [];
+const pageTitles = new Map();
 const removedOfflinePaths = ["/sw.js", "/offline.html"];
 const manifest = await fetchJson(manifestPath);
 const manifestIconPaths = collectManifestIconPaths(manifest);
@@ -31,6 +33,8 @@ const paths = [
   "/review",
   "/mistakes",
   "/quiz",
+  "/settings",
+  "/onboarding",
   ...lessons.map((lesson) => `/learn/${lesson.id}`),
   ...shortcutPaths,
   manifestPath,
@@ -55,6 +59,7 @@ for (const path of paths) {
       await validateManifest(manifest);
       continue;
     }
+    if (path === "/") validateSecurityHeaders(response.headers);
     if (imagePaths.includes(path)) {
       const bytes = new Uint8Array(await response.arrayBuffer());
       const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
@@ -75,10 +80,30 @@ for (const path of paths) {
       if (!html.includes("<html") || !html.includes("Kirina Korean") || html.includes("Yasashi Japanese")) {
         failures.push(`${path}: invalid HTML route`);
       }
+      const title = html.match(/<title>(.*?)<\/title>/)?.[1];
+      if (path in sitePages || path.startsWith('/learn/')) {
+        if (!title) failures.push(`${path}: missing page title`);
+        if (pageTitles.has(title) && pageTitles.get(title) !== path) failures.push(`${path}: duplicate title with ${pageTitles.get(title)}`);
+        pageTitles.set(title, path);
+        const origin=getSiteOrigin();
+        if (origin && !privateRoutes.has(path)) {
+          const canonical = html.match(/<link\b(?=[^>]*\brel="canonical")[^>]*\bhref="([^"]+)"/)?.[1];
+          // Next may serialize the root URL without a trailing slash; compare URL identities.
+          if (!canonical || new URL(canonical).href !== new URL(path, origin).href) failures.push(`${path}: missing or incorrect canonical`);
+        }
+        if(privateRoutes.has(path) && !/name="robots" content="noindex/.test(html)) failures.push(`${path}: missing noindex`);
+      }
     }
   } catch (error) {
     failures.push(`${path}: ${error.cause?.code ?? error.message}`);
   }
+}
+
+for (const [path, marker] of [['/sitemap.xml','<urlset'], ['/robots.txt','User-Agent:']]) {
+  const response=await fetch(`${baseUrl}${path}`);
+  const body=await response.text();
+  if(!response.ok || !body.includes(marker)) failures.push(`${path}: invalid discovery document`);
+  if(body.includes('localhost')) failures.push(`${path}: leaked localhost URL`);
 }
 
 for (const path of removedOfflinePaths) {
@@ -96,6 +121,18 @@ if (failures.length) {
 }
 
 console.log(`HTTP smoke passed for ${paths.length} routes.`);
+
+function validateSecurityHeaders(headers) {
+  const expected = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), geolocation=(), microphone=(self)"
+  };
+  for (const [name, value] of Object.entries(expected)) {
+    if (headers.get(name) !== value) failures.push(`/: missing or incorrect ${name} header`);
+  }
+}
 
 async function fetchJson(path) {
   try {
@@ -118,7 +155,7 @@ async function validateManifest(input) {
   if (input?.lang !== "zh-CN") failures.push(`${manifestPath}: should declare zh-CN language`);
   if (input?.display !== "standalone") failures.push(`${manifestPath}: display should be standalone`);
   if (!Array.isArray(input?.display_override) || !input.display_override.includes("standalone")) failures.push(`${manifestPath}: display_override should keep standalone fallback`);
-  if (input?.background_color !== "#d8d3cc") failures.push(`${manifestPath}: background color should match app shell`);
+  if (input?.background_color !== "#f4f6f5") failures.push(`${manifestPath}: background color should match app shell`);
   if (!Array.isArray(input?.categories) || !input.categories.includes("education")) failures.push(`${manifestPath}: should declare education category`);
 
   const iconPurposes = new Set();

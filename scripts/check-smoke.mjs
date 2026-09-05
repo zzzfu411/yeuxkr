@@ -12,6 +12,7 @@ const env = {
   KIRINA_URL: baseUrl
 };
 
+async function main() {
 assertFreshBuild();
 
 const app = next({ dev: false, dir: process.cwd(), hostname: "127.0.0.1", port: Number(port) });
@@ -22,12 +23,20 @@ await listen(server, Number(port));
 
 try {
   await waitReady();
+  await run(["scripts/check-performance.mjs"]);
   await run(["--import", "tsx", "scripts/http-smoke.mjs", `--base=${baseUrl}`]);
-  await run(["--import", "tsx", "scripts/smoke-browser.mjs"]);
+  await run(["--import", "tsx", process.argv.includes("--audit-only") ? "scripts/smoke-audit.mjs" : "scripts/smoke-browser.mjs"]);
 } finally {
   await closeServer(server);
   await app.close();
 }
+}
+
+// Next installs an uncaught-exception reporter. Handle failures explicitly so CI cannot receive exit 0.
+await main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 
 function listen(httpServer, serverPort) {
   return new Promise((resolve, reject) => {

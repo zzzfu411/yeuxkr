@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Reserved test origin exercises canonical/OG/sitemap assertions; deployment supplies its real origin.
+      NEXT_PUBLIC_SITE_URL: https://kirina.example.org
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm run audit:prod
+      - name: Validate content and assets
+        run: npm run validate
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Strict boundary types
+        run: npm run typecheck:strict
+      - name: Run tests
+        run: npm test
+      - name: Build production app
+        run: npm run check:release && npm run build
+      - name: Install browser runtime
+        run: npx playwright install --with-deps chromium
+      - name: Production HTTP and browser regression
+        shell: bash
+        run: |
+          mkdir -p .browser-check
+          npm run check:smoke 2>&1 | tee .browser-check/smoke.log
+      - name: Retain browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence
+          path: .browser-check/
+          include-hidden-files: true
+          if-no-files-found: ignore

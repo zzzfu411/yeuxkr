@@ -124,6 +124,32 @@ export function getKoreanVoiceStatus() {
   return voiceProbeCompleted ? "missing" : "loading";
 }
 
+const GESTURE_BLOCK_TOKENS = new Set([
+  "NotAllowedError",
+  "play-rejected",
+  "needs-gesture",
+  "not-allowed"
+]);
+
+function isGestureBlockToken(value) {
+  return typeof value === "string" && GESTURE_BLOCK_TOKENS.has(value);
+}
+
+export function isGestureBlockedPlaybackError(error) {
+  if (!error) return false;
+  if (typeof error === "string") {
+    return isGestureBlockToken(error);
+  }
+  if (typeof error !== "object") return false;
+  const nested = error.error;
+  const candidates = [
+    error.reason,
+    typeof nested === "string" ? nested : nested?.name,
+    error.name
+  ];
+  return candidates.some((value) => isGestureBlockToken(value));
+}
+
 export function listKoreanVoices() {
   if (!canSpeak()) return [];
   return getAvailableKoreanVoices();
@@ -256,11 +282,37 @@ function playBundledSpeech(text, source, options) {
     dispatchSpeechEvent({ type: SPEECH_EVENT_PLAYBACK_END, requestId, engine: "bundled" });
     if (typeof options.onend === "function") options.onend.call(this, event);
   };
+  const detachBlockedAudio = () => {
+    audio.onplaying = null;
+    audio.onended = null;
+    audio.onerror = null;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {
+      // A blocked element should not prevent the synthesis fallback.
+    }
+    if (activeAudio === audio) activeAudio = null;
+  };
+  const recoverFromGestureBlock = (event, detail) => {
+    if (requestId !== activePlaybackRequestId || activeAudio !== audio) return;
+    detachBlockedAudio();
+    if (canSpeak() && getAvailableKoreanVoices().length) {
+      const started = speakNow(text, { ...options, cancel: false });
+      if (started) return;
+    }
+    if (requestId === activePlaybackRequestId) activePlaybackRequestId = 0;
+    reportPlaybackFailure(options, "needs-gesture", detail, requestId, event);
+  };
   const fail = (event, error) => {
     if (requestId !== activePlaybackRequestId || activeAudio !== audio) return;
+    const detail = typeof error === "string" && error ? error : "media-playback-failed";
+    if (isGestureBlockedPlaybackError(detail) || isGestureBlockedPlaybackError(event?.error)) {
+      recoverFromGestureBlock(event, detail);
+      return;
+    }
     activePlaybackRequestId = 0;
     activeAudio = null;
-    const detail = typeof error === "string" && error ? error : "media-playback-failed";
     reportPlaybackFailure(options, "audio-error", detail, requestId, event);
   };
   audio.onerror = function handleAudioError(event) {
@@ -274,7 +326,12 @@ function playBundledSpeech(text, source, options) {
     }
     return true;
   } catch (error) {
-    fail({ error }, typeof error?.name === "string" ? error.name : "play-threw");
+    const detail = typeof error?.name === "string" ? error.name : "play-threw";
+    if (isGestureBlockedPlaybackError(detail) || isGestureBlockedPlaybackError(error)) {
+      recoverFromGestureBlock({ error }, detail);
+      return true;
+    }
+    fail({ error }, detail);
     return false;
   }
 }
@@ -308,6 +365,10 @@ function speakNow(text, options) {
     if (requestId !== activePlaybackRequestId && canceled) return;
     if (requestId !== activePlaybackRequestId) return;
     activePlaybackRequestId = 0;
+    if (isGestureBlockedPlaybackError(reason) || isGestureBlockedPlaybackError(event)) {
+      reportPlaybackFailure({ onerror }, "needs-gesture", reason, requestId, event);
+      return;
+    }
     dispatchPlaybackError("synthesis-error", reason, requestId);
     if (typeof onerror === "function") onerror.call(this, event);
   };
@@ -328,6 +389,10 @@ function speakNow(text, options) {
   } catch (error) {
     if (requestId === activePlaybackRequestId) activePlaybackRequestId = 0;
     const reason = typeof error?.name === "string" ? error.name : "speak-threw";
+    if (isGestureBlockedPlaybackError(reason) || isGestureBlockedPlaybackError(error)) {
+      reportPlaybackFailure({ onerror }, "needs-gesture", reason, requestId, { error: reason, cause: error });
+      return false;
+    }
     dispatchPlaybackError("synthesis-error", reason, requestId);
     if (typeof onerror === "function") onerror.call(utterance, { error: reason, cause: error });
     return false;

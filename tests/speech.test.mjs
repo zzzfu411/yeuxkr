@@ -100,6 +100,7 @@ const {
   getBundledSpeechAsset,
   getKoreanVoiceStatus,
   getSpeechSettings,
+  isGestureBlockedPlaybackError,
   normalizeSpeechSettings,
   saveSpeechSettings,
   speakKorean,
@@ -149,6 +150,123 @@ test("bundled Korean recordings work without the browser speech synthesis API", 
     global.window.speechSynthesis = synthesis;
     global.window.SpeechSynthesisUtterance = utteranceConstructor;
   }
+});
+
+test("isGestureBlockedPlaybackError recognizes autoplay policy rejections", () => {
+  assert.equal(isGestureBlockedPlaybackError("NotAllowedError"), true);
+  assert.equal(isGestureBlockedPlaybackError("play-rejected"), true);
+  assert.equal(isGestureBlockedPlaybackError("not-allowed"), true);
+  assert.equal(isGestureBlockedPlaybackError({ name: "NotAllowedError" }), true);
+  assert.equal(isGestureBlockedPlaybackError({ name: "not-allowed" }), true);
+  assert.equal(isGestureBlockedPlaybackError({ error: "NotAllowedError", reason: "needs-gesture" }), true);
+  assert.equal(isGestureBlockedPlaybackError({ error: "not-allowed" }), true);
+  assert.equal(isGestureBlockedPlaybackError({ name: "SpeechSynthesisErrorEvent", error: "not-allowed" }), true);
+  assert.equal(isGestureBlockedPlaybackError({ error: { name: "NotAllowedError" } }), true);
+  assert.equal(isGestureBlockedPlaybackError({ error: { name: "not-allowed" } }), true);
+  assert.equal(isGestureBlockedPlaybackError({ error: "network" }), false);
+  assert.equal(isGestureBlockedPlaybackError({ name: "SpeechSynthesisErrorEvent", error: "network" }), false);
+  assert.equal(isGestureBlockedPlaybackError("media-error-4"), false);
+});
+
+test("autoplay NotAllowedError falls back to Korean speech synthesis", async () => {
+  const events = [];
+  global.window.Audio = class BlockedAudio extends TestAudio {
+    play() {
+      return Promise.reject(Object.assign(new Error("autoplay blocked"), { name: "NotAllowedError" }));
+    }
+  };
+  global.window.addEventListener(SPEECH_EVENT_NAME, (event) => events.push(event.detail));
+
+  assert.equal(speakKorean("우"), true);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(spoken, ["우"]);
+  assert.equal(events.some((event) => event.reason === "needs-gesture" || event.type === "playback-error"), false);
+});
+
+test("autoplay NotAllowedError without TTS reports needs-gesture instead of device failure", async () => {
+  const events = [];
+  let callbackError = null;
+  voices = [{ lang: "en-US", name: "English" }];
+  global.window.Audio = class BlockedAudio extends TestAudio {
+    play() {
+      return Promise.reject(Object.assign(new Error("autoplay blocked"), { name: "NotAllowedError" }));
+    }
+  };
+  global.window.addEventListener(SPEECH_EVENT_NAME, (event) => events.push(event.detail));
+
+  assert.equal(speakKorean("우", {
+    onerror(event) {
+      callbackError = event;
+    }
+  }), true);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(spoken, []);
+  assert.equal(events.at(-1)?.reason, "needs-gesture");
+  assert.equal(events.at(-1)?.error, "NotAllowedError");
+  assert.equal(isGestureBlockedPlaybackError(callbackError), true);
+});
+
+test("TTS not-allowed after bundled autoplay block reports needs-gesture", async () => {
+  const events = [];
+  let callbackError = null;
+  global.window.Audio = class BlockedAudio extends TestAudio {
+    play() {
+      return Promise.reject(Object.assign(new Error("autoplay blocked"), { name: "NotAllowedError" }));
+    }
+  };
+  global.window.addEventListener(SPEECH_EVENT_NAME, (event) => events.push(event.detail));
+
+  assert.equal(speakKorean("우", {
+    onerror(event) {
+      callbackError = event;
+    }
+  }), true);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(spoken, ["우"]);
+  assert.equal(utterances.length, 1);
+  const ttsError = { error: "not-allowed" };
+  utterances[0].onerror(ttsError);
+
+  assert.equal(callbackError, ttsError);
+  assert.equal(events.at(-1)?.reason, "needs-gesture");
+  assert.equal(events.at(-1)?.error, "not-allowed");
+  assert.equal(isGestureBlockedPlaybackError(callbackError), true);
+  assert.equal(events.some((event) => event.reason === "voice-unavailable" || event.reason === "synthesis-error"), false);
+});
+
+test("Chrome/Safari SpeechSynthesisErrorEvent not-allowed is a gesture block, not a device failure", async () => {
+  const events = [];
+  let callbackError = null;
+  global.window.Audio = class BlockedAudio extends TestAudio {
+    play() {
+      return Promise.reject(Object.assign(new Error("autoplay blocked"), { name: "NotAllowedError" }));
+    }
+  };
+  global.window.addEventListener(SPEECH_EVENT_NAME, (event) => events.push(event.detail));
+
+  assert.equal(speakKorean("우", {
+    onerror(event) {
+      callbackError = event;
+    }
+  }), true);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(spoken, ["우"]);
+  const ttsError = { name: "SpeechSynthesisErrorEvent", error: "not-allowed" };
+  utterances[0].onerror(ttsError);
+
+  assert.equal(callbackError, ttsError);
+  assert.equal(events.at(-1)?.reason, "needs-gesture");
+  assert.equal(events.at(-1)?.error, "not-allowed");
+  assert.equal(isGestureBlockedPlaybackError(callbackError), true);
+  assert.equal(events.some((event) => event.reason === "synthesis-error"), false);
 });
 
 test("system Korean speech remains the fallback for content without a bundled recording", () => {

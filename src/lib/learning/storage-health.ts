@@ -141,6 +141,6 @@ function unsupportedHealth(): LearningStorageHealth {
     usageRatio: null,
     status: "unsupported",
     label: "不支持",
-    detail: "当前浏览器不支持 StorageManager 状态检测。学习数据仍会写入本机，请定期导出备份。"
+    detail: "当前浏览器不支持 StorageManager 状态检测。学习数据仍会保存在本机，请定期导出备份。"
   };
 }

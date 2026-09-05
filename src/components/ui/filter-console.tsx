@@ -26,6 +26,7 @@ export function SearchField({
       <span className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <input
+          type="search"
           className="focus-ring min-h-11 w-full rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_62%,transparent)] px-10 text-base text-[var(--ink)] shadow-[inset_0_1px_0_var(--sheen)] transition placeholder:text-[var(--ink-faint)] hover:border-[var(--line-strong)]"
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -94,7 +95,7 @@ export function SegmentedFilter({
             aria-checked={value === item.id}
             tabIndex={value === item.id ? 0 : -1}
             className={cn(
-              "focus-ring min-h-10 rounded-[var(--radius)] border px-3 text-sm font-normal transition",
+              "focus-ring min-h-11 rounded-[var(--radius)] border px-3 text-sm font-normal transition",
               value === item.id
                 ? "border-[var(--line-strong)] bg-[var(--wash-3)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--ink-soft)]"
                 : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)]"
@@ -139,7 +140,7 @@ export function CheckboxFilter({
 
 export function FilterSummary({
   count,
-  unit = "results",
+  unit = "项结果",
   filters
 }: {
   count: number;
@@ -177,7 +178,7 @@ export function EmptyState({
   return (
     <div className="grid gap-5 p-1 md:grid-cols-[minmax(0,1fr)_15rem] md:items-center">
       <div>
-        <p className="eyebrow">No Match</p>
+        <p className="eyebrow">没有找到</p>
         <h2 className="mt-1 font-brush text-2xl font-normal">{title}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{copy}</p>
         <Button className="mt-4 w-fit" type="button" variant="secondary" onClick={onAction}>

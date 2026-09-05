@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.strict.json",
+  "compilerOptions": { "checkJs": true },
+  "include": ["src/data/lessons/runtime.generated.js", "src/data/lessons/types.ts"]
+}

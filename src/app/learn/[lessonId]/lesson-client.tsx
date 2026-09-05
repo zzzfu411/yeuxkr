@@ -1,27 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Mic, Radio, RefreshCcw, Route, Square, Volume2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Radio, RefreshCcw, Route } from "lucide-react";
 import { VisualPanel } from "@/components/assets/visual-panel";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { Button } from "@/components/ui/button";
 import { SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
-import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, normalizeTeachEntry, UNLOCK_SCORE } from "@/data/curriculum";
+import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, normalizeTeachEntry, UNLOCK_SCORE } from "@/data/curriculum-runtime";
 import type { DisplayVisualAssetId } from "@/data/visuals/assets";
-import { CAPSTONE_LESSON_ID, CAPSTONE_MIN_HANGUL, CAPSTONE_MIN_RECORDED_SECONDS, capstoneRecordingCheck, capstoneRubric, capstoneSystemChecks, countHangulCharacters, isValidCapstoneEvidence } from "@/lib/learning/capstone";
+import { CAPSTONE_LESSON_ID, isValidCapstoneEvidence } from "@/lib/learning/capstone";
 import { buildLessonBridge, type LessonBridge } from "@/lib/learning/lesson-bridge";
-import { assessLessonAttempt, type LessonAssessmentResult } from "@/lib/learning/lesson-assessment";
-import { checkLessonTaskEvidence, lessonCompletionTask, type LessonCompletionTask } from "@/lib/learning/lesson-evidence";
+import { assessLessonAttempt } from "@/lib/learning/lesson-assessment";
+import { checkLessonTaskEvidence, lessonCompletionTask } from "@/lib/learning/lesson-evidence";
 import { clearLessonPracticeSession, getLessonPracticeSession, saveLessonPracticeSession } from "@/lib/learning/lesson-session";
 import { lessonQuestions } from "@/lib/learning/quiz";
-import { deleteLearningRecording, loadLearningRecording, saveLearningRecording } from "@/lib/learning/recordings";
+
 import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
-import { ABILITY_LABELS, libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
-import type { CapstoneEvidence } from "@/lib/learning/types";
+import { ABILITY_LABELS, libraryCountsForWrite } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+
 import { speakKorean } from "@/lib/speech";
+
+import { LessonResultActions } from "@/components/learning/lesson-result-actions";
+import { LessonTaskEvidencePanel, CapstoneEvidencePanel } from "@/components/learning/lesson-evidence-panels";
+
+const focusLabels: Record<string, string> = {
+  discourse: "篇章组织",
+  grammar: "语法",
+  listening: "听力",
+  media: "媒体听读",
+  native: "自然表达",
+  pragmatics: "场景语用",
+  script: "字形",
+  sentence: "造句",
+  sound: "发音",
+  speaking: "口语",
+  time: "时间表达",
+  travel: "出行",
+  vocab: "词汇"
+};
 
 const lessonVisualMap: Partial<Record<string, DisplayVisualAssetId>> = Object.fromEntries([
   ...["l01-hangul-map", "l02-vowels", "l31-compound-vowels", "l03-consonants", "l32-tense-aspirated", "l33-batchim", "l34-sound-changes"].map((id) => [id, "lessonPronunciation"]),
@@ -66,7 +86,8 @@ export function LessonClient({ lesson }: { lesson: any }) {
   const bridge = buildLessonBridge(lesson, workspace.progress, {
     validMaterialIds: workspace.evidence.validMaterialIds,
     libraryOk: libraryGate.ok,
-    libraryMissing: libraryGate.missing
+    libraryMissing: libraryGate.missing,
+    onboarded: !needsOnboarding
   });
   const savedCompletedIds = new Set(workspace.progress.completedLessons);
   const savedLessonScores = savedScore !== null && unlocked
@@ -128,7 +149,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             </Link>
           </Button>
           <p className="eyebrow mt-5">
-            Lesson {lesson.order} · {lesson.duration} min
+            第 {lesson.order} 课 · {lesson.duration} 分钟
           </p>
           <h1 className="inkline mt-2 max-w-4xl font-serif text-4xl font-normal leading-tight md:text-6xl">
             {lesson.title}
@@ -137,7 +158,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <div className="mt-4 flex flex-wrap gap-2">
             {lesson.focus.map((item: string) => (
               <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] px-3 py-1 text-sm font-medium">
-                {item}
+                {focusLabels[item] ?? item}
               </span>
             ))}
           </div>
@@ -161,16 +182,16 @@ export function LessonClient({ lesson }: { lesson: any }) {
           ) : null}
           {needsOnboarding ? (
             <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
-              还没完成三分钟入门。先确认目标和韩文输入，第一课才会写入核心路径。
+              还没完成三分钟入门。先确认目标和韩文输入，第一课才会计入学习进度。
               <Link href="/onboarding" className="ml-2 underline decoration-2 underline-offset-2">
                 去入门
               </Link>
             </div>
           ) : !unlocked ? (
             <div className="mt-5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)]">
-              这是旁路预览：
+              当前是预览：
               {missingPrerequisites.length
-                ? `核心路径建议先把 ${missingPrerequisites.map((item: any) => item.title).join("、")} 达到 ${UNLOCK_SCORE}%。`
+                ? `建议先把 ${missingPrerequisites.map((item: any) => item.title).join("、")} 学到 ${UNLOCK_SCORE}%。`
                 : null}
               {libraryGate.missing.length
                 ? `先把${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}补上。`
@@ -184,7 +205,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
       <div id="lesson-content" className="grid scroll-mt-40 gap-5 lg:scroll-mt-28 lg:grid-cols-[24rem_minmax(0,1fr)]">
         <aside className="surface h-fit p-5 lg:sticky lg:top-24">
-          <p className="eyebrow">Objectives</p>
+          <p className="eyebrow">这一课</p>
           <div className="mt-4 grid gap-2">
             {lesson.objectives.map((item: string) => (
               <span key={item} className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-3 text-sm font-medium leading-6">
@@ -193,7 +214,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             ))}
           </div>
           <div className="mt-5 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3">
-            <p className="eyebrow">能力证据</p>
+            <p className="eyebrow">本课会练</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {bridge.abilities.map((ability) => (
                 <span key={ability} className="border-b border-[var(--line)] px-2 py-1 text-xs font-medium text-[var(--ink-soft)]">
@@ -206,14 +227,14 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
         <div className="grid gap-5">
           <Surface>
-            <SectionHeading kicker="Teach" title="先建立直觉" />
+            <SectionHeading kicker="先学一点" title="先建立直觉" />
             <div>
               {lesson.teach.map(normalizeTeachEntry).map((entry: ReturnType<typeof normalizeTeachEntry>, index: number) => (
                 <TrackRow
                   key={`${index}-${entry.body}`}
                   index={index + 1}
                   glyph={String(index + 1)}
-                  kicker="Teach"
+                  kicker="先学一点"
                   title={entry.title || `步骤 ${index + 1}`}
                   detail={entry.body}
                   expanded
@@ -277,7 +298,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                 <div>
                   <strong className="font-serif text-2xl font-normal">先完成三分钟入门</strong>
                   <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
-                    确认目标和韩文输入后，第一课才会写入核心路径。
+                    确认目标和韩文输入后，第一课才会计入学习进度。
                   </p>
                 </div>
                 <Button asChild size="sm">
@@ -291,19 +312,19 @@ export function LessonClient({ lesson }: { lesson: any }) {
               <>
             {restoredSession && restoredSession.answers.length ? (
               <div className="mb-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--muted)]">
-                已恢复上次练习：第 {restoredSession.currentIndex + 1} 题，已保存 {restoredSession.answers.length}/{questions.length} 个回答。完成保存后会自动清除这个断点。
+                已恢复上次进度：第 {restoredSession.currentIndex + 1} 题，已保存 {restoredSession.answers.length}/{questions.length} 个回答。完成本课后会自动清除。
               </div>
             ) : null}
             {sessionSaveError ? (
               <div className="mb-4 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-medium leading-6 text-[var(--seal-ink)]">
-                本次练习断点没有写入本地存储。你可以继续完成本页，但刷新或离开后可能无法恢复到当前题；请释放浏览器存储空间后再继续长期学习。
+                练习进度没有保存。你可以继续完成本页，但刷新或离开后可能需要重做；请释放浏览器存储空间后再试。
               </div>
             ) : null}
             {sessionClearError ? (
               <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-3 text-sm font-medium leading-6 text-[var(--ink-soft)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <span>成绩已经写入进度，但本课断点没有清理成功。刷新后可能还会恢复旧练习，请释放浏览器存储空间后重试清理。</span>
+                <span>成绩已保存，但上次练习状态没有清理成功。刷新后可能还会看到旧进度，请释放浏览器存储空间后重试。</span>
                 <Button type="button" variant="secondary" size="sm" onClick={retryClearLessonSession}>
-                  重试清理断点
+                  重试清理
                 </Button>
               </div>
             ) : null}
@@ -364,7 +385,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                     const saved = completeLesson(lesson.id, score, answers);
                     if (!saved) {
                       setSaveError(true);
-                      return;
+                      return false;
                     }
                     const cleared = clearLessonPracticeSession(lesson.id);
                     setSessionClearError(!cleared);
@@ -373,6 +394,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
                     setSaveError(false);
                     setSavedAssessmentReady(assessment.corePassed);
                     setSavedScore(score);
+                    return true;
                   }}
                 />
               )}
@@ -393,1035 +415,6 @@ export function LessonClient({ lesson }: { lesson: any }) {
   );
 }
 
-function LessonResultActions({
-  savedScore,
-  saveError,
-  score,
-  unlocked,
-  corePathSaved,
-  bridge,
-  assessment,
-  completionGateReady,
-  completionGateLabel,
-  completionGateHref,
-  nextLessonId,
-  dueCount = 0,
-  libraryHref,
-  libraryLabel,
-  onRetry,
-  onSave
-}: {
-  savedScore: number | null;
-  saveError: boolean;
-  score: number;
-  unlocked: boolean;
-  corePathSaved: boolean;
-  bridge: LessonBridge;
-  assessment: LessonAssessmentResult;
-  completionGateReady: boolean;
-  completionGateLabel?: string;
-  completionGateHref?: string;
-  nextLessonId?: string;
-  dueCount?: number;
-  libraryHref?: string;
-  libraryLabel?: string;
-  onRetry: () => void;
-  onSave: (score: number, assessment: LessonAssessmentResult) => void;
-}) {
-  if (saveError) {
-    return (
-      <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--seal)] bg-[var(--seal-soft)] p-4">
-        <strong className="font-serif text-2xl font-normal text-[var(--seal-ink)]">成绩没有写入本地进度</strong>
-        <p className="text-sm font-bold leading-6 text-[var(--muted)]">
-          请释放浏览器存储空间或关闭隐私限制后再试。页面不会离开，避免误以为已经完成。
-        </p>
-        <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>
-          重新保存
-        </Button>
-      </div>
-    );
-  }
-
-  if (savedScore === null) {
-    if (score >= UNLOCK_SCORE && !completionGateReady) {
-      return (
-        <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div>
-            <strong className="font-serif text-2xl font-normal">固定题已达标，还差{completionGateLabel ?? "本课作品"}</strong>
-            <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">先完成并保存作品证据，本课才会写入核心路径。</p>
-          </div>
-          {completionGateHref ? (
-            <Button asChild size="sm">
-              <a href={completionGateHref}>补作品</a>
-            </Button>
-          ) : null}
-        </div>
-      );
-    }
-    if (score >= UNLOCK_SCORE && !assessment.corePassed) {
-      return (
-        <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div>
-            <strong className="font-serif text-2xl font-normal">总分达标，分项还没过</strong>
-            <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">{lessonAssessmentMessage(assessment)}</p>
-          </div>
-          <Button type="button" size="sm" onClick={() => onSave(score, assessment)}>保存本次结果</Button>
-        </div>
-      );
-    }
-    return (
-      <Button type="button" onClick={() => onSave(score, assessment)}>
-        继续
-      </Button>
-    );
-  }
-
-  if (!corePathSaved) {
-    return (
-      <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-        <div>
-          <strong className="font-serif text-2xl font-normal">{unlocked ? "成绩已保存，但还未达标" : "预览成绩已保存"}</strong>
-          <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
-            {unlocked
-              ? `${lessonAssessmentMessage(assessment)} 核心路径需要总分与分项同时达标，才会生成整课复习卡并解锁下一课。`
-              : "这次只记录预览分数；核心路径仍建议先补齐前置课。"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={onRetry}>
-            <RefreshCcw className="h-4 w-4" />
-            重做本课
-          </Button>
-          <Button asChild variant="secondary" size="sm">
-            <Link href="/path">
-              <Route className="h-4 w-4" />
-              回路径
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/review">
-              <RefreshCcw className="h-4 w-4" />
-              先复习
-            </Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const reviewFirst = dueCount > 0;
-  const libraryFirst = Boolean(libraryHref);
-  return (
-    <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--green)] bg-[var(--green-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-      <div>
-        <strong className="font-serif text-2xl font-normal">{unlocked ? "课程成绩已保存" : "预览成绩已保存"}</strong>
-        <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">
-          {unlocked
-            ? reviewFirst
-              ? `总分、主动输出与听辨分项均已核验。现在有 ${dueCount} 张到期卡，先清复习再继续下一课。`
-              : libraryFirst
-                ? `总分、主动输出与听辨分项均已核验。下一课还差图书馆门槛，先补库再上课。`
-                : `总分、主动输出与听辨分项均已核验。你可以继续下一课，或把 ${bridge.reviewCards} 张复习卡送回长期记忆。`
-            : "这次只记录预览分数；核心路径仍建议先补齐前置课。"}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {reviewFirst ? (
-          <Button asChild size="sm">
-            <Link href="/review">先清到期复习</Link>
-          </Button>
-        ) : libraryFirst ? (
-          <Button asChild size="sm">
-            <Link href={libraryHref ?? "/path"}>{libraryLabel || "先补库"}</Link>
-          </Button>
-        ) : nextLessonId ? (
-          <Button asChild size="sm">
-            <Link href={`/learn/${nextLessonId}`}>下一课</Link>
-          </Button>
-        ) : null}
-        {reviewFirst && libraryFirst ? (
-          <Button asChild variant="secondary" size="sm">
-            <Link href={libraryHref ?? "/path"}>{libraryLabel || "先补库"}</Link>
-          </Button>
-        ) : (reviewFirst || libraryFirst) && nextLessonId ? (
-          <Button asChild variant="secondary" size="sm">
-            <Link href={`/learn/${nextLessonId}`}>下一课</Link>
-          </Button>
-        ) : null}
-        <Button asChild variant={reviewFirst || libraryFirst ? "ghost" : "secondary"} size="sm">
-          <Link href="/path">回路径</Link>
-        </Button>
-        {reviewFirst ? null : (
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/review">去复习</Link>
-          </Button>
-        )}
-        {bridge.transferMaterials.some((material) => material.available) ? (
-          <Button asChild variant="ghost" size="sm">
-            <Link href={bridge.transferMaterials.find((material) => material.available && !material.completed)?.href ?? bridge.transferMaterials.find((material) => material.available)!.href}>练真实材料</Link>
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function lessonAssessmentMessage(assessment: LessonAssessmentResult) {
-  const missing: string[] = [];
-  if (!assessment.overallPassed) missing.push(`总分需达到 ${UNLOCK_SCORE}%`);
-  if (!assessment.productionPassed) missing.push("主动输入、听写或翻译题需达到 60%");
-  if (assessment.listeningRequired && !assessment.listeningPassed) {
-    missing.push(assessment.listeningDeferred || assessment.listeningSkipped ? "至少需要答对一题听辨或听写，跳过音频不能写入核心路径" : "听辨题需达到 60%");
-  }
-  return missing.length ? missing.join("；") : "本次分项已达标。";
-}
-
-type LessonTaskDraftSnapshot = {
-  kind: LessonCompletionTask["kind"];
-  text: string;
-  recordedSeconds: number;
-  recordingId: string;
-};
-
-function lessonTaskDraftSnapshot(taskKind: LessonCompletionTask["kind"], evidence?: LessonTaskEvidencePanelProps["evidence"]): LessonTaskDraftSnapshot {
-  return {
-    kind: evidence?.kind ?? taskKind,
-    text: evidence?.text ?? "",
-    recordedSeconds: evidence?.recordedSeconds ?? 0,
-    recordingId: evidence?.recordingId ?? ""
-  };
-}
-
-function sameLessonTaskDraft(left: LessonTaskDraftSnapshot, right: LessonTaskDraftSnapshot) {
-  return left.kind === right.kind
-    && left.text === right.text
-    && left.recordedSeconds === right.recordedSeconds
-    && left.recordingId === right.recordingId;
-}
-
-type LessonTaskEvidencePanelProps = {
-  lessonId: string;
-  task: LessonCompletionTask;
-  evidence?: { kind: "paragraph" | "retell" | "shadowing"; text: string; recordedSeconds: number; recordingId?: string; updatedAt: string };
-  onSave: (lessonId: string, input: unknown, expectedRecordingId: string) => boolean;
-  onInvalidateRecording: (lessonId: string, recordingId: string) => boolean;
-};
-
-function LessonTaskEvidencePanel({
-  lessonId,
-  task,
-  evidence,
-  onSave,
-  onInvalidateRecording
-}: LessonTaskEvidencePanelProps) {
-  const [text, setText] = useState(evidence?.text ?? "");
-  const [recordedSeconds, setRecordedSeconds] = useState(evidence?.recordedSeconds ?? 0);
-  const [recordingId, setRecordingId] = useState(evidence?.recordingId ?? "");
-  const [recording, setRecording] = useState(false);
-  const [startingRecording, setStartingRecording] = useState(false);
-  const [savingRecording, setSavingRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [message, setMessage] = useState("");
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const startedAtRef = useRef(0);
-  const audioUrlRef = useRef("");
-  const recordingIdRef = useRef(evidence?.recordingId ?? "");
-  const savedRecordingIdRef = useRef(evidence?.recordingId ?? "");
-  const draftBaseRecordingIdRef = useRef(evidence?.recordingId ?? "");
-  const invalidateRecordingRef = useRef(onInvalidateRecording);
-  const mountedRef = useRef(true);
-  const startingRecordingRef = useRef(false);
-  const savingRecordingRef = useRef(false);
-  const recordingSaveTokenRef = useRef(0);
-  const recordingRequestRef = useRef(0);
-  const incomingDraft = useMemo(
-    () => lessonTaskDraftSnapshot(task.kind, evidence),
-    [evidence, task.kind]
-  );
-  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
-  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
-  const draftBaselineRef = useRef(incomingDraft);
-  const draftEvidence = useMemo(() => ({ kind: task.kind, text, recordedSeconds, recordingId: recordingId || undefined, updatedAt: new Date(0).toISOString() }), [recordedSeconds, recordingId, task.kind, text]);
-  const check = checkLessonTaskEvidence(task, draftEvidence);
-  const saved = Boolean(
-    evidence &&
-    checkLessonTaskEvidence(task, evidence).ready &&
-    evidence.kind === draftEvidence.kind &&
-    evidence.text.trim() === draftEvidence.text.trim() &&
-    evidence.recordedSeconds === draftEvidence.recordedSeconds &&
-    (evidence.recordingId ?? "") === (draftEvidence.recordingId ?? "")
-  );
-
-  useEffect(() => {
-    const nextSavedRecordingId = evidence?.recordingId ?? "";
-    if (recordingIdRef.current === savedRecordingIdRef.current) {
-      draftBaseRecordingIdRef.current = nextSavedRecordingId;
-    }
-    savedRecordingIdRef.current = nextSavedRecordingId;
-    invalidateRecordingRef.current = onInvalidateRecording;
-  }, [evidence?.recordingId, onInvalidateRecording]);
-
-  useEffect(() => {
-    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
-    const previousDraft = draftBaselineRef.current;
-    const currentDraft = { kind: task.kind, text, recordedSeconds, recordingId };
-    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
-    draftBaselineRef.current = incomingDraft;
-    if (
-      recording
-      || startingRecording
-      || savingRecording
-      || startingRecordingRef.current
-      || savingRecordingRef.current
-      || !sameLessonTaskDraft(currentDraft, previousDraft)
-    ) return;
-    setText(incomingDraft.text);
-    setRecordedSeconds(incomingDraft.recordedSeconds);
-    setRecordingId(incomingDraft.recordingId);
-    recordingIdRef.current = incomingDraft.recordingId;
-    savedRecordingIdRef.current = incomingDraft.recordingId;
-    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
-    setMessage("");
-  }, [incomingDraft, incomingDraftSignature, recordedSeconds, recording, recordingId, savingRecording, startingRecording, task.kind, text]);
-
-  useEffect(() => {
-    let cancelled = false;
-    recordingRequestRef.current += 1;
-    startingRecordingRef.current = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setStartingRecording(false);
-      setRecording(false);
-      setAudioUrl("");
-    });
-    if (task.kind === "shadowing" && evidence?.recordingId) {
-      void loadLearningRecording(evidence.recordingId).then((blob) => {
-        if (cancelled) return;
-        if (!blob) {
-          if (!invalidateRecordingRef.current(lessonId, evidence.recordingId!)) {
-            setMessage("录音实体不存在，但学习进度未能同步撤回；请释放存储空间后刷新重试。");
-            return;
-          }
-          setRecordedSeconds(0);
-          setRecordingId("");
-          recordingIdRef.current = "";
-          setMessage("已保存的录音实体不存在，需要重新录音或完成听后复现。");
-          return;
-        }
-        const nextUrl = URL.createObjectURL(blob);
-        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = nextUrl;
-        setAudioUrl(nextUrl);
-      });
-    }
-    return () => {
-      cancelled = true;
-      recordingRequestRef.current += 1;
-      startingRecordingRef.current = false;
-      const recorder = recorderRef.current;
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        if (recorder.state !== "inactive") {
-          try {
-            recorder.stop();
-          } catch {
-            // Stopping tracks below remains the final cleanup path.
-          }
-        }
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      recorderRef.current = null;
-      streamRef.current = null;
-      chunksRef.current = [];
-      startedAtRef.current = 0;
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = "";
-      }
-    };
-  }, [evidence?.recordingId, lessonId, task.kind]);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      recordingRequestRef.current += 1;
-      const draftRecordingId = recordingIdRef.current;
-      if (draftRecordingId && draftRecordingId !== savedRecordingIdRef.current) void deleteLearningRecording(draftRecordingId);
-    };
-  }, []);
-
-  const startRecording = async () => {
-    if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
-    startingRecordingRef.current = true;
-    setStartingRecording(true);
-    const requestId = ++recordingRequestRef.current;
-    setMessage("");
-    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setMessage("当前浏览器不能录音，请使用下方听后复现作为替代验收。");
-      startingRecordingRef.current = false;
-      setStartingRecording(false);
-      return;
-    }
-    let stream: MediaStream | null = null;
-    let recorder: MediaRecorder | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      const activeStream = stream;
-      streamRef.current = activeStream;
-      const activeRecorder = new MediaRecorder(activeStream);
-      recorder = activeRecorder;
-      recorderRef.current = activeRecorder;
-      chunksRef.current = [];
-      const replaceableRecordingId = recordingIdRef.current
-        && recordingIdRef.current !== savedRecordingIdRef.current
-        ? recordingIdRef.current
-        : "";
-      activeRecorder.ondataavailable = (event) => {
-        if (event.data.size) chunksRef.current.push(event.data);
-      };
-      activeRecorder.onstop = async () => {
-        const previousRecordingId = recordingIdRef.current;
-        const seconds = Math.max(0, (performance.now() - startedAtRef.current) / 1000);
-        const blob = new Blob(chunksRef.current, { type: activeRecorder.mimeType || "audio/webm" });
-        activeStream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
-        setRecording(false);
-        const saveToken = ++recordingSaveTokenRef.current;
-        savingRecordingRef.current = true;
-        setSavingRecording(true);
-        try {
-          if (!blob.size) {
-            setRecordedSeconds(0);
-            setRecordingId("");
-            setMessage("没有取得有效音频数据，请重新录音或使用听后复现。");
-            return;
-          }
-          const nextRecordingId = await saveLearningRecording(blob, "shadowing", replaceableRecordingId);
-          if (!nextRecordingId) {
-            setRecordedSeconds(0);
-            setRecordingId("");
-            setMessage("录音无法写入浏览器数据库，请使用听后复现作为替代验收。");
-            return;
-          }
-          if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-            await deleteLearningRecording(nextRecordingId);
-            return;
-          }
-          if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
-            void deleteLearningRecording(previousRecordingId);
-          }
-          recordingIdRef.current = nextRecordingId;
-          setRecordingId(nextRecordingId);
-          setRecordedSeconds(Math.round(seconds * 10) / 10);
-          const nextUrl = URL.createObjectURL(blob);
-          if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-          audioUrlRef.current = nextUrl;
-          setAudioUrl(nextUrl);
-        } catch {
-          setRecordedSeconds(0);
-          setRecordingId("");
-          setMessage("录音无法写入浏览器数据库，请使用听后复现作为替代验收。");
-        } finally {
-          if (recordingSaveTokenRef.current === saveToken) {
-            savingRecordingRef.current = false;
-            if (mountedRef.current) setSavingRecording(false);
-          }
-        }
-      };
-      startedAtRef.current = performance.now();
-      activeRecorder.start();
-      if (recordingIdRef.current === savedRecordingIdRef.current) {
-        draftBaseRecordingIdRef.current = savedRecordingIdRef.current;
-      }
-      setRecordedSeconds(0);
-      setRecordingId("");
-      setRecording(true);
-    } catch {
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        if (recorder.state !== "inactive") {
-          try {
-            recorder.stop();
-          } catch {
-            // Stopping tracks below remains the final cleanup path.
-          }
-        }
-      }
-      stream?.getTracks().forEach((track) => track.stop());
-      if (recorderRef.current === recorder) recorderRef.current = null;
-      if (streamRef.current === stream) streamRef.current = null;
-      chunksRef.current = [];
-      if (mountedRef.current && requestId === recordingRequestRef.current) {
-        setRecording(false);
-        setMessage("没有取得麦克风权限或录音启动失败，请使用下方听后复现作为替代验收。");
-      }
-    } finally {
-      if (mountedRef.current && requestId === recordingRequestRef.current) {
-        startingRecordingRef.current = false;
-        setStartingRecording(false);
-      }
-    }
-  };
-
-  const stopRecording = () => {
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-  };
-
-  const save = () => {
-    if (recording || startingRecording || savingRecording) {
-      setMessage(savingRecording ? "录音保存中，请稍候再保存作品。" : "录音进行中，先停止后再保存作品。");
-      return;
-    }
-    if (!check.ready) {
-      setMessage("作品还未满足系统检查，请补齐未通过项。");
-      return;
-    }
-    const expectedRecordingId = draftBaseRecordingIdRef.current;
-    const ok = onSave(lessonId, draftEvidence, expectedRecordingId);
-    if (ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId) {
-      void deleteLearningRecording(expectedRecordingId);
-    }
-    if (ok) {
-      savedRecordingIdRef.current = recordingId;
-      draftBaseRecordingIdRef.current = recordingId;
-    }
-    setMessage(ok ? "本课作品已保存，可以完成固定题验收。" : "作品没有写入本地进度，请释放存储空间后重试。");
-  };
-
-  return (
-    <Surface id="lesson-task-evidence" className="scroll-mt-40 lg:scroll-mt-28">
-      <SectionHeading kicker="Required Evidence" title={task.title} />
-      <p className="max-w-3xl leading-7 text-[var(--muted)]">{task.prompt}</p>
-
-      {task.source ? (
-        <div className="mt-4 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <strong className="eyebrow">Practice Source · 原文</strong>
-            <Button type="button" variant="secondary" size="sm" onClick={() => speakKorean(task.source!)}>
-              <Volume2 className="h-4 w-4" aria-hidden="true" />
-              播放
-            </Button>
-          </div>
-          {task.kind === "retell" ? (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-medium">打开原文，听完后请合上</summary>
-              <p className="hangul-display mt-3 text-lg font-bold leading-8" lang="ko">{task.source}</p>
-            </details>
-          ) : (
-            <p className="hangul-display mt-3 text-xl font-normal leading-8" lang="ko">{task.source}</p>
-          )}
-        </div>
-      ) : null}
-
-      {task.kind === "shadowing" ? (
-        <div className="mt-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div>
-            <strong>最后一轮录音</strong>
-            <p className="mt-1 text-sm font-bold text-[var(--muted)]">
-              {recordedSeconds ? `已录 ${recordedSeconds.toFixed(1)} 秒。` : "录完后先回听，再保存验收。"}
-            </p>
-            {audioUrl ? <audio className="mt-3 w-full" controls src={audioUrl} /> : null}
-          </div>
-          {recording ? (
-            <Button type="button" variant="secondary" onClick={stopRecording}>
-              <Square className="h-4 w-4" aria-hidden="true" />
-              停止
-            </Button>
-          ) : (
-            <Button type="button" onClick={startRecording} disabled={startingRecording || savingRecording}>
-              <Mic className="h-4 w-4" aria-hidden="true" />
-              {savingRecording ? "保存录音" : startingRecording ? "请求麦克风" : "开始录音"}
-            </Button>
-          )}
-        </div>
-      ) : null}
-
-      <label className="mt-4 grid gap-2 text-sm font-semibold">
-        {task.kind === "shadowing" ? "无法录音时：听后凭记忆复现整句" : task.kind === "retell" ? "你的韩语复述" : "你的韩语段落"}
-        <textarea
-          className="focus-ring hangul-display min-h-40 w-full resize-y rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-4 text-lg font-normal leading-8"
-          value={text}
-          lang="ko"
-          spellCheck={false}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="한국어로 직접 써 보세요."
-        />
-      </label>
-
-      <div className="mt-4 grid gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--green-soft)] p-4">
-        {check.checks.map((item) => (
-          <span key={item.id} className={`flex items-center gap-2 text-sm font-bold ${item.passed ? "text-[var(--celadon-text)]" : "text-[var(--muted)]"}`}>
-            {item.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4 rounded-full border border-[var(--line-strong)]" aria-hidden="true" />}
-            {item.label}
-          </span>
-        ))}
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={save} disabled={!check.ready || recording || startingRecording || savingRecording}>保存作品</Button>
-        {saved ? <span className="text-sm font-semibold text-[var(--celadon-text)]">已保存有效证据</span> : null}
-        {message ? <span className="text-sm font-bold text-[var(--muted)]" role="status">{message}</span> : null}
-      </div>
-    </Surface>
-  );
-}
-
-function sameCapstoneDraft(left: Omit<CapstoneEvidence, "updatedAt">, right: Omit<CapstoneEvidence, "updatedAt">) {
-  return left.transcript === right.transcript
-    && left.weakPoint === right.weakPoint
-    && left.targetRewrite === right.targetRewrite
-    && left.recordedSeconds === right.recordedSeconds
-    && left.recordingId === right.recordingId
-    && left.rubric.length === right.rubric.length
-    && left.rubric.every((item, index) => item === right.rubric[index]);
-}
-
-function CapstoneEvidencePanel({
-  evidence,
-  onSave,
-  onInvalidateRecording
-}: {
-  evidence: CapstoneEvidence | null;
-  onSave: (input: Omit<CapstoneEvidence, "updatedAt">, expectedRecordingId: string) => boolean;
-  onInvalidateRecording: (recordingId: string) => boolean;
-}) {
-  const savedRecordingId = evidence?.recordingId ?? "";
-  const incomingDraft = useMemo(() => ({
-    transcript: evidence?.transcript ?? "",
-    weakPoint: evidence?.weakPoint ?? "",
-    targetRewrite: evidence?.targetRewrite ?? "",
-    rubric: [...(evidence?.rubric ?? [])],
-    recordedSeconds: evidence?.recordedSeconds ?? 0,
-    recordingId: evidence?.recordingId ?? ""
-  }), [evidence?.recordedSeconds, evidence?.recordingId, evidence?.rubric, evidence?.targetRewrite, evidence?.transcript, evidence?.weakPoint]);
-  const [draft, setDraft] = useState<Omit<CapstoneEvidence, "updatedAt">>(() => incomingDraft);
-  const [status, setStatus] = useState<"idle" | "saved" | "error">(() => isValidCapstoneEvidence(evidence) ? "saved" : "idle");
-  const [recording, setRecording] = useState(false);
-  const [startingRecording, setStartingRecording] = useState(false);
-  const [savingRecording, setSavingRecording] = useState(false);
-  const [recordingElapsed, setRecordingElapsed] = useState(0);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [recordingMessage, setRecordingMessage] = useState("");
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const startedAtRef = useRef(0);
-  const timerRef = useRef<number | null>(null);
-  const audioUrlRef = useRef("");
-  const recordingIdRef = useRef(savedRecordingId);
-  const savedRecordingIdRef = useRef(savedRecordingId);
-  const draftBaseRecordingIdRef = useRef(savedRecordingId);
-  const invalidateRecordingRef = useRef(onInvalidateRecording);
-  const mountedRef = useRef(true);
-  const startingRecordingRef = useRef(false);
-  const savingRecordingRef = useRef(false);
-  const recordingSaveTokenRef = useRef(0);
-  const recordingRequestRef = useRef(0);
-  const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
-  const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
-  const draftBaselineRef = useRef(incomingDraft);
-  const hangulCount = countHangulCharacters(draft.transcript);
-  const systemChecks = capstoneSystemChecks(draft.transcript);
-  const recordingCheck = capstoneRecordingCheck(draft.recordedSeconds, draft.recordingId);
-  const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence({ ...draft, updatedAt: evidence?.updatedAt ?? "" });
-
-  useEffect(() => {
-    if (recordingIdRef.current === savedRecordingIdRef.current) {
-      draftBaseRecordingIdRef.current = savedRecordingId;
-    }
-    savedRecordingIdRef.current = savedRecordingId;
-    invalidateRecordingRef.current = onInvalidateRecording;
-  }, [onInvalidateRecording, savedRecordingId]);
-
-  useEffect(() => {
-    if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
-    const previousDraft = draftBaselineRef.current;
-    previousIncomingDraftSignatureRef.current = incomingDraftSignature;
-    draftBaselineRef.current = incomingDraft;
-    if (
-      recording
-      || startingRecording
-      || savingRecording
-      || startingRecordingRef.current
-      || savingRecordingRef.current
-      || !sameCapstoneDraft(draft, previousDraft)
-    ) return;
-    setDraft(incomingDraft);
-    recordingIdRef.current = incomingDraft.recordingId;
-    savedRecordingIdRef.current = incomingDraft.recordingId;
-    draftBaseRecordingIdRef.current = incomingDraft.recordingId;
-    setStatus(isValidCapstoneEvidence(evidence) ? "saved" : "idle");
-    setRecordingMessage("");
-  }, [draft, evidence, incomingDraft, incomingDraftSignature, recording, savingRecording, startingRecording]);
-
-  useEffect(() => {
-    let cancelled = false;
-    recordingRequestRef.current += 1;
-    startingRecordingRef.current = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setStartingRecording(false);
-      setRecording(false);
-      setRecordingElapsed(0);
-      setAudioUrl("");
-    });
-    if (savedRecordingId) {
-      void loadLearningRecording(savedRecordingId).then((blob) => {
-        if (cancelled) return;
-        if (!blob) {
-          if (!invalidateRecordingRef.current(savedRecordingId)) {
-            setRecordingMessage("录音实体不存在，但终课进度未能同步撤回；请释放存储空间后刷新重试。");
-            return;
-          }
-          recordingIdRef.current = "";
-          setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setStatus("idle");
-          setRecordingMessage("已保存的录音实体不存在，终课证据已撤回，请重新录制。");
-          return;
-        }
-        const nextAudioUrl = URL.createObjectURL(blob);
-        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = nextAudioUrl;
-        setAudioUrl(nextAudioUrl);
-      });
-    }
-    return () => {
-      cancelled = true;
-      recordingRequestRef.current += 1;
-      startingRecordingRef.current = false;
-      if (timerRef.current !== null) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      const recorder = recorderRef.current;
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        if (recorder.state !== "inactive") {
-          try {
-            recorder.stop();
-          } catch {
-            // Stopping tracks below remains the final cleanup path.
-          }
-        }
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      recorderRef.current = null;
-      streamRef.current = null;
-      chunksRef.current = [];
-      startedAtRef.current = 0;
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = "";
-      }
-    };
-  }, [savedRecordingId]);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      recordingRequestRef.current += 1;
-      const draftRecordingId = recordingIdRef.current;
-      if (draftRecordingId && draftRecordingId !== savedRecordingIdRef.current) void deleteLearningRecording(draftRecordingId);
-    };
-  }, []);
-
-  const startRecording = async () => {
-    if (recording || startingRecordingRef.current || savingRecordingRef.current) return;
-    startingRecordingRef.current = true;
-    setStartingRecording(true);
-    const requestId = ++recordingRequestRef.current;
-    setRecordingMessage("");
-    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setRecordingMessage("当前浏览器不支持录音，终课作品需要换用支持麦克风录制的浏览器完成。");
-      startingRecordingRef.current = false;
-      setStartingRecording(false);
-      return;
-    }
-
-    let stream: MediaStream | null = null;
-    let recorder: MediaRecorder | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      const activeStream = stream;
-      streamRef.current = activeStream;
-      const activeRecorder = new MediaRecorder(activeStream);
-      recorder = activeRecorder;
-      recorderRef.current = activeRecorder;
-      chunksRef.current = [];
-      const replaceableRecordingId = recordingIdRef.current
-        && recordingIdRef.current !== savedRecordingIdRef.current
-        ? recordingIdRef.current
-        : "";
-      activeRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-      activeRecorder.onstop = async () => {
-        const previousRecordingId = recordingIdRef.current;
-        if (timerRef.current !== null) window.clearInterval(timerRef.current);
-        timerRef.current = null;
-        const seconds = Math.max(0, Math.floor((performance.now() - startedAtRef.current) / 100) / 10);
-        const blob = new Blob(chunksRef.current, { type: activeRecorder.mimeType || "audio/webm" });
-        chunksRef.current = [];
-        activeStream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
-        setRecording(false);
-        setRecordingElapsed(seconds);
-        const saveToken = ++recordingSaveTokenRef.current;
-        savingRecordingRef.current = true;
-        setSavingRecording(true);
-        try {
-          if (blob.size === 0) {
-            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-            setRecordingMessage("没有取得有效音频数据，本次录音不计入终课证据，请重新录制。");
-            return;
-          }
-
-          const nextRecordingId = await saveLearningRecording(blob, "capstone", replaceableRecordingId);
-          if (!nextRecordingId) {
-            setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-            setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
-            return;
-          }
-          if (!mountedRef.current || requestId !== recordingRequestRef.current) {
-            await deleteLearningRecording(nextRecordingId);
-            return;
-          }
-          if (previousRecordingId && previousRecordingId !== savedRecordingIdRef.current && previousRecordingId !== nextRecordingId) {
-            void deleteLearningRecording(previousRecordingId);
-          }
-          recordingIdRef.current = nextRecordingId;
-          const nextAudioUrl = URL.createObjectURL(blob);
-          if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-          audioUrlRef.current = nextAudioUrl;
-          setAudioUrl(nextAudioUrl);
-          setDraft((current) => ({ ...current, recordedSeconds: seconds, recordingId: nextRecordingId }));
-          setRecordingMessage(seconds >= CAPSTONE_MIN_RECORDED_SECONDS
-            ? "录音时长已达标，请先回听，再保存终课作品。"
-            : `本次录音 ${seconds.toFixed(1)} 秒，还需至少 ${(CAPSTONE_MIN_RECORDED_SECONDS - seconds).toFixed(1)} 秒。`);
-        } catch {
-          setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-          setRecordingMessage("录音无法写入浏览器数据库，本次录音不能作为终课证据，请释放存储空间后重试。");
-        } finally {
-          if (recordingSaveTokenRef.current === saveToken) {
-            savingRecordingRef.current = false;
-            if (mountedRef.current) setSavingRecording(false);
-          }
-        }
-      };
-
-      startedAtRef.current = performance.now();
-      activeRecorder.start(1000);
-      if (recordingIdRef.current === savedRecordingIdRef.current) {
-        draftBaseRecordingIdRef.current = savedRecordingIdRef.current;
-      }
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = "";
-      setAudioUrl("");
-      setDraft((current) => ({ ...current, recordedSeconds: 0, recordingId: "" }));
-      setStatus("idle");
-      setRecordingElapsed(0);
-      setRecording(true);
-      timerRef.current = window.setInterval(() => {
-        const seconds = Math.max(0, Math.floor((performance.now() - startedAtRef.current) / 100) / 10);
-        setRecordingElapsed(seconds);
-      }, 250);
-    } catch {
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        if (recorder.state !== "inactive") {
-          try {
-            recorder.stop();
-          } catch {
-            // Stopping tracks below remains the final cleanup path.
-          }
-        }
-      }
-      stream?.getTracks().forEach((track) => track.stop());
-      if (recorderRef.current === recorder) recorderRef.current = null;
-      if (streamRef.current === stream) streamRef.current = null;
-      chunksRef.current = [];
-      if (mountedRef.current && requestId === recordingRequestRef.current) {
-        setRecording(false);
-        setRecordingMessage("没有取得麦克风权限或录音启动失败，请允许麦克风后重试。");
-      }
-    } finally {
-      if (mountedRef.current && requestId === recordingRequestRef.current) {
-        startingRecordingRef.current = false;
-        setStartingRecording(false);
-      }
-    }
-  };
-
-  const stopRecording = () => {
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-  };
-
-  const toggleRubric = (id: string) => {
-    setStatus("idle");
-    setDraft((current) => ({
-      ...current,
-      rubric: current.rubric.includes(id) ? current.rubric.filter((item) => item !== id) : [...current.rubric, id]
-    }));
-  };
-
-  const saveCapstone = () => {
-    if (recording || startingRecording || savingRecording) {
-      setRecordingMessage(savingRecording ? "录音保存中，请稍候再保存终课作品。" : "录音进行中，先停止后再保存终课作品。");
-      return;
-    }
-    const expectedRecordingId = draftBaseRecordingIdRef.current;
-    const saved = onSave(draft, expectedRecordingId);
-    if (saved && expectedRecordingId && draft.recordingId && expectedRecordingId !== draft.recordingId) {
-      void deleteLearningRecording(expectedRecordingId);
-    }
-    if (saved) {
-      savedRecordingIdRef.current = draft.recordingId;
-      draftBaseRecordingIdRef.current = draft.recordingId;
-    }
-    setStatus(saved ? "saved" : "error");
-  };
-
-  return (
-    <Surface className="border-[var(--line)]">
-      <div id="capstone-evidence" className="scroll-mt-40 lg:scroll-mt-28">
-        <SectionHeading
-          kicker="Capstone Evidence"
-          title="保存终课作品，再确认达标"
-          copy="固定题只能检查结构识别。终课还必须留下至少两分钟的真实口语录音、可复查的韩语输出稿、弱点和目标改写，才能成为作品证据。"
-        />
-        <div className="mb-4 grid gap-3 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--seal-soft)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <strong>两分钟真实口语录音</strong>
-              <span className={`flex items-center gap-1.5 text-xs font-semibold ${recordingCheck.passed ? "text-[var(--celadon-text)]" : "text-[var(--seal-ink)]"}`}>
-                {recordingCheck.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <Radio className="h-4 w-4" aria-hidden="true" />}
-                {recordingCheck.passed ? "时长已达标" : `至少 ${CAPSTONE_MIN_RECORDED_SECONDS} 秒`}
-              </span>
-            </div>
-            <p className="mt-1 text-sm font-bold text-[var(--muted)]">
-              {recording
-                ? `录音中 ${recordingElapsed.toFixed(1)} / ${CAPSTONE_MIN_RECORDED_SECONDS.toFixed(1)} 秒`
-                : draft.recordedSeconds > 0
-                  ? `有效录音 ${draft.recordedSeconds.toFixed(1)} 秒。`
-                  : "尚未完成有效录音；文本与自检不能替代录音。"}
-            </p>
-            {audioUrl ? <audio className="mt-3 w-full" controls src={audioUrl} /> : null}
-            {recordingMessage ? <p className="mt-2 text-sm font-bold text-[var(--muted)]" role="status">{recordingMessage}</p> : null}
-          </div>
-          {recording ? (
-            <Button type="button" variant="secondary" onClick={stopRecording}>
-              <Square className="h-4 w-4" aria-hidden="true" />
-              停止录音
-            </Button>
-          ) : (
-            <Button type="button" onClick={startRecording} disabled={startingRecording || savingRecording}>
-              <Mic className="h-4 w-4" aria-hidden="true" />
-              {savingRecording ? "保存录音" : startingRecording ? "请求麦克风" : draft.recordedSeconds > 0 ? "重新录音" : "开始录音"}
-            </Button>
-          )}
-        </div>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
-          <label className="grid gap-2 text-sm font-semibold">
-            两分钟结构化输出稿
-            <textarea
-              className="focus-ring min-h-72 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-3 leading-7"
-              value={draft.transcript}
-              lang="ko"
-              spellCheck={false}
-              onChange={(event) => {
-                setStatus("idle");
-                setDraft((current) => ({ ...current, transcript: event.target.value }));
-              }}
-              placeholder="用韩语写下立场、理由、例子、对比或让步，以及最终落点。"
-            />
-            <span className="text-xs font-bold text-[var(--muted)]">韩文字符 {hangulCount}/{CAPSTONE_MIN_HANGUL}，建议先口述录音，再把实际表达转写到这里。</span>
-          </label>
-          <div className="grid content-start gap-3">
-            <div className="grid gap-1.5 rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3">
-              <strong className="eyebrow">系统结构检查</strong>
-              {systemChecks.map((check) => (
-                <span key={check.id} className={`flex items-center gap-2 text-xs font-bold ${check.passed ? "text-[var(--celadon-text)]" : "text-[var(--muted)]"}`}>
-                  {check.passed ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <span className="h-4 w-4 rounded-full border border-[var(--line-strong)]" aria-hidden="true" />}
-                  {check.label}
-                </span>
-              ))}
-            </div>
-            <div className="grid gap-2">
-              {capstoneRubric.map((item) => {
-                const checked = draft.rubric.includes(item.id);
-                return (
-                  <label key={item.id} className={`focus-ring grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border p-3 text-sm font-medium ${checked ? "border-[var(--green)] bg-[var(--green-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
-                    <input className="sr-only" type="checkbox" checked={checked} onChange={() => toggleRubric(item.id)} />
-                    <span className={`grid h-6 w-6 place-items-center rounded-[6px] border ${checked ? "border-[var(--celadon)] bg-[var(--celadon)] text-[var(--ink-inv)]" : "border-[var(--line-strong)]"}`}>
-                      {checked ? <CheckCircle2 className="h-4 w-4" /> : null}
-                    </span>
-                    {item.label}
-                  </label>
-                );
-              })}
-            </div>
-            <label className="grid gap-2 text-sm font-semibold">
-              当前最需要修正的弱点
-              <input
-                className="focus-ring min-h-11 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] px-3"
-                value={draft.weakPoint}
-                onChange={(event) => {
-                  setStatus("idle");
-                  setDraft((current) => ({ ...current, weakPoint: event.target.value }));
-                }}
-                placeholder="例如：理由展开太短，转折仍像中文"
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold">
-              送回复习的目标改写
-              <textarea
-                className="focus-ring min-h-24 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--card)] p-3 leading-7"
-                value={draft.targetRewrite}
-                lang="ko"
-                spellCheck={false}
-                onChange={(event) => {
-                  setStatus("idle");
-                  setDraft((current) => ({ ...current, targetRewrite: event.target.value }));
-                }}
-                placeholder="用更自然的韩语重写最不稳的一段。"
-              />
-            </label>
-            <Button
-              type="button"
-              disabled={!ready}
-              onClick={saveCapstone}
-            >
-              保存终课作品
-            </Button>
-            <p role="status" aria-live="polite" className="min-h-5 text-sm font-bold text-[var(--muted)]">
-              {status === "saved" ? "终课作品已保存，可以完成固定题并确认达标。" : status === "error" ? "作品未能写入本地存储，请释放空间后重试。" : ready ? "作品证据已完整，可以保存。" : "完成至少 120 秒真实录音，并补齐系统结构检查、四项自检、弱点和韩语目标改写；文本或勾选不能替代录音。"}
-            </p>
-          </div>
-        </div>
-      </div>
-    </Surface>
-  );
-}
-
 function LessonBridgePanel({
   bridge,
   dueCount = 0,
@@ -1436,9 +429,9 @@ function LessonBridgePanel({
   return (
     <Surface>
       <SectionHeading
-        kicker="Lesson Bridge"
-        title="做完这一课后，知识要流向哪里"
-        copy="课程不是孤立题组。达标后会进入核心路径、复习卡、真实材料和能力护照；未达标时先回到前置课或重做本课。"
+        kicker="学完之后"
+        title="完成本课后，接下来做什么"
+        copy="本课完成后会计入主线进度，并生成复习卡。之后可以继续下一课，或到情境听读里再用一次。"
       />
       <div className="grid gap-3 xl:grid-cols-4">
         {bridge.steps.map((step) => (
@@ -1467,12 +460,12 @@ function LessonBridgePanel({
             复习产物
           </p>
           <strong className="mt-2 block font-serif text-3xl">{bridge.reviewCards}</strong>
-          <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">本课可进入 SRS 的题目数。错题会先进入错题卡，达标课程会生成整课复习卡。</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-[var(--muted)]">本课可加入间隔复习的题目数。答错会先进入错题本，完成课程后会生成整课复习卡。</p>
         </div>
         <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4">
           <p className="eyebrow inline-flex items-center gap-2">
             <Radio className="h-4 w-4" />
-            真实材料迁移
+            情境听读
           </p>
           {bridge.transferMaterials.length ? (
             <div className="mt-3 grid gap-2">
@@ -1485,7 +478,7 @@ function LessonBridgePanel({
                   >
                     {material.completed ? "已完成 · " : ""}
                     {material.title}
-                    <span className="ml-2 font-mono text-xs text-[var(--muted)]">{material.minutes} min</span>
+                    <span className="ml-2 font-mono text-xs text-[var(--muted)]">{material.minutes} 分钟</span>
                   </Link>
                 ) : (
                   <div
@@ -1496,10 +489,10 @@ function LessonBridgePanel({
                     <span className="inline-flex items-center gap-2 text-[var(--ink)]">
                       <LockKeyhole className="h-4 w-4 text-[var(--ink-mute)]" />
                       {material.title}
-                      <span className="font-mono text-xs text-[var(--muted)]">{material.minutes} min</span>
+                      <span className="font-mono text-xs text-[var(--muted)]">{material.minutes} 分钟</span>
                     </span>
                     <span className="font-mono text-xs font-medium text-[var(--ink-mute)]">
-                      {!bridge.mastered ? "达标后解锁材料迁移" : `还需 ${material.missingPrerequisiteIds.length} 节材料前置课`}
+                      {!bridge.mastered ? "完成本课后开放" : `还需 ${material.missingPrerequisiteIds.length} 节前置课`}
                     </span>
                   </div>
                 )
@@ -1521,22 +514,22 @@ function LessonBridgePanel({
         </p>
         <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">
           {needsOnboarding
-            ? "先完成三分钟入门后，本课才会写入核心路径。"
+            ? "先完成三分钟入门，本课才会计入主线进度。"
             : bridge.mastered
             ? dueCount > 0
-              ? `已达标。现在有 ${dueCount} 张到期卡，先清复习再继续${bridge.nextLesson ? `第 ${bridge.nextLesson.order} 课` : "后续路线"}。`
+              ? `本课已完成。现在有 ${dueCount} 张到期卡，先复习再继续${bridge.nextLesson ? `第 ${bridge.nextLesson.order} 课` : "后续课程"}。`
               : libraryLabel
-                ? `已达标。下一课还差图书馆门槛，${libraryLabel}再上课。`
+                ? `本课已完成。先${libraryLabel}，再开始下一课。`
                 : bridge.nextLesson
-                  ? `已达标，下一课是第 ${bridge.nextLesson.order} 课：${bridge.nextLesson.title}。`
-                  : "核心课程已达标，下一步应转向真实材料、输出档案和母语者作品集。"
+                  ? `本课已完成。下一课是第 ${bridge.nextLesson.order} 课：${bridge.nextLesson.title}。`
+                  : "主线课程已完成。接下来保持复习，并逐步加入原生材料和长期作品练习。"
             : bridge.unlocked
-              ? `本课可学习；达到 ${UNLOCK_SCORE}% 后会正式写入核心路径。`
+              ? `本课可学习；达到 ${UNLOCK_SCORE}% 后会计入主线进度。`
               : bridge.missingPrerequisites.length
-                ? `旁路预览中；先补 ${bridge.missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")} 更稳。`
+                ? `当前是预览；建议先学 ${bridge.missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")}。`
                 : libraryLabel
-                  ? `旁路预览中；${libraryLabel}后才会写入核心路径。`
-                  : "旁路预览中；先补齐前置课或图书馆门槛更稳。"}
+                  ? `当前是预览；${libraryLabel}后才会计入主线进度。`
+                  : "当前是预览。先完成前置课或补齐阶段基础内容。"}
         </p>
       </div>
     </Surface>

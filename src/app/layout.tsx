@@ -1,32 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/caveat";
 import "@fontsource-variable/noto-serif-kr";
-import "@fontsource/ma-shan-zheng/chinese-simplified-400.css";
-import "@fontsource/ma-shan-zheng/latin-400.css";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 
+import { getSiteOrigin, pageMetadata, sitePages } from "@/lib/site-metadata";
+
 export const metadata: Metadata = {
-  title: "Kirina Korean | YEUX KR 韩语手帖",
-  description: "在纸上读、听、写韩语。课程、复习与真实材料收进同一本学习手帖。",
+  ...pageMetadata("/", ...sitePages["/"]),
+  title: { default: "今日学习 | Kirina Korean", template: "%s | Kirina Korean" },
+  metadataBase: getSiteOrigin() ?? undefined,
   manifest: "/manifest.webmanifest",
-  openGraph: {
-    title: "Kirina Korean | YEUX KR",
-    description: "纸上的韩语学习手帖。",
-    images: [{ url: "/assets/generated/hero.webp", alt: "Kirina Korean paper study still life" }]
-  },
-  icons: {
-    icon: "/assets/icon-192.png",
-    apple: "/assets/icon-192.png"
-  }
+  icons: { icon: "/assets/icon-192.png", apple: "/assets/icon-192.png" }
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#d8d3cc" },
-    { media: "(prefers-color-scheme: dark)", color: "#2a2733" }
+    { media: "(prefers-color-scheme: light)", color: "#f4f6f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#17212d" }
   ]
 };
 
@@ -45,12 +37,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}>
-          <filter id="roughen">
-            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.014" numOctaves="2" seed="7" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </svg>
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -29,9 +29,27 @@ global.CustomEvent = class CustomEvent {
 
 const { readJson, writeJson } = await import("../src/lib/learning/storage.ts");
 const { ensureCard, getSrsState, gradeCard, recordMistake, removeCard, removeCardsByKind, saveSrsState, summarizeSrs } = await import("../src/lib/learning/srs.ts");
-const { commitLessonSession, ensureLessonReviewCards, gradeReviewCardAndProgress, persistOutputReview, rollbackLessonReviewCards } = await import("../src/lib/learning/workspace.ts");
+const { commitLessonSession, ensureLessonReviewCards, gradeReviewCardAndProgress, submitReviewCardAndProgress, persistOutputReview, rollbackLessonReviewCards } = await import("../src/lib/learning/workspace.ts");
 const { defaultProgress, STORAGE_KEYS } = await import("../src/lib/learning/storage.ts");
 const { lessonQuestions } = await import("../src/lib/learning/quiz.ts");
+
+test("review conflicts identify stale, missing, not-due and storage failures without double grading", () => {
+  store.clear();
+  ensureCard("mistake:conflict", { kind: "mistake", itemId: "conflict", prompt: "p", answer: "a" });
+  const card = getSrsState().cards["mistake:conflict"];
+  assert.deepEqual(submitReviewCardAndProgress(card, true), { ok: true });
+  const saved = store.get(STORAGE_KEYS.srs);
+  assert.deepEqual(submitReviewCardAndProgress(card, true), { ok: false, reason: "stale" });
+  assert.equal(store.get(STORAGE_KEYS.srs), saved);
+  const updated = getSrsState().cards[card.id];
+  assert.deepEqual(submitReviewCardAndProgress(updated, true), { ok: false, reason: "not-due" });
+  try {
+    blockWrites = true;
+    assert.deepEqual(submitReviewCardAndProgress(updated, true, { allowEarly: true }), { ok: false, reason: "storage" });
+  } finally { blockWrites = false; }
+  removeCard(card.id);
+  assert.deepEqual(submitReviewCardAndProgress(updated, true), { ok: false, reason: "missing" });
+});
 
 test("recordMistake increments repeated wrong answers and keeps card due", () => {
   store.clear();

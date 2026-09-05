@@ -52,7 +52,7 @@ export function MasteryGate({
       </div>
       {missingAudioEvidence ? (
         <InlineAlert>
-          这项掌握记录必须包含真实听辨。当前音频题被跳过，所以不会写入听力能力；安装韩语语音后再试。
+          这项练习需要实际听辨。当前音频题被跳过，因此不会计入听力成绩；恢复音频播放后再试。
         </InlineAlert>
       ) : lastScore !== null && lastScore < GATE_PASS_SCORE ? (
         <InlineAlert>
@@ -76,12 +76,12 @@ export function MasteryGate({
           return score >= GATE_PASS_SCORE && !blockedBySkippedAudio ? persistenceFailed ? (
             <div className="grid gap-3">
               <InlineAlert>
-                小测已通过，但掌握记录和复习队列没有写入本地存储。请释放浏览器存储空间后重试。
+                小测已通过，但学习记录和复习卡没有保存。请释放浏览器空间后重试。
               </InlineAlert>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={persistPassedResult}>
                   <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-                  重试写入
+                  重试保存
                 </Button>
                 <Button type="button" variant="secondary" onClick={onClose}>
                   稍后再试
@@ -91,7 +91,7 @@ export function MasteryGate({
           ) : (
             <p className="flex items-center gap-2 font-bold text-[var(--muted)]" role="status">
               <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              小测已通过，掌握记录已写入。
+              小测已通过，学习记录和复习卡已保存。
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">

@@ -122,7 +122,7 @@ export const KIND_LABEL: Record<TaskKind, string> = {
   native: "表达",
   quiz: "测验",
   checkpoint: "规划",
-  immersion: "材料"
+  immersion: "听读"
 };
 
 export const KIND_GLYPH: Record<TaskKind, string> = {

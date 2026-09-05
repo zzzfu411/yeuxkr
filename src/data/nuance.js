@@ -82,7 +82,7 @@ export const nuanceSets = [
   },
   {
     id: "n-softeners",
-    title: "母语者的缓冲垫",
+    title: "让语气更柔和",
     level: "native",
     contrast: [
       "좀",

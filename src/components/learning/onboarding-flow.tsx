@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
@@ -13,13 +13,13 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { Surface } from "@/components/ui/section";
 import { nowIso } from "@/lib/learning/storage";
 import type { StudyGoal } from "@/lib/learning/types";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
-import { speakKorean } from "@/lib/speech";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+import { speakKorean, stopSpeech } from "@/lib/speech";
 
 const GOAL_OPTIONS: Array<{ id: StudyGoal; title: string; copy: string }> = [
-  { id: "foundation", title: "系统入门", copy: "从字母到日常对话，按路径稳步推进。" },
+  { id: "foundation", title: "从零开始", copy: "先学韩文和发音，再练日常对话。" },
   { id: "travel", title: "旅行应急", copy: "先掌握点餐、问路、购物这些马上要用的场景。" },
-  { id: "media", title: "追剧看内容", copy: "以听力和真实材料为核心，更快接触原声内容。" }
+  { id: "media", title: "追剧看内容", copy: "多练听力和情境听读，为接触原声内容打基础。" }
 ];
 
 const MINUTES_OPTIONS = [15, 30, 45];
@@ -35,9 +35,37 @@ export function OnboardingFlow() {
   const [minutes, setMinutes] = useState(30);
   const [typed, setTyped] = useState("");
   const [heardSample, setHeardSample] = useState(false);
+  const [sampleStatus, setSampleStatus] = useState<"idle" | "loading" | "failed">("idle");
+  const sampleRequestRef = useRef(0);
   const [saveError, setSaveError] = useState(false);
-  const canSkipVoice = voiceStatus === "missing" || voiceStatus === "unsupported";
+  const canSkipVoice = voiceStatus === "missing" || voiceStatus === "unsupported" || sampleStatus === "failed";
   const voiceReadyToContinue = heardSample || canSkipVoice;
+
+  useEffect(() => {
+    if (sampleStatus !== "loading") return;
+    const timeout = window.setTimeout(() => {
+      sampleRequestRef.current += 1;
+      stopSpeech();
+      setSampleStatus("failed");
+    }, 8000);
+    return () => window.clearTimeout(timeout);
+  }, [sampleStatus]);
+
+  useEffect(() => () => { sampleRequestRef.current += 1; stopSpeech(); }, [step]);
+
+  const playSample = () => {
+    const request = ++sampleRequestRef.current;
+    setSampleStatus("loading");
+    const started = speakKorean("안녕하세요", {
+      onstart: () => {
+        if (sampleRequestRef.current !== request) return;
+        setHeardSample(true);
+        setSampleStatus("idle");
+      },
+      onerror: () => { if (sampleRequestRef.current === request) setSampleStatus("failed"); }
+    });
+    if (!started) setSampleStatus("failed");
+  };
 
   const typedTarget = typed.trim() === "가";
 
@@ -52,7 +80,7 @@ export function OnboardingFlow() {
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-5">
       <div className="grid gap-3 border-b border-[var(--line)] pb-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <p className="eyebrow">Onboarding · 入门设置</p>
+        <p className="eyebrow">첫 만남 · 第一次见面</p>
         <ol className="grid grid-cols-4 gap-px border-x border-[var(--line)]" aria-label="设置进度">
           {STEP_TITLES.map((title, index) => (
             <li
@@ -82,10 +110,10 @@ export function OnboardingFlow() {
         <Surface className="p-0 md:p-0">
           <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
             <div className="paper-rail relative p-5 pt-8 md:p-8 md:pt-10">
-              <p className="eyebrow">첫 장 · First leaf</p>
-              <h1 className="inkline mt-3 font-serif text-4xl font-normal leading-tight md:text-5xl">你好，欢迎来学韩语。</h1>
+              <p className="eyebrow">첫 장면 · 先认识一下</p>
+              <h1 className="inkline mt-3 font-serif text-4xl font-normal leading-tight md:text-5xl">你好，从这里开始学韩语。</h1>
               <p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">
-                接下来的三步会把学习目标、发音和韩文输入都准备好，大概需要三分钟。之后你会直接进入第一课：认识韩文的拼块系统。
+                接下来选目标、试听韩语，再打出一个韩文字。大约三分钟，完成后直接进入第一课。
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button type="button" size="lg" onClick={() => setStep(1)}>
@@ -100,9 +128,6 @@ export function OnboardingFlow() {
                 >
                   我已有基础，直接进工作台
                 </Button>
-                <span className="seal-mark ml-auto hidden h-12 w-12 text-sm sm:inline-grid" aria-hidden="true">
-                  첫글
-                </span>
               </div>
             </div>
             <VisualPanel
@@ -118,7 +143,7 @@ export function OnboardingFlow() {
 
       {step === 1 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">둘째 장 · Intention</p>
+          <p className="eyebrow">둘째 장면 · 想先学会什么</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">这次学韩语，最想先做到什么？</h1>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {GOAL_OPTIONS.map((option, index) => (
@@ -176,34 +201,35 @@ export function OnboardingFlow() {
 
       {step === 2 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">셋째 장 · Voice check</p>
+          <p className="eyebrow">셋째 장면 · 听一听</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">先确认你能听到韩语。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
-            听力练习靠系统的韩语语音朗读。点一下试听，如果听到自然的“<span lang="ko">안녕하세요</span>”（你好）就没问题。
+            许多练习需要播放韩语。点一下试听，能听到“<span lang="ko">안녕하세요</span>”（你好）就可以继续。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" size="lg" onClick={() => {
-              speakKorean("안녕하세요", { onstart: () => setHeardSample(true) });
-            }}>
+            <Button type="button" disabled={sampleStatus === "loading"} variant="secondary" size="lg" onClick={playSample}>
               <Volume2 className="h-5 w-5" aria-hidden="true" />
               试听 <span lang="ko">안녕하세요</span>
             </Button>
             {voiceStatus === "ready" ? (
               <span className="flex items-center gap-1 text-sm text-[var(--ink-soft)]">
                 <CheckCircle2 className="h-4 w-4 text-[var(--seal)]" aria-hidden="true" />
-                已检测到韩语语音
+                可以播放韩语音频
               </span>
             ) : null}
           </div>
+          {sampleStatus === "failed" ? (
+            <InlineAlert className="mt-4">这次试听没有播放成功。请检查网络或音量后重新试听，也可以暂缓检查，先去打字；这不会计为听力练习。</InlineAlert>
+          ) : sampleStatus === "loading" ? <p className="mt-3 text-sm text-[var(--muted)]" role="status">正在加载试听音频…</p> : null}
           {voiceStatus === "missing" || voiceStatus === "unsupported" ? (
             <InlineAlert className="mt-4 border border-[var(--line)] bg-[var(--wash-2)] text-[var(--ink-soft)] shadow-none">
               {voiceStatus === "unsupported"
-                ? "当前浏览器不支持语音朗读，建议换用 Chrome / Edge / Safari。没有语音也可以先学，之后再补。"
-                : "没有检测到韩语语音包。可以先继续学习，之后按提示在系统里安装韩语语音（Windows：设置 → 时间和语言 → 语音 → 添加 한국어）。"}
+                ? "这个浏览器不能朗读韩语。你可以先学，也可以换用 Chrome、Edge 或 Safari。"
+                : "没有找到韩语语音。可以先继续，之后再按提示安装系统韩语语音包。"}
             </InlineAlert>
           ) : null}
           <details className="mt-4 text-sm text-[var(--muted)]">
-            <summary className="cursor-pointer font-bold">调整语音和语速</summary>
+            <summary className="min-h-11 cursor-pointer py-3 font-bold">调整语音和语速</summary>
             <SpeechSettings className="mt-3" />
           </details>
           <div className="mt-6 flex justify-between gap-3">
@@ -220,11 +246,11 @@ export function OnboardingFlow() {
 
       {step === 3 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">넷째 장 · First syllable</p>
+          <p className="eyebrow">넷째 장면 · 打出第一个字</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">用屏幕键盘打出第一个韩文字。</h1>
           <p className="mt-3 max-w-xl leading-7 text-[var(--muted)]">
-            练习里会有输入题，不需要安装韩语输入法。点开“韩文键盘”，先按 <strong className="hangul-display" lang="ko">ㄱ</strong>，再按{" "}
-            <strong className="hangul-display" lang="ko">ㅏ</strong>，它们会自动拼成 <strong className="hangul-display" lang="ko">가</strong>。完成这一步后才能进入第一课。
+            不用安装韩语输入法。打开“韩文键盘”，先按 <strong className="hangul-display" lang="ko">ㄱ</strong>，再按{" "}
+            <strong className="hangul-display" lang="ko">ㅏ</strong>，它们会拼成 <strong className="hangul-display" lang="ko">가</strong>。
           </p>
           <div className="mt-5">
             <KoreanInput value={typed} onChange={setTyped} placeholder="目标：가" ariaLabel="试打韩文" />
@@ -232,11 +258,11 @@ export function OnboardingFlow() {
           {typedTarget ? (
             <p className="mt-3 flex items-center gap-2 text-[var(--ink-soft)]">
               <CheckCircle2 className="h-5 w-5 text-[var(--seal)]" aria-hidden="true" />
-              成功！你已经拼出了第一个韩文音节。
+              你已经拼出了第一个韩文音节。
             </p>
           ) : null}
           {saveError ? (
-            <InlineAlert className="mt-4 border border-[var(--seal)] bg-[var(--seal-soft)] shadow-none">设置没有写入本地存储，请检查浏览器存储权限后重试。</InlineAlert>
+            <InlineAlert className="mt-4 border border-[var(--seal)] bg-[var(--seal-soft)] shadow-none">设置没有保存。请允许本站使用浏览器存储后重试。</InlineAlert>
           ) : null}
           <div className="mt-6 flex flex-wrap justify-between gap-3">
             <Button type="button" variant="secondary" onClick={() => setStep(2)}>
@@ -256,7 +282,7 @@ export function OnboardingFlow() {
       ) : null}
 
       <p className="text-center text-xs leading-5 text-[var(--muted)]">
-        所有设置都保存在本地，之后可以随时在 <Link className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]" href="/settings">设置</Link> 里修改。
+        设置只保存在这台设备上，之后可以随时到 <Link className="underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]" href="/settings">设置</Link> 修改。
       </p>
     </div>
   );

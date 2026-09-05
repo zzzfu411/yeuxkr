@@ -6,7 +6,7 @@ import { SpeechSettings } from "@/components/korean/speech-settings";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const ROMANIZATION_OPTIONS = [
   { id: "fade", label: "起步后折叠", copy: "前 6 课直接显示，之后按需点开。" },
@@ -26,7 +26,7 @@ export default function SettingsPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Settings"
+        kicker="설정 · 设置"
         title="学习设置"
         copy="学习模式、每日时长、罗马音显示和韩语语音都在这里调整。所有设置只保存在本地浏览器。"
         compact
@@ -34,7 +34,7 @@ export default function SettingsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Surface>
-          <SectionHeading kicker="Profile" title="学习偏好" />
+          <SectionHeading kicker="공부 방식 · 学习方式" title="学习偏好" />
           <div className="grid gap-4">
             <label className="grid gap-1 text-sm font-extrabold">
               昵称
@@ -109,17 +109,17 @@ export default function SettingsPage() {
               </div>
             </div>
             {status === "saved" ? <InlineAlert tone="success">设置已保存。</InlineAlert> : null}
-            {status === "error" ? <InlineAlert>设置没有写入本地存储，请检查浏览器存储权限。</InlineAlert> : null}
+            {status === "error" ? <InlineAlert>设置没有保存。请允许本站使用浏览器存储后重试。</InlineAlert> : null}
           </div>
         </Surface>
 
         <div className="grid content-start gap-4">
           <Surface>
-            <SectionHeading kicker="Speech" title="韩语语音" copy="所有听力练习都用这里选定的语音朗读。" />
+            <SectionHeading kicker="한국어 소리 · 韩语语音" title="韩语语音" copy="课程优先播放配套录音。没有配套录音的动态文本使用这里选定的系统备用语音。" />
             <SpeechSettings />
           </Surface>
           <Surface>
-            <SectionHeading kicker="Data" title="备份与迁移" copy="学习数据只存在本浏览器。换设备或清缓存前，用页面顶部的「导出」按钮保存备份文件，再用「导入」恢复。麦克风录音不会写入备份，迁移后相关口语证据需要重新录制。" />
+            <SectionHeading kicker="내 기록 · 学习记录" title="备份与迁移" copy="学习数据只存在当前浏览器。换设备或清理缓存前，请先从页面顶部导出备份，再在新设备导入。麦克风录音不会随备份导出，换设备后需要重新录制。" />
             <p className="flex items-center gap-2 text-sm font-bold text-[var(--muted)]">
               <Save className="h-4 w-4" aria-hidden="true" />
               顶部工具栏：导出 / 导入 / 存储 / 重置

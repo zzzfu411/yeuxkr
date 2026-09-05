@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Volume2 } from "lucide-react";
+import { LibraryPagination, useLibraryPage } from "@/components/ui/library-pagination";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -13,12 +14,12 @@ import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui
 import { TrackRow } from "@/components/ui/track-row";
 import { grammarPoints } from "@/data/grammar";
 import { speakKorean } from "@/lib/speech";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const levelLabels: Record<string, string> = {
   foundation: "基础骨架",
   growth: "连续表达",
-  native: "母语者语法"
+  native: "进阶语法"
 };
 
 export default function GrammarPage() {
@@ -29,7 +30,6 @@ export default function GrammarPage() {
   const [levelFilter, setLevelFilter] = useState("all");
   const [onlyLearned, setOnlyLearned] = useState(false);
   const [srsErrorId, setSrsErrorId] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filteredPoints = useMemo(() => {
@@ -49,21 +49,20 @@ export default function GrammarPage() {
       return matchesLevel && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
   }, [learned, levelFilter, onlyLearned, query]);
-  const focusedFilterActive = Boolean(query.trim()) || levelFilter !== "all" || onlyLearned;
-  const visiblePoints = showAll || focusedFilterActive ? filteredPoints : filteredPoints.slice(0, 6);
-  const hiddenPointCount = Math.max(0, filteredPoints.length - visiblePoints.length);
+  const pagination = useLibraryPage(filteredPoints, JSON.stringify([query, levelFilter, onlyLearned]), 6);
+  const visiblePoints = pagination.items;
   const byLevel = groupBy(visiblePoints, "level");
   const levelCounts = countBy(filteredPoints, "level");
   const activeFilters = [
     levelFilter !== "all" ? levelLabels[levelFilter] ?? levelFilter : null,
-    onlyLearned ? "已加入 SRS" : null,
+    onlyLearned ? "已加入复习" : null,
     query.trim() ? `搜索：${query.trim()}` : null
   ].filter(Boolean);
   const resetFilters = () => {
     setQuery("");
     setLevelFilter("all");
     setOnlyLearned(false);
-    setShowAll(false);
+    pagination.setPage(0);
   };
   const toggleGrammarSrs = (pointId: string) => {
     if (toggleGrammar(pointId)) {
@@ -85,38 +84,22 @@ export default function GrammarPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Sentence Workshop"
-        title="语法以“能说什么”为单位。"
-        copy="这里不是术语索引，而是句型工坊。每个结构都要能替换、扩展、改写，最后进入真实表达。"
+        kicker="문장 만들기 · 造句"
+        title="按“想说什么”来学语法。"
+        copy="先看结构和例句，再换成自己的内容。能独立造句后，再把它加入复习。"
         compact
       />
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把语法掌握写入核心路径。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，之后的语法练习才会计入学习进度。" />
       <LibraryGateNotice focus="grammar" />
 
-      <ModuleHero
-        kicker={`${filteredPoints.length}/${grammarPoints.length} patterns`}
-        title="从骨架到语气。"
-        copy="韩语语法不该孤立背规则。新的学习模型会把语法点和课程、词汇、输出任务连接起来，让用户从理解走到调用。"
-        asset="grammar"
-        imageClassName="min-h-80 rounded-none border-0"
-      >
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
-          {Object.entries(levelLabels).map(([id, label]) => (
-            <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-              <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
-              <strong className="mt-1 block">{label}</strong>
-              <span className="text-sm font-bold text-[var(--ocean)]">{levelCounts[id] ?? 0} shown</span>
-            </div>
-          ))}
-        </div>
-      </ModuleHero>
+
 
       <Surface>
         <SectionHeading
-          kicker="Pattern Console"
+          kicker="골라 연습하기 · 选择练习"
           title="筛选要练的句型"
-          copy="搜索会同时匹配结构、中文含义、韩语例句、坑点提示。先按层级缩小范围，再把能造句的结构加入 SRS。"
+          copy="可以按阶段筛选，也可以搜索结构、含义或例句。先练一小组，能造句后再加入间隔复习。"
           action={activeFilters.length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               重置筛选
@@ -124,7 +107,7 @@ export default function GrammarPage() {
           ) : null}
         />
         <div className="grid gap-4">
-          <SearchField label="搜索语法" value={query} onChange={setQuery} placeholder="输入 结构 / 韩语例句 / 中文含义 / 坑点" />
+          <SearchField label="搜索语法" value={query} onChange={setQuery} placeholder="输入结构、韩语例句或中文含义" />
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
             <SegmentedFilter
               label="语法层级"
@@ -132,33 +115,25 @@ export default function GrammarPage() {
               options={[{ id: "all", label: "全部" }, ...Object.entries(levelLabels).map(([id, label]) => ({ id, label: `${label} ${levelCounts[id] ?? 0}` }))]}
               onChange={setLevelFilter}
             />
-            <CheckboxFilter label="只看已加入 SRS" checked={onlyLearned} onChange={setOnlyLearned} />
+            <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredPoints.length} filters={activeFilters} />
-          {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <span>
-                当前先显示 {visiblePoints.length} 个今日句型切片；每个句型都需要先听例句、替换成自己的句子，再加入 SRS。掌握后再展开剩余 {hiddenPointCount} 个句型。
-              </span>
-              {showAll || hiddenPointCount ? (
-                <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起到今日切片" : "展开全部句型"}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+
         </div>
       </Surface>
 
+      <div id="library-results" tabIndex={-1} className="focus-ring scroll-mt-40">
+        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法分页" resultsId="library-results" />
+      </div>
       {!filteredPoints.length ? (
         <Surface>
-          <EmptyState title="没有匹配的语法点" copy="换一个搜索词，或重置层级和 SRS 筛选。" onAction={resetFilters} />
+          <EmptyState title="没有匹配的语法点" copy="换一个搜索词，或重置阶段和复习筛选。" onAction={resetFilters} />
         </Surface>
       ) : null}
 
       {Object.entries(byLevel).map(([level, points]) => (
         <Surface key={level} variant="plain">
-          <SectionHeading kicker={`${level} · 当前 ${points.length} shown · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
+          <SectionHeading kicker={`${level} · 显示 ${points.length} · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
           <div>
             {points.map((point: any, pointIndex: number) => (
               <TrackRow
@@ -202,7 +177,7 @@ export default function GrammarPage() {
                 </div>
                 {learned.has(point.id) ? (
                   <Button className="mt-4" type="button" variant="secondary" size="sm" onClick={() => toggleGrammarSrs(point.id)}>
-                    已掌握 · 点击移出
+                    已加入复习 · 点击移出
                   </Button>
                 ) : (
                   <Button
@@ -214,7 +189,7 @@ export default function GrammarPage() {
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === point.id ? "" : point.id))}
                   >
-                    测一测 · 加入语法复习
+                    测一测，再加入复习
                   </Button>
                 )}
                 {gateItemId === point.id && !learned.has(point.id) ? (
@@ -236,6 +211,28 @@ export default function GrammarPage() {
           </div>
         </Surface>
       ))}
+      <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法底部分页" resultsId="library-results" />
+      <details className="library-about">
+        <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">了解语法练习方法与内容规模</summary>
+      <ModuleHero
+        priority={false}
+        kicker={`${filteredPoints.length}/${grammarPoints.length} 个句型`}
+        title="先看懂结构，再说自己的句子。"
+        copy="语法会和课程、词汇及输出练习一起出现，帮助你把规则真正用起来。"
+        asset="grammar"
+        imageClassName="min-h-80 rounded-none border-0"
+      >
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
+          {Object.entries(levelLabels).map(([id, label]) => (
+            <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
+              <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
+              <strong className="mt-1 block">{label}</strong>
+              <span className="text-sm font-bold text-[var(--ocean)]">显示 {levelCounts[id] ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </ModuleHero>
+      </details>
     </div>
   );
 }
@@ -264,7 +261,7 @@ function normalizeSearch(value: string) {
 function SrsError() {
   return (
     <InlineAlert className="mt-3">
-      这张语法卡没有写入成功，请释放浏览器存储空间或关闭隐私限制后再试。
+      这张语法卡没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
     </InlineAlert>
   );
 }

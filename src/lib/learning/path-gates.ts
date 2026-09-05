@@ -24,10 +24,10 @@ export type LibraryGate = {
 
 const LABELS: Record<keyof LibraryCounts, string> = {
   hangul: "韩文掌握",
-  vocab: "词汇入册",
-  grammar: "语法入册",
-  materials: "材料完成",
-  native: "母语者证据"
+  vocab: "已学词汇",
+  grammar: "已学语法",
+  materials: "情境听读",
+  native: "自然表达"
 };
 
 const HREFS: Record<keyof LibraryCounts, string> = {

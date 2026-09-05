@@ -1,7 +1,7 @@
 {
   "name": "Kirina Korean",
   "short_name": "Kirina",
-  "description": "纸上的韩语学习手帖：课程、复习、听写与真实材料。",
+  "description": "在四季韩剧场景里学习、复习、听读与开口表达。",
   "id": "/",
   "lang": "zh-CN",
   "dir": "ltr",
@@ -11,8 +11,8 @@
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "categories": ["education", "productivity"],
-  "background_color": "#d8d3cc",
-  "theme_color": "#d8d3cc",
+  "background_color": "#f4f6f5",
+  "theme_color": "#f4f6f5",
   "icons": [
     {
       "src": "/assets/icon-192.png",
@@ -83,14 +83,14 @@
       "sizes": "1440x980",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Kirina Korean 桌面纸张主题与今日学习"
+      "label": "Kirina Korean 桌面端四季场景与今日学习"
     },
     {
       "src": "/assets/screenshots/home-narrow.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Kirina Korean 移动端纸张主题与今日学习"
+      "label": "Kirina Korean 移动端四季场景与今日学习"
     }
   ]
 }

@@ -15,7 +15,7 @@ import {
 
 type VoiceStatus = "unsupported" | "loading" | "ready" | "missing";
 type PlaybackError = {
-  reason?: "unsupported" | "voice-unavailable" | "synthesis-error" | "asset-unavailable" | "audio-error";
+  reason?: "unsupported" | "voice-unavailable" | "synthesis-error" | "asset-unavailable" | "audio-error" | "needs-gesture";
   error?: string;
   offline?: boolean;
 };
@@ -81,7 +81,7 @@ export function SpeechStatusBanner() {
               : "未检测到韩语语音包；听力题会跳过且不计分。")}
             {!playbackError && status === "missing" ? (
               <details className="mt-1 font-normal text-[var(--ink)]">
-                <summary className="cursor-pointer font-bold">安装韩语语音包</summary>
+                <summary className="min-h-11 cursor-pointer py-3 font-bold">安装韩语语音包</summary>
                 <ul className="mt-1 list-disc pl-5">
                   <li>Windows：设置 → 时间和语言 → 语音 → 添加语音 → 한국어（韩语）。</li>
                   <li>macOS / iOS：设置 → 辅助功能 → 朗读内容 → 声音 → 添加韩语语音。</li>
@@ -121,6 +121,9 @@ function getPlaybackErrorMessage(error: PlaybackError) {
   }
   if (error.reason === "asset-unavailable") {
     return "本次内容没有课程录音，且当前浏览器没有可用的韩语系统语音。";
+  }
+  if (error.reason === "needs-gesture" || error.error === "NotAllowedError" || error.error === "play-rejected" || error.error === "not-allowed") {
+    return "浏览器阻止了本次自动播放；点一次「听」或「播放」即可继续，不代表设备无法播放韩语。";
   }
   if (error.reason === "audio-error") {
     return error.error === "NotAllowedError"

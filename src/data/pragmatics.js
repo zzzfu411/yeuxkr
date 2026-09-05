@@ -103,7 +103,7 @@ export const pragmaticScenarios = [
     id: "p-media-reaction",
     level: "native",
     title: "看剧/综艺后的反应",
-    goal: "像母语者一样表达情绪、反转和评价。",
+    goal: "更自然地表达情绪、转折和评价。",
     context: "媒体讨论常用夸张、语气副词和省略。",
     lines: [
       {

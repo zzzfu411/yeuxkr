@@ -15,7 +15,7 @@ import { hangulGroups, pronunciationPairs, syllableLabs } from "@/data/hangul";
 import { soundChangeRules } from "@/data/sound-changes";
 import { decomposeSyllable } from "@/lib/korean/jamo";
 import { pronunciationCardId, soundChangeCardId } from "@/lib/learning/ids";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
 export default function HangulPage() {
@@ -49,19 +49,19 @@ export default function HangulPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        kicker="Hangul Studio"
-        title="先听清楚，再把字形写进眼睛里。"
-        copy="韩文不是线性字母表，而是声音与字形压缩成音节块。这一页像摊开的练习纸：拆结构、听差异、把掌握项送进 SRS。"
+        kicker="한글 · 韩文"
+        title="先认清字形，再听清发音。"
+        copy="韩文字母会组合成音节块。这里可以拆结构、听对比，也能把学会的内容加入间隔复习。"
         compact
       />
 
-      <OnboardingGateNotice copy="先完成三分钟入门，再把字母掌握写入核心路径。" />
+      <OnboardingGateNotice copy="先完成三分钟入门，之后的韩文练习才会计入学习进度。" />
       <LibraryGateNotice focus="hangul" />
 
       <ModuleHero
-        kicker="Syllable Lab"
-        title="先拆开音节块，再听它怎么发声。"
-        copy="每个韩文字块都由初声、中声和可选终声压缩而成。罗马化只帮助查找，真正发音以字母位置、IPA 和播放音频为准。"
+        kicker="글자 조립 · 拼字"
+        title="拆开一个音节，看看每个字母放在哪里。"
+        copy="音节块由初声、中声和可选的终声组成。罗马音只作提示，发音请以字母位置、IPA 和音频为准。"
         asset="hangul"
         imageClassName="min-h-80 border-0"
       >
@@ -84,7 +84,7 @@ export default function HangulPage() {
 
       {hangulGroups.map((group: any) => (
         <Surface key={group.id} variant="plain">
-          <SectionHeading kicker={group.track} title={group.title} copy={group.summary} />
+          <SectionHeading kicker={group.track === "sound" ? "소리 · 发音" : "글자 · 字形"} title={group.title} copy={group.summary} />
           <div>
             {group.items.map((item: any, itemIndex: number) => {
               const soundRole = getSoundRole(group.id);
@@ -139,7 +139,7 @@ export default function HangulPage() {
                   <p className="text-xs font-bold leading-5 text-[var(--muted)]">{relation}</p>
                   {mastered.has(item.id) ? (
                     <Button type="button" variant="secondary" size="sm" onClick={() => toggleSrs(`hangul:${item.id}`, () => toggleHangul(item.id))}>
-                      已掌握 · 点击移出
+                      已加入复习 · 点击移出
                     </Button>
                   ) : (
                     <Button
@@ -150,7 +150,7 @@ export default function HangulPage() {
                       disabled={enrollBlocked}
                       onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
                     >
-                      测一测 · 加入掌握
+                      测一测，再加入复习
                     </Button>
                   )}
                   {gateItemId === item.id && !mastered.has(item.id) ? (
@@ -176,7 +176,7 @@ export default function HangulPage() {
       ))}
 
       <Surface variant="plain">
-        <SectionHeading kicker="Minimal Pairs" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
+        <SectionHeading kicker="소리 비교 · 对比发音" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
         <div id="pairs">
           {pronunciationPairs.map((pair: any, pairIndex: number) => (
             <TrackRow
@@ -201,7 +201,7 @@ export default function HangulPage() {
                   className="mt-3"
                   onClick={() => toggleSrs(`pronunciation:${pair.id}`, () => togglePronunciation(pair.id))}
                 >
-                  已加入 SRS · 点击移出
+                  已加入复习 · 点击移出
                 </Button>
               ) : (
                 <Button
@@ -213,7 +213,7 @@ export default function HangulPage() {
                   disabled={enrollBlocked}
                   onClick={() => setGateItemId((current) => (current === pair.id ? "" : pair.id))}
                 >
-                  测一测 · 加入听辨复习
+                  测一测，再加入听辨复习
                 </Button>
               )}
               {gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id)) ? (
@@ -237,7 +237,7 @@ export default function HangulPage() {
 
       <Surface variant="plain">
         <SectionHeading
-          kicker="Sound Change Lab"
+          kicker="이어 읽기 · 连读音变"
           title="音变实验室"
           copy="韩语“写的”和“读的”经常不一样。每条规则都把标准拼写与实际读音并列；播放时边听边对照方括号里的读法，若设备语音与标注不一致，以标注为准。"
         />
@@ -284,7 +284,7 @@ export default function HangulPage() {
                 </div>
                 {added ? (
                   <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={() => toggleSrs(cardId, () => toggleSoundChange(rule.id))}>
-                    已加入听辨复习 · 点击移出
+                    已加入复习 · 点击移出
                   </Button>
                 ) : (
                   <Button
@@ -296,7 +296,7 @@ export default function HangulPage() {
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === rule.id ? "" : rule.id))}
                   >
-                    测一测 · 加入听辨复习
+                    测一测，再加入听辨复习
                   </Button>
                 )}
                 {gateItemId === rule.id && !added ? (
@@ -353,7 +353,7 @@ function getExampleRelation(item: { glyph: string; example: string; ipa: string 
 function SrsError({ className }: { className?: string }) {
   return (
     <InlineAlert className={className}>
-      这张复习卡没有写入成功，请释放浏览器存储空间或关闭隐私限制后再试。
+      这张复习卡没有保存。请释放浏览器空间，或允许本站使用本地存储后重试。
     </InlineAlert>
   );
 }

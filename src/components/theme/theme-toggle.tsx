@@ -6,10 +6,10 @@ const THEME_EVENT = "yeuxkr-theme";
 const THEME_KEY = "yeuxkr.theme";
 
 const THEMES = [
-  { id: "yuan", label: "原纸", swatch: "#d8d3cc" },
-  { id: "yue", label: "月白", swatch: "#d3d6da" },
-  { id: "qing", label: "淡青", swatch: "#cdd6cf" },
-  { id: "ye", label: "夜墨", swatch: "#2a2733" },
+  { id: "yuan", label: "春日", ko: "봄", swatch: "#f4f6f5" },
+  { id: "yue", label: "雨季", ko: "여름", swatch: "#dfecea" },
+  { id: "qing", label: "晚秋", ko: "가을", swatch: "#e8e1da" },
+  { id: "ye", label: "蓝夜", ko: "겨울", swatch: "#172238" },
 ] as const;
 
 type Theme = (typeof THEMES)[number]["id"];
@@ -65,30 +65,49 @@ export function ThemeToggle() {
     () => "yuan" as Theme,
   );
 
-  return (
-    <div className="theme-toggle" role="group" aria-label="纸张主题">
-      {THEMES.map((theme) => {
-        const active = activeTheme === theme.id;
+  const active = THEMES.find((theme) => theme.id === activeTheme) ?? THEMES[0];
 
-        return (
-          <button
-            key={theme.id}
-            type="button"
-            className={`theme-toggle__option${active ? " is-active" : ""}`}
-            data-theme-option={theme.id}
-            title={theme.label}
-            aria-label={theme.label}
-            aria-pressed={active}
-            onClick={() => applyTheme(theme.id)}
-          >
-            <span
-              className="theme-toggle__swatch"
-              style={{ backgroundColor: theme.swatch }}
-              aria-hidden="true"
-            />
-          </button>
-        );
-      })}
-    </div>
+  return (
+    <details className="season-switcher" onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.currentTarget.removeAttribute("open");
+        event.currentTarget.querySelector("summary")?.focus();
+      }
+    }}>
+      <summary className="season-trigger focus-ring" aria-label={`季节主题：${active.label}`}>
+        <span className="theme-toggle__swatch" style={{ backgroundColor: active.swatch }} aria-hidden="true" />
+        <span>{active.label}</span>
+      </summary>
+      <span className="theme-toggle">
+        {THEMES.map((theme) => {
+          const selected = activeTheme === theme.id;
+
+          return (
+            <button
+              key={theme.id}
+              type="button"
+              className={`theme-toggle__option${selected ? " is-active" : ""}`}
+              data-theme-option={theme.id}
+              title={`${theme.ko} · ${theme.label}`}
+              aria-label={`${theme.ko} · ${theme.label}`}
+              aria-pressed={selected}
+              onClick={(event) => {
+                applyTheme(theme.id);
+                const menu = event.currentTarget.closest("details");
+                menu?.removeAttribute("open");
+                menu?.querySelector("summary")?.focus();
+              }}
+            >
+              <span
+                className="theme-toggle__swatch"
+                style={{ backgroundColor: theme.swatch }}
+                aria-hidden="true"
+              />
+              <span>{theme.label}</span>
+            </button>
+          );
+        })}
+      </span>
+    </details>
   );
 }

@@ -9,9 +9,13 @@ import { getNativePortfolioStateFromRaw } from "./native-portfolio.ts";
 import { normalizeLearningProgress, normalizeUserProfile } from "./workspace.ts";
 import { normalizeSpeechSettings } from "../speech.js";
 import { clearLearningRecordings } from "./recordings.ts";
+import { isPlainRecord, validateBackupEntry } from "./backup-schema.ts";
 
 export const LEARNING_BACKUP_VERSION = 1;
 export const LEARNING_BACKUP_KEYS = Object.values(STORAGE_KEYS);
+/** Keep imports below the browser's typical local-storage quota and bound JSON parsing work. */
+export const MAX_LEARNING_BACKUP_BYTES = 4 * 1024 * 1024;
+export const MAX_LEARNING_BACKUP_TEXT_LENGTH = MAX_LEARNING_BACKUP_BYTES;
 
 export interface LearningBackup {
   version: typeof LEARNING_BACKUP_VERSION;
@@ -41,13 +45,40 @@ export function createLearningBackup(now = Date.now()): LearningBackup | null {
 }
 
 export function parseLearningBackupText(input: string): LearningBackup | null {
-  return normalizeLearningBackup(parseJson<Partial<LearningBackup>>(input, {}), { strictEntries: true });
+  return inspectLearningBackupText(input).backup;
+}
+
+export function inspectLearningBackupText(input: string): { backup: LearningBackup | null; error: string } {
+  if (typeof input !== "string" || input.length > MAX_LEARNING_BACKUP_TEXT_LENGTH || new TextEncoder().encode(input).byteLength > MAX_LEARNING_BACKUP_BYTES) {
+    return { backup: null, error: "备份超过 4 MB，无法导入。" };
+  }
+  let value: unknown;
+  try { value = JSON.parse(input); } catch { return { backup: null, error: "文件不是有效的 JSON 备份。" }; }
+  if (!isPlainRecord(value) || value.version !== LEARNING_BACKUP_VERSION || value.app !== "kirina-korean" || !isPlainRecord(value.entries)) {
+    return { backup: null, error: "备份格式或版本不受支持，请选择 Kirina Korean 导出的文件。" };
+  }
+  for (const [key, raw] of Object.entries(value.entries)) {
+    const error = validateBackupEntry(key, raw);
+    if (error) return { backup: null, error: `文件无效：${error}。本机数据未更改。` };
+  }
+  return { backup: normalizeLearningBackup(value, { strictEntries: true }), error: "" };
+}
+
+export function summarizeLearningBackup(backup: LearningBackup) {
+  const progress = parseJson<Partial<ReturnType<typeof defaultProgress>>>(backup.entries[STORAGE_KEYS.progress] ?? null, {});
+  const srs = getSrsStateFromRaw(backup.entries[STORAGE_KEYS.srs] ?? null);
+  return {
+    lessons: progress.completedLessons?.length ?? 0,
+    cards: Object.keys(srs.cards).length,
+    outputs: getOutputStateFromRaw(backup.entries[STORAGE_KEYS.outputs] ?? null).entries.length + getNativePortfolioStateFromRaw(backup.entries[STORAGE_KEYS.nativePortfolio] ?? null).entries.length,
+    missingKeys: LEARNING_BACKUP_KEYS.filter((key) => key !== STORAGE_KEYS.mistakes && !(key in backup.entries))
+  };
 }
 
 /** Returns true only when both managed storage and recording blobs are replaced. */
 export async function restoreLearningBackup(input: LearningBackup): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  const backup = normalizeLearningBackup(input);
+  const backup = normalizeLearningBackup(input, { strictEntries: true });
   if (!backup) return false;
   return applyLearningEntriesAndClearRecordings(backup.entries);
 }
@@ -64,8 +95,8 @@ export function normalizeLearningBackup(input: Partial<LearningBackup> | null | 
   const entries: LearningBackup["entries"] = {};
   for (const key of LEARNING_BACKUP_KEYS) {
     const raw = input.entries[key];
+    if (options.strictEntries && key in input.entries && validateBackupEntry(key, raw)) return null;
     if (typeof raw !== "string") continue;
-    if (options.strictEntries && !isValidStoredEntry(key, raw)) return null;
     const normalized = normalizeStoredEntry(key, raw);
     if (normalized !== null) entries[key] = normalized;
   }
@@ -75,12 +106,6 @@ export function normalizeLearningBackup(input: Partial<LearningBackup> | null | 
     exportedAt: safeIso(input.exportedAt),
     entries
   };
-}
-
-function isPlainRecord(input: unknown): input is Record<string, unknown> {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
-  const prototype = Object.getPrototypeOf(input);
-  return prototype === Object.prototype || prototype === null;
 }
 
 async function applyLearningEntriesAndClearRecordings(entries: Partial<Record<string, string>>) {
@@ -103,17 +128,6 @@ function applyLearningEntries(entries: Partial<Record<string, string>>, snapshot
     return true;
   } catch {
     rollbackLearningStorage(snapshot);
-    return false;
-  }
-}
-
-function isValidStoredEntry(key: string, raw: string) {
-  if (key === STORAGE_KEYS.mistakes) return true;
-  if (!LEARNING_BACKUP_KEYS.includes(key)) return false;
-  try {
-    JSON.parse(raw);
-    return true;
-  } catch {
     return false;
   }
 }

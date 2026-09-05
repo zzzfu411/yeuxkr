@@ -157,7 +157,7 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
     cancelAnimationFrame() {},
     matchMedia() { return { matches: false }; }
   };
-  const { AppShell } = loadComponent("src/components/layout/app-shell.tsx", {
+  const { AppShellContent: AppShell } = loadComponent("src/components/layout/app-shell.tsx", {
     react: hooks.react,
     "next/link": { default: "Link" },
     "next/image": { default: "Image" },
@@ -176,7 +176,8 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
       }
     },
     "@/lib/utils": { cn }
-  }, { window });
+    ,"@/lib/learning/use-learning-workspace": { LearningWorkspaceProvider: "LearningWorkspaceProvider" }
+  }, { window }, source => source.replace("function AppShellContent", "export function AppShellContent"));
 
   hooks.render(AppShell, { children: "page" });
   assert.equal(stops, 0);
@@ -434,8 +435,82 @@ test("re-recording overwrites an unsaved recording instead of orphaning its blob
   }
 });
 
+test("LessonResultActions latches the first save click until success or error retry", () => {
+  const hooks = createHookHarness();
+  const { LessonResultActions } = loadLessonEvidencePanels(hooks, {});
+  let saves = 0;
+  const props = createLessonResultActionsProps({
+    onSave() {
+      saves += 1;
+      return true;
+    }
+  });
+
+  let tree = hooks.render(LessonResultActions, props);
+  const continueButton = findButton(tree, "继续");
+  continueButton.props.onClick();
+  continueButton.props.onClick();
+  assert.equal(saves, 1);
+
+  tree = hooks.render(LessonResultActions, props);
+  assert.equal(findButton(tree, "继续").props.disabled, true);
+
+  const previewHooks = createHookHarness();
+  const previewPanels = loadLessonEvidencePanels(previewHooks, {});
+  let previewSaves = 0;
+  let previewTree = previewHooks.render(previewPanels.LessonResultActions, createLessonResultActionsProps({
+    score: 80,
+    assessment: {
+      overallPassed: true,
+      productionRequired: true,
+      productionPassed: false,
+      productionCorrect: 0,
+      productionTotal: 1,
+      listeningRequired: false,
+      listeningPassed: true,
+      listeningDeferred: false,
+      listeningSkipped: false,
+      listeningCorrect: 0,
+      listeningTotal: 0,
+      corePassed: false
+    },
+    onSave() {
+      previewSaves += 1;
+      return true;
+    }
+  }));
+  const previewButton = findButton(previewTree, "保存本次结果");
+  previewButton.props.onClick();
+  previewButton.props.onClick();
+  assert.equal(previewSaves, 1);
+
+  const errorHooks = createHookHarness();
+  const errorPanels = loadLessonEvidencePanels(errorHooks, {});
+  let retries = 0;
+  let errorTree = errorHooks.render(errorPanels.LessonResultActions, createLessonResultActionsProps({
+    saveError: true,
+    onSave() {
+      retries += 1;
+      return false;
+    }
+  }));
+  const retryButton = findButton(errorTree, "重新保存");
+  retryButton.props.onClick();
+  assert.equal(retries, 1);
+  errorTree = errorHooks.render(errorPanels.LessonResultActions, createLessonResultActionsProps({
+    saveError: true,
+    onSave() {
+      retries += 1;
+      return true;
+    }
+  }));
+  findButton(errorTree, "重新保存").props.onClick();
+  findButton(errorTree, "重新保存").props.onClick();
+  assert.equal(retries, 2);
+});
+
 test("recording controls stay locked until the asynchronous blob write finishes", async (context) => {
-  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  const source = readFileSync("src/components/learning/lesson-evidence-panels.tsx", "utf8");
   assert.match(source, /disabled={!check\.ready \|\| recording \|\| startingRecording \|\| savingRecording}/);
   assert.match(source, /const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence/);
   assert.match(source, /if \(recording \|\| startingRecording \|\| savingRecording\)/);
@@ -526,6 +601,462 @@ test("lesson evidence panels hydrate persisted drafts without overwriting local 
   assert.equal(findElements(tree, (node) => node.type === "input").some((node) => node.props.value === persistedCapstone.weakPoint), true);
 });
 
+test("missing recording entities clear optimistic save baselines", async (context) => {
+  await context.test("shadowing fallback", async () => {
+    const hooks = createHookHarness();
+    const expectedRecordingIds = [];
+    let invalidatedRecordingId = "";
+    const { LessonTaskEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) },
+      recordingOverrides: { loadLearningRecording: async () => null }
+    });
+    const persisted = {
+      kind: "shadowing",
+      text: "저는 기억한 문장을 다시 말합니다.",
+      recordedSeconds: 4.2,
+      recordingId: "shadowing:missing",
+      updatedAt: "2026-09-02T00:00:00.000Z"
+    };
+    const props = createShadowingPanelProps({
+      evidence: persisted,
+      onInvalidateRecording: (_lessonId, recordingId) => {
+        invalidatedRecordingId = recordingId;
+        return true;
+      },
+      onSave: (_lessonId, _input, expectedRecordingId) => {
+        expectedRecordingIds.push(expectedRecordingId);
+        return true;
+      }
+    });
+
+    hooks.render(LessonTaskEvidencePanel, props);
+    await new Promise((resolve) => setImmediate(resolve));
+    const clearedProps = { ...props, evidence: undefined };
+    const tree = hooks.render(LessonTaskEvidencePanel, clearedProps);
+    findButton(tree, "保存作品").props.onClick();
+
+    assert.equal(invalidatedRecordingId, persisted.recordingId);
+    assert.deepEqual(expectedRecordingIds, [""]);
+  });
+
+  await context.test("capstone replacement", async () => {
+    const hooks = createHookHarness();
+    const expectedRecordingIds = [];
+    let invalidatedRecordingId = "";
+    const { CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+      capstoneOverrides: {
+        capstoneRecordingCheck: () => ({ passed: true }),
+        isValidCapstoneEvidence: () => true
+      },
+      recordingOverrides: { loadLearningRecording: async () => null }
+    });
+    const persisted = {
+      transcript: "제 생각은 이렇습니다.",
+      weakPoint: "연결어를 더 자연스럽게 쓰기",
+      targetRewrite: "그래서 다음에는 더 구체적으로 말하겠습니다.",
+      rubric: [],
+      recordedSeconds: 120,
+      recordingId: "capstone:missing",
+      updatedAt: "2026-09-02T00:00:00.000Z"
+    };
+    const props = createCapstonePanelProps({
+      evidence: persisted,
+      onInvalidateRecording: (recordingId) => {
+        invalidatedRecordingId = recordingId;
+        return true;
+      },
+      onSave: (_input, expectedRecordingId) => {
+        expectedRecordingIds.push(expectedRecordingId);
+        return true;
+      }
+    });
+
+    hooks.render(CapstoneEvidencePanel, props);
+    await new Promise((resolve) => setImmediate(resolve));
+    const clearedProps = { ...props, evidence: null };
+    const tree = hooks.render(CapstoneEvidencePanel, clearedProps);
+    findButton(tree, "保存终课作品").props.onClick();
+
+    assert.equal(invalidatedRecordingId, persisted.recordingId);
+    assert.deepEqual(expectedRecordingIds, [""]);
+  });
+});
+
+test("recording replacements can save after persisted evidence is removed", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      const expectedRecordingIds = [];
+      const overrides = panel === "shadowing"
+        ? {
+            lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) }
+          }
+        : {
+            capstoneOverrides: {
+              capstoneRecordingCheck: () => ({ passed: true }),
+              isValidCapstoneEvidence: () => true
+            }
+          };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: {
+          saveLearningRecording: async (_blob, kind) => `${kind}:replacement`
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onSave: (_lessonId, _input, expectedRecordingId) => {
+              expectedRecordingIds.push(expectedRecordingId);
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onSave: (_input, expectedRecordingId) => {
+              expectedRecordingIds.push(expectedRecordingId);
+              return true;
+            }
+      });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      media.recorders[0].ondataavailable({ data: new Blob(["replacement"]) });
+      tree = hooks.render(Component, props);
+      findButton(tree, panel === "shadowing" ? "停止" : "停止录音").props.onClick();
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      const clearedProps = { ...props, evidence: panel === "shadowing" ? undefined : null };
+      tree = hooks.render(Component, clearedProps);
+      findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品").props.onClick();
+
+      assert.deepEqual(expectedRecordingIds, [""]);
+    });
+  }
+});
+
+test("delayed persisted recording lookups cannot invalidate an active replacement", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      let invalidations = 0;
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: media.getUserMedia,
+        recordingOverrides: { loadLearningRecording: () => pendingLoad }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(null);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(invalidations, 0, "the superseded lookup must not revoke persisted evidence");
+      tree = hooks.render(Component, props);
+      assert.ok(findButton(tree, panel === "shadowing" ? "停止" : "停止录音"));
+    });
+  }
+});
+
+test("persisted recording lookups still hydrate after a denied microphone request", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      let loadCalls = 0;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: async () => {
+          throw new Error("permission denied");
+        },
+        recordingOverrides: {
+          loadLearningRecording: () => {
+            loadCalls += 1;
+            return loadCalls === 1 ? pendingLoad : Promise.resolve(new Blob(["persisted"]));
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const savedInputs = [];
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onSave: (_lessonId, input) => {
+              savedInputs.push(input);
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onSave: (input) => {
+              savedInputs.push(input);
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(new Blob(["persisted"]));
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      assert.ok(loadCalls >= 2, "a failed replacement should retry the persisted lookup");
+      assert.ok(findElement(tree, (node) => node.type === "audio"), "a denied replacement must not hide persisted playback");
+      const saveButton = findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品");
+      assert.equal(saveButton.props.disabled, false, "a denied replacement must keep the prior draft saveable");
+      saveButton.props.onClick();
+      assert.equal(savedInputs.length, 1);
+      assert.equal(savedInputs[0].recordingId, persisted.recordingId);
+      assert.equal(savedInputs[0].recordedSeconds, persisted.recordedSeconds);
+    });
+  }
+});
+
+test("failed recording replacements restore the prior draft and playback", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    for (const failure of ["empty", "save"]) {
+      await context.test(`${panel} ${failure}`, async () => {
+        const hooks = createHookHarness();
+        const media = createActiveMediaHarness();
+        const savedInputs = [];
+        const overrides = panel === "shadowing"
+          ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+          : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+        const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+          ...overrides,
+          MediaRecorder: media.MediaRecorder,
+          getUserMedia: media.getUserMedia,
+          recordingOverrides: {
+            loadLearningRecording: async () => new Blob(["persisted"]),
+            saveLearningRecording: async () => failure === "save" ? null : "unused"
+          }
+        });
+        const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+        const persisted = panel === "shadowing"
+          ? {
+              kind: "shadowing",
+              text: "",
+              recordedSeconds: 4.2,
+              recordingId: "shadowing:original",
+              updatedAt: "2026-09-02T00:00:00.000Z"
+            }
+          : {
+              transcript: "旧稿",
+              weakPoint: "旧弱点",
+              targetRewrite: "오래된 목표 문장",
+              rubric: [],
+              recordedSeconds: 120,
+              recordingId: "capstone:original",
+              updatedAt: "2026-09-02T00:00:00.000Z"
+            };
+        const props = panel === "shadowing"
+          ? createShadowingPanelProps({
+              evidence: persisted,
+              onSave: (_lessonId, input) => {
+                savedInputs.push(input);
+                return true;
+              }
+            })
+          : createCapstonePanelProps({
+              evidence: persisted,
+              onSave: (input) => {
+                savedInputs.push(input);
+                return true;
+              }
+            });
+
+        let tree = hooks.render(Component, props);
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+        await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+        if (failure === "save") media.recorders[0].ondataavailable({ data: new Blob(["replacement"]) });
+        tree = hooks.render(Component, props);
+        findButton(tree, panel === "shadowing" ? "停止" : "停止录音").props.onClick();
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+        await new Promise((resolve) => setImmediate(resolve));
+        tree = hooks.render(Component, props);
+
+        assert.ok(findElement(tree, (node) => node.type === "audio"), "the prior playback should remain available");
+        assert.match(textContent(tree), panel === "shadowing" ? /已录 4\.2 秒/ : /有效录音 120\.0 秒/);
+        const saveButton = findButton(tree, panel === "shadowing" ? "保存作品" : "保存终课作品");
+        assert.equal(saveButton.props.disabled, false, "a failed replacement must leave the prior draft saveable");
+        saveButton.props.onClick();
+        assert.equal(savedInputs.length, 1);
+        assert.equal(savedInputs[0].recordingId, persisted.recordingId);
+        assert.equal(savedInputs[0].recordedSeconds, persisted.recordedSeconds);
+      });
+    }
+  }
+});
+
+test("deferred missing recording lookups are processed after a failed replacement", async (context) => {
+  for (const panel of ["shadowing", "capstone"]) {
+    await context.test(panel, async () => {
+      const hooks = createHookHarness();
+      const media = createActiveMediaHarness();
+      let resolveLoad;
+      let loadCalls = 0;
+      const pendingLoad = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      let invalidations = 0;
+      const overrides = panel === "shadowing"
+        ? { lessonEvidenceOverrides: { checkLessonTaskEvidence: () => ({ ready: true, checks: [] }) } }
+        : { capstoneOverrides: { capstoneRecordingCheck: () => ({ passed: true }), isValidCapstoneEvidence: () => true } };
+      const { LessonTaskEvidencePanel, CapstoneEvidencePanel } = loadLessonEvidencePanels(hooks, {
+        ...overrides,
+        MediaRecorder: media.MediaRecorder,
+        getUserMedia: async () => {
+          throw new Error("permission denied");
+        },
+        recordingOverrides: {
+          loadLearningRecording: () => {
+            loadCalls += 1;
+            return loadCalls === 1 ? pendingLoad : Promise.resolve(null);
+          }
+        }
+      });
+      const Component = panel === "shadowing" ? LessonTaskEvidencePanel : CapstoneEvidencePanel;
+      const persisted = panel === "shadowing"
+        ? {
+            kind: "shadowing",
+            text: "",
+            recordedSeconds: 4.2,
+            recordingId: "shadowing:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          }
+        : {
+            transcript: "旧稿",
+            weakPoint: "旧弱点",
+            targetRewrite: "오래된 목표 문장",
+            rubric: [],
+            recordedSeconds: 120,
+            recordingId: "capstone:original",
+            updatedAt: "2026-09-02T00:00:00.000Z"
+          };
+      const props = panel === "shadowing"
+        ? createShadowingPanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          })
+        : createCapstonePanelProps({
+            evidence: persisted,
+            onInvalidateRecording: () => {
+              invalidations += 1;
+              return true;
+            }
+          });
+
+      let tree = hooks.render(Component, props);
+      await findButton(tree, panel === "shadowing" ? "开始录音" : "重新录音").props.onClick();
+      resolveLoad(null);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+      await new Promise((resolve) => setImmediate(resolve));
+      tree = hooks.render(Component, props);
+
+      assert.ok(loadCalls >= 2, "the failed replacement should retry the persisted lookup");
+      assert.equal(invalidations, 1, "the retry should revoke the missing persisted recording");
+      assert.ok(findButton(tree, "保存"));
+    });
+  }
+});
+
 test("MasteryGate reports a failed persistence write and retries without another quiz", () => {
   const hooks = createHookHarness();
   let saveSucceeds = false;
@@ -559,16 +1090,16 @@ test("MasteryGate reports a failed persistence write and retries without another
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   let addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /没有写入本地存储/);
-  assert.doesNotMatch(textContent(addon), /已写入掌握记录/);
+  assert.match(textContent(addon), /学习记录和复习卡没有保存/);
+  assert.doesNotMatch(textContent(addon), /小测已通过，正在保存/);
   assert.equal(saveAttempts, 1);
 
   saveSucceeds = true;
-  findButton(addon, "重试写入").props.onClick();
+  findButton(addon, "重试保存").props.onClick();
   tree = hooks.render(MasteryGate, props);
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   addon = runner.props.resultAddon({ score: 100, answers: [] });
-  assert.match(textContent(addon), /掌握记录已写入/);
+  assert.match(textContent(addon), /学习记录和复习卡已保存/);
   assert.equal(saveAttempts, 2);
 });
 
@@ -649,6 +1180,8 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
     "@/lib/learning/workspace": {
       gradeReviewCardAndProgress: () => true,
       removeMistakeCardAndPracticeItem: () => true,
+    },
+    "@/lib/learning/use-learning-workspace": {
       useLearningWorkspace: () => ({ workspace: {} })
     }
   });
@@ -662,6 +1195,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   let runner = findElement(tree, (node) => node.type === "DrillRunner");
   assert.equal(runner.key, 1);
   assert.equal(runner.props.questions[0].id, "q1");
+  assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true }), false);
 
   cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
   cards[1].props.onRetrain("q2");
@@ -671,7 +1205,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   assert.equal(runner.props.questions[0].id, "q2");
 });
 
-test("onboarding unlocks its voice step only after playback actually starts", () => {
+test("onboarding unlocks only after playback and recovers from a failed sample", () => {
   const hooks = createHookHarness();
   let playbackOptions = null;
   const { OnboardingFlow } = loadComponent("src/components/learning/onboarding-flow.tsx", {
@@ -691,14 +1225,15 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
     "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
     "@/components/ui/section": { Surface: "Surface" },
     "@/lib/learning/storage": { nowIso: () => "2026-08-30T00:00:00.000Z" },
-    "@/lib/learning/workspace": { useLearningWorkspace: () => ({ saveProfile: () => true }) },
+    "@/lib/learning/use-learning-workspace": { useLearningWorkspace: () => ({ saveProfile: () => true }) },
     "@/lib/speech": {
       speakKorean(_text, options) {
         playbackOptions = options;
         return true;
-      }
+      },
+      stopSpeech() {}
     }
-  });
+  }, { window: { setTimeout, clearTimeout } });
 
   let tree = hooks.render(OnboardingFlow, {});
   findButton(tree, "我是零基础").props.onClick();
@@ -713,6 +1248,15 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
   next = findButton(tree, "先点试听");
   assert.equal(next.props.disabled, true);
 
+  const firstPlayback = playbackOptions;
+  playbackOptions.onerror({ error: "media-playback-failed" });
+  tree = hooks.render(OnboardingFlow, {});
+  assert.equal(findButton(tree, "暂时没声音，先去打字").props.disabled, false);
+  findButton(tree, "试听").props.onClick();
+  tree = hooks.render(OnboardingFlow, {});
+  firstPlayback.onstart();
+  tree = hooks.render(OnboardingFlow, {});
+  assert.equal(findButton(tree, "先点试听").props.disabled, true, "an earlier request cannot complete a retry");
   playbackOptions.onstart();
   tree = hooks.render(OnboardingFlow, {});
   next = findButton(tree, "下一步：试打韩文");
@@ -764,8 +1308,17 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /queueMicrotask\(\(\) => \{\s*if \(cancelled\) return;\s*setActiveDraftReady\(false\);\s*setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
+  assert.match(source, /const nextMaterialId = requestedMaterialId \|\| defaultMaterialIdRef\.current;/);
+  assert.match(source, /if \(nextMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
+  assert.match(source, /setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
+});
+
+test("reselecting the active immersion material keeps the live draft armed", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  const selectMaterial = source.slice(source.indexOf("const selectMaterial"), source.indexOf("const clearActiveArchive"));
+  assert.match(selectMaterial, /if \(materialId === active\.id\) \{\s*pinActiveMaterial\(materialId\);\s*return;/);
+  assert.match(selectMaterial, /setActiveDraftReady\(false\);\s*pinActiveMaterial\(materialId\);\s*resetMaterialWork\(\);/);
 });
 
 test("immersion autosave waits for the current material draft to hydrate", () => {
@@ -800,33 +1353,52 @@ test("completed immersion materials do not claim an unfinished draft restore", (
 
 test("mistakes retrain grades cards even when they are not yet due", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true \}\)/);
+  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
 });
 
-test("paper frames clip media inside the panel instead of hanging tape", () => {
+test("all-due mistake retrain requests every selected card", () => {
+  const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(source, /buildRetrainQuestions\(srsState, ids, ids\?\.length \?\? 8\)/);
+});
+
+test("audio skip goes through onAnswer so review and retrain can reschedule", () => {
+  const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
+  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) return;/);
+});
+
+test("review and retrain refuse answers when the queued card disappears", () => {
+  const review = readFileSync("src/app/review/page.tsx", "utf8");
+  const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(review, /card \? submitReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(review, /result\.reason === "storage"/);
+  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
+});
+
+test("cinematic scene frames clip media and keep film texture inside the image", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
   const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
   const css = readFileSync("src/app/globals.css", "utf8");
-  assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56 rounded-none"/);
+  assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
-  assert.match(visual, /\{treatment !== "ambient" \? <span className="paper-tape left-6 top-\[-7px\]"/);
+  assert.match(visual, /<div className="film-grain pointer-events-none absolute inset-0"/);
+  assert.doesNotMatch(visual, /paper-tape/);
   assert.match(section, /"surface relative p-4 md:p-5"/);
-  assert.match(section, /className="studio-panel relative grid lg:grid-cols-\[minmax\(0,1fr\)_minmax\(18rem,0\.44fr\)\]"/);
+  assert.match(section, /className="module-hero studio-panel"/);
   assert.doesNotMatch(section, /surface relative overflow-hidden p-4/);
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
-  assert.match(css, /\.studio-panel:has\(> \.paper-tape\)::after/);
-  assert.match(css, /\.surface:has\(\.studio-panel\)::after/);
-  assert.match(css, /\.surface:has\(\.paper-rail > \.paper-tape\)::after/);
-  assert.match(css, /\.surface \.visual-panel > \.paper-tape,[\s\S]*\.studio-panel \.visual-panel > \.paper-tape/);
+  assert.match(css, /\.film-grain \{/);
+  assert.match(css, /\.module-hero \{/);
+  assert.match(css, /\.paper-tape \{ display: none !important; \}/);
+  assert.match(css, /--hero-radius:/);
   assert.doesNotMatch(drill, /<div className="grid overflow-hidden rounded-none border/);
   assert.doesNotMatch(drill, /<article className="overflow-hidden rounded-none border/);
   assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
 });
 
-test("paper progress tracks adapt to the active theme", () => {
+test("progress tracks adapt to the active seasonal theme", () => {
   for (const file of ["src/app/path/page.tsx", "src/app/native/page.tsx", "src/components/learning/ability-bars.tsx"]) {
     const source = readFileSync(file, "utf8");
     assert.match(source, /bg-\[var\(--track\)\]/, `${file} should use the theme-aware track color`);
@@ -834,7 +1406,7 @@ test("paper progress tracks adapt to the active theme", () => {
   }
 });
 
-test("paper status washes keep the active theme palette", () => {
+test("status washes keep the active seasonal theme palette", () => {
   const storagePanel = readFileSync("src/components/layout/learning-data-panel.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
   const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
@@ -847,7 +1419,7 @@ test("paper status washes keep the active theme palette", () => {
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {
-  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  const source = readFileSync("src/components/learning/lesson-evidence-panels.tsx", "utf8");
   const panel = source.slice(source.indexOf("function LessonTaskEvidencePanel"), source.indexOf("function CapstoneEvidencePanel"));
   assert.match(panel, /if \(recording \|\| startingRecording \|\| savingRecording\) \{/);
   assert.match(panel, /if \(ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId\)/);
@@ -863,6 +1435,7 @@ test("lesson pages remount lesson-scoped client state when the lesson ID changes
     "next/navigation": { notFound() { throw new Error("not found"); } },
     "@/data/curriculum": { getLessonById: (id) => lessons.get(id), lessons: [...lessons.values()] },
     "./lesson-client": { LessonClient: "LessonClient" }
+    ,"@/lib/site-metadata": { pageMetadata: () => ({}) }
   });
 
   const first = await LessonPage({ params: Promise.resolve({ lessonId: "lesson-a" }) });
@@ -871,7 +1444,7 @@ test("lesson pages remount lesson-scoped client state when the lesson ID changes
   assert.equal(second.key, "lesson-b");
 });
 
-test("DrillRunner ignores speech events from outside its current audio question", () => {
+test("DrillRunner ignores speech events from outside its current audio question", async () => {
   const hooks = createHookHarness();
   const listeners = new Map();
   const speechCalls = [];
@@ -902,6 +1475,7 @@ test("DrillRunner ignores speech events from outside its current audio question"
     "@/lib/learning/quiz": { checkAnswer: () => true },
     "@/lib/learning/srs": { recordMistake: () => ({}) },
     "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
       speakKorean(text, options) {
         speechCalls.push({ text, options });
         return true;
@@ -915,9 +1489,15 @@ test("DrillRunner ignores speech events from outside its current audio question"
   };
 
   let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
   assert.equal(speechCalls.length, 1);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
   assert.equal(listeners.has("kirina:speech"), false);
+
+  speechCalls[0].options.onerror({ error: "network-before-start" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
 
   window.dispatchEvent({ type: "kirina:speech", detail: { type: "playback-start", text: "다른 문장" } });
   tree = hooks.render(DrillRunner, props);
@@ -926,13 +1506,640 @@ test("DrillRunner ignores speech events from outside its current audio question"
   speechCalls[0].options.onstart();
   tree = hooks.render(DrillRunner, props);
   assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+});
+
+test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a missing voice", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{
+      id: "listen-1",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onerror({ error: "NotAllowedError", reason: "needs-gesture" });
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.ok(findButton(tree, "听"));
+});
+
+test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{
+      id: "listen-tts-not-allowed",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onerror({ error: "not-allowed" });
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
+  assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.ok(findButton(tree, "听"));
+});
+
+test("skipping a review audio question defers the card so it is no longer due", async () => {
+  const hooks = createHookHarness();
+  const answered = [];
+  const speechCalls = [];
+  const now = Date.now();
+  const dueCard = {
+    id: "mistake:listen-review",
+    box: 0,
+    dueAt: now - 1000,
+    correct: 0,
+    wrong: 2,
+    lastSeenAt: null,
+    payload: {
+      kind: "mistake",
+      itemId: "listen-review",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      speak: "안녕"
+    }
+  };
+  const cards = { [dueCard.id]: { ...dueCard } };
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+
+  const gradeSkippedReview = (entry) => {
+    answered.push(entry);
+    const current = cards[entry.question.id];
+    if (!current) return false;
+    if (entry.skipped) {
+      current.dueAt = now + 10 * 60 * 1000;
+      current.lastSeenAt = now;
+      return true;
+    }
+    current.correct += entry.correct ? 1 : 0;
+    current.wrong += entry.correct ? 0 : 1;
+    current.dueAt = now + 10 * 60 * 1000;
+    return true;
+  };
+
+  const props = {
+    questions: [{
+      id: dueCard.id,
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer: (entry) => {
+      const card = cards[entry.question.id];
+      if (!card) return false;
+      return gradeSkippedReview(entry);
+    }
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = hooks.render(DrillRunner, props);
+  findButton(tree, "跳过音频题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+
+  assert.equal(answered.length, 1);
+  assert.equal(answered[0].skipped, true);
+  assert.equal(answered[0].correct, false);
+  assert.equal(cards[dueCard.id].correct, 0);
+  assert.equal(cards[dueCard.id].wrong, 2);
+  assert.equal(cards[dueCard.id].dueAt > now, true);
+  assert.match(textContent(tree), /已跳过/);
+});
+
+test("DrillRunner keeps a new audio question pending until its own playback resolves", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [
+      { id: "dictation-1", type: "dictation", prompt: "听写一", answer: "안녕", speak: "안녕" },
+      { id: "dictation-2", type: "dictation", prompt: "听写二", answer: "학교", speak: "학교" }
+    ],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(input);
+  input.props.onChange("안녕");
+  tree = hooks.render(DrillRunner, props);
+  const filledInput = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(filledInput);
+  filledInput.props.onSubmit();
+  tree = hooks.render(DrillRunner, props);
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 2);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  speechCalls[0].options.onerror({ error: "stale-q1" });
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+
+  speechCalls[1].options.onerror({ error: "q2-before-start" });
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+});
+
+test("DrillRunner keeps audio alive when a parent recreates an equivalent question object", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+      }
+    }
+  }, { queueMicrotask, window });
+  const makeProps = () => ({
+    questions: [{ id: "dictation-recreated", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  });
+
+  let tree = hooks.render(DrillRunner, makeProps());
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  tree = hooks.render(DrillRunner, makeProps());
+
+  assert.equal(stops, 0);
+  assert.equal(speechCalls.length, 1);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, makeProps());
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+});
+
+test("DrillRunner survives StrictMode audio effect replay and still stops on teardown", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  let playing = false;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        playing = true;
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+        playing = false;
+      }
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{ id: "dictation-strict", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  hooks.replayEffects();
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.equal(playing, true);
+
+  assert.equal(stops, 0);
+
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
+
+  hooks.unmount();
+  await Promise.resolve();
+  assert.equal(stops, 1);
+  assert.equal(playing, false);
+});
+
+test("leaving a pending audio question and returning retries autoplay instead of staying locked", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  let stops = 0;
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {
+        stops += 1;
+      }
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [
+      { id: "choice-1", type: "choice", prompt: "已答", answer: "A", choices: ["A", "B"] },
+      { id: "listen-return", type: "listen", prompt: "听选", answer: "안녕", choices: ["안녕", "학교"], speak: "안녕" }
+    ],
+    initialAnswers: [{ questionId: "choice-1", answer: "A", correct: true }],
+    initialIndex: 1,
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+
+  findButton(tree, "上一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(stops, 1);
+  assert.match(textContent(tree), /已答/);
+
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 2, "returning to the unanswered listen item should autoplay again");
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
+});
+
+test("DrillRunner watchdog treats accepted playback without onstart as started, not unavailable", async () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const timeouts = [];
+  const window = {
+    setTimeout(fn, ms) {
+      timeouts.push({ fn, ms });
+      return timeouts.length;
+    },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const props = {
+    questions: [{ id: "dictation-watchdog", type: "dictation", prompt: "听写", answer: "안녕", speak: "안녕" }],
+    finishLabel: "完成"
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  await Promise.resolve();
+  assert.equal(speechCalls.length, 1);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.match(textContent(tree), /正在检查这台设备的韩语语音/);
+
+  const watchdog = timeouts.find((timer) => timer.ms === 5000);
+  assert.ok(watchdog, "autoplay should arm a 5s start-event watchdog");
+  watchdog.fn();
+  tree = hooks.render(DrillRunner, props);
+
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"), "answering should unblock after accepted playback");
+  assert.ok(findButton(tree, "播放"));
+  assert.ok(findButton(tree, "慢速重播"));
+  assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
+  assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
+  assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  input.props.onChange("안녕");
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findButton(tree, "提交").props.disabled, false);
+});
+
+test("DrillRunner still offers skip when speak is rejected or hard-fails", async () => {
+  for (const failure of ["speak-false", "onerror"]) {
+    const hooks = createHookHarness();
+    const speechCalls = [];
+    const window = {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    };
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": { checkAnswer: () => true },
+      "@/lib/learning/srs": { recordMistake: () => ({}) },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean(text, options) {
+          speechCalls.push({ text, options });
+          return failure !== "speak-false";
+        },
+        stopSpeech() {}
+      }
+    }, { queueMicrotask, window });
+    const props = {
+      questions: [{ id: `listen-${failure}`, type: "listen", prompt: "听选", answer: "안녕", choices: ["안녕", "학교"], speak: "안녕" }],
+      finishLabel: "完成"
+    };
+
+    let tree = hooks.render(DrillRunner, props);
+    await Promise.resolve();
+    if (failure === "onerror") {
+      assert.equal(speechCalls.length, 1);
+      speechCalls[0].options.onerror({ error: "network" });
+    }
+    tree = hooks.render(DrillRunner, props);
+
+    assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null, `${failure} must hide choices`);
+    assert.ok(findButton(tree, "跳过音频题"), `${failure} must offer skip`);
+    assert.match(textContent(tree), /这次未能播放韩语音频/);
+  }
+});
+
+test("DrillRunner lets a resumed answered audio question advance", () => {
+  const hooks = createHookHarness();
+  const speechCalls = [];
+  const window = {
+    setTimeout() { return 17; },
+    clearTimeout() {},
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, { queueMicrotask, window });
+  const questions = [
+    { id: "dictation-1", type: "dictation", prompt: "听写一", answer: "안녕", speak: "안녕" },
+    { id: "dictation-2", type: "dictation", prompt: "听写二", answer: "학교", speak: "학교" }
+  ];
+  const props = {
+    questions,
+    finishLabel: "完成",
+    initialAnswers: questions.map((question) => ({
+      questionId: question.id,
+      answer: question.answer,
+      correct: true
+    })),
+    initialIndex: 1
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  assert.equal(speechCalls.length, 0, "answered audio should not be replayed on resume");
+  const finish = findButton(tree, "完成");
+  assert.equal(finish.props.disabled, false);
+  finish.props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.props?.role === "status"));
 });
 
 function loadLessonEvidencePanels(hooks, {
   MediaRecorder,
   getUserMedia,
   window = { setInterval() { return 1; }, clearInterval() {} },
-  recordingOverrides = {}
+  recordingOverrides = {},
+  lessonEvidenceOverrides = {},
+  capstoneOverrides = {}
 }) {
   const pendingRecording = new Promise(() => {});
   const icons = Object.fromEntries([
@@ -964,13 +2171,15 @@ function loadLessonEvidencePanels(hooks, {
       capstoneRubric: [],
       capstoneSystemChecks: () => [],
       countHangulCharacters: () => 0,
-      isValidCapstoneEvidence: () => false
+      isValidCapstoneEvidence: () => false,
+      ...capstoneOverrides
     },
     "@/lib/learning/lesson-bridge": { buildLessonBridge: () => ({}) },
     "@/lib/learning/lesson-assessment": { assessLessonAttempt: () => ({}) },
     "@/lib/learning/lesson-evidence": {
       checkLessonTaskEvidence: () => ({ ready: false, checks: [] }),
-      lessonCompletionTask: () => null
+      lessonCompletionTask: () => null,
+      ...lessonEvidenceOverrides
     },
     "@/lib/learning/lesson-session": {
       clearLessonPracticeSession: () => true,
@@ -992,7 +2201,7 @@ function loadLessonEvidencePanels(hooks, {
     },
     "@/lib/speech": { speakKorean() {} }
   };
-  return loadComponent("src/app/learn/[lessonId]/lesson-client.tsx", imports, {
+  const globals = {
     Blob,
     MediaRecorder,
     URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
@@ -1000,9 +2209,42 @@ function loadLessonEvidencePanels(hooks, {
     performance: { now: () => 1000 },
     queueMicrotask,
     window
-  }, (source) => source
-    .replace("function LessonTaskEvidencePanel", "export function LessonTaskEvidencePanel")
-    .replace("function CapstoneEvidencePanel", "export function CapstoneEvidencePanel"));
+  };
+  return {
+    ...loadComponent("src/components/learning/lesson-result-actions.tsx", imports, globals),
+    ...loadComponent("src/components/learning/lesson-evidence-panels.tsx", imports, globals)
+  };
+}
+
+function createLessonResultActionsProps(overrides = {}) {
+  return {
+    savedScore: null,
+    saveError: false,
+    score: 90,
+    unlocked: true,
+    corePathSaved: false,
+    bridge: { reviewCards: 0, transferMaterials: [] },
+    assessment: {
+      overallPassed: true,
+      productionRequired: false,
+      productionPassed: true,
+      productionCorrect: 0,
+      productionTotal: 0,
+      listeningRequired: false,
+      listeningPassed: true,
+      listeningDeferred: false,
+      listeningSkipped: false,
+      listeningCorrect: 0,
+      listeningTotal: 0,
+      corePassed: true
+    },
+    completionGateReady: true,
+    onRetry() {},
+    onSave() {
+      return true;
+    },
+    ...overrides
+  };
 }
 
 function createShadowingPanelProps(overrides = {}) {
@@ -1067,6 +2309,11 @@ function createActiveMediaHarness() {
   };
 }
 
+function mockGestureBlockedPlaybackError(error) {
+  const name = typeof error === "string" ? error : error?.error || error?.name || error?.reason;
+  return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture" || name === "not-allowed";
+}
+
 function findButton(tree, label) {
   const button = findElement(tree, (node) => node.type === "Button" && textContent(node).includes(label));
   assert.ok(button, `Expected button containing ${label}`);
@@ -1085,6 +2332,7 @@ function loadComponent(file, imports, globals = {}, transformSource = (source) =
     require(id) {
       if (id === "react/jsx-runtime") return JSX_RUNTIME;
       if (id in imports) return imports[id];
+      if (id === "@/data/curriculum-runtime" && "@/data/curriculum" in imports) return imports["@/data/curriculum"];
       throw new Error(`Unexpected component import: ${id}`);
     },
     ...globals
@@ -1150,10 +2398,23 @@ function createHookHarness() {
         slots[pending.index]?.cleanup?.();
         slots[pending.index] = {
           dependencies: pending.dependencies,
+          effect: pending.effect,
           cleanup: pending.effect() || undefined
         };
       }
       return tree;
+    },
+    replayEffects() {
+      const effects = slots
+        .map((slot, index) => ({ index, effect: slot?.effect, cleanup: slot?.cleanup }))
+        .filter((entry) => typeof entry.effect === "function");
+      for (const entry of effects) entry.cleanup?.();
+      for (const entry of effects) {
+        slots[entry.index].cleanup = entry.effect() || undefined;
+      }
+    },
+    unmount() {
+      for (const slot of slots) slot?.cleanup?.();
     },
     refs() {
       return slots

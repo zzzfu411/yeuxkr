@@ -12,9 +12,10 @@ import { buildReviewQuestions } from "@/lib/learning/quiz";
 import { getDueCardsFromState, getSrsStateFromRaw, summarizeSrsState } from "@/lib/learning/srs";
 import { defaultProfile, defaultProgress, parseJson, STORAGE_KEYS, useClientNowOnce, useStorageRawOnce } from "@/lib/learning/storage";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { buildLearningWorkspace, gradeReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
+import { buildLearningWorkspace, submitReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
 
 const REVIEW_STORAGE_REFRESH_KEYS = new Set([STORAGE_KEYS.profile, STORAGE_KEYS.progress, STORAGE_KEYS.srs]);
+const LEARNING_REFRESH_EVENT_TYPES = new Set(["kirina:learning", "kirina:learning-batch", "storage"]);
 
 export default function ReviewPage() {
   const [mounted, setMounted] = useState(false);
@@ -33,6 +34,7 @@ export default function ReviewPage() {
 function ReviewContent() {
   const [sessionKey, setSessionKey] = useState(0);
   const [reviewError, setReviewError] = useState("");
+  const [queueChanged, setQueueChanged] = useState(false);
   const profileRaw = useStorageRawOnce(STORAGE_KEYS.profile, sessionKey);
   const progressRaw = useStorageRawOnce(STORAGE_KEYS.progress, sessionKey);
   const srsRaw = useStorageRawOnce(STORAGE_KEYS.srs, sessionKey);
@@ -50,7 +52,10 @@ function ReviewContent() {
   useEffect(() => {
     const refreshQueue = (event: Event) => {
       if (!reviewRefreshEventMatches(event)) return;
-      if (event.type === "kirina:learning" && questions.length) return;
+      if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) {
+        if (event.type === "storage") setQueueChanged(true);
+        return;
+      }
       setReviewError("");
       setSessionKey((value) => value + 1);
     };
@@ -84,7 +89,17 @@ function ReviewContent() {
       <ReviewHeader />
 
       <Surface>
-        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
+        <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
+        {queueChanged ? (
+          <div className="mb-4 grid gap-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-4" role="status">
+            <p>其他页面已更新学习数据。已保存的答案会保留，请读取最新队列后继续。</p>
+            <Button variant="secondary" onClick={() => {
+              setQueueChanged(false);
+              setReviewError("");
+              setSessionKey((value) => value + 1);
+            }}>读取更新后的队列</Button>
+          </div>
+        ) : null}
         {questions.length ? (
           <DrillRunner
             key={sessionKey}
@@ -93,14 +108,21 @@ function ReviewContent() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = dueCards.find((item) => item.id === entry.question.id);
-              if (card && !gradeReviewCardAndProgress(card, entry.correct)) {
-                setReviewError("这张卡片没有成功写入复习进度，请释放浏览器存储空间后再继续。");
+              const result = card ? submitReviewCardAndProgress(card, entry.correct, { skipped: Boolean(entry.skipped) }) : { ok: false as const, reason: "missing" as const };
+              if (result.ok === false) {
+                if (result.reason === "storage") {
+                  setReviewError("这张卡片没有保存到复习进度。请检查浏览器存储权限和剩余空间，再重试。");
+                } else {
+                  setQueueChanged(true);
+                  setReviewError("这张卡片已被更新、移除或推迟，本次答案未重复计分。");
+                }
                 return false;
               } else {
                 setReviewError("");
               }
             }}
             onFinish={() => {
+              setQueueChanged(false);
               setSessionKey((value) => value + 1);
             }}
           />
@@ -108,12 +130,12 @@ function ReviewContent() {
           <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
-              <p className="eyebrow">오늘은 맑음 · Clear today</p>
+              <p className="eyebrow">오늘은 맑음 · 今天没有到期项</p>
               <h2 className="inkline mt-2 font-serif text-3xl font-normal">现在没有到期复习</h2>
               <p className="mt-2 leading-7 text-[var(--muted)]">
                 {needsOnboardingFunnel(profile, progress)
                   ? "先完成入门，再把卡片送进复习队列。"
-                  : "先回路径或词汇页积累证据；综合测验只抽已经学过的内容。"}
+                  : "先学一课或加入几个词。综合测验只会抽取你已经学过的内容。"}
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <Button asChild>
@@ -180,11 +202,11 @@ function ReviewLoading() {
     <div className="grid gap-6">
       <ReviewHeader />
       <Surface>
-        <SectionHeading kicker="복습함 · Review leaves" title="到期队列" />
+        <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
         <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
           <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
           <div className="paper-rail p-5 pt-8">
-            <p className="eyebrow">잠시 · A quiet moment</p>
+            <p className="eyebrow">잠시 · 正在读取</p>
             <h2 className="inkline mt-2 font-serif text-3xl font-normal">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
           </div>
@@ -199,9 +221,9 @@ function ReviewLoading() {
 function ReviewHeader() {
   return (
     <PageHeader
-      kicker="복습 · Review"
-      title="复习先于新课。"
-      copy="SRS 是按间隔重复出现的复习卡。答对会延后出现；答错会提前下次复习，新卡回到盒子 0，成熟卡则缩短原有间隔。课程错题、韩文和词汇卡片都会进入这里。"
+      kicker="복습 · 复习"
+      title="先复习到期内容，再学新课。"
+      copy="间隔复习（SRS）会根据你的答案安排下次出现时间。答得稳，间隔会变长；答错了，很快会再见到它。"
       compact
     >
       <Button asChild variant="secondary">
@@ -217,9 +239,9 @@ function ReviewHeader() {
 function ReviewStatusHero({ srs }: { srs: { total: number; due: number; mature: number; shaky: number } }) {
   return (
     <ModuleHero
-      kicker="간격 기록 · SRS notes"
-      title="到期先清掉，新的才稳。"
-      copy="复习队列只处理已经学过或自己送进来的材料；盒子数字越小，越需要近期照顾。答错会降低盒号并缩短间隔，答对会延后出现。"
+      kicker="다시 만날 때 · 下次再见"
+      title="今天该复习什么？"
+      copy="这里都是你已经学过的内容。先做已到期和薄弱的卡片，其余会按计划稍后出现。"
       asset="review"
     >
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

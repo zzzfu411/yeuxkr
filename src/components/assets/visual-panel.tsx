@@ -9,9 +9,9 @@ export type VisualPanelOverlay = "left" | "right" | "bottom" | "none";
 export type VisualPanelTreatment = "paper" | "raw" | "darkCaption" | "inset" | "ambient";
 
 const overlayClasses: Record<VisualPanelOverlay, string> = {
-  left: "bg-gradient-to-r from-[color-mix(in_srgb,var(--paper)_88%,transparent)] via-[color-mix(in_srgb,var(--paper)_24%,transparent)] to-transparent",
-  right: "bg-gradient-to-l from-[color-mix(in_srgb,var(--paper)_88%,transparent)] via-[color-mix(in_srgb,var(--paper)_24%,transparent)] to-transparent",
-  bottom: "bg-gradient-to-t from-[color-mix(in_srgb,var(--ink)_44%,transparent)] via-[color-mix(in_srgb,var(--ink)_12%,transparent)] to-transparent",
+  left: "bg-gradient-to-r from-[color-mix(in_srgb,var(--night)_78%,transparent)] via-[color-mix(in_srgb,var(--night)_22%,transparent)] to-transparent",
+  right: "bg-gradient-to-l from-[color-mix(in_srgb,var(--night)_78%,transparent)] via-[color-mix(in_srgb,var(--night)_22%,transparent)] to-transparent",
+  bottom: "bg-gradient-to-t from-[color-mix(in_srgb,var(--night)_72%,transparent)] via-[color-mix(in_srgb,var(--night)_18%,transparent)] to-transparent",
   none: ""
 };
 
@@ -25,28 +25,28 @@ const treatmentStyles: Record<
   }
 > = {
   paper: {
-    frame: "border border-[var(--line)] bg-[var(--paper-deep)] shadow-paper-sm",
-    image: "object-cover saturate-[0.72] contrast-[0.98]",
-    wash: "bg-[linear-gradient(145deg,var(--sheen),transparent_44%,var(--shade))]"
+    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--paper-lo)]",
+    image: "object-cover saturate-[0.88] contrast-[0.98]",
+    wash: "bg-[linear-gradient(180deg,var(--scene-sheen),transparent_42%,var(--scene-shade))]"
   },
   raw: {
-    frame: "border border-[var(--line)] bg-[var(--paper-deep)] shadow-paper-sm",
-    image: "object-cover saturate-[0.78] contrast-[0.98]"
+    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--paper-lo)]",
+    image: "object-cover saturate-[0.92] contrast-[1.01]"
   },
   darkCaption: {
-    frame: "border border-[var(--line)] bg-[var(--paper-lo)] shadow-paper-sm",
-    image: "object-cover brightness-[0.86] saturate-[0.68]",
-    wash: "bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--ink)_32%,transparent))]"
+    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--night)]",
+    image: "object-cover brightness-[0.82] saturate-[0.82]",
+    wash: "bg-[linear-gradient(180deg,transparent_36%,color-mix(in_srgb,var(--night)_66%,transparent))]"
   },
   inset: {
-    frame: "border border-[var(--line)] bg-[var(--card)] shadow-paper-sm",
-    image: "object-cover scale-[1.01] saturate-[0.7] contrast-[0.98]",
-    wash: "bg-[linear-gradient(135deg,var(--sheen),transparent_48%,var(--shade))]"
+    frame: "overflow-hidden rounded-[var(--screen-radius-sm)] border border-[var(--line)] bg-[var(--card)]",
+    image: "object-cover scale-[1.01] saturate-[0.86] contrast-[0.98]",
+    wash: "bg-[linear-gradient(145deg,var(--scene-sheen),transparent_52%,var(--scene-shade))]"
   },
   ambient: {
-    frame: "border-0 bg-[var(--paper)] shadow-none",
-    image: "object-cover brightness-[0.98] saturate-[0.7] contrast-[0.96] mix-blend-multiply",
-    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--paper)_92%,transparent)_0%,color-mix(in_srgb,var(--paper)_56%,transparent)_32%,color-mix(in_srgb,var(--paper)_10%,transparent)_68%,transparent_100%)]"
+    frame: "overflow-hidden rounded-[var(--hero-radius)] border-0 bg-[var(--night)] shadow-none",
+    image: "object-cover brightness-[0.8] saturate-[0.86] contrast-[1.02]",
+    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--night)_80%,transparent)_0%,color-mix(in_srgb,var(--night)_38%,transparent)_48%,color-mix(in_srgb,var(--night)_8%,transparent)_78%,transparent_100%)]"
   }
 };
 
@@ -86,7 +86,7 @@ export function VisualPanel({
 
   return (
     <div
-      className={cn("visual-panel relative isolate min-h-56 rounded-none", style.frame, className)}
+      className={cn("visual-panel relative isolate min-h-56", style.frame, className)}
       role={resolvedImageState.failed && !decorative ? "img" : undefined}
       aria-label={resolvedImageState.failed && !decorative ? fallbackLabel : undefined}
     >
@@ -95,7 +95,7 @@ export function VisualPanel({
           <>
             <div className="absolute inset-0 bg-[linear-gradient(140deg,var(--paper-hi),var(--paper-lo))]" />
             <div className="absolute inset-0 grid place-items-center p-5 text-center">
-              <span className="max-w-56 rounded-none border border-[var(--line)] bg-[var(--card)] px-4 py-3 font-mono text-xs font-black uppercase leading-5 text-[var(--muted)] shadow-paper-sm">
+              <span className="max-w-56 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-xs font-semibold leading-5 text-[var(--muted)]">
                 {item.manifestLabel}
               </span>
             </div>
@@ -121,12 +121,12 @@ export function VisualPanel({
             }}
           />
         ) : null}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,var(--sheen),transparent)]" />
+        <div className="film-grain pointer-events-none absolute inset-0" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,var(--scene-sheen),transparent)]" />
         {style.wash ? <div className={cn("pointer-events-none absolute inset-0", style.wash)} /> : null}
         {style.grid ? <div className={cn("pointer-events-none absolute inset-0", style.grid)} /> : null}
         {overlayClass ? <div className={cn("pointer-events-none absolute inset-0", overlayClass)} /> : null}
       </div>
-      {treatment !== "ambient" ? <span className="paper-tape left-6 top-[-7px]" aria-hidden="true" /> : null}
     </div>
   );
 }

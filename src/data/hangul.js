@@ -105,7 +105,7 @@ export const syllableLabs = [
   { pattern: "CV", blocks: ["ㄱ", "ㅘ"], result: "과", note: "复合元音 ㅘ = ㅗ + ㅏ，横竖两部分包住辅音。" },
   { pattern: "CV", blocks: ["ㅇ", "ㅢ"], result: "의", note: "ㅢ = ㅡ + ㅣ；ㅇ 在音节首不发音。" },
   { pattern: "CVC", blocks: ["ㅎ", "ㅏ", "ㄴ"], result: "한", note: "收音放在底部。" },
-  { pattern: "CVCC", blocks: ["ㅇ", "ㅏ", "ㄹㄱ"], result: "읽", note: "双收音需要按词形和后续音变判断。" }
+  { pattern: "CVCC", blocks: ["ㅇ", "ㅣ", "ㄹㄱ"], result: "읽", note: "双收音需要按词形和后续音变判断。" }
 ];
 
 export const pronunciationPairs = [

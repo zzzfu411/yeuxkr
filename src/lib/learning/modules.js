@@ -19,7 +19,7 @@ export const studyModuleDescriptors = {
     ability: "vocabulary",
     title: "词汇与搭配",
     href: "/vocabulary",
-    daily: "学习 8-15 个词，只把能造句的词加入 SRS。",
+    daily: "学习 8-15 个词，只把能造句的词加入间隔复习。",
     checkpoint: "能用本周词汇写出 8 句与自己生活有关的句子。",
     readiness: 24
   },
@@ -41,7 +41,7 @@ export const studyModuleDescriptors = {
   },
   native: {
     ability: "native",
-    title: "母语者表达",
+    title: "自然表达",
     href: "/native",
     daily: "积累 2 个缓冲表达或语气副词，用它们改写直接句。",
     checkpoint: "能解释为什么同一个中文意思在韩语里需要不同语气。",
@@ -49,10 +49,10 @@ export const studyModuleDescriptors = {
   },
   media: {
     ability: "listening",
-    title: "真实材料",
+    title: "情境听读",
     href: "/immersion",
     daily: "听一句、遮译文听写、再用韩语复述关键信息。",
-    checkpoint: "能从真实材料中提取人物、动作、原因或态度。",
+    checkpoint: "能从一段情境听读中找出人物、动作、原因或态度。",
     readiness: 12
   }
 };

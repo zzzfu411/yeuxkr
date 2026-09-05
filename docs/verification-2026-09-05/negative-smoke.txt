@@ -1,0 +1,23 @@
+Largest production JS: 621107 bytes raw / 204379 bytes gzip. All chunks: 2082581 bytes (not a per-route transfer measure).
+HTTP smoke passed for 131 routes.
+node:internal/modules/package_json_reader:316
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'kirina-intentionally-missing-test-runtime' imported from D:\Develop\Gemini\kirinaKorean\scripts\smoke-audit.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:316:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:858:18)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:773:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///D:/Develop/Gemini/kirinaKorean/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:10932)
+    at resolveDirectorySync (file:///D:/Develop/Gemini/kirinaKorean/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:12238)
+    at resolveTsPathsSync (file:///D:/Develop/Gemini/kirinaKorean/node_modules/tsx/dist/register-SoqaU4rg.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.11.1
+Error: node --import tsx scripts/smoke-audit.mjs exited 1
+    at ChildProcess.<anonymous> (scripts\check-smoke.mjs:87:64)

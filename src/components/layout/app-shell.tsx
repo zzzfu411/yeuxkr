@@ -3,57 +3,56 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { BookOpen, BrainCircuit, CircleAlert, Compass, GraduationCap, LibraryBig, MessagesSquare, NotebookTabs, Radio, RefreshCcw, Settings2, Sparkles } from "lucide-react";
+import { BookOpen, BrainCircuit, CircleAlert, Compass, GraduationCap, LibraryBig, Menu, MessagesSquare, NotebookTabs, Radio, RefreshCcw, Settings2, Sparkles } from "lucide-react";
 import { PwaRegister } from "@/components/layout/pwa-register";
 import { LearningDataPanel } from "@/components/layout/learning-data-panel";
-import { NowPlayingBar, NowPlayingRail } from "@/components/layout/now-playing";
+import { NowPlayingBar } from "@/components/layout/now-playing";
 import { SpeechStatusBanner } from "@/components/korean/speech-status";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { stopSpeech } from "@/lib/speech";
 import { cn } from "@/lib/utils";
+import { LearningWorkspaceProvider } from "@/lib/learning/use-learning-workspace";
 
-const navGroups = [
-  {
-    label: "工作台",
-    items: [
-      { href: "/", label: "工作台", en: "Desk", icon: Compass },
-      { href: "/settings", label: "设置", en: "Set", icon: Settings2 }
-    ]
-  },
-  {
-    label: "规划",
-    items: [
-      { href: "/path", label: "路径", en: "Path", icon: GraduationCap },
-      { href: "/self-study", label: "自学", en: "Self", icon: NotebookTabs }
-    ]
-  },
-  {
-    label: "练习",
-    items: [
-      { href: "/review", label: "复习", en: "Review", icon: RefreshCcw },
-      { href: "/mistakes", label: "错题", en: "Miss", icon: CircleAlert },
-      { href: "/quiz", label: "测验", en: "Quiz", icon: BrainCircuit },
-      { href: "/hangul", label: "韩文", en: "Hangul", icon: Sparkles }
-    ]
-  },
-  {
-    label: "能力材料",
-    items: [
-      { href: "/vocabulary", label: "词汇", en: "Words", icon: LibraryBig },
-      { href: "/grammar", label: "语法", en: "Grammar", icon: BookOpen },
-      { href: "/immersion", label: "材料", en: "Tape", icon: Radio },
-      { href: "/native", label: "母语者", en: "Native", icon: MessagesSquare }
-    ]
-  }
-];
+const primaryNav = [
+  { href: "/", label: "今日", ko: "오늘", icon: Compass },
+  { href: "/path", label: "路线", ko: "여정", icon: GraduationCap },
+  { href: "/hangul", label: "韩文", ko: "한글", icon: Sparkles },
+  { href: "/review", label: "复习", ko: "복습", icon: RefreshCcw },
+  { href: "/immersion", label: "听读", ko: "몰입", icon: Radio }
+] as const;
+
+const moreNav = [
+  { href: "/self-study", label: "自由自学", ko: "자율 학습", icon: NotebookTabs },
+  { href: "/mistakes", label: "错题重练", ko: "다시 보기", icon: CircleAlert },
+  { href: "/quiz", label: "综合测验", ko: "확인", icon: BrainCircuit },
+  { href: "/vocabulary", label: "场景词汇", ko: "단어", icon: LibraryBig },
+  { href: "/grammar", label: "句型语法", ko: "문법", icon: BookOpen },
+  { href: "/native", label: "自然表达", ko: "말투", icon: MessagesSquare },
+  { href: "/settings", label: "学习设置", ko: "설정", icon: Settings2 }
+] as const;
+
+function navItemIsActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href === "/path") return pathname.startsWith("/path") || pathname.startsWith("/learn/");
+  return pathname.startsWith(href);
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return <LearningWorkspaceProvider><AppShellContent>{children}</AppShellContent></LearningWorkspaceProvider>;
+}
+
+function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement | null>(null);
   const activeItemRef = useRef<HTMLAnchorElement | null>(null);
+  const moreRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => () => {
     stopSpeech();
+  }, [pathname]);
+
+  useEffect(() => {
+    moreRef.current?.removeAttribute("open");
   }, [pathname]);
 
   useEffect(() => {
@@ -73,78 +72,91 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <PwaRegister />
-      <div className="grain" aria-hidden="true" />
-      <div className="vignette" aria-hidden="true" />
       <a
         href="#main"
-        className="focus-ring fixed left-3 top-3 z-[90] -translate-y-20 border border-[var(--line)] bg-[var(--paper-hi)] px-4 py-2 text-sm text-[var(--ink)] shadow-paper-sm transition focus:translate-y-0"
+        className="skip-link focus-ring"
       >
         跳到正文
       </a>
       <div className="editorial-shell">
-        <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] px-3 py-3 backdrop-blur-md">
-        <div className="mx-auto grid w-full min-w-0 max-w-[1320px] grid-cols-[minmax(0,auto)_minmax(0,1fr)] items-center gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
-          <Link href="/" className="focus-ring order-1 flex min-w-0 items-center gap-2.5">
-            <span className="seal-mark hidden h-8 w-8 text-sm sm:inline-grid" aria-hidden="true">기</span>
-            <span className="logo-mark">YEUX KR</span>
-            <span className="leading-tight">
-              <strong className="hidden font-serif text-base font-normal sm:block">Kirina Korean</strong>
-              <small className="hidden font-script text-[0.72rem] text-[var(--muted)] md:block">
-                한국어 · 韩语手帖
-              </small>
-            </span>
-          </Link>
+        <header className="app-header">
+          <div className="header-inner">
+            <Link href="/" className="brand-lockup focus-ring" aria-label="Kirina Korean 首页">
+              <span className="brand-window" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+                <b />
+              </span>
+              <span className="brand-copy">
+                <strong>Kirina</strong>
+                <small>오늘의 한국어</small>
+              </span>
+            </Link>
 
-          <div className="order-2 flex min-w-0 items-center justify-end gap-2 lg:order-3">
-            <ThemeToggle />
-            <LearningDataPanel />
+            <div className="header-actions">
+              <ThemeToggle />
+              <LearningDataPanel />
+            </div>
+
+            <nav ref={navRef} className="main-nav nav-scroll" aria-label="主导航">
+              {primaryNav.map((item) => {
+                const Icon = item.icon;
+                const active = navItemIsActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    ref={active ? activeItemRef : undefined}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn("nav-link", active && "is-active")}
+                  >
+                    <Icon aria-hidden="true" />
+                    <span>{item.label}</span>
+                    <small>{item.ko}</small>
+                  </Link>
+                );
+              })}
+
+              <details ref={moreRef} className="nav-more">
+                <summary className={cn("nav-link", moreNav.some((item) => navItemIsActive(pathname, item.href)) && "is-active")}>
+                  <Menu aria-hidden="true" />
+                  <span>全部场景</span>
+                  <small>더보기</small>
+                </summary>
+                <div className="nav-more-menu">
+                  <p>按你现在需要的方式进入</p>
+                  <div>
+                    {moreNav.map((item) => {
+                      const Icon = item.icon;
+                      const active = navItemIsActive(pathname, item.href);
+                      return (
+                        <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
+                          <Icon aria-hidden="true" />
+                          <span><strong>{item.label}</strong><small>{item.ko}</small></span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
+            </nav>
           </div>
+        </header>
 
-          <nav ref={navRef} className="nav-scroll order-3 col-span-2 flex w-full min-w-0 max-w-full snap-x justify-start gap-3 overflow-x-auto lg:order-2 lg:col-span-1" aria-label="主导航">
-            {navGroups.map((group) => (
-              <div key={group.label} className="top-tabs flex shrink-0 snap-center items-center">
-                <span className="hidden px-1 font-script text-[0.72rem] text-[var(--muted)] xl:inline">
-                  {group.label}
-                </span>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = item.href === "/"
-                    ? pathname === "/"
-                    : item.href === "/path"
-                      ? pathname.startsWith("/path") || pathname.startsWith("/learn/")
-                      : pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      ref={active ? activeItemRef : undefined}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(active && "is-active")}
-                    >
-                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                      {item.label}
-                      <span className="hidden text-[0.7rem] font-normal opacity-70 lg:inline" style={{ fontFamily: "var(--font-script)" }}>{item.en}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
+        <SpeechStatusBanner />
+
+        <div className="studio-stage">
+          <main id="main" className="app-main" tabIndex={-1}>{children}</main>
         </div>
-      </header>
 
-      <SpeechStatusBanner />
-
-      <div className="studio-stage">
-        <NowPlayingRail />
-        <main id="main" className="app-main" tabIndex={-1}>{children}</main>
-      </div>
-
-      <footer className="border-t border-[var(--line)] px-4 py-6">
-        <div className="mx-auto flex max-w-[1320px] flex-wrap items-center justify-between gap-3 font-script text-sm text-[var(--muted)]">
-          <span className="inline-flex items-center gap-2"><span className="seal-mark h-7 min-h-7 min-w-7 text-xs" aria-hidden="true">한</span> Kirina Korean · YEUX KR</span>
-          <span>읽고 · 듣고 · 쓰다</span>
-        </div>
+        <footer className="app-footer">
+          <div>
+            <span>Kirina Korean</span>
+            <span lang="ko">배우고, 듣고, 말하다.</span>
+            <span>学一点，也把生活听懂一点。</span>
+          </div>
         </footer>
       </div>
       <NowPlayingBar />

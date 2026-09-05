@@ -11,6 +11,7 @@ import { mistakeCardId } from "@/lib/learning/ids";
 import { checkAnswer, type Question } from "@/lib/learning/quiz";
 import { recordMistake } from "@/lib/learning/srs";
 import {
+  isGestureBlockedPlaybackError,
   speakKorean,
   stopSpeech
 } from "@/lib/speech";
@@ -81,10 +82,11 @@ interface ResultContext {
   finish: () => void;
 }
 
-type AudioPlaybackState = { questionId: string; status: "pending" | "started" | "failed" };
+type AudioPlaybackStatus = "pending" | "started" | "failed" | "needs-gesture";
+type AudioPlaybackState = { questionId: string; status: AudioPlaybackStatus };
 
 function playQuestionAudio(
-  question: Question,
+  question: Pick<Question, "id" | "speak">,
   setAudioPlayback: (next: AudioPlaybackState | ((current: AudioPlaybackState) => AudioPlaybackState)) => void,
   rate?: number
 ) {
@@ -92,10 +94,12 @@ function playQuestionAudio(
   const questionId = question.id;
   return speakKorean(question.speak, {
     ...(rate === undefined ? {} : { rate }),
-    onstart: () => setAudioPlayback({ questionId, status: "started" }),
-    onerror: () => setAudioPlayback((current) => current.questionId === questionId && current.status === "started"
-      ? current
-      : { questionId, status: "failed" })
+    onstart: () => setAudioPlayback((current) => current.questionId === questionId
+      ? { questionId, status: "started" }
+      : current),
+    onerror: (event: unknown) => setAudioPlayback((current) => current.questionId === questionId
+      ? { questionId, status: isGestureBlockedPlaybackError(event) ? "needs-gesture" : "failed" }
+      : current)
   });
 }
 
@@ -137,7 +141,7 @@ export function DrillRunner({
   const [value, setValue] = useState(initialState.value);
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
-  const [audioPlayback, setAudioPlayback] = useState<{ questionId: string; status: "pending" | "started" | "failed" }>({
+  const [audioPlayback, setAudioPlayback] = useState<AudioPlaybackState>({
     questionId: "",
     status: "pending"
   });
@@ -149,9 +153,14 @@ export function DrillRunner({
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const question = questions[index];
   const existing = answers[index];
+  const hasExistingAnswer = Boolean(existing);
+  const questionId = question?.id;
+  const questionSpeak = question?.speak;
+  const questionType = question?.type;
   const audioQuestion = isAudioQuestion(question);
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
-  const audioCheckPending = audioQuestion && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
+  const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
+  const audioNeedsGesture = audioQuestion && !existing && currentPlaybackStatus === "needs-gesture";
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
@@ -180,30 +189,43 @@ export function DrillRunner({
   }, [answers, finished, onResult, resultSignature, score]);
 
   useEffect(() => {
-    if (finished || !question || !question.speak || voiceStatus !== "ready") return;
-    if (question.type !== "listen" && question.type !== "dictation") return;
-    if (answers[index]) return;
-    if (playedListenRef.current === question.id) return;
-    playedListenRef.current = question.id;
+    if (finished || !questionId || !questionSpeak || voiceStatus !== "ready") return;
+    if (questionType !== "listen" && questionType !== "dictation") return;
+    if (hasExistingAnswer) return;
+    if (playedListenRef.current === questionId) return;
     let active = true;
-    const started = playQuestionAudio(question, setAudioPlayback);
-    const playbackTimeout = window.setTimeout(() => {
+    let playbackStarted = false;
+    let playbackTimeout: number | undefined;
+    setAudioPlayback({ questionId, status: "pending" });
+    queueMicrotask(() => {
+      if (!active || playedListenRef.current === questionId) return;
+      playedListenRef.current = questionId;
+      playbackStarted = true;
+      const started = playQuestionAudio({ id: questionId, speak: questionSpeak }, setAudioPlayback);
       if (!active) return;
-      setAudioPlayback((current) => current.questionId === question.id && current.status !== "pending"
-        ? current
-        : { questionId: question.id, status: "failed" });
-    }, 5000);
-    if (!started) {
-      queueMicrotask(() => {
-        if (active) setAudioPlayback({ questionId: question.id, status: "failed" });
-      });
-    }
+      if (!started) {
+        setAudioPlayback({ questionId, status: "failed" });
+        return;
+      }
+      playbackTimeout = window.setTimeout(() => {
+        if (!active) return;
+        setAudioPlayback((current) => {
+          if (current.questionId !== questionId || current.status !== "pending") {
+            return current;
+          }
+          return { questionId, status: started ? "started" : "failed" };
+        });
+      }, 5000);
+    });
     return () => {
       active = false;
-      window.clearTimeout(playbackTimeout);
-      stopSpeech();
+      if (playbackTimeout !== undefined) window.clearTimeout(playbackTimeout);
+      if (playbackStarted) {
+        stopSpeech();
+        if (playedListenRef.current === questionId) playedListenRef.current = "";
+      }
     };
-  }, [answers, finished, index, question, voiceStatus]);
+  }, [finished, hasExistingAnswer, index, questionId, questionSpeak, questionType, voiceStatus]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -266,7 +288,7 @@ export function DrillRunner({
         hint: question.hint
       });
       if (!mistakeCard) {
-        setSrsError("错题没有写入本地复习队列，请释放浏览器存储空间后再继续。");
+        setSrsError("错题没有保存到复习队列。请释放浏览器空间后再继续。");
         return;
       }
       setSrsError("");
@@ -278,8 +300,10 @@ export function DrillRunner({
 
   const skipAudioQuestion = () => {
     if (!question || existing || !audioUnavailable) return;
+    const entry = { question, answer: "", correct: false, skipped: true };
+    if (onAnswer?.(entry) === false) return;
     const next = [...answers];
-    next[index] = { question, answer: "", correct: false, skipped: true };
+    next[index] = entry;
     setAnswers(next);
     setSrsError("");
     emitProgress(index, next, false);
@@ -333,10 +357,10 @@ export function DrillRunner({
     return (
       <div className="grid rounded-none border border-[var(--line)] bg-[var(--card)] md:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="p-5">
-          <p className="eyebrow">Empty Queue</p>
+          <p className="eyebrow">今天没有题了</p>
           <h2 className="mt-2 font-serif text-3xl font-black leading-tight">{emptyState?.title ?? "这里暂时没有题目。"}</h2>
           <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[var(--muted)]">
-            {emptyState?.detail ?? "先完成一些课程、复习卡片或真实材料，系统会自动把可练习内容放到这里。"}
+            {emptyState?.detail ?? "先完成一课、加入一些复习卡，或做一段情境听读。学过的内容会自动出现在这里。"}
           </p>
           {emptyState?.action ? <div className="mt-4 flex flex-wrap gap-2">{emptyState.action}</div> : null}
         </div>
@@ -350,12 +374,12 @@ export function DrillRunner({
       <article className="rounded-none border border-[var(--line)] bg-[var(--card)]">
         <div className="grid md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="p-5" role="status" aria-live="polite" aria-atomic="true">
-            <p className="eyebrow">Result</p>
+            <p className="eyebrow">这轮结果</p>
             <h2 ref={resultHeadingRef} className="focus-ring mt-2 font-serif text-5xl font-black" tabIndex={-1}>{score}%</h2>
             <p className="mt-3 leading-7 text-[var(--muted)]">{score >= 85 ? "这组很稳，可以进入下一步。" : score >= 65 ? "已经有骨架了，把错题再听一遍会更扎实。" : "先不要急着推进，重做这一组更划算。"}</p>
             {skippedCount ? (
               <p className="mt-2 text-sm font-bold leading-6 text-[var(--brass-text)]">
-                {skippedCount} 道音频题因设备缺少韩语语音而跳过，未计入分数或听力证据。
+                {skippedCount} 道音频题因本次音频未能播放而暂缓，未计入分数或听力成绩。
               </p>
             ) : null}
           </div>
@@ -390,7 +414,7 @@ export function DrillRunner({
     <article className={`rounded-none border p-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="eyebrow">Practice</p>
+          <p className="eyebrow">正在练习</p>
           <h2 className="mt-1 font-serif text-2xl font-black">练习 {index + 1} / {questions.length}</h2>
         </div>
         <div className="border border-[var(--line)] bg-[var(--paper-hi)] px-4 py-2 font-script text-sm text-[var(--ink-soft)]">{score}%</div>
@@ -438,10 +462,16 @@ export function DrillRunner({
           </div>
         ) : null}
 
+        {audioNeedsGesture ? (
+          <div className="mt-5 rounded-none border border-[var(--line)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--ocean)]" role="status">
+            浏览器拦截了自动播放。点「听」或「播放」后即可继续作答；这不代表设备无法播放韩语。
+          </div>
+        ) : null}
+
         {audioUnavailable && !existing ? (
           <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
-            <p>当前设备无法播放韩语，这道音频题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
-            <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补回这项证据。</p>
+            <p>这次未能播放韩语音频，这道题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
+            <p className="mt-1 text-[var(--muted)]">恢复音频播放后重新完成本课，即可补上听力成绩。</p>
           </div>
         ) : null}
 
@@ -462,7 +492,7 @@ export function DrillRunner({
 
         {question.type === "translate" && question.hint ? (
           <details className="mt-4 text-sm font-bold text-[var(--muted)]">
-            <summary className="cursor-pointer">需要提示？</summary>
+            <summary className="min-h-11 cursor-pointer py-3">需要提示？</summary>
             <p className="mt-1 leading-6">{question.hint}</p>
           </details>
         ) : null}
@@ -532,7 +562,7 @@ export function DrillRunner({
             aria-atomic="true"
             tabIndex={-1}
           >
-            <strong>{existing.skipped ? "已跳过：本题不计分，也不产生听力证据。" : existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
+            <strong>{existing.skipped ? "已跳过：本题不计分，也不计入听力成绩。" : existing.correct ? "答对了" : `正确答案：${question.answer}`}</strong>
             {question.type === "dictation" && !existing.correct && !existing.skipped ? (
               <DictationDiff expected={question.answer} actual={existing.answer} />
             ) : null}
