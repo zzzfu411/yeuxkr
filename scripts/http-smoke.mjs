@@ -1,6 +1,7 @@
 import { lessons } from "../src/data/curriculum.js";
 import { visualAssets } from "../src/data/visuals/assets.ts";
 import { BUNDLED_SPEECH_ASSETS } from "../src/data/speech-assets.generated.js";
+import { getSiteOrigin, privateRoutes, sitePages } from "../src/lib/site-metadata.ts";
 
 const baseArg = process.argv.find((arg) => arg.startsWith("--base="));
 const baseUrl = baseArg?.slice("--base=".length) ?? process.env.KIRINA_URL;
@@ -12,6 +13,7 @@ if (!baseUrl) {
 
 const manifestPath = "/manifest.webmanifest";
 const failures = [];
+const pageTitles = new Map();
 const removedOfflinePaths = ["/sw.js", "/offline.html"];
 const manifest = await fetchJson(manifestPath);
 const manifestIconPaths = collectManifestIconPaths(manifest);
@@ -31,6 +33,8 @@ const paths = [
   "/review",
   "/mistakes",
   "/quiz",
+  "/settings",
+  "/onboarding",
   ...lessons.map((lesson) => `/learn/${lesson.id}`),
   ...shortcutPaths,
   manifestPath,
@@ -76,10 +80,26 @@ for (const path of paths) {
       if (!html.includes("<html") || !html.includes("Kirina Korean") || html.includes("Yasashi Japanese")) {
         failures.push(`${path}: invalid HTML route`);
       }
+      const title = html.match(/<title>(.*?)<\/title>/)?.[1];
+      if (path in sitePages || path.startsWith('/learn/')) {
+        if (!title) failures.push(`${path}: missing page title`);
+        if (pageTitles.has(title) && pageTitles.get(title) !== path) failures.push(`${path}: duplicate title with ${pageTitles.get(title)}`);
+        pageTitles.set(title, path);
+        const origin=getSiteOrigin();
+        if(origin && !privateRoutes.has(path) && !html.includes(`href="${new URL(path,origin).href}"`)) failures.push(`${path}: missing canonical`);
+        if(privateRoutes.has(path) && !/name="robots" content="noindex/.test(html)) failures.push(`${path}: missing noindex`);
+      }
     }
   } catch (error) {
     failures.push(`${path}: ${error.cause?.code ?? error.message}`);
   }
+}
+
+for (const [path, marker] of [['/sitemap.xml','<urlset'], ['/robots.txt','User-Agent:']]) {
+  const response=await fetch(`${baseUrl}${path}`);
+  const body=await response.text();
+  if(!response.ok || !body.includes(marker)) failures.push(`${path}: invalid discovery document`);
+  if(body.includes('localhost')) failures.push(`${path}: leaked localhost URL`);
 }
 
 for (const path of removedOfflinePaths) {

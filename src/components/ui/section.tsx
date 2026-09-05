@@ -74,7 +74,8 @@ export function ModuleHero({
   overlay = "none",
   imageTreatment = "raw",
   imageDecorative = false,
-  imageAlt
+  imageAlt,
+  priority = true
 }: {
   kicker: string;
   title: string;
@@ -88,6 +89,7 @@ export function ModuleHero({
   imageTreatment?: VisualPanelTreatment;
   imageDecorative?: boolean;
   imageAlt?: string;
+  priority?: boolean;
 }) {
   return (
     <section className="module-hero studio-panel">
@@ -99,7 +101,7 @@ export function ModuleHero({
       </div>
       <VisualPanel
         asset={asset}
-        priority
+        priority={priority}
         sizes={`(max-width: 1024px) 100vw, ${imageSize}`}
         overlay={overlay}
         treatment={imageTreatment}

@@ -1,0 +1,462 @@
+{
+  "measuredAt": "2026-09-05T07:35:41.468Z",
+  "layouts": [
+    {
+      "route": "/vocabulary",
+      "width": 320,
+      "dom": 648,
+      "scrollWidth": 310,
+      "search": {
+        "top": 632.375,
+        "left": 25,
+        "width": 260,
+        "height": 44
+      },
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 294,
+        "height": 80.625
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 320,
+      "dom": 664,
+      "scrollWidth": 310,
+      "search": {
+        "top": 656.375,
+        "left": 25,
+        "width": 260,
+        "height": 44
+      },
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 294,
+        "height": 80.625
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 320,
+      "dom": 946,
+      "scrollWidth": 310,
+      "search": null,
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 294,
+        "height": 120.9375
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 942.859375,
+        "left": 29,
+        "width": 252,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 320,
+      "dom": 530,
+      "scrollWidth": 310,
+      "search": null,
+      "title": {
+        "top": 208.703125,
+        "left": 29,
+        "width": 252,
+        "height": 90
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/vocabulary",
+      "width": 390,
+      "dom": 648,
+      "scrollWidth": 380,
+      "search": {
+        "top": 592.0625,
+        "left": 25,
+        "width": 330,
+        "height": 44
+      },
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 364,
+        "height": 40.3125
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 390,
+      "dom": 664,
+      "scrollWidth": 380,
+      "search": {
+        "top": 632.375,
+        "left": 25,
+        "width": 330,
+        "height": 44
+      },
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 364,
+        "height": 80.625
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 390,
+      "dom": 946,
+      "scrollWidth": 380,
+      "search": null,
+      "title": {
+        "top": 177.59375,
+        "left": 8,
+        "width": 364,
+        "height": 80.625
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 902.546875,
+        "left": 29,
+        "width": 322,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 390,
+      "dom": 530,
+      "scrollWidth": 380,
+      "search": null,
+      "title": {
+        "top": 208.703125,
+        "left": 29,
+        "width": 322,
+        "height": 90
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/vocabulary",
+      "width": 768,
+      "dom": 648,
+      "scrollWidth": 758,
+      "search": {
+        "top": 549.15625,
+        "left": 33,
+        "width": 692,
+        "height": 44
+      },
+      "title": {
+        "top": 192,
+        "left": 12,
+        "width": 393.28125,
+        "height": 43
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 768,
+      "dom": 664,
+      "scrollWidth": 758,
+      "search": {
+        "top": 549.15625,
+        "left": 33,
+        "width": 692,
+        "height": 44
+      },
+      "title": {
+        "top": 192,
+        "left": 12,
+        "width": 393.28125,
+        "height": 43
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 768,
+      "dom": 946,
+      "scrollWidth": 758,
+      "search": null,
+      "title": {
+        "top": 192,
+        "left": 12,
+        "width": 393.28125,
+        "height": 86
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 822.328125,
+        "left": 33,
+        "width": 692,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 768,
+      "dom": 530,
+      "scrollWidth": 758,
+      "search": null,
+      "title": {
+        "top": 227.109375,
+        "left": 37,
+        "width": 684,
+        "height": 120
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/vocabulary",
+      "width": 1024,
+      "dom": 648,
+      "scrollWidth": 1014,
+      "search": {
+        "top": 587.46875,
+        "left": 45,
+        "width": 924,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 524.375,
+        "height": 57.34375
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 1024,
+      "dom": 664,
+      "scrollWidth": 1014,
+      "search": {
+        "top": 587.46875,
+        "left": 45,
+        "width": 924,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 524.375,
+        "height": 57.34375
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 1024,
+      "dom": 946,
+      "scrollWidth": 1014,
+      "search": null,
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 524.375,
+        "height": 114.6875
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 874.03125,
+        "left": 45,
+        "width": 572,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 1024,
+      "dom": 530,
+      "scrollWidth": 1014,
+      "search": null,
+      "title": {
+        "top": 250.125,
+        "left": 49,
+        "width": 468,
+        "height": 120
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/vocabulary",
+      "width": 1280,
+      "dom": 648,
+      "scrollWidth": 1270,
+      "search": {
+        "top": 609.484375,
+        "left": 45,
+        "width": 1180,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 655.484375,
+        "height": 71.671875
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 1280,
+      "dom": 664,
+      "scrollWidth": 1270,
+      "search": {
+        "top": 609.484375,
+        "left": 45,
+        "width": 1180,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 655.484375,
+        "height": 71.671875
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 1280,
+      "dom": 946,
+      "scrollWidth": 1270,
+      "search": null,
+      "title": {
+        "top": 215.015625,
+        "left": 24,
+        "width": 655.484375,
+        "height": 143.34375
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 902.6875,
+        "left": 45,
+        "width": 828,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 1280,
+      "dom": 530,
+      "scrollWidth": 1270,
+      "search": null,
+      "title": {
+        "top": 250.125,
+        "left": 49,
+        "width": 724,
+        "height": 120
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/vocabulary",
+      "width": 1440,
+      "dom": 648,
+      "scrollWidth": 1430,
+      "search": {
+        "top": 619.546875,
+        "left": 116,
+        "width": 1198,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 95,
+        "width": 675.5625,
+        "height": 78.84375
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/grammar",
+      "width": 1440,
+      "dom": 664,
+      "scrollWidth": 1430,
+      "search": {
+        "top": 698.390625,
+        "left": 116,
+        "width": 1198,
+        "height": 44
+      },
+      "title": {
+        "top": 215.015625,
+        "left": 95,
+        "width": 675.5625,
+        "height": 157.6875
+      },
+      "titleDisplay": "block",
+      "material": null
+    },
+    {
+      "route": "/immersion",
+      "width": 1440,
+      "dom": 946,
+      "scrollWidth": 1430,
+      "search": null,
+      "title": {
+        "top": 215.015625,
+        "left": 95,
+        "width": 675.5625,
+        "height": 157.6875
+      },
+      "titleDisplay": "block",
+      "material": {
+        "top": 917.03125,
+        "left": 116,
+        "width": 846,
+        "height": 45
+      }
+    },
+    {
+      "route": "/learn/l01-hangul-map",
+      "width": 1440,
+      "dom": 530,
+      "scrollWidth": 1430,
+      "search": null,
+      "title": {
+        "top": 250.125,
+        "left": 120,
+        "width": 742,
+        "height": 120
+      },
+      "titleDisplay": "block",
+      "material": null
+    }
+  ],
+  "checks": [
+    "backup: malformed, preview, cancel, confirm, IndexedDB cleanup",
+    "six viewport layouts, title block flow, named data menu, four theme targets and focus",
+    "pagination bounds, next-page contents, filter reset, focus",
+    "cross-tab review refresh without duplicate history",
+    "real media load failure unlocks onboarding deferral without listening credit"
+  ]
+}

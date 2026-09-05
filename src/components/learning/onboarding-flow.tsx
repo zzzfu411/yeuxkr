@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
@@ -13,8 +13,8 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { Surface } from "@/components/ui/section";
 import { nowIso } from "@/lib/learning/storage";
 import type { StudyGoal } from "@/lib/learning/types";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
-import { speakKorean } from "@/lib/speech";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+import { speakKorean, stopSpeech } from "@/lib/speech";
 
 const GOAL_OPTIONS: Array<{ id: StudyGoal; title: string; copy: string }> = [
   { id: "foundation", title: "从零开始", copy: "先学韩文和发音，再练日常对话。" },
@@ -35,9 +35,37 @@ export function OnboardingFlow() {
   const [minutes, setMinutes] = useState(30);
   const [typed, setTyped] = useState("");
   const [heardSample, setHeardSample] = useState(false);
+  const [sampleStatus, setSampleStatus] = useState<"idle" | "loading" | "failed">("idle");
+  const sampleRequestRef = useRef(0);
   const [saveError, setSaveError] = useState(false);
-  const canSkipVoice = voiceStatus === "missing" || voiceStatus === "unsupported";
+  const canSkipVoice = voiceStatus === "missing" || voiceStatus === "unsupported" || sampleStatus === "failed";
   const voiceReadyToContinue = heardSample || canSkipVoice;
+
+  useEffect(() => {
+    if (sampleStatus !== "loading") return;
+    const timeout = window.setTimeout(() => {
+      sampleRequestRef.current += 1;
+      stopSpeech();
+      setSampleStatus("failed");
+    }, 8000);
+    return () => window.clearTimeout(timeout);
+  }, [sampleStatus]);
+
+  useEffect(() => () => { sampleRequestRef.current += 1; stopSpeech(); }, [step]);
+
+  const playSample = () => {
+    const request = ++sampleRequestRef.current;
+    setSampleStatus("loading");
+    const started = speakKorean("안녕하세요", {
+      onstart: () => {
+        if (sampleRequestRef.current !== request) return;
+        setHeardSample(true);
+        setSampleStatus("idle");
+      },
+      onerror: () => { if (sampleRequestRef.current === request) setSampleStatus("failed"); }
+    });
+    if (!started) setSampleStatus("failed");
+  };
 
   const typedTarget = typed.trim() === "가";
 
@@ -179,19 +207,20 @@ export function OnboardingFlow() {
             许多练习需要播放韩语。点一下试听，能听到“<span lang="ko">안녕하세요</span>”（你好）就可以继续。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" size="lg" onClick={() => {
-              speakKorean("안녕하세요", { onstart: () => setHeardSample(true) });
-            }}>
+            <Button type="button" disabled={sampleStatus === "loading"} variant="secondary" size="lg" onClick={playSample}>
               <Volume2 className="h-5 w-5" aria-hidden="true" />
               试听 <span lang="ko">안녕하세요</span>
             </Button>
             {voiceStatus === "ready" ? (
               <span className="flex items-center gap-1 text-sm text-[var(--ink-soft)]">
                 <CheckCircle2 className="h-4 w-4 text-[var(--seal)]" aria-hidden="true" />
-                已检测到韩语语音
+                可以播放韩语音频
               </span>
             ) : null}
           </div>
+          {sampleStatus === "failed" ? (
+            <InlineAlert className="mt-4">这次试听没有播放成功。请检查网络或音量后重新试听，也可以暂缓检查，先去打字；这不会计为听力练习。</InlineAlert>
+          ) : sampleStatus === "loading" ? <p className="mt-3 text-sm text-[var(--muted)]" role="status">正在加载试听音频…</p> : null}
           {voiceStatus === "missing" || voiceStatus === "unsupported" ? (
             <InlineAlert className="mt-4 border border-[var(--line)] bg-[var(--wash-2)] text-[var(--ink-soft)] shadow-none">
               {voiceStatus === "unsupported"

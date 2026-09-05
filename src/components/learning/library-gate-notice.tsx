@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { getLibraryGateForLesson, type LibraryCounts } from "@/lib/learning/path-gates";
-import { libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
+import { libraryCountsForWrite } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export function LibraryGateNotice({ focus }: { focus?: keyof LibraryCounts } = {}) {
   const { workspace } = useLearningWorkspace();

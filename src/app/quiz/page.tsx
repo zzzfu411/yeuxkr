@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, Surface } from "@/components/ui/section";
 import { buildProgressQuiz } from "@/lib/learning/quiz";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { commitQuizSession, useLearningWorkspace } from "@/lib/learning/workspace";
+import { commitQuizSession } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export default function QuizPage() {
   const { workspace, srs, outputEntries, srsState } = useLearningWorkspace();

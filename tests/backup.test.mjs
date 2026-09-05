@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultProfile, defaultProgress, STORAGE_KEYS } from "../src/lib/learning/storage.ts";
-import { createLearningBackup, MAX_LEARNING_BACKUP_TEXT_LENGTH, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "../src/lib/learning/backup.ts";
+import { createLearningBackup, inspectLearningBackupText, MAX_LEARNING_BACKUP_TEXT_LENGTH, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "../src/lib/learning/backup.ts";
 
 const store = new Map();
 const recordingBlobs = new Map();
@@ -10,6 +10,15 @@ let failOnRemoveKey = "";
 let failOnGetKey = "";
 let indexedDbClearOutcome = "complete";
 const events = [];
+
+test("backup entry names inherited from Object.prototype are rejected without throwing", () => {
+  for (const key of ["__proto__", "constructor", "toString"]) {
+    const input = JSON.stringify({ app: "kirina-korean", version: 1, entries: { [key]: "{}" } });
+    const result = inspectLearningBackupText(input);
+    assert.equal(result.backup, null);
+    assert.match(result.error, /不支持的数据项/);
+  }
+});
 
 const recordingDatabase = {
   close() {},
@@ -127,6 +136,39 @@ test("learning backup exports normalized managed learning entries", () => {
   assert.equal(nativePortfolio.entries[0].title, "新闻评论");
   assert.equal(nativePortfolio.entries[0].learningMinutes, 45);
   assert.equal(backup.entries[STORAGE_KEYS.mistakes], undefined);
+  assert.ok(parseLearningBackupText(JSON.stringify(backup)), "an exported normalized backup must be importable");
+});
+
+test("invalid backup structures are rejected without writing progress or recordings", async () => {
+  resetMockStorage();
+  const previous = JSON.stringify(defaultProgress());
+  store.set(STORAGE_KEYS.progress, previous);
+  recordingBlobs.set("shadowing:keep", new Blob(["original audio"]));
+  const invalid = [null, 42, "unexpected", [], { completedLessons: "l01-hangul-map" }, { ability: { script: "100" } }, { lessonTaskEvidence: { l01: { recordedSeconds: "4" } } }];
+  for (const value of invalid) {
+    const input = { version: 1, app: "kirina-korean", entries: { [STORAGE_KEYS.progress]: JSON.stringify(value) } };
+    const inspection = inspectLearningBackupText(JSON.stringify(input));
+    assert.equal(inspection.backup, null);
+    assert.match(inspection.error, /kirina.progress.v2/);
+    assert.equal(await restoreLearningBackup(input), false, "direct restore must enforce the same validation boundary");
+    assert.equal(store.get(STORAGE_KEYS.progress), previous);
+    assert.equal(recordingBlobs.has("shadowing:keep"), true);
+  }
+});
+
+test("backup validation checks each container and retains supported partial legacy records", () => {
+  const invalid = [
+    [STORAGE_KEYS.srs, { cards: [] }],
+    [STORAGE_KEYS.srs, { cards: { bad: { payload: { kind: "vocab", itemId: [] } } } }],
+    [STORAGE_KEYS.outputs, { entries: [{ id: "o", rubric: {} }] }],
+    [STORAGE_KEYS.lessonSession, { sessions: { l01: { answers: {} } } }],
+    [STORAGE_KEYS.nativePortfolio, { version: 2, entries: [] }],
+    [STORAGE_KEYS.drafts, { immersion: { m: { selfCheck: "done" } } }],
+    [STORAGE_KEYS.speech, { rate: "fast" }]
+  ];
+  for (const [key, value] of invalid) assert.equal(parseLearningBackupText(JSON.stringify({ version: 1, app: "kirina-korean", entries: { [key]: JSON.stringify(value) } })), null);
+  assert.ok(parseLearningBackupText(JSON.stringify({ version: 1, app: "kirina-korean", entries: { [STORAGE_KEYS.progress]: JSON.stringify({ completedLessons: [], lessonScores: {} }) } })));
+  assert.ok(parseLearningBackupText(JSON.stringify({ version: 1, app: "kirina-korean", entries: {} })), "an explicitly empty backup is previewed as replacement with zero counts");
 });
 
 test("backup export revokes recording-backed course completion that cannot migrate", () => {

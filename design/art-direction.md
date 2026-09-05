@@ -86,4 +86,4 @@ Kirina Korean 是一个中文母语者使用的韩语学习应用。新版把学
 
 视觉重构不得改变课程数据、路径推荐、SRS、测验引擎、录音、语音、workspace model 或本地持久化契约。组件仍优先复用 `PageHeader`、`ModuleHero`、`Surface`、`VisualPanel`、`Button` 与统一 token；新页面不得自建另一套视觉系统。
 
-验收需要同时通过 `validate`、TypeScript、ESLint、341 项单测、生产构建和浏览器 smoke，并人工检查桌面与移动截图。
+验收需要同时通过 `validate`、TypeScript、ESLint、全部单测、生产构建和浏览器 smoke，并人工检查桌面与移动截图。

@@ -10,11 +10,12 @@ import { TrackRow } from "@/components/ui/track-row";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { TASK_IDS } from "@/lib/learning/ids";
 import { firstHangul } from "@/lib/learning/player";
-import { firstActionableLesson, getLessonPrerequisites, getMilestoneProgress, isLessonMastered, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "@/data/curriculum";
+import { firstActionableLesson, getLessonPrerequisites, getMilestoneProgress, isLessonMastered, isLessonUnlocked, lessons, milestones, UNLOCK_SCORE } from "@/data/curriculum-runtime";
 import { nativeRoadmapPrinciples, nativeRoadmapStages } from "@/data/native-roadmap";
 import { proficiencyLevels, proficiencyMetrics } from "@/data/proficiency";
 import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
-import { libraryCountsForWrite, useLearningWorkspace } from "@/lib/learning/workspace";
+import { libraryCountsForWrite } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const moduleLabels: Record<string, string> = {
   hangul: "韩文",

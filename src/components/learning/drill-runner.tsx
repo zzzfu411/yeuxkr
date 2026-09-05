@@ -379,7 +379,7 @@ export function DrillRunner({
             <p className="mt-3 leading-7 text-[var(--muted)]">{score >= 85 ? "这组很稳，可以进入下一步。" : score >= 65 ? "已经有骨架了，把错题再听一遍会更扎实。" : "先不要急着推进，重做这一组更划算。"}</p>
             {skippedCount ? (
               <p className="mt-2 text-sm font-bold leading-6 text-[var(--brass-text)]">
-                {skippedCount} 道音频题因设备没有韩语语音而跳过，未计入分数或听力成绩。
+                {skippedCount} 道音频题因本次音频未能播放而暂缓，未计入分数或听力成绩。
               </p>
             ) : null}
           </div>
@@ -471,7 +471,7 @@ export function DrillRunner({
         {audioUnavailable && !existing ? (
           <div className="mt-5 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--brass-text)]" role="note">
             <p>当前设备无法播放韩语，这道音频题可以跳过继续学习；它不会计分，也不会被记录成听力能力。</p>
-            <p className="mt-1 text-[var(--muted)]">安装韩语语音包后重新完成本课，即可补上听力成绩。</p>
+            <p className="mt-1 text-[var(--muted)]">恢复音频播放后重新完成本课，即可补上听力成绩。</p>
           </div>
         ) : null}
 

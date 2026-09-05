@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export function OnboardingGateNotice({ copy }: { copy?: string } = {}) {
   const { workspace } = useLearningWorkspace();

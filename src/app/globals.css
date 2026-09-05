@@ -413,15 +413,17 @@ summary::-webkit-details-marker { display: none; }
 .nav-more-menu small { color: var(--muted); font-size: 0.66rem; }
 
 .season-switcher {
-  display: flex;
-  min-height: 40px;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.2rem 0.35rem 0.2rem 0.55rem;
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--paper-hi) 66%, transparent);
 }
+.season-trigger { display: flex; min-height: 44px; gap: 0.5rem; align-items: center; padding: 0 0.85rem; cursor: pointer; list-style: none; font-size: 0.8rem; }
+.season-trigger::-webkit-details-marker { display: none; }
+.season-switcher .theme-toggle { position: absolute; top: calc(100% + 0.6rem); right: 0; z-index: 76; display: grid; grid-template-columns: 1fr 1fr; width: 12rem; gap: 0.3rem; padding: 0.5rem; background: var(--paper-hi); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.season-switcher:not([open]) .theme-toggle { display: none; }
+.season-switcher .theme-toggle__option { display: flex; min-height: 44px; height: auto; width: auto; gap: 0.5rem; align-items: center; padding: 0.6rem; font-size: 0.8rem; border-radius: var(--radius-sm); }
+.season-switcher .theme-toggle__option.is-active { background: var(--wash-2); }
 .season-switcher__label { display: none; color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
 .season-switcher__label b { margin-right: 0.25rem; color: var(--ink); font-weight: 620; }
 .theme-toggle,
@@ -539,7 +541,7 @@ summary::-webkit-details-marker { display: none; }
 }
 .paper-rail { background: color-mix(in srgb, var(--paper-hi) 72%, transparent); }
 .paper-tape { display: none !important; }
-.inkline { display: inline; padding: 0; }
+.inkline { display: block; padding: 0; }
 .inkline::after { content: none; }
 .rough,
 .paper-rough { filter: none; }
@@ -872,7 +874,6 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   .app-main { padding: 1.1rem 0 5.7rem; }
   .brand-copy small { display: none; }
   .season-switcher { gap: 0.2rem; padding-left: 0.3rem; }
-  .theme-toggle__option { width: 23px; }
   .home-hero { min-height: 34rem; border-radius: 22px; }
   .home-hero__meta { top: 0.9rem; right: 1rem; left: 1rem; }
   .home-hero__meta span:last-child { display: none; }

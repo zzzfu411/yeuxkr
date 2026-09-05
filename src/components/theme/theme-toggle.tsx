@@ -68,11 +68,16 @@ export function ThemeToggle() {
   const active = THEMES.find((theme) => theme.id === activeTheme) ?? THEMES[0];
 
   return (
-    <div className="season-switcher" role="group" aria-label="季节主题">
-      <span className="season-switcher__label" aria-hidden="true">
-        <b>{active.ko}</b>
-        {active.label}
-      </span>
+    <details className="season-switcher" onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.currentTarget.removeAttribute("open");
+        event.currentTarget.querySelector("summary")?.focus();
+      }
+    }}>
+      <summary className="season-trigger focus-ring" aria-label={`季节主题：${active.label}`}>
+        <span className="theme-toggle__swatch" style={{ backgroundColor: active.swatch }} aria-hidden="true" />
+        <span>{active.label}</span>
+      </summary>
       <span className="theme-toggle">
         {THEMES.map((theme) => {
           const selected = activeTheme === theme.id;
@@ -86,17 +91,23 @@ export function ThemeToggle() {
               title={`${theme.ko} · ${theme.label}`}
               aria-label={`${theme.ko} · ${theme.label}`}
               aria-pressed={selected}
-              onClick={() => applyTheme(theme.id)}
+              onClick={(event) => {
+                applyTheme(theme.id);
+                const menu = event.currentTarget.closest("details");
+                menu?.removeAttribute("open");
+                menu?.querySelector("summary")?.focus();
+              }}
             >
               <span
                 className="theme-toggle__swatch"
                 style={{ backgroundColor: theme.swatch }}
                 aria-hidden="true"
               />
+              <span>{theme.label}</span>
             </button>
           );
         })}
       </span>
-    </div>
+    </details>
   );
 }

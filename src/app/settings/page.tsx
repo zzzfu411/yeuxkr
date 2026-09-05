@@ -6,7 +6,7 @@ import { SpeechSettings } from "@/components/korean/speech-settings";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const ROMANIZATION_OPTIONS = [
   { id: "fade", label: "起步后折叠", copy: "前 6 课直接显示，之后按需点开。" },
@@ -115,7 +115,7 @@ export default function SettingsPage() {
 
         <div className="grid content-start gap-4">
           <Surface>
-            <SectionHeading kicker="한국어 소리 · 韩语语音" title="韩语语音" copy="所有听力练习都用这里选定的语音朗读。" />
+            <SectionHeading kicker="한국어 소리 · 韩语语音" title="韩语语音" copy="课程优先播放配套录音。没有配套录音的动态文本使用这里选定的系统备用语音。" />
             <SpeechSettings />
           </Surface>
           <Surface>

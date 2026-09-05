@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "strict": true, "incremental": false },
+  "include": ["src/lib/site-metadata.ts", "src/lib/learning/backup-schema.ts", "src/lib/learning/backup.ts", "src/lib/learning/workspace.ts", "src/lib/learning/use-learning-workspace.ts", "src/lib/korean/jamo.ts", "src/lib/learning/ids.ts", "src/lib/learning/types.ts"],
+  "exclude": ["node_modules", ".next"]
+}

@@ -11,6 +11,7 @@ import { SpeechStatusBanner } from "@/components/korean/speech-status";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { stopSpeech } from "@/lib/speech";
 import { cn } from "@/lib/utils";
+import { LearningWorkspaceProvider } from "@/lib/learning/use-learning-workspace";
 
 const primaryNav = [
   { href: "/", label: "今日", ko: "오늘", icon: Compass },
@@ -37,6 +38,10 @@ function navItemIsActive(pathname: string, href: string) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return <LearningWorkspaceProvider><AppShellContent>{children}</AppShellContent></LearningWorkspaceProvider>;
+}
+
+function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement | null>(null);
   const activeItemRef = useRef<HTMLAnchorElement | null>(null);

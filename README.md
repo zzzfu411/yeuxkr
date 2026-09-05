@@ -57,11 +57,21 @@ npm run audit:prod
 
 `check:smoke` 需要先执行 `npm run build`，然后会在测试进程内启动 Next production server，连续运行 HTTP 与浏览器 smoke，并在结束时关闭服务，不留下后台 Node 进程。
 
-浏览器 smoke 需要可用的 Playwright Chromium；如果本机使用的是全局或自定义安装，可通过 `PLAYWRIGHT_ENTRY` 指定模块。公开站点的 canonical metadata 可在 `.env` 中设置 `NEXT_PUBLIC_SITE_URL`，未设置时使用 `http://localhost:3000`。
+浏览器 smoke 需要可用的 Playwright Chromium（`npx playwright install chromium`）；如果本机使用的是全局或自定义安装，可通过 `PLAYWRIGHT_ENTRY` 指定模块。CI 会安装 Chromium 并运行生产浏览器回归，保留 `.browser-check/` 中的截图和测量结果。
+
+发布前在 `.env` 或部署环境中配置 `NEXT_PUBLIC_SITE_URL` 为真实 HTTPS 根地址，运行 `npm run check:release`，再执行 `npm run check:all`。本地不配置时省略绝对 canonical、OG 图片和 sitemap 条目。公开模块与课程有独立标题和描述，复习、错题、测验、设置、入门工具标记为不索引。站点地址会参与静态构建，变更后必须重新构建。
 
 ## 数据与安全边界
 
-学习进度、复习卡、草稿和作品集默认只保存在当前浏览器的 `localStorage`；录音 Blob 保存在同源 IndexedDB，不会随备份导出。产品没有账号、服务端 API 或跨用户数据边界，因此本地数据不是可验证的认证凭据。导入备份会先做 schema/大小校验（最大 4 MB），失败时回滚已写入的学习键。
+学习进度、复习卡、草稿和作品集默认只保存在当前浏览器的 `localStorage`；录音 Blob 保存在同源 IndexedDB，不会随文字备份导出。录音可在对应课程选择“下载这段录音”。产品没有账号、服务端 API 或跨用户数据边界，因此本地数据不是可验证的认证凭据。
+
+导入备份先验证字段类型和嵌套结构（最大 4 MB），再显示日期、课程/卡片/作品数量及缺失数据。只有最终确认后才整份替换：缺失记录和本机录音会被清理，依赖录音的课程需重新录制。取消和校验失败不改数据；写入失败尝试回滚。文字导出不是音频备份，浏览器清理数据、换域名或换设备前应分别保存。
+
+同时打开多个页面时，复习会检测过期卡片快照并拒绝重复计分，提供“读取更新后的队列”。本地存储仍不是跨进程数据库事务；不建议在多个页面同时执行导入、重置等整库操作。
+
+课程讲解源保留在 `src/data/lessons/`。修改课程后运行 `npm run content:prepare` 更新不含讲解卡的运行目录；`validate` 会检查生成文件是否同步。完整讲解由课程服务端页面按课传入，学习引擎使用较小的运行目录。React 工作区通过单个 Provider 共享存储订阅，课程结果和录音证据面板独立维护。`typecheck:strict` 对元数据、备份、归一化、状态计算、写入操作、Hook 和韩文拼字启用严格检查，并以 `checkJs` 验证生成课程是否符合 `RuntimeLesson` 契约；历史页面尚未全量迁移到 strict。
+
+`check:smoke` 包含脚本体积预算、数据导入取消/替换、音频失败、跨标签页复习、分页和六档宽度回归。性能结果记录在 `.browser-check/performance.json`，DOM/布局数据记录在 `.browser-check/audit-regression.json`。这些是实验室回归，不替代真机浏览器和真实学习效果验证。具体修复范围见 [修复计划](docs/remediation-plan-2026-09-05.md)。
 
 生产依赖升级后可用 `npm audit --omit=dev --audit-level=high` 做阻断式检查；仓库 CI 会执行同一检查。完整 `npm audit` 可能仍报告仅供开发期 lint 工具链使用的依赖，不能把它们误解为线上运行时依赖。
 
@@ -74,6 +84,10 @@ src/data/                 # 韩语课程、韩文、词汇、语法、语用、�
 src/data/native-roadmap.js # 长期进阶路线蓝图
 src/data/visuals/         # 视觉资产索引和 image-gen manifest
 src/lib/learning/          # 学习工作台、进度、SRS、测验逻辑
+  progress-normalization.ts # 本地记录归一化与证据检查
+  workspace-snapshot.ts   # 学习状态、能力与推荐的只读计算
+  workspace.ts            # 写入与回滚；保留原公共领域接口
+  use-learning-workspace.ts # 单一 Provider 与 React 订阅
 public/assets/generated/   # imagegen 生成并接入的页面资产
 public/assets/audio/ko/    # 本地生成的统一韩语 MP3 与清单
 tests/                     # Node 单测

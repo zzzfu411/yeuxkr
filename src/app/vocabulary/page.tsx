@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { LibraryPagination, useLibraryPage } from "@/components/ui/library-pagination";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -12,7 +13,7 @@ import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
 import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "@/data/lexicon";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import { speakKorean } from "@/lib/speech";
 
 export default function VocabularyPage() {
@@ -25,7 +26,6 @@ export default function VocabularyPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [onlyLearned, setOnlyLearned] = useState(false);
   const [srsErrorId, setSrsErrorId] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filteredVocab = useMemo(() => {
@@ -47,9 +47,8 @@ export default function VocabularyPage() {
       return matchesLevel && matchesCategory && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
   }, [categoryFilter, learned, levelFilter, onlyLearned, query]);
-  const focusedFilterActive = Boolean(query.trim()) || levelFilter !== "all" || categoryFilter !== "all" || onlyLearned;
-  const visibleVocab = showAll || focusedFilterActive ? filteredVocab : filteredVocab.slice(0, 12);
-  const hiddenVocabCount = Math.max(0, filteredVocab.length - visibleVocab.length);
+  const pagination = useLibraryPage(filteredVocab, JSON.stringify([query, levelFilter, categoryFilter, onlyLearned]), 12);
+  const visibleVocab = pagination.items;
   const byLevel = groupBy(visibleVocab, "level");
   const levelCounts = countBy(filteredVocab, "level");
   const categoryCounts = countBy(filteredVocab, "category");
@@ -64,7 +63,7 @@ export default function VocabularyPage() {
     setLevelFilter("all");
     setCategoryFilter("all");
     setOnlyLearned(false);
-    setShowAll(false);
+    pagination.setPage(0);
   };
   const toggleVocabSrs = (itemId: string) => {
     if (toggleVocab(itemId)) {
@@ -95,26 +94,12 @@ export default function VocabularyPage() {
       <OnboardingGateNotice copy="先完成三分钟入门，之后的词汇练习才会计入学习进度。" />
       <LibraryGateNotice focus="vocab" />
 
-      <ModuleHero
-        kicker={`${filteredVocab.length}/${vocab.length} 条词汇`}
-        title="按场景找词，比照着清单背更好用。"
-        copy={`这里有 ${vocab.length} 个可练词条，按阶段和场景整理。更大的词汇量是长期目标，不会混进当前进度。`}
-        asset="vocabulary"
-        imageClassName="min-h-80 rounded-none border-0"
-      >
-        <div className="flex flex-wrap gap-2">
-          {vocabCategories.map((item: any) => (
-            <span key={item.id} className="rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-extrabold">
-              {item.label} · {categoryCounts[item.id] ?? 0}
-            </span>
-          ))}
-        </div>
-      </ModuleHero>
+
 
       <Surface>
         <SectionHeading
           kicker="골라 연습하기 · 选择练习"
-          title="先练一小组，再展开整座词库"
+          title="找到今天要练的词"
           copy="按阶段、场景或已学状态筛选。也可以搜索韩语、中文、罗马音和例句。"
           action={activeFilters.length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
@@ -140,21 +125,13 @@ export default function VocabularyPage() {
             <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredVocab.length} filters={activeFilters} />
-          {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <span>
-                先练这 {visibleVocab.length} 个词：听发音、看例句，再试着造句。还有 {hiddenVocabCount} 个词可以展开。
-              </span>
-              {showAll || hiddenVocabCount ? (
-                <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起" : "展开全部词汇"}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+
         </div>
       </Surface>
 
+      <div id="library-results" tabIndex={-1} className="focus-ring scroll-mt-40">
+        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="词汇分页" resultsId="library-results" />
+      </div>
       {!filteredVocab.length ? (
         <Surface>
           <EmptyState title="没有匹配的词" copy="换一个搜索词，或重置阶段、场景和复习筛选。" onAction={resetFilters} />
@@ -242,6 +219,26 @@ export default function VocabularyPage() {
           </div>
         </Surface>
       ))}
+      <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="词汇底部分页" resultsId="library-results" />
+      <details className="library-about">
+        <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">了解词汇练习方法与内容规模</summary>
+      <ModuleHero
+        priority={false}
+        kicker={`${filteredVocab.length}/${vocab.length} 条词汇`}
+        title="按场景找词，比照着清单背更好用。"
+        copy={`这里有 ${vocab.length} 个可练词条，按阶段和场景整理。更大的词汇量是长期目标，不会混进当前进度。`}
+        asset="vocabulary"
+        imageClassName="min-h-80 rounded-none border-0"
+      >
+        <div className="flex flex-wrap gap-2">
+          {vocabCategories.map((item: any) => (
+            <span key={item.id} className="rounded-none border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-extrabold">
+              {item.label} · {categoryCounts[item.id] ?? 0}
+            </span>
+          ))}
+        </div>
+      </ModuleHero>
+      </details>
     </div>
   );
 }

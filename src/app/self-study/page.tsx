@@ -13,7 +13,8 @@ import { selfStudyFocus, selfStudyGoals, selfStudyIntensity, buildSelfStudyPlan,
 import { clearSelfStudyCheckpointDraft, getSelfStudyCheckpointDrafts, saveSelfStudyCheckpointDraft } from "@/lib/learning/drafts";
 import { moduleToAbility } from "@/lib/learning/modules";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { ABILITY_LABELS, findCompletedCheckpointCredit, useLearningWorkspace, validateCheckpointEvidence } from "@/lib/learning/workspace";
+import { ABILITY_LABELS, findCompletedCheckpointCredit, validateCheckpointEvidence } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import type { AbilityId, StudyFocus, StudyGoal, StudyIntensity, StudyMode, UserProfile } from "@/lib/learning/types";
 
 export default function SelfStudyPage() {

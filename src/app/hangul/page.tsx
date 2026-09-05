@@ -15,7 +15,7 @@ import { hangulGroups, pronunciationPairs, syllableLabs } from "@/data/hangul";
 import { soundChangeRules } from "@/data/sound-changes";
 import { decomposeSyllable } from "@/lib/korean/jamo";
 import { pronunciationCardId, soundChangeCardId } from "@/lib/learning/ids";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
 export default function HangulPage() {

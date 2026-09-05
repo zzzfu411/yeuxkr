@@ -15,7 +15,8 @@ import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type Mi
 import type { Question } from "@/lib/learning/quiz";
 import { getSrsStateFromRaw } from "@/lib/learning/srs";
 import { STORAGE_KEYS, useClientNow, useStorageRaw } from "@/lib/learning/storage";
-import { gradeReviewCardAndProgress, removeMistakeCardAndPracticeItem, useLearningWorkspace } from "@/lib/learning/workspace";
+import { gradeReviewCardAndProgress, removeMistakeCardAndPracticeItem } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export default function MistakesPage() {
   const { workspace } = useLearningWorkspace();

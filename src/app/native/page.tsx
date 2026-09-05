@@ -18,7 +18,8 @@ import { countSavedCollocationEvidence, useNativePortfolio, type NativePortfolio
 import { firstHangul } from "@/lib/learning/player";
 import { speakKorean } from "@/lib/speech";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { countCheckpointCredits, countNativePracticeEvidence, hasCompleteNativePracticeEvidence, useLearningWorkspace, type NativeEvidenceInput } from "@/lib/learning/workspace";
+import { countCheckpointCredits, countNativePracticeEvidence, hasCompleteNativePracticeEvidence, type NativeEvidenceInput } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const trackOptions = [
   { id: "all", label: "全部" },

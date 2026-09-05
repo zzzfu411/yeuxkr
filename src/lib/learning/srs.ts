@@ -1,7 +1,7 @@
 "use client";
 
 import { parseJson, readJson, writeJson, STORAGE_KEYS } from "./storage.ts";
-import { lessons } from "../../data/curriculum.js";
+import { lessons } from "../../data/curriculum-runtime.js";
 import { grammarPoints } from "../../data/grammar.js";
 import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
 import { vocab } from "../../data/lexicon.js";

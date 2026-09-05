@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Volume2 } from "lucide-react";
+import { LibraryPagination, useLibraryPage } from "@/components/ui/library-pagination";
 import { Button } from "@/components/ui/button";
 import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
@@ -13,7 +14,7 @@ import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui
 import { TrackRow } from "@/components/ui/track-row";
 import { grammarPoints } from "@/data/grammar";
 import { speakKorean } from "@/lib/speech";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const levelLabels: Record<string, string> = {
   foundation: "基础骨架",
@@ -29,7 +30,6 @@ export default function GrammarPage() {
   const [levelFilter, setLevelFilter] = useState("all");
   const [onlyLearned, setOnlyLearned] = useState(false);
   const [srsErrorId, setSrsErrorId] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filteredPoints = useMemo(() => {
@@ -49,9 +49,8 @@ export default function GrammarPage() {
       return matchesLevel && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
   }, [learned, levelFilter, onlyLearned, query]);
-  const focusedFilterActive = Boolean(query.trim()) || levelFilter !== "all" || onlyLearned;
-  const visiblePoints = showAll || focusedFilterActive ? filteredPoints : filteredPoints.slice(0, 6);
-  const hiddenPointCount = Math.max(0, filteredPoints.length - visiblePoints.length);
+  const pagination = useLibraryPage(filteredPoints, JSON.stringify([query, levelFilter, onlyLearned]), 6);
+  const visiblePoints = pagination.items;
   const byLevel = groupBy(visiblePoints, "level");
   const levelCounts = countBy(filteredPoints, "level");
   const activeFilters = [
@@ -63,7 +62,7 @@ export default function GrammarPage() {
     setQuery("");
     setLevelFilter("all");
     setOnlyLearned(false);
-    setShowAll(false);
+    pagination.setPage(0);
   };
   const toggleGrammarSrs = (pointId: string) => {
     if (toggleGrammar(pointId)) {
@@ -94,23 +93,7 @@ export default function GrammarPage() {
       <OnboardingGateNotice copy="先完成三分钟入门，之后的语法练习才会计入学习进度。" />
       <LibraryGateNotice focus="grammar" />
 
-      <ModuleHero
-        kicker={`${filteredPoints.length}/${grammarPoints.length} 个句型`}
-        title="先看懂结构，再说自己的句子。"
-        copy="语法会和课程、词汇及输出练习一起出现，帮助你把规则真正用起来。"
-        asset="grammar"
-        imageClassName="min-h-80 rounded-none border-0"
-      >
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
-          {Object.entries(levelLabels).map(([id, label]) => (
-            <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
-              <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
-              <strong className="mt-1 block">{label}</strong>
-              <span className="text-sm font-bold text-[var(--ocean)]">显示 {levelCounts[id] ?? 0}</span>
-            </div>
-          ))}
-        </div>
-      </ModuleHero>
+
 
       <Surface>
         <SectionHeading
@@ -135,21 +118,13 @@ export default function GrammarPage() {
             <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
           </div>
           <FilterSummary count={filteredPoints.length} filters={activeFilters} />
-          {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <span>
-                先练这 {visiblePoints.length} 个句型：听例句，再造一个自己的句子。还有 {hiddenPointCount} 个句型可以展开。
-              </span>
-              {showAll || hiddenPointCount ? (
-                <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起" : "展开全部句型"}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+
         </div>
       </Surface>
 
+      <div id="library-results" tabIndex={-1} className="focus-ring scroll-mt-40">
+        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法分页" resultsId="library-results" />
+      </div>
       {!filteredPoints.length ? (
         <Surface>
           <EmptyState title="没有匹配的语法点" copy="换一个搜索词，或重置阶段和复习筛选。" onAction={resetFilters} />
@@ -236,6 +211,28 @@ export default function GrammarPage() {
           </div>
         </Surface>
       ))}
+      <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法底部分页" resultsId="library-results" />
+      <details className="library-about">
+        <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">了解语法练习方法与内容规模</summary>
+      <ModuleHero
+        priority={false}
+        kicker={`${filteredPoints.length}/${grammarPoints.length} 个句型`}
+        title="先看懂结构，再说自己的句子。"
+        copy="语法会和课程、词汇及输出练习一起出现，帮助你把规则真正用起来。"
+        asset="grammar"
+        imageClassName="min-h-80 rounded-none border-0"
+      >
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
+          {Object.entries(levelLabels).map(([id, label]) => (
+            <div key={id} className="rounded-none border border-[var(--line)] bg-[var(--card)] p-3">
+              <span className="font-mono text-xs font-black uppercase text-[var(--muted)]">{id}</span>
+              <strong className="mt-1 block">{label}</strong>
+              <span className="text-sm font-bold text-[var(--ocean)]">显示 {levelCounts[id] ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </ModuleHero>
+      </details>
     </div>
   );
 }

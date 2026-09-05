@@ -52,7 +52,7 @@ export function MasteryGate({
       </div>
       {missingAudioEvidence ? (
         <InlineAlert>
-          这项练习需要实际听辨。当前音频题被跳过，因此不会计入听力成绩；安装韩语语音后再试。
+          这项练习需要实际听辨。当前音频题被跳过，因此不会计入听力成绩；恢复音频播放后再试。
         </InlineAlert>
       ) : lastScore !== null && lastScore < GATE_PASS_SCORE ? (
         <InlineAlert>

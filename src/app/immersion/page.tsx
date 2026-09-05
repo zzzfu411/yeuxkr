@@ -9,14 +9,14 @@ import { LearningCompass } from "@/components/learning/learning-compass";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
+import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, type ImmersionMaterial } from "@/data/materials";
-import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum";
+import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum-runtime";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
 import { notifyNowPlayingLocationChange } from "@/lib/learning/player";
-import { useLearningWorkspace } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
 const levelLabels: Record<ImmersionMaterial["level"], string> = {
@@ -430,20 +430,13 @@ function ImmersionContent() {
 
       <LibraryGateNotice focus="materials" />
 
-      <ModuleHero
-        kicker={`자료 기록 · 已完成 ${workspace.stats.completedMaterials}/${workspace.stats.totalMaterials} 段`}
-        title="一次只练一段。"
-        copy="先听关键句，再完成听写、复述、自检和改写。步骤没做完时，内容只会保存为草稿，不计为完成。"
-        asset="immersion"
-        imageSize="20rem"
-        imageClassName="min-h-60 rounded-none border-0 lg:min-h-full"
-        overlay="bottom"
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <HeroMetric label="当前材料" value={active.title} detail={`${levelLabels[active.level]} · ${kindLabels[active.kind]} · ${active.minutes} 分钟`} />
-          <HeroMetric label="完成步骤" value={`${completedGateCount}/${completionGates.length}`} detail={`下一步：${nextGateLabel}`} />
-          <HeroMetric label="课程要求" value={prerequisitesReady ? "已满足" : `还差 ${missingPrerequisites.length} 课`} detail={prerequisitesReady ? "可以开始完整练习" : "可以看说明和留草稿；完成前置课后开放原文"} />
-        </div>
+      <Surface>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow">当前材料 · {active.minutes} 分钟</p>
+            <h2 className="mt-2 font-serif text-2xl">{active.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">已完成 {completedGateCount}/{completionGates.length} 步 · 下一步：{nextGateLabel}</p>
+          </div>
         {prerequisitesReady ? (
           <Button
             className="mt-4"
@@ -462,9 +455,12 @@ function ImmersionContent() {
             </Link>
           </Button>
         )}
-      </ModuleHero>
 
-      <LearningCompass workspace={workspace} active="immersion" condensed />
+        </div>
+        {!prerequisitesReady ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">还需完成 {missingPrerequisites.length} 节前置课。现在可以浏览说明、保存草稿。</p> : null}
+      </Surface>
+
+      <details><summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">查看学习安排与阶段进度</summary><LearningCompass workspace={workspace} active="immersion" condensed /></details>
       {draftRestoredFor === active.id && !completed.has(active.id) ? (
         <InlineAlert tone="success">
           已恢复上次的草稿。完成练习或保存输出后，草稿会自动清理。
@@ -472,8 +468,8 @@ function ImmersionContent() {
       ) : null}
       {draftSaveError ? <InlineAlert>{draftSaveError}</InlineAlert> : null}
 
-      <section id="material-workbench" className="scroll-mt-40 grid gap-5 lg:scroll-mt-28 xl:grid-cols-[22rem_minmax(0,1fr)]">
-        <Surface className="h-fit xl:sticky xl:top-24">
+      <section id="material-workbench" className="scroll-mt-40 grid gap-5 lg:scroll-mt-28">
+        <details id="material-directory" className="surface p-4"><summary className="focus-ring min-h-11 cursor-pointer py-3 font-semibold">更换听读材料 · 共 {queuedMaterials.length} 段</summary><div className="max-h-96 overflow-y-auto overscroll-contain">
           <SectionHeading kicker="자료 목록 · 场景列表" title="情境听读" />
           <div>
             {queuedMaterials.map((material, materialIndex) => {
@@ -491,19 +487,27 @@ function ImmersionContent() {
                   meta={`${material.minutes} 分钟`}
                   completed={completed.has(material.id)}
                   active={active.id === material.id}
-                  onToggle={() => selectMaterial(material.id)}
+                  onToggle={() => {
+                    selectMaterial(material.id);
+                    document.getElementById("material-directory")?.removeAttribute("open");
+                    window.requestAnimationFrame(() => {
+                      const heading = document.getElementById("current-material-heading");
+                      heading?.scrollIntoView({ block: "start", behavior: "auto" });
+                      heading?.focus({ preventScroll: true });
+                    });
+                  }}
                 />
               );
             })}
           </div>
-        </Surface>
+        </div></details>
 
         <div className="grid gap-5">
           <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_22rem]">
             <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">{active.sourceLabel}</p>
-              <h2 className="inkline mt-2 font-serif text-4xl font-normal leading-tight">{active.title}</h2>
+              <h2 id="current-material-heading" tabIndex={-1} className="inkline focus-ring scroll-mt-40 mt-2 font-serif text-4xl font-normal leading-tight">{active.title}</h2>
               <p className="mt-3 leading-7 text-[var(--muted)]">{active.summary}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {active.focus.map((item) => (
@@ -923,16 +927,6 @@ function ImmersionContent() {
           </Surface>
         </div>
       </section>
-    </div>
-  );
-}
-
-function HeroMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="border-t border-[var(--line)] bg-[var(--wash-1)] p-3 shadow-[inset_0_1px_0_var(--sheen)]">
-      <span className="font-[family-name:var(--font-script)] text-sm text-[var(--muted)]">{label}</span>
-      <strong className="mt-1 block font-serif font-normal leading-tight text-[var(--ink)]">{value}</strong>
-      <span className="mt-2 block text-xs leading-5 text-[var(--muted)]">{detail}</span>
     </div>
   );
 }

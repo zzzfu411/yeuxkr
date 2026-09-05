@@ -11,7 +11,8 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { SectionHeading, Surface } from "@/components/ui/section";
 import { resetLearningData } from "@/lib/learning/backup";
 import { needsOnboardingFunnel, ONBOARDING_TASK } from "@/lib/learning/compass";
-import { contentCounts, useLearningWorkspace } from "@/lib/learning/workspace";
+import { contentCounts } from "@/lib/learning/workspace";
+import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export default function HomePage() {
   const { workspace, saveProfile } = useLearningWorkspace();

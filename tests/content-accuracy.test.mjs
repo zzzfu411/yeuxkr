@@ -9,6 +9,18 @@ import { immersionMaterials } from "../src/data/materials.ts";
 import { nuanceSets } from "../src/data/nuance.js";
 import { pragmaticScenarios } from "../src/data/pragmatics.js";
 import { vocab } from "../src/data/lexicon.js";
+import { checkTeachingDecompositions, decompositionMatches } from "../src/lib/korean/content-checks.ts";
+
+test("written teaching decompositions agree with actual Hangul syllables", () => {
+  assert.deepEqual(checkTeachingDecompositions(lessons), []);
+  assert.equal(decompositionMatches("한글", ["ㅎㅏㄴ", "ㄱㅡㄹ"]), true);
+  assert.equal(decompositionMatches("한글", ["ㅎㅏㄴ", "ㄱㅡㄱ"]), false);
+  assert.equal(decompositionMatches("과", ["ㄱ + ㅘ"]), true);
+  assert.equal(decompositionMatches("읽", ["ㅇㅣㄹㄱ"]), true);
+  assert.equal(decompositionMatches("읽", ["ㅇㅏㄹㄱ"]), false);
+  assert.equal(decompositionMatches("한글", ["ㅎㅏㄴ"]), false);
+  assert.equal(checkTeachingDecompositions([{ id: "bad", teach: [{ body: "看见 한글 先数两块，再拆 ㅎㅏㄴ / ㄱㅡㄱ。" }] }]).length, 1);
+});
 
 test("Hangul cards separate the target sound from the example word", () => {
   const items = hangulGroups.flatMap((group) => group.items);

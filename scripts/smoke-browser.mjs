@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { lessons } from "../src/data/curriculum.js";
 import { immersionMaterials } from "../src/data/materials.ts";
+import { auditRegression } from "./audit-regression.mjs";
 
 const l01Lesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
 const l06Lesson = lessons.find((lesson) => lesson.id === "l06-cafe");
@@ -647,8 +648,9 @@ const defaultVocabSlice = await page.evaluate(() => {
   };
 });
 if (defaultVocabSlice.visibleCards !== 12) issues.push(`default vocabulary page should show 12-card daily slice, found ${defaultVocabSlice.visibleCards}`);
-if (!defaultVocabSlice.hasSliceCopy) issues.push("default vocabulary page should explain the daily vocabulary slice");
-if (!defaultVocabSlice.hasExpand) issues.push("default vocabulary page should offer an expand-all action");
+if (defaultVocabSlice.hasExpand) issues.push("vocabulary should not offer unbounded rendering");
+await page.getByRole("navigation", { name: "词汇分页", exact: true }).getByRole("button", { name: "下一页" }).click();
+await page.getByRole("navigation", { name: "词汇分页", exact: true }).getByRole("button", { name: "上一页" }).click();
 await page.evaluate(() => {
   const now = new Date().toISOString();
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
@@ -774,7 +776,7 @@ const defaultGrammarState = await page.evaluate(() => {
   };
 });
 if (defaultGrammarState.visibleCards !== 6) issues.push(`grammar should default to a six-card daily slice, found ${defaultGrammarState.visibleCards}`);
-if (!defaultGrammarState.hasExpandAction) issues.push("grammar page should expose an expand action beyond the daily slice");
+if (defaultGrammarState.hasExpandAction) issues.push("grammar should not offer unbounded rendering");
 await page.getByLabel("搜索语法").fill("-고 있어요");
 await expectText(page, "动词词干 + 고 있어요");
 const grammarSearchState = await page.evaluate(() => {
@@ -1120,6 +1122,7 @@ await expectText(page, "前置课程");
 await expectText(page, "前置课程还没完成，暂时不显示原文和朗读");
 const sameMaterialDraftMarker = "当前材料草稿不应因重复点击而丢失。";
 await page.getByLabel("复述完成").fill(sameMaterialDraftMarker);
+await page.getByText("查看学习安排与阶段进度", { exact: true }).click();
 const continueSameMaterial = page.getByRole("link", { name: "继续", exact: true });
 if (await continueSameMaterial.count()) {
   await continueSameMaterial.click();
@@ -1141,7 +1144,8 @@ if (await continueSameMaterial.count()) {
 } else {
   issues.push("immersion compass should offer a continue link to the current material");
 }
-await page.locator(".is-active").getByRole("button", { name: "咖啡店点单听读" }).click();
+await page.locator("#material-directory > summary").click();
+await page.locator("#material-directory .is-active").getByRole("button", { name: "咖啡店点单听读" }).click();
 await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 const sameMaterialDraft = await page.getByLabel("复述完成").inputValue();
 if (sameMaterialDraft !== sameMaterialDraftMarker) {
@@ -1362,6 +1366,7 @@ const viewportChecks = [
   { width: 320, height: 720, label: "mobile-320" },
   { width: 390, height: 844, label: "mobile-390" },
   { width: 768, height: 960, label: "tablet-768" },
+  { width: 1024, height: 900, label: "tablet-1024" },
   { width: 1280, height: 900, label: "desktop-1280" },
   { width: 1440, height: 980, label: "desktop-1440" }
 ];
@@ -1430,8 +1435,8 @@ for (const viewport of viewportChecks) {
     }
     if (viewport.width <= 360) {
       const headerControlOverlap = await page.evaluate(() => {
-        const theme = document.querySelector('header .theme-toggle');
-        const data = document.querySelector('header details');
+        const theme = document.querySelector('header .season-switcher');
+        const data = document.querySelector('header [aria-label="本地学习数据"] details');
         if (!(theme instanceof HTMLElement) || !(data instanceof HTMLElement)) return null;
         const themeRect = theme.getBoundingClientRect();
         const dataRect = data.getBoundingClientRect();
@@ -1449,6 +1454,8 @@ for (const viewport of viewportChecks) {
   }
 }
 
+try { await auditRegression(browser, baseUrl, outDir); }
+catch (error) { issues.push(`Audit regression: ${error.stack ?? error.message}`); }
 await browser.close();
 
 if (issues.length) {

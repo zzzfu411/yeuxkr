@@ -14,15 +14,19 @@
     "lint": "eslint . --max-warnings=0",
     "test": "node --import tsx --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
-    "validate": "node --import tsx scripts/validate.mjs",
+    "validate": "npm run content:check && node --import tsx scripts/validate.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "speech:prepare": "node scripts/build-speech-corpus.mjs",
     "speech:generate": "python scripts/generate-speech-assets.py scripts/speech-corpus.json public/assets/audio/ko",
-    "check": "npm run validate && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check": "npm run validate && npm run lint && npm run typecheck && npm run typecheck:strict && npm run test && npm run build",
     "smoke:http": "node --import tsx scripts/http-smoke.mjs",
     "smoke:browser": "node --import tsx scripts/smoke-browser.mjs",
     "check:smoke": "node scripts/check-smoke.mjs",
-    "check:all": "npm run check && npm run check:smoke"
+    "check:all": "npm run check && npm run check:smoke",
+    "typecheck:strict": "tsc --project tsconfig.strict.json --noEmit && tsc --project tsconfig.content.json --noEmit",
+    "check:release": "node --import tsx scripts/check-release.mjs",
+    "content:prepare": "node scripts/build-curriculum-runtime.mjs",
+    "content:check": "node scripts/build-curriculum-runtime.mjs --check"
   },
   "dependencies": {
     "@fontsource-variable/noto-serif-kr": "^5.3.0",

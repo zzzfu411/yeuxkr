@@ -3,33 +3,14 @@ import "@fontsource-variable/noto-serif-kr";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 
-const DEFAULT_SITE_URL = "http://localhost:3000";
-
-function getMetadataBase() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!configured) return new URL(DEFAULT_SITE_URL);
-  try {
-    const url = new URL(configured);
-    return url.protocol === "http:" || url.protocol === "https:" ? url : new URL(DEFAULT_SITE_URL);
-  } catch {
-    return new URL(DEFAULT_SITE_URL);
-  }
-}
+import { getSiteOrigin, pageMetadata, sitePages } from "@/lib/site-metadata";
 
 export const metadata: Metadata = {
-  title: "Kirina Korean | 把每次学习过成一幕韩剧",
-  description: "从第一句韩语开始，在四季场景里学习、复习、听读与开口表达。",
-  metadataBase: getMetadataBase(),
+  ...pageMetadata("/", ...sitePages["/"]),
+  title: { default: "今日学习 | Kirina Korean", template: "%s | Kirina Korean" },
+  metadataBase: getSiteOrigin() ?? undefined,
   manifest: "/manifest.webmanifest",
-  openGraph: {
-    title: "Kirina Korean | 今天，只学这一小段",
-    description: "简约、安静的韩语学习空间，把课程、复习和情境听读编成自己的四季故事。",
-    images: [{ url: "/assets/generated/hero.webp", alt: "春雨夜窗边，两只杯子与一朵山茶花" }]
-  },
-  icons: {
-    icon: "/assets/icon-192.png",
-    apple: "/assets/icon-192.png"
-  }
+  icons: { icon: "/assets/icon-192.png", apple: "/assets/icon-192.png" }
 };
 
 export const viewport: Viewport = {

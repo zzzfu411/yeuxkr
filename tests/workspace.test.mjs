@@ -16,6 +16,14 @@ import { getLearningDraftStateFromRaw } from "../src/lib/learning/drafts.ts";
 import { buildGateQuestions } from "../src/lib/learning/gate.ts";
 import { BOX_INTERVALS, ensureCard, getDueCardsFromState, getSrsState, gradeCard, saveSrsState } from "../src/lib/learning/srs.ts";
 import { buildLessonBridge, lessonReviewCardIds, lessonsWithoutTransferMaterials } from "../src/lib/learning/lesson-bridge.ts";
+
+test("the first lesson bridge points to onboarding until it is completed", () => {
+  const bridge = buildLessonBridge(lessons.find(lesson => lesson.order === 1), normalizeLearningProgress(defaultProgress()), { onboarded: false });
+  assert.equal(bridge.unlocked, false);
+  assert.equal(bridge.steps[0].title, "先完成入门");
+  assert.equal(bridge.steps[0].href, "/onboarding");
+  assert.equal(bridge.steps[0].done, false);
+});
 import { hangulQuestionId, lessonReviewCardId, materialCardId, materialRetellQuestionId, mistakeCardId, nativeCardId, outputCardId, outputTransferQuestionId, pronunciationCardId, pronunciationQuestionId, soundChangeCardId, vocabCardId, vocabClozeQuestionId, vocabDictationQuestionId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
 const store = new Map();

@@ -1,4 +1,4 @@
-import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, lessons, UNLOCK_SCORE } from "../../data/curriculum.js";
+import { getLessonPrerequisites, getNextLesson, isLessonMastered, isLessonUnlocked, lessons, UNLOCK_SCORE } from "../../data/curriculum-runtime.js";
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
 import { mapFocusToAbilities } from "./evidence.ts";
 import { lessonReviewCardId } from "./ids.ts";
@@ -36,14 +36,15 @@ export interface LessonBridge {
   steps: LessonBridgeStep[];
 }
 
-export function buildLessonBridge(lesson: any, progress: LearningProgress, evidence?: { validMaterialIds?: string[]; libraryOk?: boolean; libraryMissing?: LibraryGap[] }): LessonBridge {
+export function buildLessonBridge(lesson: any, progress: LearningProgress, evidence?: { validMaterialIds?: string[]; libraryOk?: boolean; libraryMissing?: LibraryGap[]; onboarded?: boolean }): LessonBridge {
   const validMaterialIds = new Set(evidence?.validMaterialIds ?? progress.completedMaterials);
   const completedIds = new Set(progress.completedLessons);
   const score = Number(progress.lessonScores[lesson.id] ?? progress.previewLessonScores?.[lesson.id] ?? 0);
   const mastered = isLessonMastered(lesson.id, completedIds, progress.lessonScores);
   const libraryMissing = evidence?.libraryMissing ?? [];
   const libraryOk = evidence?.libraryOk ?? true;
-  const unlocked = isLessonUnlocked(lesson.id, completedIds, progress.lessonScores) && (mastered || libraryOk);
+  const onboarded = evidence?.onboarded ?? true;
+  const unlocked = onboarded && isLessonUnlocked(lesson.id, completedIds, progress.lessonScores) && (mastered || libraryOk);
   const missingPrerequisites = getLessonPrerequisites(lesson.id)
     .filter((item: any) => !isLessonMastered(item.id, completedIds, progress.lessonScores))
     .map((item: any) => ({ id: item.id, order: item.order, title: item.title }));
@@ -81,14 +82,14 @@ export function buildLessonBridge(lesson: any, progress: LearningProgress, evide
     {
       id: "prerequisite",
       label: "01",
-      title: missingPrerequisites.length ? "先学前置课" : !libraryOk && !mastered ? "先补基础内容" : "可以开始本课",
-      detail: missingPrerequisites.length
+      title: !onboarded ? "先完成入门" : missingPrerequisites.length ? "先学前置课" : !libraryOk && !mastered ? "先补基础内容" : "可以开始本课",
+      detail: !onboarded ? "完成入门设置后再开始计入主线的练习；当前可以预览课程。" : missingPrerequisites.length
         ? `建议先把 ${missingPrerequisites.map((item) => `第 ${item.order} 课`).join("、")} 达到 ${UNLOCK_SCORE}%。`
         : !libraryOk && !mastered
           ? `还需${libraryMissing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}。补齐后，本课才会计入主线进度。`
           : "前置要求已满足，可以开始本课。",
-      href: missingPrerequisites[0] ? `/learn/${missingPrerequisites[0].id}` : libraryMissing[0]?.href ?? "/path",
-      done: !missingPrerequisites.length && (mastered || libraryOk)
+      href: !onboarded ? "/onboarding" : missingPrerequisites[0] ? `/learn/${missingPrerequisites[0].id}` : libraryMissing[0]?.href ?? "/path",
+      done: onboarded && !missingPrerequisites.length && (mastered || libraryOk)
     },
     {
       id: "lesson",

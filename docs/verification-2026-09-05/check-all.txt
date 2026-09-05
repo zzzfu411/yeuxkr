@@ -1,0 +1,508 @@
+
+> kirina-korean@0.2.0 check:all
+> npm run check && npm run check:smoke
+
+
+> kirina-korean@0.2.0 check
+> npm run validate && npm run lint && npm run typecheck && npm run typecheck:strict && npm run test && npm run build
+
+
+> kirina-korean@0.2.0 validate
+> npm run content:check && node --import tsx scripts/validate.mjs
+
+
+> kirina-korean@0.2.0 content:check
+> node scripts/build-curriculum-runtime.mjs --check
+
+Validated 60 lessons, 722 vocab items, 83 grammar points, 5 hangul groups, 29 materials.
+
+> kirina-korean@0.2.0 lint
+> eslint . --max-warnings=0
+
+
+> kirina-korean@0.2.0 typecheck
+> tsc --noEmit --incremental false
+
+
+> kirina-korean@0.2.0 typecheck:strict
+> tsc --project tsconfig.strict.json --noEmit && tsc --project tsconfig.content.json --noEmit
+
+
+> kirina-korean@0.2.0 test
+> node --import tsx --test tests/*.test.mjs
+
+✔ backup entry names inherited from Object.prototype are rejected without throwing (2.0978ms)
+✔ learning backup exports normalized managed learning entries (10.4169ms)
+✔ invalid backup structures are rejected without writing progress or recordings (1.517ms)
+✔ backup validation checks each container and retains supported partial legacy records (0.9217ms)
+✔ backup export revokes recording-backed course completion that cannot migrate (5.2979ms)
+✔ learning backup restore replaces only managed Kirina learning keys (2.994ms)
+✔ learning backup export reports storage read failures (0.3663ms)
+✔ learning backup restore rolls back managed keys on storage failure (1.0646ms)
+✔ learning backup restore reports recording clear failure and restores local storage (1.2576ms)
+✔ learning data reset clears managed keys and leaves unrelated storage (1.0455ms)
+✔ learning data reset succeeds when IndexedDB is unsupported (0.4766ms)
+✔ learning data reset reports recording clear failure and restores local storage (0.4104ms)
+✔ learning backup parser rejects invalid backup payloads (0.5257ms)
+✔ capstone evidence requires system-verifiable structure and diverse Korean (6.9185ms)
+✔ capstone evidence cannot replace a two-minute recording with text or checkboxes (2.423ms)
+✔ legacy capstone work is retained but requires a new recording (3.1004ms)
+✔ compass primary action follows the active page context (2.2757ms)
+✔ first-visit compass points at onboarding instead of the next lesson (0.3315ms)
+✔ path compass prefers due review over the next lesson (0.2215ms)
+✔ path compass prefers library repair over the next lesson (0.2708ms)
+✔ path compass prefers due review over library repair (0.4144ms)
+✔ path compass prefers retrain over the next lesson (0.2359ms)
+✔ path spine copy follows review, library, and retrain before the next lesson (0.3876ms)
+✔ compass review track separates real due review from self-study rhythm review (0.2651ms)
+✔ written teaching decompositions agree with actual Hangul syllables (4.5467ms)
+✔ Hangul cards separate the target sound from the example word (1.2379ms)
+✔ every Hangul card sound has a nonempty bundled MP3 (8.8112ms)
+✔ high-risk grammar entries preserve Korean predicate-class distinctions (0.6627ms)
+✔ native capstone listening item has an unambiguous polite request (0.3284ms)
+✔ usage notes distinguish appointments, refusals, and softened opinions (0.4439ms)
+✔ native quiz labels use explicit non-overlapping distractors (0.3227ms)
+✔ podcast rest strategy describes a daily empty time block naturally (0.2645ms)
+✔ zero-basis Hangul lessons teach every symbol used by their own title and bridge (0.3815ms)
+✔ first particle examples stay inside grammar taught before polite present (0.5262ms)
+✔ cafe lesson explicitly teaches first-person intent before testing it (0.5043ms)
+✔ core lesson prerequisites keep the ordered path and explicit edges (2.6238ms)
+✔ historically skippable lessons block their immediate successors (0.6192ms)
+✔ the final lesson transitively requires mastery of every earlier core lesson (4.3291ms)
+✔ first actionable missing lesson prefers an unlocked prereq then the next lesson (0.5597ms)
+✔ M1 and M2 outcomes match their actual lesson ownership (0.6201ms)
+✔ milestone progress keeps legacy completed-only course records compatible (0.8045ms)
+✔ completed courses cannot hide missing material, output, or checkpoint evidence (0.5388ms)
+✔ every milestone has a non-course capability acceptance gate (0.5475ms)
+✔ learning drafts normalize damaged persisted input (5.0528ms)
+✔ immersion material drafts save, update, and clear through managed storage (0.9818ms)
+✔ self-study checkpoint drafts save and clear without touching other drafts (0.466ms)
+✔ draft writes report storage failures (0.374ms)
+✔ hasKoreanText accepts Hangul and rejects non-Korean text (1.4723ms)
+✔ formal Korean evidence requires sentence-like Hangul, not one forged character (4.8925ms)
+✔ retell evidence rejects source lines joined with arbitrary separators (1.0126ms)
+✔ material output evidence rejects copied, repeated, and unchanged drafts (1.0016ms)
+✔ requiresKoreanOutput accepts explicit Korean-output instructions (0.4551ms)
+✔ focus tags map to stable ability ids (2.6248ms)
+✔ study modules expose one shared ability and route contract (0.44ms)
+✔ gate pass score demands real mastery (1.4739ms)
+✔ skipped listening or dictation blocks mastery for every gate kind (0.3117ms)
+✔ hangul gate mixes listening, recognition, and keyboard production (0.8975ms)
+✔ hangul gate uses the letter sound except for explicit example-word tasks (0.2812ms)
+✔ pronunciation gate requires two real listening decisions before SRS enrollment (1.5259ms)
+✔ vocab gate covers meaning, recognition, dictation, and production (4.0908ms)
+✔ grammar gate checks example meaning, pattern function, and pitfalls (0.8048ms)
+✔ sound change gate tests spoken form, rule identity, and written dictation (1.0317ms)
+✔ gate questions are deterministic per seed and unknown items return nothing (2.2679ms)
+✔ learning id builders preserve existing persisted ids (1.7499ms)
+✔ learning id parsers and prefix guards classify review ids (2.2507ms)
+✔ composeSyllable builds blocks from jamo indices (2.3509ms)
+✔ decomposeSyllable splits blocks back into jamo (1.4309ms)
+✔ composeJamoInput builds a syllable step by step (0.7232ms)
+✔ composeJamoInput merges compound vowels (0.4098ms)
+✔ composeJamoInput hands the final consonant to the next syllable before a vowel (0.3573ms)
+✔ composeJamoInput appends when no composition applies (0.2455ms)
+✔ backspaceJamo peels one jamo at a time (0.377ms)
+✔ backspace inverts a full composition chain (0.3047ms)
+✔ qwerty mapping covers the full two-set layout (0.4467ms)
+✔ typing 한국어 with qwerty mapping composes correctly (0.4109ms)
+✔ KoreanInput ignores Enter while an IME composition is active (123.0381ms)
+✔ KoreanInput screen keys edit at the saved cursor or selection and restore focus (30.2443ms)
+✔ HangulKeyboard keeps 24px key tracks at 320px and contains narrower overflow (14.1981ms)
+✔ AppShell stops active and voice-waiting speech when the pathname changes (19.947ms)
+✔ SpeechSettings reports storage failure and keeps the last persisted controls (25.9243ms)
+✔ shadowing recording releases the acquired stream when recorder construction or start fails (181.3408ms)
+▶ external recording IDs cancel active shadowing and capstone recorders into a startable state
+  ✔ shadowing (60.6588ms)
+  ✔ capstone (43.3677ms)
+✔ external recording IDs cancel active shadowing and capstone recorders into a startable state (105.0566ms)
+▶ re-recording overwrites an unsaved recording instead of orphaning its blob
+  ✔ shadowing (58.2162ms)
+  ✔ capstone (51.9239ms)
+✔ re-recording overwrites an unsaved recording instead of orphaning its blob (111.3045ms)
+✔ LessonResultActions latches the first save click until success or error retry (120.5966ms)
+▶ recording controls stay locked until the asynchronous blob write finishes
+  ✔ shadowing (37.7002ms)
+  ✔ capstone (33.722ms)
+✔ recording controls stay locked until the asynchronous blob write finishes (72.2959ms)
+✔ lesson evidence panels hydrate persisted drafts without overwriting local input (109.664ms)
+▶ missing recording entities clear optimistic save baselines
+  ✔ shadowing fallback (43.4509ms)
+  ✔ capstone replacement (29.2877ms)
+✔ missing recording entities clear optimistic save baselines (73.23ms)
+▶ recording replacements can save after persisted evidence is removed
+  ✔ shadowing (32.1372ms)
+  ✔ capstone (41.3443ms)
+✔ recording replacements can save after persisted evidence is removed (74.0405ms)
+▶ delayed persisted recording lookups cannot invalidate an active replacement
+  ✔ shadowing (29.9476ms)
+  ✔ capstone (29.1841ms)
+✔ delayed persisted recording lookups cannot invalidate an active replacement (59.7359ms)
+▶ persisted recording lookups still hydrate after a denied microphone request
+  ✔ shadowing (36.1344ms)
+  ✔ capstone (29.5921ms)
+✔ persisted recording lookups still hydrate after a denied microphone request (66.237ms)
+▶ failed recording replacements restore the prior draft and playback
+  ✔ shadowing empty (38.6463ms)
+  ✔ shadowing save (34.7742ms)
+  ✔ capstone empty (44.5154ms)
+  ✔ capstone save (56.4691ms)
+✔ failed recording replacements restore the prior draft and playback (175.4443ms)
+▶ deferred missing recording lookups are processed after a failed replacement
+  ✔ shadowing (69.3683ms)
+  ✔ capstone (43.651ms)
+✔ deferred missing recording lookups are processed after a failed replacement (113.8231ms)
+✔ MasteryGate reports a failed persistence write and retries without another quiz (9.5338ms)
+✔ MistakesPage remounts retrain runner when the target changes (14.8368ms)
+✔ onboarding unlocks only after playback and recovers from a failed sample (20.5543ms)
+✔ ThemeToggle applies valid theme changes received from another tab (9.1542ms)
+✔ immersion query changes replace a stale in-page material selection (1.4785ms)
+✔ reselecting the active immersion material keeps the live draft armed (1.5923ms)
+✔ immersion autosave waits for the current material draft to hydrate (1.1989ms)
+✔ clearing an immersion archive cannot immediately recreate its live draft (1.1729ms)
+✔ finishing an immersion material clears live draft fields then re-enables later saves (1.1819ms)
+✔ completed immersion materials do not claim an unfinished draft restore (1.0239ms)
+✔ mistakes retrain grades cards even when they are not yet due (0.4511ms)
+✔ all-due mistake retrain requests every selected card (0.4277ms)
+✔ audio skip goes through onAnswer so review and retrain can reschedule (0.5554ms)
+✔ review and retrain refuse answers when the queued card disappears (0.6543ms)
+✔ cinematic scene frames clip media and keep film texture inside the image (1.4975ms)
+✔ progress tracks adapt to the active seasonal theme (2.0747ms)
+✔ status washes keep the active seasonal theme palette (1.0145ms)
+✔ shadowing save is blocked while recording and does not delete the previous blob without a replacement id (0.5546ms)
+✔ lesson pages remount lesson-scoped client state when the lesson ID changes (6.6902ms)
+✔ DrillRunner ignores speech events from outside its current audio question (48.1055ms)
+✔ DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a missing voice (29.82ms)
+✔ DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture (31.297ms)
+✔ skipping a review audio question defers the card so it is no longer due (34.958ms)
+✔ DrillRunner keeps a new audio question pending until its own playback resolves (40.8753ms)
+✔ DrillRunner keeps audio alive when a parent recreates an equivalent question object (33.0038ms)
+✔ DrillRunner survives StrictMode audio effect replay and still stops on teardown (48.168ms)
+✔ leaving a pending audio question and returning retries autoplay instead of staying locked (27.4922ms)
+✔ DrillRunner watchdog treats accepted playback without onstart as started, not unavailable (35.8467ms)
+✔ DrillRunner still offers skip when speak is rejected or hard-fails (47.0635ms)
+✔ DrillRunner lets a resumed answered audio question advance (26.4879ms)
+✔ lesson modality threshold is stricter than a token attempt (2.4847ms)
+✔ a passing total cannot hide failed active production (0.8922ms)
+✔ failed listening blocks an attempted listening lesson independently (0.4301ms)
+✔ missing device audio defers listening without forging its evidence (0.3509ms)
+✔ skipping some listening items still blocks core mastery (0.4117ms)
+✔ speaking lessons still require attempted listening when they have audio drills (0.2921ms)
+✔ connector lesson requires an original three-part paragraph (5.2158ms)
+✔ opinion paragraph requires all four discourse moves (0.8704ms)
+✔ retelling rejects a direct source copy (1.3081ms)
+✔ shadowing accepts a real recording duration or a Korean memory fallback (0.8101ms)
+✔ lesson evidence normalization bounds untrusted persisted values (0.3542ms)
+✔ lesson practice session saves and restores current step answers (4.3228ms)
+✔ lesson practice session rechecks stale persisted correct flags against current questions (0.5715ms)
+✔ lesson practice session preserves a skipped audio step without inventing an answer (1.3594ms)
+✔ lesson practice session normalization keeps only contiguous answers (0.4076ms)
+✔ lesson practice session clamps resume index to the next unanswered step (0.4253ms)
+✔ lesson practice session clears one lesson without touching another (0.699ms)
+✔ every immersion material declares audited, known prerequisites (3.2744ms)
+✔ zero progress keeps every material locked and reports every missing lesson (0.6239ms)
+✔ legacy completedLessons-only progress unlocks without a storage migration (7.6536ms)
+✔ material evidence targets are reachable by the end of each core milestone (2.1779ms)
+✔ mistake insights sort due and repeated weak items first (2.4717ms)
+✔ mistake summary separates due, repeated, stabilizing, and mastered cards (0.5806ms)
+✔ mistake insights preserve source labels for question and card IDs (21.1405ms)
+✔ buildRetrainQuestions turns mistake payloads into full drill questions (0.7289ms)
+✔ saved collocation evidence only counts distinct collocations on persisted learned vocab ids (2.9919ms)
+✔ C1 preview completion requires collocation evidence (0.4449ms)
+✔ legacy array and legacy field names normalize into the current portfolio schema (2.8269ms)
+✔ portfolio persistence creates, revises with history, and deletes against the latest saved state (2.2108ms)
+✔ invalid drafts and failed browser writes do not replace saved portfolio evidence (6.2536ms)
+✔ output archive tolerates old or damaged localStorage (2.4072ms)
+✔ legacy output entries fall back from target rewrite to weak point (0.542ms)
+✔ legacy output id collisions are disambiguated so one SRS card cannot credit multiple works (0.4361ms)
+✔ output archive reports write failure instead of pretending to save (3.4127ms)
+✔ output archive stores newest entry first and can be cleared (1.269ms)
+✔ output archive preserves long-term portfolio entries beyond the old 120 item ceiling (3.0922ms)
+✔ output archive can remove one failed entry without clearing other work (0.6177ms)
+✔ m0 early lessons are not blocked by the hangul library (1.7493ms)
+✔ m1 requires hangul enrollment before particles (0.4554ms)
+✔ m4 write gate needs materials and native evidence (0.4403ms)
+✔ m2 requires hangul, vocab, and grammar together (1.4186ms)
+✔ library-gated first-sentence lesson stays in preview until hangul and vocab are enrolled (7.3622ms)
+✔ guided desk puts library repair above the next lesson when m1 is gated (9.6618ms)
+✔ libraryCountsForWrite ignores raw material completions without evidence (0.597ms)
+✔ libraryCountsFromProgress ignores stale ids (0.9075ms)
+✔ now-playing location subscriptions update after query-only navigation (2.6313ms)
+✔ play queue skips duplicate hrefs and wraps skip indexes (1.8317ms)
+✔ first visit play queue is only onboarding (0.2489ms)
+✔ firstHangul picks a syllable cover glyph (0.2813ms)
+✔ path matching keeps home exact and lesson ids distinct (0.1818ms)
+✔ path matching ignores hash and matches immersion query strings (0.485ms)
+✔ query-specific queue tracks win over generic module entries (0.4413ms)
+✔ unmatched pages do not pretend to be the first queue track (0.8178ms)
+✔ captured install prompt is exposed only through a user-clicked install button (4.6536ms)
+✔ a dismissed prompt can be offered again when the browser emits a new install event (1.8502ms)
+✔ appinstalled clears the install entry and ignores later install prompts (1.7029ms)
+✔ standalone mode suppresses install UI from media query or iOS navigator state (1.8168ms)
+✔ iOS browsers get add-to-home-screen guidance while unsupported browsers stay quiet (3.1843ms)
+✔ every visit removes the retired offline worker and Kirina caches (2.2033ms)
+✔ cleanup leaves unrelated workers and browser caches untouched (1.1482ms)
+✔ a legacy-controlled tab reloads even when another tab already removed the registration (1.069ms)
+✔ cleanup does not unregister the same worker filename from another app scope (1.51ms)
+✔ normalizeAnswer trims, compacts, and lowercases (4.0458ms)
+✔ normalizeAnswer applies NFC and ignores trailing punctuation (8.639ms)
+✔ checkAnswer tolerates trailing punctuation and composition form (4.2767ms)
+✔ checkAnswer accepts canonical and acceptable answers (0.7974ms)
+✔ buildDistractors prefers confusables, then category, then level (2.9247ms)
+✔ makeChoices always includes the answer (1.1329ms)
+✔ lessonQuestions gives stable ids to course drills (0.5576ms)
+✔ buildReviewQuestions supports lesson review cards (1.1628ms)
+✔ Hangul review and progress questions play the target sound, not the example word (7.8733ms)
+✔ buildReviewQuestions supports mistake cards as typed repair prompts (0.6743ms)
+✔ buildReviewQuestions supports grammar and native cards (1.1498ms)
+✔ buildProgressQuiz limits default transfer checks to learned content (3.1703ms)
+✔ buildProgressQuiz prioritizes weak practice items and completed lesson drills (2.2903ms)
+✔ buildProgressQuiz includes unfinished lesson drills that already have weak history (0.6578ms)
+✔ buildProgressQuiz only adds explicitly practiced pronunciation pairs (2.4604ms)
+✔ buildProgressQuiz includes learned native and material retell checks (8.9988ms)
+✔ buildProgressQuiz skips material retell checks without Korean evidence (0.6656ms)
+✔ buildProgressQuiz includes output archive target rewrites (2.3831ms)
+✔ buildProgressQuiz uses the output currently bound to material evidence (2.2392ms)
+✔ buildProgressQuiz rejects material evidence with forged self-check items (0.8413ms)
+✔ buildProgressQuiz skips output archive entries without SRS evidence (0.4333ms)
+✔ recording database retries failed opens and reports success only after transaction commit (5.2073ms)
+✔ origin rejects malformed or credential-bearing URLs and only accepts a root URL (1.7094ms)
+✔ route metadata uses unique titles, canonical public pages and non-indexed personal tools (1.4393ms)
+✔ bundled Korean recordings work without the browser speech synthesis API (6.6401ms)
+✔ isGestureBlockedPlaybackError recognizes autoplay policy rejections (1.0449ms)
+✔ autoplay NotAllowedError falls back to Korean speech synthesis (1.2101ms)
+✔ autoplay NotAllowedError without TTS reports needs-gesture instead of device failure (0.8599ms)
+✔ TTS not-allowed after bundled autoplay block reports needs-gesture (1.1638ms)
+✔ Chrome/Safari SpeechSynthesisErrorEvent not-allowed is a gesture block, not a device failure (0.774ms)
+✔ system Korean speech remains the fallback for content without a bundled recording (0.4356ms)
+✔ stopSpeech pauses bundled playback and clears a pending sequence (1.3415ms)
+✔ speech sequence waits for one utterance to end before applying the gap (1.0415ms)
+✔ starting a new sequence cancels the previous pending continuation (0.6778ms)
+✔ single utterance clears pending sequence timers (0.4423ms)
+✔ stopSpeech cancels active and pending speech (0.4823ms)
+✔ speakKorean waits for a Korean voice instead of any first-loaded voice (22.0592ms)
+✔ a superseded pending utterance stays silent after voices load (1.3353ms)
+✔ ensureVoicesReady resolves immediately when a Korean voice exists (0.2929ms)
+✔ voice status moves from loading to missing after a completed probe (1.4022ms)
+✔ offline playback ignores a saved remote voice and selects a local Korean voice (1.0596ms)
+✔ speech errors dispatch observable events and preserve playback callbacks (8.5757ms)
+✔ a synchronous speech engine failure reports an error and advances sequences (4.3304ms)
+✔ active cancellation errors from an old utterance do not overwrite the new request (1.8529ms)
+✔ missing Korean voices finish with a playback error instead of staying loading (4.9701ms)
+✔ speech settings persist, clamp, and apply to playback rate (0.7256ms)
+✔ blocked localStorage falls back to defaults without breaking playback (0.4654ms)
+✔ normalizeSpeechSettings drops junk fields (0.1984ms)
+✔ review conflicts identify stale, missing, not-due and storage failures without double grading (9.8873ms)
+✔ recordMistake increments repeated wrong answers and keeps card due (0.6149ms)
+✔ SRS reads old or damaged localStorage without crashing (0.4097ms)
+✔ storage helpers tolerate localStorage read and write failures (0.5608ms)
+✔ SRS normalization clamps damaged counters and filters history (0.3893ms)
+✔ SRS normalization repairs stale internal card ids so review can submit (0.8456ms)
+✔ SRS normalization drops non-string review text payloads (0.3159ms)
+✔ SRS normalization drops stale content cards that cannot become review questions (1.0709ms)
+✔ grading an existing review card does not create a derived mistake card (1.0573ms)
+✔ completed lessons create idempotent lesson review cards (5.3252ms)
+✔ repeating a completed lesson preserves mature scheduling fields (4.6277ms)
+✔ lesson review rollback removes only cards created in the failed attempt (7.0132ms)
+✔ lesson review rollback restores existing card payloads after an update (1.5502ms)
+✔ separate output archive entries can create separate SRS cards (0.3591ms)
+✔ clearing output cards does not remove other review cards (0.6046ms)
+✔ failed output progress save rolls back the new output SRS card (0.5725ms)
+✔ failed output progress save restores an existing output SRS card (0.4338ms)
+✔ failed output SRS save does not advance progress (0.2108ms)
+✔ failed review progress save rolls back graded SRS card (0.6099ms)
+✔ failed review SRS save does not advance progress (0.381ms)
+✔ removing one SRS card leaves unrelated cards intact (0.2765ms)
+✔ SRS intervals are non-decreasing (1.3041ms)
+✔ SRS has enough boxes for long-term memory (0.316ms)
+✔ mature intervals can now grow far beyond the old 21-day ceiling (0.2221ms)
+✔ todayKey uses the local calendar date (2.7273ms)
+✔ audio skip defers a card without changing box or grade counts (0.6907ms)
+✔ learning cards climb the Leitner ladder and reset to box 0 on a miss (1.0877ms)
+✔ mature cards grow multiplicatively by ease up to the interval cap (0.7421ms)
+✔ a mature lapse demotes softly instead of resetting to zero (0.6651ms)
+✔ ease stays inside its runtime band under repeated grading (0.6742ms)
+✔ cardIntervalDays falls back to the box ladder for legacy cards (0.476ms)
+✔ boxForIntervalDays keeps the mature threshold semantics (1.1582ms)
+✔ applyGradeToState is pure and caps history (0.8313ms)
+✔ normalization clamps v2 fields and keeps the six question types (1.1321ms)
+✔ storage health reports unsupported browsers without throwing (3.5163ms)
+✔ storage health warns when persistence is not granted (1.3403ms)
+✔ storage persistence request runs before the follow-up health check (0.8369ms)
+✔ storage health treats near-full quota as critical even when persisted (1.0645ms)
+✔ the first lesson bridge points to onboarding until it is completed (8.2951ms)
+✔ profile and progress normalization tolerate non-object persisted values (3.6397ms)
+✔ normalizeLearningProgress drops unknown content ids and clamps numeric state (1.6747ms)
+✔ normalizeLearningProgress repairs stale core-path completion state (1.2304ms)
+✔ recordAbilityEvent applies only new event delta (0.6955ms)
+✔ removeAbilityEvent retracts evidence-backed ability without touching other events (0.6896ms)
+✔ passport counts entity-backed vocabulary, grammar, and native evidence once (18.1411ms)
+✔ passport retains review and quiz events but ignores checkpoint self-reports (1.5778ms)
+✔ ability event removal retracts only actually applied capped deltas (0.5504ms)
+✔ profile save rolls back when progress minutes cannot persist (1.121ms)
+✔ self-study plan save is atomic across profile and progress (2.4426ms)
+✔ self-study checkpoint save is atomic across profile and progress (1.7663ms)
+✔ resetLearningWorkspace clears profile, progress, SRS, and outputs together (3.8106ms)
+✔ resetLearningWorkspace rolls back profile when progress reset fails (1.169ms)
+✔ resetLearningWorkspace rolls back earlier storage when output reset fails (1.0672ms)
+✔ resetLearningWorkspace rolls back earlier storage when lesson session reset fails (0.9935ms)
+✔ resetLearningWorkspace rolls back earlier storage when draft reset fails (1.0404ms)
+✔ resetLearningWorkspace rolls back all learning data when portfolio reset fails (1.0531ms)
+✔ mapCardToAbilities turns review cards into ability signals (0.4065ms)
+✔ output archive quiz answers count toward expression abilities (0.8593ms)
+✔ legacy quiz progress entry still commits mistake SRS atomically (0.6237ms)
+✔ quiz session commits mistake SRS and progress together (0.4546ms)
+✔ re-queued mature quiz mistakes restart on the learning ladder (1.6703ms)
+✔ quiz session does not write progress when mistake SRS save fails (0.3254ms)
+✔ quiz session rolls back mistake SRS when progress save fails (0.4512ms)
+✔ review task is completed only after the due queue is cleared (0.7909ms)
+✔ a stale review card snapshot cannot be graded twice (0.5357ms)
+✔ a stale review card snapshot cannot be graded after its payload changes (0.3758ms)
+✔ early practice can grade a not-yet-due card when allowed (0.4379ms)
+✔ skipping a review audio card defers it without counting listening evidence (0.5086ms)
+✔ due review is not marked completed when new cards are due later the same day (2.3476ms)
+✔ output archive entry saves draft without granting formal evidence (1.0889ms)
+✔ output archive entry is not blocked by formal SRS write failures (0.4858ms)
+✔ output archive entry is not blocked by formal progress write failures (0.3824ms)
+✔ workspace stats ignore stale progress ids after normalization (2.1807ms)
+✔ workspace turns weak practice history into a concrete repair task (4.8196ms)
+✔ practice repair returns to an unfinished lesson when weak items concentrate there (2.5356ms)
+✔ heavy due review drops the next lesson out of the recommended six (5.8634ms)
+✔ mastered lesson with concentrated weak items becomes a retrain task (1.9854ms)
+✔ retrain stays in recommended when review and library gaps fill the top six (9.7272ms)
+✔ workspace drops the practice repair task after weak items are answered correctly (0.9661ms)
+✔ removing a mistake card resolves the matching weak practice item (2.1397ms)
+✔ removing a mistake card rolls back SRS when practice progress cannot be saved (0.8886ms)
+✔ workspace exposes mistake debt as stats and an open repair task (1.6788ms)
+✔ workspace stats and passport include only reviewable output archive evidence (2.7572ms)
+✔ workspace exposes the same validated material evidence used by stats and passport (12.1834ms)
+✔ stale material completions do not hide immersion recommendations or advance native self-study evidence (7.7773ms)
+✔ immersion recommendations wait for material prerequisites (4.9405ms)
+✔ material completion binds a concrete reviewable output entry (13.6033ms)
+✔ material completion rejects forged Korean fragments as formal evidence (1.4638ms)
+✔ new immersion recommendations do not inherit today's completed state from another material (12.8244ms)
+✔ locked material output drafts do not count as passport or SRS evidence (3.9535ms)
+✔ clearing material archive retracts material and output ability events (4.684ms)
+✔ next lesson follows mastery threshold and ordered unlocks (2.9804ms)
+✔ open next lesson does not inherit today's completed state after retargeting (1.9977ms)
+✔ lesson completion requires score and prerequisite mastery before core path mastery (1.3332ms)
+✔ locked lesson previews do not count as formal study sessions (1.644ms)
+✔ first lesson stays in preview until onboarding is saved (0.4743ms)
+✔ lesson session commits progress, review cards, and mistake cards together (3.6226ms)
+✔ re-queued mature lesson mistakes restart on the learning ladder (2.0517ms)
+✔ lesson session does not write progress when lesson SRS save fails (0.8356ms)
+✔ lesson session rolls back SRS when progress save fails (1.2109ms)
+✔ native capstone requires a saved Korean output artifact before path completion (91.444ms)
+✔ declared paragraph lessons require saved valid output evidence (46.2766ms)
+✔ export-time normalization revokes writing lessons without saved work (1.0773ms)
+✔ shadowing evidence save rejects a stale recording baseline (0.5588ms)
+✔ unknown lessons stay outside preview and core scores (0.2033ms)
+✔ audio fallback can advance a lesson without forging listening evidence (1.4602ms)
+✔ legacy completed lessons retain listening evidence while explicit fallback records stay false (0.3119ms)
+✔ lesson bridge connects prerequisites, review cards, transfer materials, and next lesson (0.8281ms)
+✔ lesson bridge keeps lessons without material bindings explicit (0.3313ms)
+✔ lesson bridge transfer completion uses validated material ids when provided (0.8204ms)
+✔ self-study plans keep a zero-basis foundation spine before advanced goals (0.258ms)
+✔ self-study duration follows real weekly investment instead of a fixed promise (0.2011ms)
+✔ self-study plans stay valid across goals, intensity, focus, and minute limits (6.7023ms)
+✔ self-study recommendations omit review tasks when there is no review debt (1.2953ms)
+✔ self-study rhythm review does not complete the real due-card review task (1.0711ms)
+✔ self-study recommendations advance from foundation spine into target modules (73.7709ms)
+✔ pronunciation pair practice closes the listening self-study loop (0.7284ms)
+✔ mastery gate writes are idempotent and preserve their SRS cards (3.2023ms)
+✔ removing Hangul and pronunciation practice clears derived mistake cards (1.1517ms)
+✔ removing mastered items clears their mastery-gate mistake cards (6.7792ms)
+✔ removing self-study SRS items clears the matching ability task completion (1.0033ms)
+✔ native SRS enrollment requires listen-retell-transfer evidence (1.0996ms)
+✔ native evidence completion adds SRS and marks bridge ability tasks (1.1639ms)
+✔ removing one of several same-ability SRS items keeps non-native ability task completion (2.8665ms)
+✔ saving the self-study plan does not count as a study session (0.225ms)
+✔ self-study plan task is labeled as confirmed configuration, not completed study (0.8253ms)
+✔ checkpoint evidence requires a concrete study signal (0.1862ms)
+✔ checkpoint completion closes the self-study planning task (0.2027ms)
+✔ the same reflection cannot be reused to mint another checkpoint credit (0.5305ms)
+✔ checkpoint credits require saved concrete evidence (0.4286ms)
+✔ checkpoint completion restores reflection evidence without granting ability (0.3579ms)
+✔ self-study checkpoint reflections stay scoped without inflating abilities (0.8346ms)
+✔ self-study checkpoints expose focused ability evidence (0.2634ms)
+✔ proficiency passport turns mixed evidence into staged progress (29.9773ms)
+✔ native roadmap keeps executable portfolio actions and long-term scale (0.4465ms)
+✔ native roadmap current stage stays inside executable in-app scope (0.285ms)
+✔ native roadmap material evidence should use validated workspace stats (4.9051ms)
+✔ SRS membership is not passport evidence without pronunciation or sound-change events (4.283ms)
+✔ sound change cards survive normalization and map to listening (0.2671ms)
+✔ removing vocabulary clears dictation and cloze mistakes and restores history on progress failure (3.2176ms)
+✔ remaining sound-change evidence keeps the listening task completed (1.7098ms)
+✔ missing recording entities revoke persisted evidence, dependent lessons, ability credit, and lesson review cards (3.9314ms)
+✔ capstone recording invalidation is guarded by the expected recording id (3.8198ms)
+ℹ tests 395
+ℹ suites 0
+ℹ pass 395
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3949.4458
+
+> kirina-korean@0.2.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.6s
+  Running TypeScript ...
+  Finished TypeScript in 9.7s ...
+  Collecting page data using 19 workers ...
+  Generating static pages using 19 workers (0/77) ...
+  Generating static pages using 19 workers (19/77)
+  Generating static pages using 19 workers (38/77)
+  Generating static pages using 19 workers (57/77)
+✓ Generating static pages using 19 workers (77/77) in 1675ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /grammar
+├ ○ /hangul
+├ ○ /immersion
+├ ● /learn/[lessonId]
+│ ├ /learn/l01-hangul-map
+│ ├ /learn/l02-vowels
+│ ├ /learn/l31-compound-vowels
+│ └ [+57 more paths]
+├ ○ /mistakes
+├ ○ /native
+├ ○ /onboarding
+├ ○ /path
+├ ○ /quiz
+├ ○ /review
+├ ○ /robots.txt
+├ ○ /self-study
+├ ○ /settings
+├ ○ /sitemap.xml
+└ ○ /vocabulary
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+
+> kirina-korean@0.2.0 check:smoke
+> node scripts/check-smoke.mjs
+
+Largest production JS: 624396 bytes raw / 204595 bytes gzip. All chunks: 2086247 bytes (not a per-route transfer measure).
+HTTP smoke passed for 131 routes.
+[browser smoke] home loaded; checking local learning data
+[browser smoke] local learning data checks passed; checking returning learner flow
+[browser smoke] returning learner state restored
+[browser smoke] home study mode switched to self-study
+[browser smoke] home study mode switched back to guided
+[browser smoke] self-study plan saved
+[browser smoke] self-study checkpoint saved
+[browser smoke] client-side module navigation passed
+[browser smoke] due review flow completed
+[browser smoke] returning learner flow passed; checking route shells
+Audit regressions passed: backup: malformed, preview, cancel, confirm, IndexedDB cleanup; six viewport layouts, title block flow, named data menu, four theme targets and focus; pagination bounds, next-page contents, filter reset, focus; cross-tab review refresh without duplicate history; real media load failure unlocks onboarding deferral without listening credit
+Browser smoke passed. Screenshots written to .browser-check/.

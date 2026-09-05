@@ -12,7 +12,7 @@ import { buildReviewQuestions } from "@/lib/learning/quiz";
 import { getDueCardsFromState, getSrsStateFromRaw, summarizeSrsState } from "@/lib/learning/srs";
 import { defaultProfile, defaultProgress, parseJson, STORAGE_KEYS, useClientNowOnce, useStorageRawOnce } from "@/lib/learning/storage";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
-import { buildLearningWorkspace, gradeReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
+import { buildLearningWorkspace, submitReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
 
 const REVIEW_STORAGE_REFRESH_KEYS = new Set([STORAGE_KEYS.profile, STORAGE_KEYS.progress, STORAGE_KEYS.srs]);
 const LEARNING_REFRESH_EVENT_TYPES = new Set(["kirina:learning", "kirina:learning-batch", "storage"]);
@@ -34,6 +34,7 @@ export default function ReviewPage() {
 function ReviewContent() {
   const [sessionKey, setSessionKey] = useState(0);
   const [reviewError, setReviewError] = useState("");
+  const [queueChanged, setQueueChanged] = useState(false);
   const profileRaw = useStorageRawOnce(STORAGE_KEYS.profile, sessionKey);
   const progressRaw = useStorageRawOnce(STORAGE_KEYS.progress, sessionKey);
   const srsRaw = useStorageRawOnce(STORAGE_KEYS.srs, sessionKey);
@@ -51,7 +52,10 @@ function ReviewContent() {
   useEffect(() => {
     const refreshQueue = (event: Event) => {
       if (!reviewRefreshEventMatches(event)) return;
-      if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) return;
+      if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) {
+        if (event.type === "storage") setQueueChanged(true);
+        return;
+      }
       setReviewError("");
       setSessionKey((value) => value + 1);
     };
@@ -86,6 +90,16 @@ function ReviewContent() {
 
       <Surface>
         <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
+        {queueChanged ? (
+          <div className="mb-4 grid gap-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-4" role="status">
+            <p>其他页面已更新学习数据。已保存的答案会保留，请读取最新队列后继续。</p>
+            <Button variant="secondary" onClick={() => {
+              setQueueChanged(false);
+              setReviewError("");
+              setSessionKey((value) => value + 1);
+            }}>读取更新后的队列</Button>
+          </div>
+        ) : null}
         {questions.length ? (
           <DrillRunner
             key={sessionKey}
@@ -94,14 +108,21 @@ function ReviewContent() {
             recordMistakes={false}
             onAnswer={(entry) => {
               const card = dueCards.find((item) => item.id === entry.question.id);
-              if (!card || !gradeReviewCardAndProgress(card, entry.correct, { skipped: Boolean(entry.skipped) })) {
-                setReviewError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
+              const result = card ? submitReviewCardAndProgress(card, entry.correct, { skipped: Boolean(entry.skipped) }) : { ok: false as const, reason: "missing" as const };
+              if (result.ok === false) {
+                if (result.reason === "storage") {
+                  setReviewError("这张卡片没有保存到复习进度。请检查浏览器存储权限和剩余空间，再重试。");
+                } else {
+                  setQueueChanged(true);
+                  setReviewError("这张卡片已被更新、移除或推迟，本次答案未重复计分。");
+                }
                 return false;
               } else {
                 setReviewError("");
               }
             }}
             onFinish={() => {
+              setQueueChanged(false);
               setSessionKey((value) => value + 1);
             }}
           />

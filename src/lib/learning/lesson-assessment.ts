@@ -1,4 +1,4 @@
-import { UNLOCK_SCORE } from "../../data/curriculum.js";
+import { UNLOCK_SCORE } from "../../data/curriculum-runtime.js";
 import type { Question } from "./quiz.ts";
 
 export const LESSON_MODALITY_PASS_RATIO = 0.6;

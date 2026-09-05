@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Database, Download, RotateCcw, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createLearningBackup, MAX_LEARNING_BACKUP_BYTES, parseLearningBackupText, resetLearningData, restoreLearningBackup } from "@/lib/learning/backup";
+import { createLearningBackup, MAX_LEARNING_BACKUP_BYTES, inspectLearningBackupText, resetLearningData, restoreLearningBackup, summarizeLearningBackup, type LearningBackup } from "@/lib/learning/backup";
 import { requestLearningStoragePersistence, type LearningStorageHealth } from "@/lib/learning/storage-health";
 
 type PanelStatus = "idle" | "exported" | "imported" | "reset" | "invalid" | "error";
@@ -24,6 +24,22 @@ export function LearningDataPanel() {
   const [storageStatus, setStorageStatus] = useState<StorageStatus>("idle");
   const [storageHealth, setStorageHealth] = useState<LearningStorageHealth | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{ backup: LearningBackup; name: string } | null>(null);
+  const [importError, setImportError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const mutationRef = useRef(false);
+  const importRequestRef = useRef(0);
+  const previewRef = useRef<HTMLHeadingElement | null>(null);
+
+  useEffect(() => { if (pendingImport) previewRef.current?.focus(); }, [pendingImport]);
+
+  const cancelImport = () => {
+    if (mutationRef.current) return;
+    importRequestRef.current += 1;
+    setPendingImport(null);
+    setImportError("");
+    setBusy(false);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -59,6 +75,7 @@ export function LearningDataPanel() {
       link.download = `kirina-korean-backup-${backup.exportedAt.replace(/[:.]/g, "-")}.json`;
       link.click();
       setStatus("exported");
+      setImportError(blob.size > MAX_LEARNING_BACKUP_BYTES ? "已保存文字归档，但文件超过 4 MB，当前工具无法直接导入。请保留此文件，并在减少本机数据后另行导出可恢复的备份。" : "");
     } catch {
       setStatus("error");
     } finally {
@@ -68,30 +85,63 @@ export function LearningDataPanel() {
   };
 
   const importData = async (file: File | undefined) => {
+    if (mutationRef.current) return;
     setConfirmReset(false);
     if (!file) return;
+    const request = ++importRequestRef.current;
+    setPendingImport(null);
+    setImportError("");
     if (file.size > MAX_LEARNING_BACKUP_BYTES) {
       setStatus("invalid");
+      setImportError("备份超过 4 MB。本机数据未更改。");
       return;
     }
-    const backup = parseLearningBackupText(await file.text().catch(() => ""));
+    setBusy(true);
+    const { backup, error } = inspectLearningBackupText(await file.text().catch(() => ""));
+    if (request !== importRequestRef.current) return;
+    setBusy(false);
     if (!backup) {
       setStatus("invalid");
+      setImportError(error);
       return;
     }
-    if (await restoreLearningBackup(backup)) reloadAfterDataChange("imported");
-    else setStatus("error");
+    setStatus("idle");
+    setPendingImport({ backup, name: file.name });
+  };
+
+  const confirmImport = async () => {
+    if (!pendingImport || mutationRef.current) return;
+    mutationRef.current = true;
+    setBusy(true);
+    try {
+      if (await restoreLearningBackup(pendingImport.backup)) reloadAfterDataChange("imported");
+      else {
+        setStatus("error");
+        setImportError("没有完成替换，已尝试恢复原记录。请检查存储状态后重试。");
+      }
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
+    }
   };
 
   const resetData = async () => {
+    if (mutationRef.current || pendingImport || busy) return;
     if (!confirmReset) {
       setConfirmReset(true);
       setStatus("idle");
       return;
     }
-    if (await resetLearningData()) reloadAfterDataChange("reset");
-    else setStatus("error");
-    setConfirmReset(false);
+    mutationRef.current = true;
+    setBusy(true);
+    try {
+      if (await resetLearningData()) reloadAfterDataChange("reset");
+      else setStatus("error");
+    } finally {
+      mutationRef.current = false;
+      setBusy(false);
+      setConfirmReset(false);
+    }
   };
 
   const protectStorage = async () => {
@@ -117,10 +167,13 @@ export function LearningDataPanel() {
       <details
         className="group relative"
         onToggle={(event) => {
-          if (!(event.currentTarget as HTMLDetailsElement).open) setConfirmReset(false);
+          if (!(event.currentTarget as HTMLDetailsElement).open) {
+            setConfirmReset(false);
+            cancelImport();
+          }
         }}
       >
-        <summary className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <summary aria-label="学习数据" className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">学习数据</span>
           {status !== "idle" ? <span className={`hidden font-script text-xs font-normal sm:inline ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
@@ -132,7 +185,7 @@ export function LearningDataPanel() {
             <p className="eyebrow">本机学习记录</p>
             <strong className="mt-1 block font-brush text-xl font-normal">备份与存储</strong>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <fieldset disabled={busy} className="grid grid-cols-2 gap-2">
             <Button type="button" variant="secondary" size="sm" title="导出本地学习数据" onClick={exportData}>
               <Download className="h-4 w-4" />
               导出
@@ -141,7 +194,7 @@ export function LearningDataPanel() {
               <Upload className="h-4 w-4" />
               导入
             </Button>
-            <Button type="button" variant={confirmReset ? "danger" : "ghost"} size="sm" title="重置本地学习数据" onClick={() => void resetData()}>
+            <Button type="button" disabled={Boolean(pendingImport)} variant={confirmReset ? "danger" : "ghost"} size="sm" title="重置本地学习数据" onClick={() => void resetData()}>
               <RotateCcw className="h-4 w-4" />
               {confirmReset ? "确认重置" : "重置"}
             </Button>
@@ -149,7 +202,21 @@ export function LearningDataPanel() {
               <ShieldCheck className="h-4 w-4" />
               保护存储
             </Button>
-          </div>
+          </fieldset>
+          {pendingImport ? (
+            <section className="grid gap-3 rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--wash-1)] p-3" aria-label="导入预览" aria-busy={busy}>
+              <h2 ref={previewRef} tabIndex={-1} className="focus-ring text-lg font-semibold">确认替换本机数据</h2>
+              <p className="break-all text-xs text-[var(--muted)]">{pendingImport.name}</p>
+              <p className="text-sm">导出时间：{new Date(pendingImport.backup.exportedAt).toLocaleString("zh-CN")}</p>
+              <BackupCounts backup={pendingImport.backup} />
+              <p className="text-sm leading-6">这是整份替换，不会合并。备份中缺少的记录会从本机移除。</p>
+              <p className="text-sm leading-6 text-[var(--cinnabar)]">本机所有麦克风录音也会被清空，无法撤销。文字备份不包含录音；依赖录音的课程需要重新录制。</p>
+              <p className="text-xs leading-5 text-[var(--muted)]">需要保留当前学习记录时，请先用上方“导出”保存文字备份；录音可在对应课程选择“下载这段录音”。</p>
+              <Button type="button" disabled={busy} variant="secondary" onClick={cancelImport}>取消导入</Button>
+              <Button type="button" disabled={busy} variant="danger" onClick={() => void confirmImport()}>{busy ? "正在替换…" : "替换本机数据并清空录音"}</Button>
+            </section>
+          ) : null}
+          {importError ? <p className="text-sm leading-6 text-[var(--cinnabar)]" role="alert">{importError}</p> : null}
           <p className="text-xs font-normal leading-5 text-[var(--muted)]">备份包含课程、复习和文字作品，最大 4 MB。麦克风录音不会导出，换设备后需要重新录制。</p>
           {confirmReset ? <p className="border-l-2 border-[var(--seal)] pl-2 text-xs font-normal leading-5 text-[var(--cinnabar)]">再次点击会清空本机课程、复习卡、输出档案和录音。</p> : null}
           <div className="flex min-h-6 flex-wrap gap-2" aria-live="polite">
@@ -172,6 +239,11 @@ export function LearningDataPanel() {
       </details>
     </div>
   );
+}
+
+function BackupCounts({ backup }: { backup: LearningBackup }) {
+  const summary = summarizeLearningBackup(backup);
+  return <p className="text-sm leading-6">将恢复 {summary.lessons} 节已完成课程、{summary.cards} 张复习卡和 {summary.outputs} 份文字作品。{summary.missingKeys.length ? `另有 ${summary.missingKeys.length} 类数据未包含在此备份中。` : ""}</p>;
 }
 
 function panelStatusTextClassName(status: Exclude<PanelStatus, "idle">) {

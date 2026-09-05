@@ -18,8 +18,13 @@ import { buildMixedQuiz, buildProgressQuiz, buildReviewQuestions, lessonQuestion
 import { lessonReviewCardId, materialCardId, outputCardId, outputTransferQuestionId } from "../src/lib/learning/ids.ts";
 import { hasKoreanText, mapFocusToAbilities, requiresKoreanOutput, unknownFocusTags } from "../src/lib/learning/evidence.ts";
 import { mapCardToAbilities, normalizeLearningProgress } from "../src/lib/learning/workspace.ts";
+import { checkTeachingDecompositions, decompositionMatches } from "../src/lib/korean/content-checks.ts";
 
 const errors = [];
+errors.push(...checkTeachingDecompositions(lessons));
+for (const example of syllableLabs) {
+  if (!decompositionMatches(example.result, [example.blocks.join("")])) errors.push(`Invalid syllable lab: ${example.result}`);
+}
 const knownAppRoutes = new Set([
   "/", "/onboarding", "/settings", "/path", "/self-study", "/hangul", "/vocabulary", "/grammar",
   "/native", "/immersion", "/review", "/mistakes", "/quiz"
@@ -791,7 +796,7 @@ const learningCompassSource = readFileSync("src/components/learning/learning-com
 const compassLogicSource = readFileSync("src/lib/learning/compass.ts", "utf8");
 const drillRunnerSource = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
 const homePage = readFileSync("src/app/page.tsx", "utf8");
-const lessonClientSource = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+const lessonClientSource = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8") + readFileSync("src/components/learning/lesson-result-actions.tsx", "utf8");
 const quizPage = readFileSync("src/app/quiz/page.tsx", "utf8");
 const quizSource = readFileSync("src/lib/learning/quiz.ts", "utf8");
 const reviewPage = readFileSync("src/app/review/page.tsx", "utf8");
@@ -803,7 +808,8 @@ const pathPage = readFileSync("src/app/path/page.tsx", "utf8");
 const nativePage = readFileSync("src/app/native/page.tsx", "utf8");
 const immersionPage = readFileSync("src/app/immersion/page.tsx", "utf8");
 const selfStudyPage = readFileSync("src/app/self-study/page.tsx", "utf8");
-const workspaceSource = readFileSync("src/lib/learning/workspace.ts", "utf8");
+const workspaceSource = ["workspace", "workspace-snapshot", "progress-normalization"].map(name => readFileSync(`src/lib/learning/${name}.ts`, "utf8")).join("\n");
+const workspaceHookSource = readFileSync("src/lib/learning/use-learning-workspace.ts", "utf8");
 const playerSource = readFileSync("src/lib/learning/player.ts", "utf8");
 const nowPlayingSource = readFileSync("src/components/layout/now-playing.tsx", "utf8");
 const lessonAssessmentSource = readFileSync("src/lib/learning/lesson-assessment.ts", "utf8");
@@ -906,12 +912,10 @@ assert(lessonClientSource.includes("normalizeTeachEntry") && lessonClientSource.
 assert(mistakesPage.includes('<LearningCompass workspace={workspace} active="mistakes" condensed />'), "mistake notebook should stay connected to the shared learning compass");
 assert(quizPage.indexOf("<DrillRunner") < quizPage.indexOf("<LearningCompass"), "quiz page should show the transfer drill before secondary learning context");
 assert(quizPage.includes("onResult={saveQuizResult}") && quizPage.includes("重试保存") && quizPage.includes("savedQuizId"), "quiz page should save results as soon as the result screen appears and expose retry on localStorage failure");
-assert(vocabularyPage.includes("visibleVocab = showAll || focusedFilterActive ? filteredVocab : filteredVocab.slice(0, 12)"), "vocabulary page should default to a 12-card daily practice slice");
-assert(vocabularyPage.includes("展开全部词汇"), "vocabulary page should let learners expand beyond the daily slice");
-assert(vocabularyPage.includes("showAll || hiddenVocabCount"), "vocabulary page should let learners collapse after expanding the full lexicon");
-assert(grammarPage.includes("visiblePoints = showAll || focusedFilterActive ? filteredPoints : filteredPoints.slice(0, 6)"), "grammar page should default to a six-card sentence-pattern slice");
-assert(grammarPage.includes("展开全部句型"), "grammar page should let learners expand beyond the daily sentence-pattern slice");
-assert(grammarPage.includes("showAll || hiddenPointCount"), "grammar page should let learners collapse after expanding all sentence patterns");
+assert(vocabularyPage.includes("visibleVocab = pagination.items") && vocabularyPage.includes("<LibraryPagination"), "vocabulary should render bounded pages");
+assert(!vocabularyPage.includes("展开全部词汇"), "vocabulary should not expose unbounded rendering");
+assert(grammarPage.includes("visiblePoints = pagination.items") && grammarPage.includes("<LibraryPagination"), "grammar should render bounded pages");
+assert(!grammarPage.includes("展开全部句型"), "grammar should not expose unbounded rendering");
 assert(nativePage.includes("visibleItems = showAll || focusedFilterActive ? filteredItems : buildDailyNativeSlice(filteredItems, 6)"), "native page should default to a six-card mixed daily expression slice");
 assert(nativePage.includes("展开全部表达"), "native page should let learners expand beyond the daily native expression slice");
 assert(nativePage.includes("showAll || hiddenItemCount"), "native page should let learners collapse after expanding all native expressions");
@@ -938,7 +942,7 @@ assert(selfStudyPage.includes("OnboardingGateNotice") && selfStudyPage.includes(
 assert(workspaceSource.includes("priority: 92") && workspaceSource.includes("pinnedRetrain") && workspaceSource.includes("system:retrain-"), "retrain tasks should stay pinned in the recommended six");
 assert(playerSource.includes("splitTrackHref") && playerSource.includes("nowPlayingNav") && playerSource.includes("getNowPlayingLocationSearch") && playerSource.includes("window.location.search") && nowPlayingSource.includes("subscribeNowPlayingLocation") && nowPlayingSource.includes("getNowPlayingLocationSearch"), "now playing should match query tracks and not treat unmatched pages as index 0");
 assert(lessonAssessmentSource.includes("listeningSkipped") && lessonAssessmentSource.includes("!listeningSkipped"), "lesson assessment should reject skipped listening items instead of scoring only the remaining audio");
-assert(immersionPage.includes("<ModuleHero"), "immersion page should use the shared module hero before the workbench");
+assert(immersionPage.includes('<details id="material-directory"') && immersionPage.includes('id="current-material-heading"'), "immersion should have a collapsible directory and focusable current material");
 assert(immersionPage.includes('id="material-workbench"'), "immersion page should anchor the execution workbench from the hero");
 assert(immersionPage.includes("clearArchiveConfirmId") && immersionPage.includes("确认清除完成记录") && immersionPage.includes("!clearMaterialArchive(active.id)"), "immersion archive clearing should require explicit confirmation for completed material and preserve UI state on storage failure");
 assert(immersionPage.includes("getImmersionMaterialDraft") && immersionPage.includes("saveImmersionMaterialDraft") && immersionPage.includes("已恢复上次的草稿"), "immersion page should restore and autosave long-form material drafts");
@@ -1017,8 +1021,8 @@ const outputTransferQuestion = outputTransferQuestions.find((question) => questi
 assert(Boolean(outputTransferQuestion), "progress quiz should include output archive transfer questions");
 assert(outputTransferQuestion?.answer === sampleTargetRewrite, "progress quiz output transfer should use the target rewrite");
 assert(JSON.stringify(mapCardToAbilities({ payload: { kind: "output", itemId: sampleOutputId } })) === JSON.stringify(["grammar", "pragmatics", "native"]), "output review cards should map to expression abilities");
-assert(workspaceSource.includes("useStorageRaw(STORAGE_KEYS.outputs)"), "learning workspace should subscribe to output archive changes");
-assert(workspaceSource.includes("useStorageRaw(STORAGE_KEYS.srs)"), "learning workspace should subscribe to SRS changes");
+assert(workspaceHookSource.includes("useStorageRaw(STORAGE_KEYS.outputs)"), "learning workspace should subscribe to output archive changes");
+assert(workspaceHookSource.includes("useStorageRaw(STORAGE_KEYS.srs)"), "learning workspace should subscribe to SRS changes");
 assert(quizPage.includes("outputEntries") && quizPage.includes("srsState"), "quiz page should consume unified output/SRS evidence from learning workspace");
 
 for (const question of buildMixedQuiz(50)) {

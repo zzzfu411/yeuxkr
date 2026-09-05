@@ -157,7 +157,7 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
     cancelAnimationFrame() {},
     matchMedia() { return { matches: false }; }
   };
-  const { AppShell } = loadComponent("src/components/layout/app-shell.tsx", {
+  const { AppShellContent: AppShell } = loadComponent("src/components/layout/app-shell.tsx", {
     react: hooks.react,
     "next/link": { default: "Link" },
     "next/image": { default: "Image" },
@@ -176,7 +176,8 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
       }
     },
     "@/lib/utils": { cn }
-  }, { window });
+    ,"@/lib/learning/use-learning-workspace": { LearningWorkspaceProvider: "LearningWorkspaceProvider" }
+  }, { window }, source => source.replace("function AppShellContent", "export function AppShellContent"));
 
   hooks.render(AppShell, { children: "page" });
   assert.equal(stops, 0);
@@ -509,7 +510,7 @@ test("LessonResultActions latches the first save click until success or error re
 });
 
 test("recording controls stay locked until the asynchronous blob write finishes", async (context) => {
-  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  const source = readFileSync("src/components/learning/lesson-evidence-panels.tsx", "utf8");
   assert.match(source, /disabled={!check\.ready \|\| recording \|\| startingRecording \|\| savingRecording}/);
   assert.match(source, /const ready = !recording && !startingRecording && !savingRecording && isValidCapstoneEvidence/);
   assert.match(source, /if \(recording \|\| startingRecording \|\| savingRecording\)/);
@@ -1179,6 +1180,8 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
     "@/lib/learning/workspace": {
       gradeReviewCardAndProgress: () => true,
       removeMistakeCardAndPracticeItem: () => true,
+    },
+    "@/lib/learning/use-learning-workspace": {
       useLearningWorkspace: () => ({ workspace: {} })
     }
   });
@@ -1202,7 +1205,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   assert.equal(runner.props.questions[0].id, "q2");
 });
 
-test("onboarding unlocks its voice step only after playback actually starts", () => {
+test("onboarding unlocks only after playback and recovers from a failed sample", () => {
   const hooks = createHookHarness();
   let playbackOptions = null;
   const { OnboardingFlow } = loadComponent("src/components/learning/onboarding-flow.tsx", {
@@ -1222,14 +1225,15 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
     "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
     "@/components/ui/section": { Surface: "Surface" },
     "@/lib/learning/storage": { nowIso: () => "2026-08-30T00:00:00.000Z" },
-    "@/lib/learning/workspace": { useLearningWorkspace: () => ({ saveProfile: () => true }) },
+    "@/lib/learning/use-learning-workspace": { useLearningWorkspace: () => ({ saveProfile: () => true }) },
     "@/lib/speech": {
       speakKorean(_text, options) {
         playbackOptions = options;
         return true;
-      }
+      },
+      stopSpeech() {}
     }
-  });
+  }, { window: { setTimeout, clearTimeout } });
 
   let tree = hooks.render(OnboardingFlow, {});
   findButton(tree, "我是零基础").props.onClick();
@@ -1244,6 +1248,15 @@ test("onboarding unlocks its voice step only after playback actually starts", ()
   next = findButton(tree, "先点试听");
   assert.equal(next.props.disabled, true);
 
+  const firstPlayback = playbackOptions;
+  playbackOptions.onerror({ error: "media-playback-failed" });
+  tree = hooks.render(OnboardingFlow, {});
+  assert.equal(findButton(tree, "暂时没声音，先去打字").props.disabled, false);
+  findButton(tree, "试听").props.onClick();
+  tree = hooks.render(OnboardingFlow, {});
+  firstPlayback.onstart();
+  tree = hooks.render(OnboardingFlow, {});
+  assert.equal(findButton(tree, "先点试听").props.disabled, true, "an earlier request cannot complete a retry");
   playbackOptions.onstart();
   tree = hooks.render(OnboardingFlow, {});
   next = findButton(tree, "下一步：试打韩文");
@@ -1356,7 +1369,8 @@ test("audio skip goes through onAnswer so review and retrain can reschedule", ()
 test("review and retrain refuse answers when the queued card disappears", () => {
   const review = readFileSync("src/app/review/page.tsx", "utf8");
   const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(review, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)\)/);
+  assert.match(review, /card \? submitReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(review, /result\.reason === "storage"/);
   assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
 });
 
@@ -1405,7 +1419,7 @@ test("status washes keep the active seasonal theme palette", () => {
 });
 
 test("shadowing save is blocked while recording and does not delete the previous blob without a replacement id", () => {
-  const source = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8");
+  const source = readFileSync("src/components/learning/lesson-evidence-panels.tsx", "utf8");
   const panel = source.slice(source.indexOf("function LessonTaskEvidencePanel"), source.indexOf("function CapstoneEvidencePanel"));
   assert.match(panel, /if \(recording \|\| startingRecording \|\| savingRecording\) \{/);
   assert.match(panel, /if \(ok && expectedRecordingId && recordingId && expectedRecordingId !== recordingId\)/);
@@ -1421,6 +1435,7 @@ test("lesson pages remount lesson-scoped client state when the lesson ID changes
     "next/navigation": { notFound() { throw new Error("not found"); } },
     "@/data/curriculum": { getLessonById: (id) => lessons.get(id), lessons: [...lessons.values()] },
     "./lesson-client": { LessonClient: "LessonClient" }
+    ,"@/lib/site-metadata": { pageMetadata: () => ({}) }
   });
 
   const first = await LessonPage({ params: Promise.resolve({ lessonId: "lesson-a" }) });
@@ -2186,7 +2201,7 @@ function loadLessonEvidencePanels(hooks, {
     },
     "@/lib/speech": { speakKorean() {} }
   };
-  return loadComponent("src/app/learn/[lessonId]/lesson-client.tsx", imports, {
+  const globals = {
     Blob,
     MediaRecorder,
     URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
@@ -2194,10 +2209,11 @@ function loadLessonEvidencePanels(hooks, {
     performance: { now: () => 1000 },
     queueMicrotask,
     window
-  }, (source) => source
-    .replace("function LessonResultActions", "export function LessonResultActions")
-    .replace("function LessonTaskEvidencePanel", "export function LessonTaskEvidencePanel")
-    .replace("function CapstoneEvidencePanel", "export function CapstoneEvidencePanel"));
+  };
+  return {
+    ...loadComponent("src/components/learning/lesson-result-actions.tsx", imports, globals),
+    ...loadComponent("src/components/learning/lesson-evidence-panels.tsx", imports, globals)
+  };
 }
 
 function createLessonResultActionsProps(overrides = {}) {
@@ -2316,6 +2332,7 @@ function loadComponent(file, imports, globals = {}, transformSource = (source) =
     require(id) {
       if (id === "react/jsx-runtime") return JSX_RUNTIME;
       if (id in imports) return imports[id];
+      if (id === "@/data/curriculum-runtime" && "@/data/curriculum" in imports) return imports["@/data/curriculum"];
       throw new Error(`Unexpected component import: ${id}`);
     },
     ...globals
