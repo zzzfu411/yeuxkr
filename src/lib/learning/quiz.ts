@@ -522,6 +522,37 @@ export function buildDistractors<T extends DistractorSource>(
   return values;
 }
 
+export type QuizAttemptSnapshot<T> = {
+  seed: number;
+  questions: T[];
+};
+
+/** Freeze an in-progress quiz list until the attempt seed changes. */
+export function pinQuizAttempt<T>(
+  pinned: QuizAttemptSnapshot<T> | null,
+  seed: number,
+  questions: T[]
+): QuizAttemptSnapshot<T> {
+  if (pinned && pinned.seed === seed) {
+    if (pinned.questions.length === 0 && questions.length > 0) {
+      return { seed, questions };
+    }
+    return pinned;
+  }
+  return { seed, questions };
+}
+
+export function questionsForQuizAttempt<T>(
+  pinned: QuizAttemptSnapshot<T> | null,
+  seed: number,
+  liveQuestions: T[]
+): T[] {
+  if (pinned && pinned.seed === seed && pinned.questions.length > 0) {
+    return pinned.questions;
+  }
+  return liveQuestions;
+}
+
 export function shuffle<T>(items: T[], random = Math.random) {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index -= 1) {

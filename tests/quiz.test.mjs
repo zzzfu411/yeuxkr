@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultProgress } from "../src/lib/learning/storage.ts";
-import { buildDistractors, buildProgressQuiz, buildReviewQuestions, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer } from "../src/lib/learning/quiz.ts";
+import { buildDistractors, buildProgressQuiz, buildReviewQuestions, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer, pinQuizAttempt, questionsForQuizAttempt } from "../src/lib/learning/quiz.ts";
 import { defaultSrsState, ensureCard, getSrsState } from "../src/lib/learning/srs.ts";
 import { grammarQuestionId, lessonReviewCardId, materialCardId, outputCardId, pronunciationCardId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -552,6 +552,29 @@ test("buildProgressQuiz rejects material evidence with forged self-check items",
 
   assert.equal(questions.some((question) => question.id === "mq:im-cafe-real-speed"), false);
   assert.equal(questions.some((question) => question.id === "oq:output-transfer-1"), false);
+});
+
+test("pinQuizAttempt freezes a started quiz until the seed changes", () => {
+  const first = [{ id: "q1", prompt: "one" }, { id: "q2", prompt: "two" }];
+  const reshuffled = [{ id: "q2", prompt: "two" }, { id: "q3", prompt: "three" }];
+  const pinned = pinQuizAttempt(null, 1, first);
+
+  assert.deepEqual(pinQuizAttempt(pinned, 1, reshuffled), pinned);
+  assert.equal(questionsForQuizAttempt(pinned, 1, reshuffled), first);
+
+  const next = pinQuizAttempt(pinned, 2, reshuffled);
+  assert.deepEqual(next, { seed: 2, questions: reshuffled });
+  assert.equal(questionsForQuizAttempt(next, 2, reshuffled), reshuffled);
+});
+
+test("pinQuizAttempt accepts the first non-empty list for the same seed", () => {
+  const empty = pinQuizAttempt(null, 1, []);
+  const hydrated = [{ id: "q1", prompt: "one" }];
+  const pinned = pinQuizAttempt(empty, 1, hydrated);
+
+  assert.deepEqual(pinned, { seed: 1, questions: hydrated });
+  assert.equal(questionsForQuizAttempt(empty, 1, hydrated), hydrated);
+  assert.equal(questionsForQuizAttempt(pinned, 1, [{ id: "q9", prompt: "later" }]), hydrated);
 });
 
 test("buildProgressQuiz skips output archive entries without SRS evidence", () => {

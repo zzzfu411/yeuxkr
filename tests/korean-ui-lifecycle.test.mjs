@@ -1308,10 +1308,27 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /const nextMaterialId = requestedMaterialId \|\| defaultMaterialIdRef\.current;/);
-  assert.match(source, /if \(nextMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
+  assert.match(source, /if \(!requestedMaterialId\) return;/);
+  assert.match(source, /if \(requestedMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
   assert.match(source, /setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
+});
+
+test("bare immersion landing pins the first resolved material and ignores later defaults", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  assert.match(source, /const \[landingReady, setLandingReady\] = useState\(false\);/);
+  assert.match(source, /window\.setTimeout\(\(\) => setLandingReady\(true\), 0\)/);
+  assert.match(source, /if \(!landingReady \|\| selectedMaterialId\) return;/);
+  assert.match(source, /const landingId = requestedMaterialId \|\| defaultMaterialId;/);
+  assert.match(source, /resolveImmersionActiveMaterialId\(selectedMaterialId, requestedMaterialId, defaultMaterialId\)/);
+});
+
+test("quiz pins the built question list until the attempt seed changes", () => {
+  const source = readFileSync("src/app/quiz/page.tsx", "utf8");
+  assert.match(source, /pinQuizAttempt\(current, seed, liveQuestions\)/);
+  assert.match(source, /questionsForQuizAttempt\(pinnedAttempt, seed, liveQuestions\)/);
+  assert.match(source, /key=\{seed\}/);
+  assert.doesNotMatch(source, /useMemo\(\(\) => buildProgressQuiz\([^)]+\), \[workspace\.progress, seed, outputEntries, srsState\]\)/);
 });
 
 test("reselecting the active immersion material keeps the live draft armed", () => {
