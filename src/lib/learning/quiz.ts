@@ -553,6 +553,50 @@ export function questionsForQuizAttempt<T>(
   return liveQuestions;
 }
 
+export type ReviewAttemptSnapshot<Q, C> = {
+  seed: number;
+  questions: Q[];
+  cards: C[];
+};
+
+/** Freeze an in-progress review queue until the session seed changes. */
+export function pinReviewAttempt<Q, C>(
+  pinned: ReviewAttemptSnapshot<Q, C> | null,
+  seed: number,
+  questions: Q[],
+  cards: C[]
+): ReviewAttemptSnapshot<Q, C> {
+  if (pinned && pinned.seed === seed) {
+    if (pinned.questions.length === 0 && questions.length > 0) {
+      return { seed, questions, cards };
+    }
+    return pinned;
+  }
+  return { seed, questions, cards };
+}
+
+export function questionsForReviewAttempt<Q, C>(
+  pinned: ReviewAttemptSnapshot<Q, C> | null,
+  seed: number,
+  liveQuestions: Q[]
+): Q[] {
+  if (pinned && pinned.seed === seed && pinned.questions.length > 0) {
+    return pinned.questions;
+  }
+  return liveQuestions;
+}
+
+export function cardsForReviewAttempt<Q, C>(
+  pinned: ReviewAttemptSnapshot<Q, C> | null,
+  seed: number,
+  liveCards: C[]
+): C[] {
+  if (pinned && pinned.seed === seed && pinned.questions.length > 0) {
+    return pinned.cards;
+  }
+  return liveCards;
+}
+
 export function shuffle<T>(items: T[], random = Math.random) {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index -= 1) {

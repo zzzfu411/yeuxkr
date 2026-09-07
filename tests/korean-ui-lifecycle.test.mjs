@@ -1332,6 +1332,17 @@ test("quiz pins the built question list until the attempt seed changes", () => {
   assert.doesNotMatch(source, /useMemo\(\(\) => buildProgressQuiz\([^)]+\), \[workspace\.progress, seed, outputEntries, srsState\]\)/);
 });
 
+test("review pins the due queue until the session key changes", () => {
+  const source = readFileSync("src/app/review/page.tsx", "utf8");
+  assert.match(source, /const nextPinned = pinReviewAttempt\(pinnedAttempt, sessionKey, liveQuestions, liveDueCards\)/);
+  assert.match(source, /if \(nextPinned !== pinnedAttempt\) \{\s*setPinnedAttempt\(nextPinned\);\s*\}/);
+  assert.match(source, /questionsForReviewAttempt\(nextPinned, sessionKey, liveQuestions\)/);
+  assert.match(source, /cardsForReviewAttempt\(nextPinned, sessionKey, liveDueCards\)/);
+  assert.match(source, /key=\{sessionKey\}/);
+  assert.match(source, /questions\.length && LEARNING_REFRESH_EVENT_TYPES\.has\(event\.type\)/);
+  assert.doesNotMatch(source, /const questions = useMemo\(\(\) => \{\s*return buildReviewQuestions\(dueCards\);\s*\}, \[dueCards\]\);/);
+});
+
 test("reselecting the active immersion material keeps the live draft armed", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
   const selectMaterial = source.slice(source.indexOf("const selectMaterial"), source.indexOf("const clearActiveArchive"));

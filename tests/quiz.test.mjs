@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultProgress } from "../src/lib/learning/storage.ts";
-import { buildDistractors, buildProgressQuiz, buildReviewQuestions, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer, pinQuizAttempt, questionsForQuizAttempt } from "../src/lib/learning/quiz.ts";
+import { buildDistractors, buildProgressQuiz, buildReviewQuestions, cardsForReviewAttempt, checkAnswer, lessonQuestionId, lessonQuestions, makeChoices, normalizeAnswer, pinQuizAttempt, pinReviewAttempt, questionsForQuizAttempt, questionsForReviewAttempt } from "../src/lib/learning/quiz.ts";
 import { defaultSrsState, ensureCard, getSrsState } from "../src/lib/learning/srs.ts";
 import { grammarQuestionId, lessonReviewCardId, materialCardId, outputCardId, pronunciationCardId, vocabQuestionId } from "../src/lib/learning/ids.ts";
 
@@ -575,6 +575,36 @@ test("pinQuizAttempt accepts the first non-empty list for the same seed", () => 
   assert.deepEqual(pinned, { seed: 1, questions: hydrated });
   assert.equal(questionsForQuizAttempt(empty, 1, hydrated), hydrated);
   assert.equal(questionsForQuizAttempt(pinned, 1, [{ id: "q9", prompt: "later" }]), hydrated);
+});
+
+test("pinReviewAttempt freezes questions and cards until the session seed changes", () => {
+  const firstQuestions = [{ id: "q1", prompt: "one" }, { id: "q2", prompt: "two" }];
+  const firstCards = [{ id: "q1", box: 0 }, { id: "q2", box: 1 }];
+  const liveQuestions = [{ id: "q2", prompt: "two" }];
+  const liveCards = [{ id: "q2", box: 1 }];
+  const pinned = pinReviewAttempt(null, 0, firstQuestions, firstCards);
+
+  assert.deepEqual(pinReviewAttempt(pinned, 0, liveQuestions, liveCards), pinned);
+  assert.equal(questionsForReviewAttempt(pinned, 0, liveQuestions), firstQuestions);
+  assert.equal(cardsForReviewAttempt(pinned, 0, liveCards), firstCards);
+
+  const next = pinReviewAttempt(pinned, 1, liveQuestions, liveCards);
+  assert.deepEqual(next, { seed: 1, questions: liveQuestions, cards: liveCards });
+  assert.equal(questionsForReviewAttempt(next, 1, liveQuestions), liveQuestions);
+  assert.equal(cardsForReviewAttempt(next, 1, liveCards), liveCards);
+});
+
+test("pinReviewAttempt accepts the first non-empty list for the same session seed", () => {
+  const empty = pinReviewAttempt(null, 0, [], []);
+  const hydratedQuestions = [{ id: "q1", prompt: "one" }];
+  const hydratedCards = [{ id: "q1", box: 0 }];
+  const pinned = pinReviewAttempt(empty, 0, hydratedQuestions, hydratedCards);
+
+  assert.deepEqual(pinned, { seed: 0, questions: hydratedQuestions, cards: hydratedCards });
+  assert.equal(questionsForReviewAttempt(empty, 0, hydratedQuestions), hydratedQuestions);
+  assert.equal(cardsForReviewAttempt(empty, 0, hydratedCards), hydratedCards);
+  assert.equal(questionsForReviewAttempt(pinned, 0, [{ id: "q9", prompt: "later" }]), hydratedQuestions);
+  assert.equal(cardsForReviewAttempt(pinned, 0, [{ id: "q9", box: 3 }]), hydratedCards);
 });
 
 test("buildProgressQuiz skips output archive entries without SRS evidence", () => {
