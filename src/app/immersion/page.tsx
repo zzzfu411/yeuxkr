@@ -46,7 +46,6 @@ function ImmersionContent() {
   const requestedMaterial = searchParams.get("material");
   const requestedMaterialId = requestedMaterial && immersionMaterials.some((material) => material.id === requestedMaterial) ? requestedMaterial : "";
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
-  const [landingReady, setLandingReady] = useState(false);
   const [showZh, setShowZh] = useState(false);
   const [dictationEvidence, setDictationEvidence] = useState("");
   const [retellEvidence, setRetellEvidence] = useState("");
@@ -178,18 +177,16 @@ function ImmersionContent() {
   }, [active.id]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setLandingReady(true), 0);
+    if (selectedMaterialId) return;
+    const timeout = window.setTimeout(() => {
+      const landingId = requestedMaterialId || defaultMaterialId;
+      if (!landingId) return;
+      setSelectedMaterialId((current) => current || landingId);
+      window.history.replaceState(null, "", immersionMaterialHref(landingId));
+      notifyNowPlayingLocationChange();
+    }, 0);
     return () => window.clearTimeout(timeout);
-  }, []);
-
-  useEffect(() => {
-    if (!landingReady || selectedMaterialId) return;
-    const landingId = requestedMaterialId || defaultMaterialId;
-    if (!landingId) return;
-    setSelectedMaterialId(landingId);
-    window.history.replaceState(null, "", immersionMaterialHref(landingId));
-    notifyNowPlayingLocationChange();
-  }, [defaultMaterialId, landingReady, requestedMaterialId, selectedMaterialId]);
+  }, [defaultMaterialId, requestedMaterialId, selectedMaterialId]);
 
   useEffect(() => {
     let cancelled = false;

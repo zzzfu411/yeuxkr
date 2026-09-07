@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Radio, RefreshCcw } from "lucide-react";
 import { DrillRunner } from "@/components/learning/drill-runner";
@@ -32,10 +32,11 @@ export default function QuizPage() {
     () => buildProgressQuiz(workspace.progress, 10, seed, outputEntries, srsState),
     [workspace.progress, seed, outputEntries, srsState]
   );
-  useEffect(() => {
-    setPinnedAttempt((current) => pinQuizAttempt(current, seed, liveQuestions));
-  }, [seed, liveQuestions]);
-  const questions = questionsForQuizAttempt(pinnedAttempt, seed, liveQuestions);
+  const nextPinned = pinQuizAttempt(pinnedAttempt, seed, liveQuestions);
+  if (nextPinned !== pinnedAttempt) {
+    setPinnedAttempt(nextPinned);
+  }
+  const questions = questionsForQuizAttempt(nextPinned, seed, liveQuestions);
   const quizId = `mixed:${seed}`;
   const nextQuiz = () => {
     setSaveError("");

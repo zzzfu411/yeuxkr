@@ -1316,17 +1316,18 @@ test("immersion query changes replace a stale in-page material selection", () =>
 
 test("bare immersion landing pins the first resolved material and ignores later defaults", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /const \[landingReady, setLandingReady\] = useState\(false\);/);
-  assert.match(source, /window\.setTimeout\(\(\) => setLandingReady\(true\), 0\)/);
-  assert.match(source, /if \(!landingReady \|\| selectedMaterialId\) return;/);
+  assert.match(source, /if \(selectedMaterialId\) return;/);
   assert.match(source, /const landingId = requestedMaterialId \|\| defaultMaterialId;/);
+  assert.match(source, /setSelectedMaterialId\(\(current\) => current \|\| landingId\)/);
+  assert.match(source, /window\.history\.replaceState\(null, "", immersionMaterialHref\(landingId\)\)/);
   assert.match(source, /resolveImmersionActiveMaterialId\(selectedMaterialId, requestedMaterialId, defaultMaterialId\)/);
 });
 
 test("quiz pins the built question list until the attempt seed changes", () => {
   const source = readFileSync("src/app/quiz/page.tsx", "utf8");
-  assert.match(source, /pinQuizAttempt\(current, seed, liveQuestions\)/);
-  assert.match(source, /questionsForQuizAttempt\(pinnedAttempt, seed, liveQuestions\)/);
+  assert.match(source, /const nextPinned = pinQuizAttempt\(pinnedAttempt, seed, liveQuestions\)/);
+  assert.match(source, /if \(nextPinned !== pinnedAttempt\) \{\s*setPinnedAttempt\(nextPinned\);\s*\}/);
+  assert.match(source, /questionsForQuizAttempt\(nextPinned, seed, liveQuestions\)/);
   assert.match(source, /key=\{seed\}/);
   assert.doesNotMatch(source, /useMemo\(\(\) => buildProgressQuiz\([^)]+\), \[workspace\.progress, seed, outputEntries, srsState\]\)/);
 });
