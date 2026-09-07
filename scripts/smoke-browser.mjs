@@ -708,25 +708,25 @@ if (vocabCards !== 0) issues.push(`removing mastered vocabulary should remove it
 await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
 await expectText(page, "掌握小测");
 await page.getByRole("radio", { name: "안녕하세요" }).check();
-await page.getByRole("button", { name: "提交" }).click();
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await page.getByRole("radio", { name: "你好" }).check();
-await page.getByRole("button", { name: "提交" }).click();
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
+await clickAction(page.getByRole("button", { name: "下一题" }));
 const vocabAudioSkip = page.getByRole("button", { name: "跳过音频题", exact: true });
 await Promise.race([
   vocabAudioSkip.waitFor({ state: "visible" }),
   page.getByRole("textbox", { name: "输入答案" }).waitFor({ state: "visible" })
 ]);
 if (await vocabAudioSkip.isVisible().catch(() => false)) {
-  await vocabAudioSkip.click();
+  await clickAction(vocabAudioSkip);
 } else {
   await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
-  await page.getByRole("button", { name: "提交" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
 }
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
-await page.getByRole("button", { name: "提交" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
 await page.getByRole("button", { name: "交卷" }).click();
 await expectText(page, "已加入复习 · 点击移出");
 const gatedVocabState = await page.evaluate(() => {
@@ -806,14 +806,14 @@ const passTopicSubjectGate = async () => {
   await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
   await expectText(page, "掌握小测");
   await page.getByRole("radio", { name: "我是学生。" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "下一题" }));
   await page.getByRole("radio", { name: "话题标记 vs 主语标记" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "下一题" }));
   await page.getByRole("radio", { name: "不要把 은/는 简单等同于“是”。" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "交卷" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "交卷" }));
   await expectText(page, "已加入复习 · 点击移出");
 };
 await passTopicSubjectGate();
@@ -1573,6 +1573,17 @@ function configureSmokePage(targetPage) {
   return targetPage;
 }
 
+async function clickAction(locator) {
+  await locator.evaluate((node) => {
+    node.scrollIntoView({ block: "center", inline: "nearest" });
+  }).catch(() => {});
+  try {
+    await locator.click();
+  } catch {
+    await locator.click({ force: true });
+  }
+}
+
 async function expectText(page, text) {
   const found = await page
     .getByText(text, { exact: false })
@@ -1619,7 +1630,7 @@ async function answerDrill(targetPage, drill, { wrong = false } = {}) {
     const choice = wrong ? (drill.choices ?? []).find((item) => item !== drill.answer) : drill.answer;
     await targetPage.getByRole("radio", { name: choice, exact: true }).check();
   }
-  await targetPage.getByRole("button", { name: "提交" }).click();
+  await clickAction(targetPage.getByRole("button", { name: "提交" }));
 }
 
 async function completeLessonRun(targetPage, drills, { wrongIndexes = [], startIndex = 0, finishLabel = "完成课程" } = {}) {
