@@ -287,6 +287,31 @@ if (await activeReviewAnswer.inputValue() !== "정") {
   issues.push("an active review queue should keep the learner's draft across batch refresh events");
 }
 await returningPage.evaluate(() => {
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:other": {
+        id: "mistake:other",
+        box: 0,
+        dueAt: Date.now() - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: { kind: "mistake", itemId: "other", prompt: "被替换的题目", answer: "다른" }
+      }
+    },
+    history: []
+  }));
+  window.dispatchEvent(new StorageEvent("storage", { key: "kirina.srs.v2" }));
+});
+await expectText(returningPage, "回访错题");
+await expectText(returningPage, "其他页面已更新学习数据");
+if (await activeReviewAnswer.inputValue() !== "정") {
+  issues.push("a pinned review session should keep the in-flight prompt and draft when live SRS shrinks");
+}
+if (await returningPage.getByText("被替换的题目").count()) {
+  issues.push("a pinned review session should not swap DrillRunner prompts from a live SRS reorder under the same sessionKey");
+}
+await returningPage.evaluate(() => {
   localStorage.removeItem("kirina.srs.v2");
 });
 await returningPage.reload({ waitUntil: "networkidle" });
