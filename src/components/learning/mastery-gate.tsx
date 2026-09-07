@@ -29,7 +29,10 @@ export function MasteryGate({
   const questions = useMemo(() => buildGateQuestions(kind, itemId, seed), [itemId, kind, seed]);
 
   useEffect(() => {
-    containerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const node = containerRef.current;
+    if (!node) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ block: "center", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
   }, []);
 
   if (!questions.length) return null;
@@ -40,7 +43,7 @@ export function MasteryGate({
   };
 
   return (
-    <div ref={containerRef} className="mt-3 grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
+    <div ref={containerRef} className="mastery-gate mt-3 grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />

@@ -1416,6 +1416,22 @@ test("cinematic scene frames clip media and keep film texture inside the image",
   assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
 });
 
+test("drill and mastery actions keep clearance from the next-episode bar", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
+  const gate = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
+  assert.match(css, /--next-episode-clearance:/);
+  assert.match(css, /scroll-padding-bottom: var\(--next-episode-clearance\)/);
+  assert.match(css, /\.drill-actions \{\s*scroll-margin-bottom: var\(--next-episode-clearance\);/);
+  assert.match(css, /\.next-episode \{[\s\S]*pointer-events: none;/);
+  assert.match(css, /\.next-episode__play \{[\s\S]*pointer-events: auto;/);
+  assert.match(drill, /className=\{`drill-sheet /);
+  assert.match(drill, /className="drill-actions /);
+  assert.match(gate, /className="mastery-gate /);
+  assert.match(gate, /block: "center"/);
+  assert.doesNotMatch(gate, /block: "nearest"/);
+});
+
 test("progress tracks adapt to the active seasonal theme", () => {
   for (const file of ["src/app/path/page.tsx", "src/app/native/page.tsx", "src/components/learning/ability-bars.tsx"]) {
     const source = readFileSync(file, "utf8");

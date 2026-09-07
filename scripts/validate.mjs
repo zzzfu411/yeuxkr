@@ -842,6 +842,21 @@ assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emi
 assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
 assert(drillRunnerSource.includes('role="progressbar"'), "DrillRunner should render a visible progress bar");
 assert(drillRunnerSource.includes("playedListenRef"), "DrillRunner should auto-play listen prompts once per question");
+assert(drillRunnerSource.includes("drill-sheet") && drillRunnerSource.includes("drill-actions"), "DrillRunner should mark its sheet and primary action row for next-episode clearance");
+const masteryGateSource = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
+assert(masteryGateSource.includes("mastery-gate") && masteryGateSource.includes('block: "center"'), "MasteryGate should scroll the quiz into the clear center instead of stopping at nearest");
+assert(globalsCss.includes("--next-episode-clearance") && globalsCss.includes("scroll-padding-bottom") && globalsCss.includes("scroll-margin-bottom: var(--next-episode-clearance)"), "the floating next-episode bar should reserve scroll clearance for drill and mastery actions");
+assert(globalsCss.includes(".next-episode") && globalsCss.includes("pointer-events: none") && globalsCss.includes(".next-episode__play") && globalsCss.includes("pointer-events: auto"), "next-episode chrome should not steal pointer events outside the play control");
+assert(smokeBrowser.includes("async function clickAction"), "browser smoke should route overlay-prone DrillRunner clicks through clickAction");
+const smokeWithoutClickActionImpl = smokeBrowser.replace(/async function clickAction\(locator\) \{[\s\S]*?\n\}/, "");
+const leftoverDrillClicks = [...smokeWithoutClickActionImpl.matchAll(/await ([^;\n]+)\.click\((?:\{ force: true \})?\)/g)]
+  .map((match) => match[1])
+  .filter((expr) =>
+    /name: "(提交|下一题|交卷|跳过音频题|完成课程)"/.test(expr)
+    || /name: finishLabel/.test(expr)
+    || /skipAudio$/.test(expr.trim())
+  );
+assert(leftoverDrillClicks.length === 0, `browser smoke still has bare DrillRunner clicks: ${leftoverDrillClicks.join(", ")}`);
 const speechSource = readFileSync("src/lib/speech.js", "utf8");
 assert(speechSource.includes("kirina.speech.v1") && learningStorageSource.includes("kirina.speech.v1") && learningBackupSource.includes("normalizeSpeechSettings"), "speech settings key should be declared in speech.js, storage keys, and backup normalization");
 assert(speechSource.includes("ensureVoicesReady") && speechSource.includes("voiceschanged"), "speech should wait for voices to load before first playback");

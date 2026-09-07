@@ -318,7 +318,7 @@ returningPage.on("framenavigated", (frame) => {
   if (frame === returningPage.mainFrame() && frame.url().includes("/review")) reviewReloaded = true;
 });
 await returningPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
-await returningPage.getByRole("button", { name: "提交" }).click();
+await clickAction(returningPage.getByRole("button", { name: "提交" }));
 await expectText(returningPage, "答对了");
 await returningPage.getByRole("button", { name: "结束复习" }).click();
 await expectText(returningPage, "100%");
@@ -452,18 +452,18 @@ await quizAutoSavePage.evaluate(() => {
 });
 await quizAutoSavePage.goto(`${baseUrl}/quiz`, { waitUntil: "networkidle" });
 await quizAutoSavePage.getByLabel("ㄱ + ㅏ").check();
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
-await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
+await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
 await quizAutoSavePage.getByLabel("ㄴ").check();
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
-await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
+await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
 await quizAutoSavePage.getByRole("textbox", { name: "输入答案" }).fill("고");
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
 for (let index = 3; index < l01Lesson.drills.length; index += 1) {
-  await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+  await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
   const skipAudio = quizAutoSavePage.getByRole("button", { name: "跳过音频题", exact: true });
   if (await skipAudio.isVisible().catch(() => false)) {
-    await skipAudio.click();
+    await clickAction(skipAudio);
     continue;
   }
   const prompt = await currentDrillPrompt(quizAutoSavePage);
@@ -727,7 +727,7 @@ if (await vocabAudioSkip.isVisible().catch(() => false)) {
 await clickAction(page.getByRole("button", { name: "下一题" }));
 await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
 await clickAction(page.getByRole("button", { name: "提交" }));
-await page.getByRole("button", { name: "交卷" }).click();
+await clickAction(page.getByRole("button", { name: "交卷" }));
 await expectText(page, "已加入复习 · 点击移出");
 const gatedVocabState = await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
@@ -871,7 +871,7 @@ await lessonSessionFailurePage.evaluate(() => {
     return window.__kirinaOriginalSetItem.call(this, key, value);
   };
 });
-await lessonSessionFailurePage.getByRole("button", { name: "提交" }).click();
+await clickAction(lessonSessionFailurePage.getByRole("button", { name: "提交" }));
 await expectText(lessonSessionFailurePage, "练习进度没有保存");
 const failedLessonSessionState = await lessonSessionFailurePage.evaluate(() => {
   Storage.prototype.setItem = window.__kirinaOriginalSetItem;
@@ -895,7 +895,7 @@ if (lessonSessionAfterFirstAnswer?.answers?.length !== 1) issues.push(`lesson re
 await page.reload({ waitUntil: "networkidle" });
 await expectText(page, "已恢复上次进度");
 await expectText(page, "答对了");
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await completeLessonRun(page, l01Lesson.drills, { startIndex: 1 });
 await expectText(page, "100%");
 await page.getByRole("button", { name: "继续" }).click();
@@ -1012,7 +1012,7 @@ mistakePage.on("console", (message) => {
 mistakePage.on("pageerror", (error) => issues.push(`mistake pageerror: ${error.message}`));
 await openOnboardedLesson(mistakePage, "l01-hangul-map");
 await mistakePage.getByLabel("ㄱ + ㅗ").check();
-await mistakePage.getByRole("button", { name: "提交" }).click();
+await clickAction(mistakePage.getByRole("button", { name: "提交" }));
 await expectText(mistakePage, "正确答案：ㄱ + ㅏ");
 const lessonMistakeBeforeSave = await mistakePage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
@@ -1026,7 +1026,7 @@ const lessonMistakeBeforeSave = await mistakePage.evaluate(() => {
 });
 if (lessonMistakeBeforeSave.completed) issues.push("answering one wrong lesson question should not complete the lesson");
 if (lessonMistakeBeforeSave.mistakeCards !== 0) issues.push(`lesson mistakes should wait for final lesson save, found ${lessonMistakeBeforeSave.mistakeCards}`);
-await mistakePage.getByRole("button", { name: "下一题" }).click();
+await clickAction(mistakePage.getByRole("button", { name: "下一题" }));
 await completeLessonRun(mistakePage, l01Lesson.drills, { startIndex: 1 });
 await expectText(mistakePage, `${expectedLessonScore(l01Lesson.drills, [0])}%`);
 await mistakePage.getByRole("button", { name: "继续" }).click();
@@ -1342,9 +1342,9 @@ const keyboardContext = await browser.newContext({ viewport: { width: 320, heigh
 const keyboardPage = configureSmokePage(await keyboardContext.newPage());
 await openOnboardedLesson(keyboardPage, "l01-hangul-map");
 await answerDrill(keyboardPage, l01Lesson.drills[0]);
-await keyboardPage.getByRole("button", { name: "下一题" }).click();
+await clickAction(keyboardPage.getByRole("button", { name: "下一题" }));
 await answerDrill(keyboardPage, l01Lesson.drills[1]);
-await keyboardPage.getByRole("button", { name: "下一题" }).click();
+await clickAction(keyboardPage.getByRole("button", { name: "下一题" }));
 await keyboardPage.getByRole("button", { name: "韩文键盘", exact: true }).click();
 const keyboardOverflow = await keyboardPage.evaluate(() => {
   const keyboard = document.querySelector('[role="group"][aria-label="韩文屏幕键盘"]');
@@ -1620,7 +1620,7 @@ async function answerDrill(targetPage, drill, { wrong = false } = {}) {
     ]);
   }
   if (await skipAudio.isVisible().catch(() => false)) {
-    await skipAudio.click();
+    await clickAction(skipAudio);
     return;
   }
   const usesText = drill.type === "type" || drill.type === "dictation" || drill.type === "translate" || (drill.type === "cloze" && !(drill.choices?.length));
@@ -1637,9 +1637,9 @@ async function completeLessonRun(targetPage, drills, { wrongIndexes = [], startI
   for (let index = startIndex; index < drills.length; index += 1) {
     await answerDrill(targetPage, drills[index], { wrong: wrongIndexes.includes(index) });
     if (index < drills.length - 1) {
-      await targetPage.getByRole("button", { name: "下一题" }).click();
+      await clickAction(targetPage.getByRole("button", { name: "下一题" }));
     } else {
-      await targetPage.getByRole("button", { name: finishLabel }).click();
+      await clickAction(targetPage.getByRole("button", { name: finishLabel }));
     }
   }
 }
