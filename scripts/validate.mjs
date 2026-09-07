@@ -852,7 +852,7 @@ const smokeWithoutClickActionImpl = smokeBrowser.replace(/async function clickAc
 const leftoverDrillClicks = [...smokeWithoutClickActionImpl.matchAll(/await ([^;\n]+)\.click\((?:\{ force: true \})?\)/g)]
   .map((match) => match[1])
   .filter((expr) =>
-    /name: "(提交|下一题|交卷|跳过音频题|完成课程)"/.test(expr)
+    /name: "(提交|下一题|交卷|跳过音频题|完成课程|查看结果|结束复习|重新记录成绩|结束重练)"/.test(expr)
     || /name: finishLabel/.test(expr)
     || /skipAudio$/.test(expr.trim())
   );

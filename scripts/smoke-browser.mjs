@@ -320,7 +320,7 @@ returningPage.on("framenavigated", (frame) => {
 await returningPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
 await clickAction(returningPage.getByRole("button", { name: "提交" }));
 await expectText(returningPage, "答对了");
-await returningPage.getByRole("button", { name: "结束复习" }).click();
+await clickAction(returningPage.getByRole("button", { name: "结束复习" }));
 await expectText(returningPage, "100%");
 await returningPage.getByRole("button", { name: "继续" }).click();
 await expectText(returningPage, "现在没有到期复习");
@@ -471,7 +471,7 @@ for (let index = 3; index < l01Lesson.drills.length; index += 1) {
   if (!drill) throw new Error(`quiz smoke could not match lesson drill: ${prompt}`);
   await answerDrill(quizAutoSavePage, drill);
 }
-await quizAutoSavePage.getByRole("button", { name: "查看结果" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "查看结果" }));
 await expectText(quizAutoSavePage, "测验结果已保存。");
 const quizAutoSaveState = await quizAutoSavePage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
