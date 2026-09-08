@@ -1618,19 +1618,19 @@ async function clickAction(locator) {
 
 async function assertUnforcedDrillCta(targetPage, name, label) {
   const locator = targetPage.getByRole("button", { name, exact: true });
-  const probe = await locator.evaluate((node) => {
-    node.scrollIntoView({ block: "end", inline: "nearest" });
+  await locator.waitFor({ state: "visible" });
+  await locator.evaluate((node) => {
     const rect = node.getBoundingClientRect();
-    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
-    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
-    const top = document.elementFromPoint(x, y);
-    return {
-      hit: Boolean(top && (node === top || node.contains(top))),
-      topName: top?.className?.toString?.() || top?.tagName || "none"
-    };
-  }).catch((error) => ({ hit: false, topName: error.message }));
-  if (!probe.hit) {
-    issues.push(`${label}: ${name} is not the real pointer target (top=${probe.topName})`);
+    window.scrollBy({ top: rect.bottom - (window.innerHeight - 10), left: 0, behavior: "instant" });
+  }).catch(() => {});
+  const worst = await probePointerTarget(locator);
+  await locator.scrollIntoViewIfNeeded().catch(() => {});
+  const ready = await probePointerTarget(locator);
+  if (worst.overlap || ready.overlap) {
+    issues.push(`${label}: ${name} still overlaps the next-episode play control`);
+  }
+  if (!ready.hit) {
+    issues.push(`${label}: ${name} is not the real pointer target (top=${ready.topName})`);
   }
   try {
     await locator.click({ trial: true });
@@ -1646,16 +1646,7 @@ async function assertUnforcedPlayControl(targetPage, label) {
     issues.push(`${label}: next-episode play control should stay available when it is not covering drill CTAs`);
     return;
   }
-  const probe = await locator.evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
-    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
-    const top = document.elementFromPoint(x, y);
-    return {
-      hit: Boolean(top && (node === top || node.contains(top))),
-      topName: top?.className?.toString?.() || top?.tagName || "none"
-    };
-  }).catch((error) => ({ hit: false, topName: error.message }));
+  const probe = await probePointerTarget(locator);
   if (!probe.hit) {
     issues.push(`${label}: next-episode play is not the real pointer target (top=${probe.topName})`);
   }
@@ -1664,6 +1655,29 @@ async function assertUnforcedPlayControl(targetPage, label) {
   } catch (error) {
     issues.push(`${label}: next-episode play failed unforced actionability: ${error.message}`);
   }
+}
+
+async function probePointerTarget(locator) {
+  return locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
+    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
+    const top = document.elementFromPoint(x, y);
+    const play = document.querySelector(".next-episode__play");
+    const playRect = play?.getBoundingClientRect();
+    const overlap = Boolean(
+      play &&
+      play !== node &&
+      !node.contains(play) &&
+      playRect &&
+      !(rect.right < playRect.left || rect.left > playRect.right || rect.bottom < playRect.top || rect.top > playRect.bottom)
+    );
+    return {
+      hit: Boolean(top && (node === top || node.contains(top))),
+      overlap,
+      topName: top instanceof Element ? `${top.tagName}.${String(top.className)}` : String(top)
+    };
+  }).catch((error) => ({ hit: false, overlap: false, topName: error.message }));
 }
 
 async function expectText(page, text) {
