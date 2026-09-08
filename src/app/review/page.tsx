@@ -58,7 +58,7 @@ function ReviewContent() {
     const refreshQueue = (event: Event) => {
       if (!reviewRefreshEventMatches(event)) return;
       if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) {
-        if (event.type === "storage") setQueueChanged(true);
+        if (event.type === "storage" || event.type === "kirina:learning-batch") setQueueChanged(true);
         return;
       }
       setReviewError("");

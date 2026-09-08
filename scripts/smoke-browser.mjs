@@ -281,10 +281,22 @@ await expectText(returningPage, "回访错题");
 const activeReviewAnswer = returningPage.getByRole("textbox", { name: "输入答案" });
 await activeReviewAnswer.fill("정");
 await returningPage.evaluate(() => {
+  window.dispatchEvent(new CustomEvent("kirina:learning", { detail: { key: "kirina.srs.v2" } }));
+});
+if (await activeReviewAnswer.inputValue() !== "정") {
+  issues.push("an active review queue should keep the learner's draft across same-tab grading events");
+}
+if (await returningPage.getByRole("button", { name: "读取更新后的队列" }).count()) {
+  issues.push("an active review queue should stay silent for same-tab kirina:learning grading events");
+}
+await returningPage.evaluate(() => {
   window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.progress.v2"] } }));
 });
 if (await activeReviewAnswer.inputValue() !== "정") {
   issues.push("an active review queue should keep the learner's draft across batch refresh events");
+}
+if (!(await returningPage.getByRole("button", { name: "读取更新后的队列" }).count())) {
+  issues.push("an active review queue should surface the reload banner after a same-tab learning-batch import");
 }
 await returningPage.evaluate(() => {
   localStorage.setItem("kirina.srs.v2", JSON.stringify({

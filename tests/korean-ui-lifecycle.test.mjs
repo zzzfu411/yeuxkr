@@ -1343,6 +1343,16 @@ test("review pins the due queue until the session key changes", () => {
   assert.doesNotMatch(source, /const questions = useMemo\(\(\) => \{\s*return buildReviewQuestions\(dueCards\);\s*\}, \[dueCards\]\);/);
 });
 
+test("active review queue signals reload on storage and learning-batch but not same-tab grading", () => {
+  const source = readFileSync("src/app/review/page.tsx", "utf8");
+  const refresh = source.slice(source.indexOf("const refreshQueue"), source.indexOf('window.addEventListener("kirina:learning"'));
+  assert.match(refresh, /if \(questions\.length && LEARNING_REFRESH_EVENT_TYPES\.has\(event\.type\)\) \{/);
+  assert.match(refresh, /if \(event\.type === "storage" \|\| event\.type === "kirina:learning-batch"\) setQueueChanged\(true\);/);
+  assert.match(refresh, /return;/);
+  assert.doesNotMatch(refresh, /if \(event\.type === "storage"\) setQueueChanged\(true\);/);
+  assert.doesNotMatch(refresh, /event\.type === "kirina:learning"\) setQueueChanged/);
+});
+
 test("reselecting the active immersion material keeps the live draft armed", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
   const selectMaterial = source.slice(source.indexOf("const selectMaterial"), source.indexOf("const clearActiveArchive"));
