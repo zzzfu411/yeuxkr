@@ -1438,6 +1438,7 @@ test("drill and mastery actions keep clearance from the next-episode bar", () =>
   assert.match(css, /\.editorial-shell:has\(\.drill-sheet\) \{ padding-bottom: var\(--next-episode-clearance\); \}/);
   assert.match(css, /\.next-episode \{[\s\S]*pointer-events: none;/);
   assert.match(css, /\.next-episode__play \{[\s\S]*order: -1;[\s\S]*pointer-events: auto;/);
+  assert.match(css, /@media \(max-width: 1023px\) \{[\s\S]*\.next-episode__play \{[\s\S]*order: 1;/);
   assert.match(drill, /className=\{`drill-sheet /);
   assert.match(drill, /className="drill-actions /);
   assert.match(gate, /className="mastery-gate /);

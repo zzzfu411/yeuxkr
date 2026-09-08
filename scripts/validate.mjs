@@ -848,9 +848,11 @@ assert(masteryGateSource.includes("mastery-gate") && masteryGateSource.includes(
 assert(globalsCss.includes("--next-episode-clearance") && globalsCss.includes("scroll-padding-bottom") && globalsCss.includes("scroll-margin-bottom: var(--next-episode-clearance)"), "the floating next-episode bar should reserve scroll clearance for drill and mastery actions");
 assert(globalsCss.includes(".drill-sheet") && globalsCss.includes("padding-bottom: var(--next-episode-clearance)") && globalsCss.includes(".editorial-shell:has(.drill-sheet)"), "in-progress drill sheets should keep real bottom padding above the next-episode play control, including desktop");
 assert(/\.next-episode__play\s*\{[\s\S]*order:\s*-1/.test(globalsCss), "next-episode play should sit on the leading edge so it does not cover right-aligned drill CTAs");
+assert(/@media \(max-width: 1023px\)[\s\S]*\.next-episode__play\s*\{[\s\S]*order:\s*1/.test(globalsCss), "full-bleed next-episode play should sit in the center so it does not cover 上一题 or right-aligned drill CTAs");
 assert(globalsCss.includes(".next-episode") && globalsCss.includes("pointer-events: none") && globalsCss.includes(".next-episode__play") && globalsCss.includes("pointer-events: auto"), "next-episode chrome should not steal pointer events outside the play control");
 assert(smokeBrowser.includes("async function clickAction"), "browser smoke should route overlay-prone DrillRunner clicks through clickAction");
 assert(smokeBrowser.includes("async function assertUnforcedDrillCta") && smokeBrowser.includes("async function assertUnforcedPlayControl"), "browser smoke should hit-test drill CTAs and next-episode play without force");
+assert(smokeBrowser.includes('assertUnforcedDrillCta(quizAutoSavePage, "上一题", "short-phone-390 quiz")'), "browser smoke should unforced hit-test enabled 上一题 on a short phone");
 const smokeWithoutClickActionImpl = smokeBrowser.replace(/async function clickAction\(locator\) \{[\s\S]*?\n\}/, "");
 const leftoverDrillClicks = [...smokeWithoutClickActionImpl.matchAll(/await ([^;\n]+)\.click\((?:\{ force: true \})?\)/g)]
   .map((match) => match[1])

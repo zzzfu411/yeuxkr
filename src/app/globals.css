@@ -870,6 +870,21 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   .open-scenes-grid .pl-item:nth-child(odd) { border-right: 1px solid var(--line); }
 }
 
+/* Full-bleed next-episode: keep play off both drill-action ends (上一题 / 提交). */
+@media (max-width: 1023px) {
+  .next-episode {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .next-episode__play {
+    order: 1;
+    justify-self: center;
+  }
+  .next-episode__copy {
+    order: 2;
+    justify-self: end;
+  }
+}
+
 @media (min-width: 1024px) {
   .editorial-shell { padding-bottom: 0; }
   .editorial-shell:has(.drill-sheet) { padding-bottom: var(--next-episode-clearance); }
