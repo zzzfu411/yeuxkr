@@ -343,6 +343,7 @@ returningPage.on("framenavigated", (frame) => {
   if (frame === returningPage.mainFrame() && frame.url().includes("/review")) reviewReloaded = true;
 });
 await returningPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
+await assertUnforcedDrillCta(returningPage, "提交", "desktop-1280 review");
 await clickAction(returningPage.getByRole("button", { name: "提交" }));
 await expectText(returningPage, "答对了");
 await clickAction(returningPage.getByRole("button", { name: "结束复习" }));
@@ -477,6 +478,12 @@ await quizAutoSavePage.evaluate(() => {
 });
 await quizAutoSavePage.goto(`${baseUrl}/quiz`, { waitUntil: "networkidle" });
 await quizAutoSavePage.getByLabel("ㄱ + ㅏ").check();
+await assertUnforcedDrillCta(quizAutoSavePage, "提交", "desktop-1280 quiz");
+await assertUnforcedPlayControl(quizAutoSavePage, "desktop-1280 quiz");
+await quizAutoSavePage.setViewportSize({ width: 390, height: 667 });
+await assertUnforcedDrillCta(quizAutoSavePage, "提交", "short-phone-390 quiz");
+await assertUnforcedPlayControl(quizAutoSavePage, "short-phone-390 quiz");
+await quizAutoSavePage.setViewportSize({ width: 1280, height: 900 });
 await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
 await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
 await quizAutoSavePage.getByLabel("ㄴ").check();
@@ -1606,6 +1613,56 @@ async function clickAction(locator) {
     await locator.click();
   } catch {
     await locator.click({ force: true });
+  }
+}
+
+async function assertUnforcedDrillCta(targetPage, name, label) {
+  const locator = targetPage.getByRole("button", { name, exact: true });
+  const probe = await locator.evaluate((node) => {
+    node.scrollIntoView({ block: "end", inline: "nearest" });
+    const rect = node.getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
+    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
+    const top = document.elementFromPoint(x, y);
+    return {
+      hit: Boolean(top && (node === top || node.contains(top))),
+      topName: top?.className?.toString?.() || top?.tagName || "none"
+    };
+  }).catch((error) => ({ hit: false, topName: error.message }));
+  if (!probe.hit) {
+    issues.push(`${label}: ${name} is not the real pointer target (top=${probe.topName})`);
+  }
+  try {
+    await locator.click({ trial: true });
+  } catch (error) {
+    issues.push(`${label}: ${name} failed unforced actionability: ${error.message}`);
+  }
+}
+
+async function assertUnforcedPlayControl(targetPage, label) {
+  const locator = targetPage.locator(".next-episode__play");
+  const visible = await locator.isVisible().catch(() => false);
+  if (!visible) {
+    issues.push(`${label}: next-episode play control should stay available when it is not covering drill CTAs`);
+    return;
+  }
+  const probe = await locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
+    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
+    const top = document.elementFromPoint(x, y);
+    return {
+      hit: Boolean(top && (node === top || node.contains(top))),
+      topName: top?.className?.toString?.() || top?.tagName || "none"
+    };
+  }).catch((error) => ({ hit: false, topName: error.message }));
+  if (!probe.hit) {
+    issues.push(`${label}: next-episode play is not the real pointer target (top=${probe.topName})`);
+  }
+  try {
+    await locator.click({ trial: true });
+  } catch (error) {
+    issues.push(`${label}: next-episode play failed unforced actionability: ${error.message}`);
   }
 }
 

@@ -1433,9 +1433,11 @@ test("drill and mastery actions keep clearance from the next-episode bar", () =>
   const gate = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
   assert.match(css, /--next-episode-clearance:/);
   assert.match(css, /scroll-padding-bottom: var\(--next-episode-clearance\)/);
+  assert.match(css, /\.drill-sheet \{\s*padding-bottom: var\(--next-episode-clearance\);/);
   assert.match(css, /\.drill-actions \{\s*scroll-margin-bottom: var\(--next-episode-clearance\);/);
+  assert.match(css, /\.editorial-shell:has\(\.drill-sheet\) \{ padding-bottom: var\(--next-episode-clearance\); \}/);
   assert.match(css, /\.next-episode \{[\s\S]*pointer-events: none;/);
-  assert.match(css, /\.next-episode__play \{[\s\S]*pointer-events: auto;/);
+  assert.match(css, /\.next-episode__play \{[\s\S]*order: -1;[\s\S]*pointer-events: auto;/);
   assert.match(drill, /className=\{`drill-sheet /);
   assert.match(drill, /className="drill-actions /);
   assert.match(gate, /className="mastery-gate /);

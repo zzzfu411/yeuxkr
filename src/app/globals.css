@@ -712,7 +712,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   z-index: 45;
   display: grid;
   min-width: 0;
-  grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+  grid-template-columns: auto 2.6rem minmax(0, 1fr);
   align-items: center;
   gap: 0.65rem;
   padding: 0.55rem;
@@ -738,6 +738,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
 .next-episode__copy strong { overflow: hidden; margin-top: 0.1rem; font-size: 0.78rem; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
 .next-episode__play {
   display: inline-flex;
+  order: -1;
   min-height: 42px;
   align-items: center;
   justify-content: center;
@@ -754,6 +755,9 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
 .mastery-gate {
   scroll-margin-top: var(--app-header-clearance);
   scroll-margin-bottom: var(--next-episode-clearance);
+}
+.drill-sheet {
+  padding-bottom: var(--next-episode-clearance);
 }
 .drill-actions {
   scroll-margin-bottom: var(--next-episode-clearance);
@@ -868,6 +872,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
 
 @media (min-width: 1024px) {
   .editorial-shell { padding-bottom: 0; }
+  .editorial-shell:has(.drill-sheet) { padding-bottom: var(--next-episode-clearance); }
   .header-inner {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 1.1rem;

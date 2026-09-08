@@ -411,7 +411,7 @@ export function DrillRunner({
       (question.type === "cloze" && !(question.choices?.length)));
 
   return (
-    <article className={`drill-sheet rounded-none border p-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
+    <article className={`drill-sheet rounded-none border px-5 pt-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">正在练习</p>
