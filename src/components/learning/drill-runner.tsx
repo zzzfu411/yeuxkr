@@ -141,6 +141,7 @@ export function DrillRunner({
   const [value, setValue] = useState(initialState.value);
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
+  const [lockedQuestionId, setLockedQuestionId] = useState("");
   const [audioPlayback, setAudioPlayback] = useState<AudioPlaybackState>({
     questionId: "",
     status: "pending"
@@ -148,6 +149,7 @@ export function DrillRunner({
   const emittedResultRef = useRef("");
   const playedListenRef = useRef("");
   const submitRef = useRef<() => void>(() => {});
+  const inFlightQuestionIdRef = useRef("");
   const questionHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -268,6 +270,8 @@ export function DrillRunner({
       return;
     }
     if (!value.trim()) return;
+    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
+    setLockedQuestionId(question.id);
     const answer = value;
     const correct = checkAnswer(question, answer);
     const next = [...answers];
@@ -288,20 +292,32 @@ export function DrillRunner({
         hint: question.hint
       });
       if (!mistakeCard) {
+        releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+        setLockedQuestionId((current) => current === question.id ? "" : current);
         setSrsError("错题没有保存到复习队列。请释放浏览器空间后再继续。");
         return;
       }
       setSrsError("");
     }
-    if (onAnswer?.(entry) === false) return;
+    if (onAnswer?.(entry) === false) {
+      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+      setLockedQuestionId((current) => current === question.id ? "" : current);
+      return;
+    }
     setAnswers(next);
     emitProgress(index, next, false);
   };
 
   const skipAudioQuestion = () => {
     if (!question || existing || !audioUnavailable) return;
+    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
+    setLockedQuestionId(question.id);
     const entry = { question, answer: "", correct: false, skipped: true };
-    if (onAnswer?.(entry) === false) return;
+    if (onAnswer?.(entry) === false) {
+      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+      setLockedQuestionId((current) => current === question.id ? "" : current);
+      return;
+    }
     const next = [...answers];
     next[index] = entry;
     setAnswers(next);
@@ -590,7 +606,11 @@ export function DrillRunner({
         <Button
           type="button"
           onClick={audioUnavailable && !existing ? skipAudioQuestion : submit}
-          disabled={audioCheckPending || (!audioUnavailable && !existing && !value.trim())}
+          disabled={
+            audioCheckPending ||
+            (!audioUnavailable && !existing && !value.trim()) ||
+            (!existing && lockedQuestionId === question.id)
+          }
         >
           {existing ? (index === questions.length - 1 ? finishLabel : "下一题") : audioUnavailable ? (
             <>
@@ -643,4 +663,14 @@ function buildInitialState(questions: Question[], savedAnswers: DrillRunnerSaved
 
 function isAudioQuestion(question?: Question) {
   return Boolean(question?.speak && (question.type === "listen" || question.type === "dictation"));
+}
+
+function claimQuestionAttempt(lock: { current: string }, questionId: string) {
+  if (!questionId || lock.current === questionId) return false;
+  lock.current = questionId;
+  return true;
+}
+
+function releaseQuestionAttempt(lock: { current: string }, questionId: string) {
+  if (lock.current === questionId) lock.current = "";
 }

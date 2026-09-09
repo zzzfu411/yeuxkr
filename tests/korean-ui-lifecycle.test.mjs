@@ -1517,7 +1517,8 @@ test("all-due mistake retrain requests every selected card", () => {
 
 test("audio skip goes through onAnswer so review and retrain can reschedule", () => {
   const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
-  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) return;/);
+  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?return;/);
+  assert.match(source, /if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?releaseQuestionAttempt\(inFlightQuestionIdRef, question\.id\);[\s\S]*?return;[\s\S]*?setAnswers\(next\);/);
 });
 
 test("review and retrain refuse answers when the queued card disappears", () => {
@@ -2311,6 +2312,277 @@ test("DrillRunner lets a resumed answered audio question advance", () => {
   assert.ok(findElement(tree, (node) => node.props?.role === "status"));
 });
 
+test("DrillRunner records at most one mistake when 提交 fires twice before answers commit", () => {
+  const hooks = createHookHarness();
+  const listeners = new Map();
+  const mistakeCalls = [];
+  const answered = [];
+  let persistMistake = true;
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        mistakeCalls.push({ id, payload });
+        return persistMistake ? { id, payload, wrong: mistakeCalls.filter((item) => item.id === id).length } : null;
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = listeners.get(type) ?? new Set();
+        entries.add(listener);
+        listeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        listeners.get(type)?.delete(listener);
+      }
+    }
+  });
+
+  const questions = [
+    {
+      id: "gate-q1",
+      type: "choice",
+      prompt: "선택하세요",
+      answer: "맞아요",
+      choices: ["맞아요", "아니에요"],
+      explain: "礼貌肯定。"
+    },
+    {
+      id: "gate-q2",
+      type: "choice",
+      prompt: "하나 더",
+      answer: "네",
+      choices: ["네", "아니요"],
+      explain: "简短肯定。"
+    }
+  ];
+  const props = {
+    questions,
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      answered.push(entry);
+    }
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니에요").props.onChange();
+  tree = hooks.render(DrillRunner, props);
+
+  const submit = findButton(tree, "提交");
+  assert.equal(submit.props.disabled, false);
+  submit.props.onClick();
+  submit.props.onClick();
+  for (const listener of listeners.get("keydown") ?? []) {
+    listener(createBareEnterEvent());
+  }
+  assert.equal(mistakeCalls.length, 1, "overlapping 提交 / Enter must not double-bump SRS");
+  assert.equal(mistakeCalls[0].id, "mistake:gate-q1");
+  assert.equal(answered.length, 1);
+  assert.equal(answered[0].correct, false);
+
+  tree = hooks.render(DrillRunner, props);
+  assert.match(textContent(tree), /正确答案：맞아요/);
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니요").props.onChange();
+  tree = hooks.render(DrillRunner, props);
+  const secondSubmit = findButton(tree, "提交");
+  secondSubmit.props.onClick();
+  secondSubmit.props.onClick();
+  assert.equal(mistakeCalls.map((item) => item.id).join(","), "mistake:gate-q1,mistake:gate-q2");
+  assert.equal(answered.length, 2);
+
+  persistMistake = false;
+  const retryHooks = createHookHarness();
+  const retryMistakes = [];
+  const { DrillRunner: RetryRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: retryHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => false },
+    "@/lib/learning/srs": {
+      recordMistake(id) {
+        retryMistakes.push(id);
+        return persistMistake ? { id } : null;
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const retryProps = {
+    questions: [questions[0]],
+    finishLabel: "交卷",
+    recordMistakes: true
+  };
+  tree = retryHooks.render(RetryRunner, retryProps);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니에요").props.onChange();
+  tree = retryHooks.render(RetryRunner, retryProps);
+  findButton(tree, "提交").props.onClick();
+  tree = retryHooks.render(RetryRunner, retryProps);
+  assert.match(textContent(tree), /错题没有保存到复习队列/);
+  persistMistake = true;
+  findButton(tree, "提交").props.onClick();
+  findButton(tree, "提交").props.onClick();
+  assert.equal(retryMistakes.length, 2, "failed persist must unlock, then a successful attempt may persist only once");
+});
+
+test("DrillRunner skip and review-style onAnswer refuse stay single-flight", async () => {
+  const skipAnswered = [];
+  const skipHooks = createHookHarness();
+  const speechCalls = [];
+  const { DrillRunner: SkipRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: skipHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const skipProps = {
+    questions: [{
+      id: "listen-skip",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer(entry) {
+      skipAnswered.push(entry);
+    }
+  };
+  let tree = skipHooks.render(SkipRunner, skipProps);
+  await Promise.resolve();
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = skipHooks.render(SkipRunner, skipProps);
+  const skip = findButton(tree, "跳过音频题");
+  skip.props.onClick();
+  skip.props.onClick();
+  assert.equal(skipAnswered.length, 1);
+  assert.equal(skipAnswered[0].skipped, true);
+
+  const reviewHooks = createHookHarness();
+  const reviewAnswers = [];
+  let refuse = true;
+  const { DrillRunner: ReviewRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: reviewHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": {
+      recordMistake() {
+        throw new Error("review/quiz/mistakes must keep recordMistakes=false");
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const reviewProps = {
+    questions: [{
+      id: "review-q1",
+      type: "choice",
+      prompt: "복습",
+      answer: "네",
+      choices: ["네", "아니요"]
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer() {
+      reviewAnswers.push(refuse ? false : true);
+      return refuse ? false : undefined;
+    }
+  };
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "네").props.onChange();
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  findButton(tree, "提交").props.onClick();
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  assert.doesNotMatch(textContent(tree), /答对了/);
+  refuse = false;
+  const retry = findButton(tree, "提交");
+  retry.props.onClick();
+  retry.props.onClick();
+  assert.equal(reviewAnswers.length, 2, "stale/storage refuse must unlock, then one successful local commit");
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  assert.match(textContent(tree), /答对了/);
+});
+
 function loadLessonEvidencePanels(hooks, {
   MediaRecorder,
   getUserMedia,
@@ -2667,6 +2939,22 @@ function createMediaWindow() {
   return {
     matchMedia() {
       return { matches: false, addEventListener() {}, removeEventListener() {} };
+    }
+  };
+}
+
+function createBareEnterEvent() {
+  return {
+    key: "Enter",
+    target: {
+      tagName: "BODY",
+      closest() {
+        return null;
+      }
+    },
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true;
     }
   };
 }
