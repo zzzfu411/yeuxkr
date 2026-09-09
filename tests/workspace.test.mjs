@@ -8,7 +8,7 @@ import { pragmaticScenarios } from "../src/data/pragmatics.js";
 import { nuanceSets } from "../src/data/nuance.js";
 import { immersionMaterialHref, immersionMaterials } from "../src/data/materials.ts";
 import { defaultProfile, defaultProgress, todayKey } from "../src/lib/learning/storage.ts";
-import { applyCheckpointCompletion, applyLessonCompletion, applyTaskCompletion, buildLearningWorkspace, buildProficiencySnapshot, checkpointCreditKey, clearMaterialArchiveEvidence, commitLessonSession, commitQuizSession, completeLessonProgress, completeMaterialEvidence, countCheckpointCredits, countNativePracticeEvidence, ensureGrammarPointMastered, ensureHangulItemMastered, ensurePronunciationPairMastered, ensureSoundChangeRuleMastered, ensureVocabItemMastered, findCompletedCheckpointCredit, gradeReviewCardAndProgress, invalidateCapstoneRecordingEvidence, invalidateLessonTaskRecordingEvidence, mapCardToAbilities, materialPrerequisitesMet, normalizeLearningProgress, normalizeUserProfile, recordAbilityEvent, removeAbilityEvent, removeMistakeCardAndPracticeItem, recordQuizProgress, resetLearningWorkspace, saveCapstonePracticeEvidence, saveLessonTaskPracticeEvidence, saveNativePracticeEvidence, saveOutputArchiveEntry, saveSelfStudyCheckpointAndProgress, saveSelfStudyPlanAndProgress, saveUserProfileAndProgress, toggleGrammarPoint, toggleHangulItem, toggleNativeItem, togglePronunciationPair, toggleSoundChangeRule, toggleVocabItem, validateCheckpointEvidence } from "../src/lib/learning/workspace.ts";
+import { applyCheckpointCompletion, applyLessonCompletion, applyTaskCompletion, buildLearningWorkspace, buildProficiencySnapshot, checkpointCreditKey, clearMaterialArchiveEvidence, commitLessonSession, commitQuizSession, completeLessonProgress, completeMaterialEvidence, countCheckpointCredits, countNativePracticeEvidence, ensureGrammarPointMastered, ensureHangulItemMastered, ensurePronunciationPairMastered, ensureSoundChangeRuleMastered, ensureVocabItemMastered, findCompletedCheckpointCredit, gradeReviewCardAndProgress, invalidateCapstoneRecordingEvidence, invalidateLessonTaskRecordingEvidence, mapCardToAbilities, materialPrerequisitesMet, normalizeLearningProgress, normalizeUserProfile, recordAbilityEvent, removeAbilityEvent, removeMistakeCardAndPracticeItem, recordQuizProgress, resetLearningWorkspace, saveCapstonePracticeEvidence, saveLessonTaskPracticeEvidence, saveNativePracticeEvidence, saveOutputArchiveEntry, saveSelfStudyCheckpointAndProgress, saveSelfStudyPlanAndProgress, saveUserProfileAndProgress, submitReviewCardAndProgress, toggleGrammarPoint, toggleHangulItem, toggleNativeItem, togglePronunciationPair, toggleSoundChangeRule, toggleVocabItem, validateCheckpointEvidence } from "../src/lib/learning/workspace.ts";
 import { getNextLesson, lessons, UNLOCK_SCORE } from "../src/data/curriculum.js";
 import { getCurrentInAppNativeStage, nativeRoadmapStages, nativeRoadmapTotals } from "../src/data/native-roadmap.js";
 import { buildSelfStudyPlan } from "../src/data/self-study.js";
@@ -1002,6 +1002,39 @@ test("a stale review card snapshot cannot be graded after its payload changes", 
   assert.equal(after.payload.answer, "new answer");
   assert.equal(after.payload.acceptable?.[0], "new acceptable answer");
   assert.equal(store.has(progressStorageKey), false);
+});
+
+test("a stale mistakes-retrain snapshot cannot bump again even when early grading is allowed", () => {
+  store.clear();
+  const now = Date.now();
+  saveSrsState({
+    cards: {
+      "mistake:retrain-stale": {
+        id: "mistake:retrain-stale",
+        box: 1,
+        dueAt: now + 60_000,
+        correct: 1,
+        wrong: 1,
+        lastSeenAt: now - 1000,
+        payload: { kind: "mistake", itemId: "retrain-stale", prompt: "prompt", answer: "answer" }
+      }
+    },
+    history: []
+  });
+
+  const snapshot = getSrsState().cards["mistake:retrain-stale"];
+  assert.equal(gradeReviewCardAndProgress(getSrsState().cards["mistake:retrain-stale"], true, { allowEarly: true }), true);
+
+  const afterExternal = getSrsState().cards["mistake:retrain-stale"];
+  assert.equal(afterExternal.correct, 2);
+  assert.deepEqual(submitReviewCardAndProgress(snapshot, true, { allowEarly: true }), { ok: false, reason: "stale" });
+
+  const afterRefuse = getSrsState().cards["mistake:retrain-stale"];
+  assert.equal(afterRefuse.correct, 2);
+  assert.equal(afterRefuse.box, afterExternal.box);
+  assert.equal(afterRefuse.dueAt, afterExternal.dueAt);
+  assert.equal(JSON.parse(store.get(progressStorageKey)).practiceItems["retrain-stale"].correct, 1);
+  assert.equal(getSrsState().history.filter((entry) => entry.id === snapshot.id).length, 1);
 });
 
 test("early practice can grade a not-yet-due card when allowed", () => {

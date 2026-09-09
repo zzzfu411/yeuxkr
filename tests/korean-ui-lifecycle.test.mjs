@@ -1171,6 +1171,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
       })),
       summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 })
     },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
     "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
     "@/lib/learning/storage": {
       STORAGE_KEYS: { srs: "srs" },
@@ -1178,7 +1179,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
       useStorageRaw: () => null
     },
     "@/lib/learning/workspace": {
-      gradeReviewCardAndProgress: () => true,
+      submitReviewCardAndProgress: () => ({ ok: true }),
       removeMistakeCardAndPracticeItem: () => true,
     },
     "@/lib/learning/use-learning-workspace": {
@@ -1196,6 +1197,8 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   assert.equal(runner.key, 1);
   assert.equal(runner.props.questions[0].id, "q1");
   assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true }), false);
+  tree = hooks.render(MistakesPage, {});
+  assert.match(textContent(findElement(tree, (node) => node.type === "InlineAlert")), /已被移除，本次答案未计分/);
 
   cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
   cards[1].props.onRetrain("q2");
@@ -1203,6 +1206,116 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   assert.equal(runner.key, 2);
   assert.equal(runner.props.questions[0].id, "q2");
+});
+
+test("mistakes retrain grades a frozen card snapshot and refuses a stale live update", () => {
+  const hooks = createHookHarness();
+  const frozenCard = {
+    id: "q1",
+    box: 0,
+    dueAt: 0,
+    correct: 0,
+    wrong: 1,
+    lastSeenAt: null,
+    ease: 2.5,
+    intervalDays: 0,
+    lapses: 0,
+    payload: { kind: "mistake", itemId: "q1", prompt: "第一题", answer: "하나" }
+  };
+  const liveCards = {
+    q1: { ...frozenCard, payload: { ...frozenCard.payload } }
+  };
+  const submitted = [];
+  const insights = [{
+    id: "q1",
+    itemId: "lesson:q1",
+    prompt: "第一题",
+    answer: "하나",
+    correct: 0,
+    wrong: 1,
+    box: 0,
+    dueAt: 0,
+    lastSeenAt: null,
+    due: false,
+    sourceLabel: "课程练习",
+    statusLabel: "巩固中",
+    severity: 4
+  }];
+  const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": {
+      ArrowRight: "ArrowRightIcon",
+      CircleAlert: "CircleAlertIcon",
+      Clock: "ClockIcon",
+      Play: "PlayIcon",
+      RefreshCcw: "RefreshIcon",
+      Trash2: "TrashIcon"
+    },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
+    "@/lib/learning/player": { firstHangul: (value, fallback) => value || fallback },
+    "@/lib/learning/mistakes": {
+      buildMistakeInsights: () => insights,
+      buildRetrainQuestions: () => [{ id: "q1", type: "type", prompt: "第一题", answer: "하나" }],
+      summarizeMistakes: () => ({ total: 1, due: 0, repeated: 0, stabilizing: 1, mastered: 0 })
+    },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
+    "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: liveCards }) },
+    "@/lib/learning/storage": {
+      STORAGE_KEYS: { srs: "srs" },
+      useClientNow: () => 0,
+      useStorageRaw: () => null
+    },
+    "@/lib/learning/workspace": {
+      submitReviewCardAndProgress(card, correct, options) {
+        submitted.push({ card, correct, options });
+        return card.correct === frozenCard.correct && card.box === frozenCard.box
+          ? { ok: false, reason: "stale" }
+          : { ok: true };
+      },
+      removeMistakeCardAndPracticeItem: () => true
+    },
+    "@/lib/learning/use-learning-workspace": {
+      useLearningWorkspace: () => ({ workspace: {} })
+    }
+  });
+
+  let tree = hooks.render(MistakesPage, {});
+  const cards = findElements(tree, (node) => node.props?.item?.id === "q1");
+  cards[0].props.onRetrain("q1");
+
+  liveCards.q1 = {
+    ...frozenCard,
+    box: 2,
+    correct: 3,
+    dueAt: 99_000,
+    payload: { ...frozenCard.payload, prompt: "updated" }
+  };
+
+  tree = hooks.render(MistakesPage, {});
+  const runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true, skipped: false }), false);
+  assert.equal(submitted.length, 1);
+  assert.equal(submitted[0].card.correct, frozenCard.correct);
+  assert.equal(submitted[0].card.box, frozenCard.box);
+  assert.equal(submitted[0].card.dueAt, frozenCard.dueAt);
+  assert.equal(submitted[0].options.allowEarly, true);
+
+  tree = hooks.render(MistakesPage, {});
+  const alert = findElement(tree, (node) => node.type === "InlineAlert");
+  assert.match(textContent(alert), /已被更新或推迟，本次答案未重复计分/);
+  assert.doesNotMatch(textContent(alert), /释放浏览器空间/);
 });
 
 test("onboarding unlocks only after playback and recovers from a failed sample", () => {
@@ -1392,7 +1505,9 @@ test("completed immersion materials do not claim an unfinished draft restore", (
 
 test("mistakes retrain grades cards even when they are not yet due", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(source, /pinReviewAttempt\(null, nextSession, questions, cards\)/);
+  assert.match(source, /cardsForReviewAttempt\(pinnedRetrain, retrainSession, \[\]\)/);
+  assert.match(source, /submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
 });
 
 test("all-due mistake retrain requests every selected card", () => {
@@ -1410,7 +1525,12 @@ test("review and retrain refuse answers when the queued card disappears", () => 
   const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
   assert.match(review, /card \? submitReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)/);
   assert.match(review, /result\.reason === "storage"/);
-  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
+  assert.match(mistakes, /card\s*\n\s*\? submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(mistakes, /: \{ ok: false as const, reason: "missing" as const \}/);
+  assert.match(mistakes, /reason === "storage"/);
+  assert.match(mistakes, /reason === "missing"/);
+  assert.match(mistakes, /已被更新或推迟，本次答案未重复计分/);
+  assert.match(mistakes, /已被移除，本次答案未计分/);
 });
 
 test("cinematic scene frames clip media and keep film texture inside the image", () => {
@@ -2517,6 +2637,22 @@ function textContent(node) {
 
 function cn(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+function createReviewAttemptMocks() {
+  return {
+    pinReviewAttempt(_pinned, seed, questions, cards) {
+      return { seed, questions, cards };
+    },
+    questionsForReviewAttempt(pinned, seed, liveQuestions) {
+      if (pinned && pinned.seed === seed && pinned.questions.length > 0) return pinned.questions;
+      return liveQuestions;
+    },
+    cardsForReviewAttempt(pinned, seed, liveCards) {
+      if (pinned && pinned.seed === seed && pinned.questions.length > 0) return pinned.cards;
+      return liveCards;
+    }
+  };
 }
 
 function createJamoMock() {
