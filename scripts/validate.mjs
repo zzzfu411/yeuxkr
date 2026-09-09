@@ -842,6 +842,8 @@ assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emi
 assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
 assert(drillRunnerSource.includes('role="progressbar"'), "DrillRunner should render a visible progress bar");
 assert(drillRunnerSource.includes("playedListenRef"), "DrillRunner should auto-play listen prompts once per question");
+assert(drillRunnerSource.includes("runPrimaryAction") && drillRunnerSource.includes("submitRef.current = runPrimaryAction"), "DrillRunner Enter should follow the same audio-gated primary action as the button");
+assert(drillRunnerSource.includes("if (audioCheckPending || audioUnavailable) return") && drillRunnerSource.includes("if (audioCheckPending) return") && drillRunnerSource.includes("skipAudioQuestion()"), "DrillRunner should refuse to grade while audio is pending or unavailable, and route unavailable Enter to skip");
 assert(drillRunnerSource.includes("drill-sheet") && drillRunnerSource.includes("drill-actions"), "DrillRunner should mark its sheet and primary action row for next-episode clearance");
 const masteryGateSource = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
 assert(masteryGateSource.includes("mastery-gate") && masteryGateSource.includes('block: "center"'), "MasteryGate should scroll the quiz into the clear center instead of stopping at nearest");

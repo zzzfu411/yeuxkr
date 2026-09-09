@@ -245,6 +245,7 @@ export function DrillRunner({
         submitRef.current();
         return;
       }
+      if (audioCheckPending || audioUnavailable) return;
       if ((question.choices?.length ?? 0) > 0 && !answers[index]) {
         const choiceIndex = Number(event.key);
         const choices = question.choices ?? [];
@@ -256,7 +257,29 @@ export function DrillRunner({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [answers, finished, index, question]);
+  }, [answers, audioCheckPending, audioUnavailable, finished, index, question]);
+
+  useEffect(() => {
+    if (!audioUnavailable || hasExistingAnswer) return;
+    setValue("");
+  }, [audioUnavailable, hasExistingAnswer, questionId]);
+
+  const skipAudioQuestion = () => {
+    if (!question || existing || !audioUnavailable) return;
+    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
+    setLockedQuestionId(question.id);
+    const entry = { question, answer: "", correct: false, skipped: true };
+    if (onAnswer?.(entry) === false) {
+      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+      setLockedQuestionId((current) => current === question.id ? "" : current);
+      return;
+    }
+    const next = [...answers];
+    next[index] = entry;
+    setAnswers(next);
+    setSrsError("");
+    emitProgress(index, next, false);
+  };
 
   const submit = () => {
     if (!question) return;
@@ -267,6 +290,11 @@ export function DrillRunner({
         setFinished(true);
         emitProgress(index, answers, true);
       }
+      return;
+    }
+    if (audioCheckPending) return;
+    if (audioUnavailable) {
+      skipAudioQuestion();
       return;
     }
     if (!value.trim()) return;
@@ -308,21 +336,13 @@ export function DrillRunner({
     emitProgress(index, next, false);
   };
 
-  const skipAudioQuestion = () => {
-    if (!question || existing || !audioUnavailable) return;
-    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
-    setLockedQuestionId(question.id);
-    const entry = { question, answer: "", correct: false, skipped: true };
-    if (onAnswer?.(entry) === false) {
-      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
-      setLockedQuestionId((current) => current === question.id ? "" : current);
+  const runPrimaryAction = () => {
+    if (audioCheckPending) return;
+    if (audioUnavailable && !existing) {
+      skipAudioQuestion();
       return;
     }
-    const next = [...answers];
-    next[index] = entry;
-    setAnswers(next);
-    setSrsError("");
-    emitProgress(index, next, false);
+    submit();
   };
 
   const moveToIndex = (nextIndex: number, nextAnswers = answers, nextFinished = finished) => {
@@ -347,7 +367,7 @@ export function DrillRunner({
   };
 
   useEffect(() => {
-    submitRef.current = submit;
+    submitRef.current = runPrimaryAction;
   });
 
   useEffect(() => {
@@ -605,7 +625,7 @@ export function DrillRunner({
         </Button>
         <Button
           type="button"
-          onClick={audioUnavailable && !existing ? skipAudioQuestion : submit}
+          onClick={runPrimaryAction}
           disabled={
             audioCheckPending ||
             (!audioUnavailable && !existing && !value.trim()) ||

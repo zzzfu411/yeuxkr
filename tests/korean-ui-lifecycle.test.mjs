@@ -1519,6 +1519,10 @@ test("audio skip goes through onAnswer so review and retrain can reschedule", ()
   const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
   assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?return;/);
   assert.match(source, /if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?releaseQuestionAttempt\(inFlightQuestionIdRef, question\.id\);[\s\S]*?return;[\s\S]*?setAnswers\(next\);/);
+  assert.match(source, /if \(audioCheckPending\) return;/);
+  assert.match(source, /if \(audioUnavailable\) \{\s*skipAudioQuestion\(\);\s*return;/);
+  assert.match(source, /if \(audioCheckPending \|\| audioUnavailable\) return;/);
+  assert.match(source, /submitRef\.current = runPrimaryAction;/);
 });
 
 test("review and retrain refuse answers when the queued card disappears", () => {
@@ -2583,6 +2587,245 @@ test("DrillRunner skip and review-style onAnswer refuse stay single-flight", asy
   assert.match(textContent(tree), /答对了/);
 });
 
+test("DrillRunner keyboard cannot grade an audio-gated item", async () => {
+  const listenQuestion = {
+    id: "listen-gate",
+    type: "listen",
+    prompt: "听选",
+    answer: "안녕",
+    choices: ["안녕", "학교"],
+    speak: "안녕",
+    explain: "问候。"
+  };
+  const dictationQuestion = {
+    id: "dictation-gate",
+    type: "dictation",
+    prompt: "听写",
+    answer: "안녕하세요",
+    speak: "안녕하세요",
+    explain: "完整问候。"
+  };
+
+  const pendingHooks = createHookHarness();
+  const pendingListeners = new Map();
+  const pendingMistakes = [];
+  const pendingChecked = [];
+  const pendingAnswered = [];
+  const { DrillRunner: PendingRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: pendingHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "loading" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        pendingChecked.push({ id: question.id, answer });
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        pendingMistakes.push({ id, payload });
+        return { id };
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = pendingListeners.get(type) ?? new Set();
+        entries.add(listener);
+        pendingListeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        pendingListeners.get(type)?.delete(listener);
+      }
+    }
+  });
+  const pendingProps = {
+    questions: [listenQuestion],
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      pendingAnswered.push(entry);
+    }
+  };
+  let tree = pendingHooks.render(PendingRunner, pendingProps);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+  dispatchBareKey(pendingListeners, "1");
+  tree = pendingHooks.render(PendingRunner, pendingProps);
+  dispatchBareKey(pendingListeners, "Enter");
+  dispatchBareKey(pendingListeners, "Enter");
+  assert.equal(pendingChecked.length, 0, "pending audio must not grade a digit+Enter bypass");
+  assert.equal(pendingMistakes.length, 0);
+  assert.equal(pendingAnswered.length, 0);
+  tree = pendingHooks.render(PendingRunner, pendingProps);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+  assert.doesNotMatch(textContent(tree), /答对了|正确答案|已跳过/);
+
+  for (const voiceStatus of ["missing", "unsupported"]) {
+    const hooks = createHookHarness();
+    const listeners = new Map();
+    const mistakes = [];
+    const checked = [];
+    const answered = [];
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: voiceStatus }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": {
+        checkAnswer(question, answer) {
+          checked.push({ id: question.id, answer });
+          return answer === question.answer;
+        }
+      },
+      "@/lib/learning/srs": {
+        recordMistake(id, payload) {
+          mistakes.push({ id, payload });
+          return { id };
+        }
+      },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean() { return true; },
+        stopSpeech() {}
+      }
+    }, {
+      queueMicrotask,
+      window: {
+        setTimeout() { return 17; },
+        clearTimeout() {},
+        addEventListener(type, listener) {
+          const entries = listeners.get(type) ?? new Set();
+          entries.add(listener);
+          listeners.set(type, entries);
+        },
+        removeEventListener(type, listener) {
+          listeners.get(type)?.delete(listener);
+        }
+      }
+    });
+    const props = {
+      questions: [listenQuestion],
+      finishLabel: "交卷",
+      recordMistakes: true,
+      onAnswer(entry) {
+        answered.push(entry);
+      }
+    };
+    tree = hooks.render(DrillRunner, props);
+    assert.ok(findButton(tree, "跳过音频题"), `${voiceStatus} must offer skip`);
+    dispatchBareKey(listeners, "1");
+    tree = hooks.render(DrillRunner, props);
+    dispatchBareKey(listeners, "Enter");
+    dispatchBareKey(listeners, "Enter");
+    findButton(tree, "跳过音频题").props.onClick();
+    assert.equal(checked.length, 0, `${voiceStatus} digit+Enter must not grade`);
+    assert.equal(mistakes.length, 0, `${voiceStatus} must not recordMistake`);
+    assert.equal(answered.length, 1, `${voiceStatus} overlapping Enter/skip must stay single-flight`);
+    assert.equal(answered[0].skipped, true);
+    assert.equal(answered[0].answer, "");
+    assert.equal(answered[0].correct, false);
+    tree = hooks.render(DrillRunner, props);
+    assert.match(textContent(tree), /已跳过：本题不计分/);
+  }
+
+  const leftoverHooks = createHookHarness();
+  const leftoverListeners = new Map();
+  const leftoverSpeech = [];
+  const leftoverMistakes = [];
+  const leftoverChecked = [];
+  const leftoverAnswered = [];
+  const { DrillRunner: LeftoverRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: leftoverHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        leftoverChecked.push({ id: question.id, answer });
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        leftoverMistakes.push({ id, payload });
+        return { id };
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        leftoverSpeech.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = leftoverListeners.get(type) ?? new Set();
+        entries.add(listener);
+        leftoverListeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        leftoverListeners.get(type)?.delete(listener);
+      }
+    }
+  });
+  const leftoverProps = {
+    questions: [dictationQuestion],
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      leftoverAnswered.push(entry);
+    }
+  };
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  await Promise.resolve();
+  leftoverSpeech[0].options.onstart();
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(input);
+  input.props.onChange("안녕하세요");
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  leftoverSpeech[0].options.onerror({ error: "network" });
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  assert.ok(findButton(tree, "跳过音频题"));
+  dispatchBareKey(leftoverListeners, "Enter");
+  dispatchBareKey(leftoverListeners, "Enter");
+  findButton(tree, "跳过音频题").props.onClick();
+  assert.equal(leftoverChecked.length, 0, "failed TTS leftover dictation must not be graded");
+  assert.equal(leftoverMistakes.length, 0);
+  assert.equal(leftoverAnswered.length, 1);
+  assert.equal(leftoverAnswered[0].skipped, true);
+  assert.equal(leftoverAnswered[0].answer, "");
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  assert.match(textContent(tree), /已跳过：本题不计分/);
+});
+
 function loadLessonEvidencePanels(hooks, {
   MediaRecorder,
   getUserMedia,
@@ -2944,8 +3187,12 @@ function createMediaWindow() {
 }
 
 function createBareEnterEvent() {
+  return createBareKeyEvent("Enter");
+}
+
+function createBareKeyEvent(key) {
   return {
-    key: "Enter",
+    key,
     target: {
       tagName: "BODY",
       closest() {
@@ -2957,6 +3204,12 @@ function createBareEnterEvent() {
       this.defaultPrevented = true;
     }
   };
+}
+
+function dispatchBareKey(listeners, key) {
+  const event = createBareKeyEvent(key);
+  for (const listener of listeners.get("keydown") ?? []) listener(event);
+  return event;
 }
 
 function createKeyEvent(key, { isComposing = false, keyCode = 0 } = {}) {
