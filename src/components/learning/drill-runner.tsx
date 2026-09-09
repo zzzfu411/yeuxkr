@@ -259,11 +259,6 @@ export function DrillRunner({
     return () => window.removeEventListener("keydown", handler);
   }, [answers, audioCheckPending, audioUnavailable, finished, index, question]);
 
-  useEffect(() => {
-    if (!audioUnavailable || hasExistingAnswer) return;
-    setValue("");
-  }, [audioUnavailable, hasExistingAnswer, questionId]);
-
   const skipAudioQuestion = () => {
     if (!question || existing || !audioUnavailable) return;
     if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
@@ -277,6 +272,7 @@ export function DrillRunner({
     const next = [...answers];
     next[index] = entry;
     setAnswers(next);
+    setValue("");
     setSrsError("");
     emitProgress(index, next, false);
   };
