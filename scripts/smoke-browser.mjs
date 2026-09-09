@@ -422,6 +422,93 @@ const progressAfterConfirmedReset = await resetConfirmPage.evaluate(() => localS
 if (progressAfterConfirmedReset) issues.push("confirmed home reset should clear managed progress");
 await resetConfirmContext.close();
 
+const retrainContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const retrainPage = configureSmokePage(await retrainContext.newPage());
+await retrainPage.goto(`${baseUrl}/mistakes`, { waitUntil: "domcontentloaded" });
+await retrainPage.evaluate(() => {
+  const now = Date.now();
+  const stamp = new Date().toISOString();
+  localStorage.setItem("kirina.profile.v2", JSON.stringify({
+    name: "Learner",
+    studyMode: "guided",
+    selfStudyGoal: "native",
+    selfStudyIntensity: "steady",
+    selfStudyFocus: "conversation",
+    minutesGoal: 45,
+    romanization: "fade",
+    createdAt: stamp,
+    updatedAt: stamp
+  }));
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 92 },
+    masteredHangul: [],
+    learnedVocab: [],
+    learnedGrammar: [],
+    learnedNative: [],
+    completedMaterials: [],
+    completedTasks: {},
+    ability: { script: 12, listening: 4, vocabulary: 2, grammar: 0, pragmatics: 0, native: 0 },
+    abilityEvents: {},
+    practiceItems: {},
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 45,
+    updatedAt: stamp
+  }));
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:retrain-stale": {
+        id: "mistake:retrain-stale",
+        box: 1,
+        dueAt: now + 60_000,
+        correct: 1,
+        wrong: 1,
+        lastSeenAt: now - 1000,
+        payload: { kind: "mistake", itemId: "retrain-stale", prompt: "重练快照题", answer: "정답" }
+      }
+    },
+    history: []
+  }));
+});
+await retrainPage.reload({ waitUntil: "networkidle" });
+await expectText(retrainPage, "重练快照题");
+await retrainPage.getByRole("button", { name: "重练这题" }).click();
+await expectText(retrainPage, "错题定向重练");
+const externalRetrain = await retrainPage.evaluate(() => {
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  const card = srs.cards["mistake:retrain-stale"];
+  card.box = 3;
+  card.correct = 4;
+  card.dueAt = Date.now() + 86_400_000;
+  localStorage.setItem("kirina.srs.v2", JSON.stringify(srs));
+  window.dispatchEvent(new CustomEvent("kirina:learning", { detail: { key: "kirina.srs.v2" } }));
+  return { box: card.box, correct: card.correct, dueAt: card.dueAt };
+});
+await retrainPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
+await clickAction(retrainPage.getByRole("button", { name: "提交" }));
+await expectText(retrainPage, "这张卡片已被更新或推迟，本次答案未重复计分。");
+const afterStaleRetrain = await retrainPage.evaluate(() => {
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const card = srs.cards["mistake:retrain-stale"];
+  return {
+    box: card?.box,
+    correct: card?.correct,
+    dueAt: card?.dueAt,
+    history: Array.isArray(srs.history) ? srs.history.length : 0,
+    practiceCorrect: progress.practiceItems?.["retrain-stale"]?.correct ?? 0
+  };
+});
+if (afterStaleRetrain.correct !== externalRetrain.correct || afterStaleRetrain.box !== externalRetrain.box || afterStaleRetrain.dueAt !== externalRetrain.dueAt) {
+  issues.push("a stale mistakes-retrain snapshot cannot be graded twice after an external update");
+}
+if (afterStaleRetrain.history !== 0 || afterStaleRetrain.practiceCorrect !== 0) {
+  issues.push("a refused mistakes-retrain grade should not bump SRS history or practice items");
+}
+await retrainContext.close();
+console.log("[browser smoke] mistakes retrain refused a stale snapshot without a second bump");
+
 for (const route of ["/path", "/hangul", "/vocabulary", "/grammar", "/native", "/immersion", "/mistakes", "/quiz"]) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(120);
