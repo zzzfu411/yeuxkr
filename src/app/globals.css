@@ -78,6 +78,8 @@ html[data-theme="light"] {
   --hero-radius: 30px;
   --shadow-soft: 0 10px 34px rgba(24, 38, 58, 0.08);
   --shadow: 0 28px 80px rgba(19, 31, 49, 0.14);
+  --app-header-clearance: 5.75rem;
+  --next-episode-clearance: calc(5.75rem + env(safe-area-inset-bottom, 0px));
 
   /* Compatibility aliases retained while old page markup is migrated. */
   --tape: transparent;
@@ -175,6 +177,8 @@ html {
   scrollbar-color: var(--ink-faint) transparent;
   scrollbar-width: thin;
   scroll-behavior: smooth;
+  scroll-padding-top: var(--app-header-clearance);
+  scroll-padding-bottom: var(--next-episode-clearance);
 }
 
 body {
@@ -708,7 +712,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   z-index: 45;
   display: grid;
   min-width: 0;
-  grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+  grid-template-columns: auto 2.6rem minmax(0, 1fr);
   align-items: center;
   gap: 0.65rem;
   padding: 0.55rem;
@@ -717,6 +721,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   background: color-mix(in srgb, var(--paper-hi) 90%, transparent);
   box-shadow: var(--shadow);
   backdrop-filter: blur(20px) saturate(1.18);
+  pointer-events: none;
 }
 .next-episode__glyph {
   display: grid;
@@ -733,6 +738,7 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
 .next-episode__copy strong { overflow: hidden; margin-top: 0.1rem; font-size: 0.78rem; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
 .next-episode__play {
   display: inline-flex;
+  order: -1;
   min-height: 42px;
   align-items: center;
   justify-content: center;
@@ -743,6 +749,18 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   background: var(--ink);
   font-size: 0.76rem;
   font-weight: 620;
+  pointer-events: auto;
+}
+.drill-sheet,
+.mastery-gate {
+  scroll-margin-top: var(--app-header-clearance);
+  scroll-margin-bottom: var(--next-episode-clearance);
+}
+.drill-sheet {
+  padding-bottom: var(--next-episode-clearance);
+}
+.drill-actions {
+  scroll-margin-bottom: var(--next-episode-clearance);
 }
 
 .pl-block + .pl-block { margin-top: 0; }
@@ -852,8 +870,24 @@ html[data-theme="dark"] .visual-panel img { filter: brightness(0.76) saturate(0.
   .open-scenes-grid .pl-item:nth-child(odd) { border-right: 1px solid var(--line); }
 }
 
+/* Full-bleed next-episode: keep play off both drill-action ends (上一题 / 提交). */
+@media (max-width: 1023px) {
+  .next-episode {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .next-episode__play {
+    order: 1;
+    justify-self: center;
+  }
+  .next-episode__copy {
+    order: 2;
+    justify-self: end;
+  }
+}
+
 @media (min-width: 1024px) {
   .editorial-shell { padding-bottom: 0; }
+  .editorial-shell:has(.drill-sheet) { padding-bottom: var(--next-episode-clearance); }
   .header-inner {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 1.1rem;

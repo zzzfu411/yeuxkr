@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { lessons } from "../src/data/curriculum.js";
-import { getMissingMaterialPrerequisiteIds, immersionMaterials } from "../src/data/materials.ts";
+import { getMissingMaterialPrerequisiteIds, immersionMaterials, resolveImmersionActiveMaterialId } from "../src/data/materials.ts";
 
 const expectedPrerequisites = {
   "im-cafe-real-speed": ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
@@ -67,6 +67,17 @@ test("legacy completedLessons-only progress unlocks without a storage migration"
       material.id
     );
   }
+});
+
+test("pinned immersion material stays selected when the default later changes", () => {
+  const cafe = "im-cafe-real-speed";
+  const nextDefault = "im-convenience-payment";
+
+  assert.equal(resolveImmersionActiveMaterialId("", "", cafe), cafe);
+  assert.equal(resolveImmersionActiveMaterialId("", cafe, nextDefault), cafe);
+  assert.equal(resolveImmersionActiveMaterialId(cafe, "", nextDefault), cafe);
+  assert.equal(resolveImmersionActiveMaterialId(cafe, nextDefault, nextDefault), cafe);
+  assert.equal(resolveImmersionActiveMaterialId("", nextDefault, cafe), nextDefault);
 });
 
 test("material evidence targets are reachable by the end of each core milestone", () => {

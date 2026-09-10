@@ -141,6 +141,7 @@ export function DrillRunner({
   const [value, setValue] = useState(initialState.value);
   const [finished, setFinished] = useState(initialState.finished);
   const [srsError, setSrsError] = useState("");
+  const [lockedQuestionId, setLockedQuestionId] = useState("");
   const [audioPlayback, setAudioPlayback] = useState<AudioPlaybackState>({
     questionId: "",
     status: "pending"
@@ -148,6 +149,7 @@ export function DrillRunner({
   const emittedResultRef = useRef("");
   const playedListenRef = useRef("");
   const submitRef = useRef<() => void>(() => {});
+  const inFlightQuestionIdRef = useRef("");
   const questionHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -161,6 +163,7 @@ export function DrillRunner({
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
   const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
   const audioNeedsGesture = audioQuestion && !existing && currentPlaybackStatus === "needs-gesture";
+  const audioAnswerLocked = Boolean(audioCheckPending || audioNeedsGesture);
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
@@ -243,6 +246,7 @@ export function DrillRunner({
         submitRef.current();
         return;
       }
+      if (audioAnswerLocked || audioUnavailable) return;
       if ((question.choices?.length ?? 0) > 0 && !answers[index]) {
         const choiceIndex = Number(event.key);
         const choices = question.choices ?? [];
@@ -254,7 +258,25 @@ export function DrillRunner({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [answers, finished, index, question]);
+  }, [answers, audioAnswerLocked, audioUnavailable, finished, index, question]);
+
+  const skipAudioQuestion = () => {
+    if (!question || existing || !audioUnavailable) return;
+    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
+    setLockedQuestionId(question.id);
+    const entry = { question, answer: "", correct: false, skipped: true };
+    if (onAnswer?.(entry) === false) {
+      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+      setLockedQuestionId((current) => current === question.id ? "" : current);
+      return;
+    }
+    const next = [...answers];
+    next[index] = entry;
+    setAnswers(next);
+    setValue("");
+    setSrsError("");
+    emitProgress(index, next, false);
+  };
 
   const submit = () => {
     if (!question) return;
@@ -267,7 +289,14 @@ export function DrillRunner({
       }
       return;
     }
+    if (audioAnswerLocked) return;
+    if (audioUnavailable) {
+      skipAudioQuestion();
+      return;
+    }
     if (!value.trim()) return;
+    if (!claimQuestionAttempt(inFlightQuestionIdRef, question.id)) return;
+    setLockedQuestionId(question.id);
     const answer = value;
     const correct = checkAnswer(question, answer);
     const next = [...answers];
@@ -288,25 +317,29 @@ export function DrillRunner({
         hint: question.hint
       });
       if (!mistakeCard) {
+        releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+        setLockedQuestionId((current) => current === question.id ? "" : current);
         setSrsError("错题没有保存到复习队列。请释放浏览器空间后再继续。");
         return;
       }
       setSrsError("");
     }
-    if (onAnswer?.(entry) === false) return;
+    if (onAnswer?.(entry) === false) {
+      releaseQuestionAttempt(inFlightQuestionIdRef, question.id);
+      setLockedQuestionId((current) => current === question.id ? "" : current);
+      return;
+    }
     setAnswers(next);
     emitProgress(index, next, false);
   };
 
-  const skipAudioQuestion = () => {
-    if (!question || existing || !audioUnavailable) return;
-    const entry = { question, answer: "", correct: false, skipped: true };
-    if (onAnswer?.(entry) === false) return;
-    const next = [...answers];
-    next[index] = entry;
-    setAnswers(next);
-    setSrsError("");
-    emitProgress(index, next, false);
+  const runPrimaryAction = () => {
+    if (audioAnswerLocked) return;
+    if (audioUnavailable && !existing) {
+      skipAudioQuestion();
+      return;
+    }
+    submit();
   };
 
   const moveToIndex = (nextIndex: number, nextAnswers = answers, nextFinished = finished) => {
@@ -331,7 +364,7 @@ export function DrillRunner({
   };
 
   useEffect(() => {
-    submitRef.current = submit;
+    submitRef.current = runPrimaryAction;
   });
 
   useEffect(() => {
@@ -411,7 +444,7 @@ export function DrillRunner({
       (question.type === "cloze" && !(question.choices?.length)));
 
   return (
-    <article className={`rounded-none border p-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
+    <article className={`drill-sheet rounded-none border px-5 pt-5 ${existing?.correct ? "border-[var(--green)] bg-[var(--green-soft)]" : existing ? "border-[var(--seal)] bg-[var(--seal-soft)]" : "border-[var(--line)] bg-[var(--card)]"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">正在练习</p>
@@ -497,7 +530,7 @@ export function DrillRunner({
           </details>
         ) : null}
 
-        {!audioUnavailable && !audioCheckPending && usesTextEntry ? (
+        {!audioUnavailable && !audioAnswerLocked && usesTextEntry ? (
           hasKoreanText(question.answer) ? (
             <div className="mt-6 grid gap-2 font-extrabold">
               输入答案（可用屏幕韩文键盘）
@@ -527,7 +560,7 @@ export function DrillRunner({
               />
             </label>
           )
-        ) : !audioUnavailable && !audioCheckPending ? (
+        ) : !audioUnavailable && !audioAnswerLocked ? (
           <fieldset className="mt-6 grid gap-2">
             <legend className="sr-only">{question.prompt}</legend>
             {(question.choices ?? []).map((choice, choiceIndex) => (
@@ -581,7 +614,7 @@ export function DrillRunner({
         ) : null}
       </div>
 
-      <div className="mt-5 flex justify-between gap-3">
+      <div className="drill-actions mt-5 flex justify-between gap-3">
         <Button type="button" variant="secondary" disabled={index === 0} onClick={() => {
           moveToIndex(index - 1);
         }}>
@@ -589,8 +622,12 @@ export function DrillRunner({
         </Button>
         <Button
           type="button"
-          onClick={audioUnavailable && !existing ? skipAudioQuestion : submit}
-          disabled={audioCheckPending || (!audioUnavailable && !existing && !value.trim())}
+          onClick={runPrimaryAction}
+          disabled={
+            audioAnswerLocked ||
+            (!audioUnavailable && !existing && !value.trim()) ||
+            (!existing && lockedQuestionId === question.id)
+          }
         >
           {existing ? (index === questions.length - 1 ? finishLabel : "下一题") : audioUnavailable ? (
             <>
@@ -643,4 +680,14 @@ function buildInitialState(questions: Question[], savedAnswers: DrillRunnerSaved
 
 function isAudioQuestion(question?: Question) {
   return Boolean(question?.speak && (question.type === "listen" || question.type === "dictation"));
+}
+
+function claimQuestionAttempt(lock: { current: string }, questionId: string) {
+  if (!questionId || lock.current === questionId) return false;
+  lock.current = questionId;
+  return true;
+}
+
+function releaseQuestionAttempt(lock: { current: string }, questionId: string) {
+  if (lock.current === questionId) lock.current = "";
 }

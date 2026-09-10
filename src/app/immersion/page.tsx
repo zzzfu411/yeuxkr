@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
-import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, type ImmersionMaterial } from "@/data/materials";
+import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, resolveImmersionActiveMaterialId, type ImmersionMaterial } from "@/data/materials";
 import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum-runtime";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
 import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
@@ -65,7 +65,6 @@ function ImmersionContent() {
   const suppressDraftSaveRef = useRef(false);
   const hydratedMaterialRef = useRef("");
   const displayedMaterialIdRef = useRef("");
-  const defaultMaterialIdRef = useRef("");
   const completed = new Set(workspace.evidence.validMaterialIds);
   const masteredLessons = useMemo(() => {
     const completedLessons = new Set(workspace.progress.completedLessons);
@@ -83,7 +82,7 @@ function ImmersionContent() {
     const unlocked = immersionMaterials.find((material) => getMissingMaterialPrerequisiteIds(material, masteredLessons).length === 0);
     return unlocked?.id ?? immersionMaterials[0]?.id ?? "";
   }, [workspace.evidence.validMaterialIds, masteredLessons]);
-  const activeId = selectedMaterialId || requestedMaterialId || defaultMaterialId;
+  const activeId = resolveImmersionActiveMaterialId(selectedMaterialId, requestedMaterialId, defaultMaterialId);
   const queuedMaterials = useMemo(() => {
     const doneIds = new Set(workspace.evidence.validMaterialIds);
     const rank = (material: ImmersionMaterial) => {
@@ -175,15 +174,26 @@ function ImmersionContent() {
 
   useEffect(() => {
     displayedMaterialIdRef.current = active.id;
-    defaultMaterialIdRef.current = defaultMaterialId;
-  }, [active.id, defaultMaterialId]);
+  }, [active.id]);
+
+  useEffect(() => {
+    if (selectedMaterialId) return;
+    const timeout = window.setTimeout(() => {
+      const landingId = requestedMaterialId || defaultMaterialId;
+      if (!landingId) return;
+      setSelectedMaterialId((current) => current || landingId);
+      window.history.replaceState(null, "", immersionMaterialHref(landingId));
+      notifyNowPlayingLocationChange();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [defaultMaterialId, requestedMaterialId, selectedMaterialId]);
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      const nextMaterialId = requestedMaterialId || defaultMaterialIdRef.current;
-      if (nextMaterialId !== displayedMaterialIdRef.current) {
+      if (!requestedMaterialId) return;
+      if (requestedMaterialId !== displayedMaterialIdRef.current) {
         setActiveDraftReady(false);
       }
       setSelectedMaterialId(requestedMaterialId);

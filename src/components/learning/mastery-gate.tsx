@@ -5,18 +5,16 @@ import { RefreshCcw, ShieldCheck, X } from "lucide-react";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
-import { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio, type GateKind } from "@/lib/learning/gate";
+import { buildGateQuestions, GATE_PASS_SCORE, gateHeadline, hasSkippedGateAudio, type GateKind } from "@/lib/learning/gate";
 
 export function MasteryGate({
   kind,
   itemId,
-  title,
   onPassed,
   onClose
 }: {
   kind: GateKind;
   itemId: string;
-  title: string;
   onPassed: () => boolean;
   onClose: () => void;
 }) {
@@ -29,7 +27,10 @@ export function MasteryGate({
   const questions = useMemo(() => buildGateQuestions(kind, itemId, seed), [itemId, kind, seed]);
 
   useEffect(() => {
-    containerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const node = containerRef.current;
+    if (!node) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ block: "center", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
   }, []);
 
   if (!questions.length) return null;
@@ -40,11 +41,11 @@ export function MasteryGate({
   };
 
   return (
-    <div ref={containerRef} className="mt-3 grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3">
+    <div ref={containerRef} className="mastery-gate mt-3 grid gap-3 rounded-none border border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] p-3" data-gate-kind={kind}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
+        <p className="mastery-gate__title flex items-center gap-2 font-mono text-xs font-black uppercase text-[var(--ocean)]">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          掌握小测 · {title} · 需 {GATE_PASS_SCORE} 分
+          掌握小测 · {gateHeadline(kind)} · 需 {GATE_PASS_SCORE} 分
         </p>
         <Button type="button" variant="ghost" size="sm" aria-label="关闭掌握小测" onClick={onClose}>
           <X className="h-4 w-4" aria-hidden="true" />
@@ -97,6 +98,8 @@ export function MasteryGate({
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => {
                 setPersistenceFailed(false);
+                setMissingAudioEvidence(false);
+                setLastScore(null);
                 setAttempt((value) => value + 1);
               }}>
                 <RefreshCcw className="h-4 w-4" aria-hidden="true" />

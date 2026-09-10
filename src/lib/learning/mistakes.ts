@@ -49,6 +49,19 @@ export function summarizeMistakes(state: SrsState, now = Date.now()): MistakeSum
   };
 }
 
+export const RETRAIN_HEADLINE = "错题定向重练";
+
+export function retrainConcealment(active: boolean) {
+  return {
+    concealed: active,
+    concealTitle: active ? RETRAIN_HEADLINE : undefined
+  };
+}
+
+export function retrainQuestionIds(questions: Array<{ id: string }> | null | undefined) {
+  return new Set((questions ?? []).map((question) => question.id));
+}
+
 export function buildRetrainQuestions(state: SrsState, ids: string[] | null = null, limit = 8): Question[] {
   const wanted = ids ? new Set(ids) : null;
   return buildMistakeInsights(state)

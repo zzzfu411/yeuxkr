@@ -8,8 +8,8 @@ import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
-import { buildReviewQuestions } from "@/lib/learning/quiz";
-import { getDueCardsFromState, getSrsStateFromRaw, summarizeSrsState } from "@/lib/learning/srs";
+import { buildReviewQuestions, cardsForReviewAttempt, pinReviewAttempt, questionsForReviewAttempt, type Question, type ReviewAttemptSnapshot } from "@/lib/learning/quiz";
+import { getDueCardsFromState, getSrsStateFromRaw, summarizeSrsState, type SrsCard } from "@/lib/learning/srs";
 import { defaultProfile, defaultProgress, parseJson, STORAGE_KEYS, useClientNowOnce, useStorageRawOnce } from "@/lib/learning/storage";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { buildLearningWorkspace, submitReviewCardAndProgress, normalizeLearningProgress, normalizeUserProfile } from "@/lib/learning/workspace";
@@ -35,6 +35,7 @@ function ReviewContent() {
   const [sessionKey, setSessionKey] = useState(0);
   const [reviewError, setReviewError] = useState("");
   const [queueChanged, setQueueChanged] = useState(false);
+  const [pinnedAttempt, setPinnedAttempt] = useState<ReviewAttemptSnapshot<Question, SrsCard> | null>(null);
   const profileRaw = useStorageRawOnce(STORAGE_KEYS.profile, sessionKey);
   const progressRaw = useStorageRawOnce(STORAGE_KEYS.progress, sessionKey);
   const srsRaw = useStorageRawOnce(STORAGE_KEYS.srs, sessionKey);
@@ -44,16 +45,20 @@ function ReviewContent() {
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
   const srs = useMemo(() => summarizeSrsState(srsState, now), [srsState, now]);
   const workspace = useMemo(() => buildLearningWorkspace(profile, progress, srs.due), [profile, progress, srs.due]);
-  const dueCards = useMemo(() => getDueCardsFromState(srsState, 30, now), [srsState, now]);
-  const questions = useMemo(() => {
-    return buildReviewQuestions(dueCards);
-  }, [dueCards]);
+  const liveDueCards = useMemo(() => getDueCardsFromState(srsState, 30, now), [srsState, now]);
+  const liveQuestions = useMemo(() => buildReviewQuestions(liveDueCards), [liveDueCards]);
+  const nextPinned = pinReviewAttempt(pinnedAttempt, sessionKey, liveQuestions, liveDueCards);
+  if (nextPinned !== pinnedAttempt) {
+    setPinnedAttempt(nextPinned);
+  }
+  const questions = questionsForReviewAttempt(nextPinned, sessionKey, liveQuestions);
+  const dueCards = cardsForReviewAttempt(nextPinned, sessionKey, liveDueCards);
 
   useEffect(() => {
     const refreshQueue = (event: Event) => {
       if (!reviewRefreshEventMatches(event)) return;
       if (questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)) {
-        if (event.type === "storage") setQueueChanged(true);
+        if (event.type === "storage" || event.type === "kirina:learning-batch") setQueueChanged(true);
         return;
       }
       setReviewError("");

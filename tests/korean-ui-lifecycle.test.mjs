@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
+const { RETRAIN_HEADLINE, retrainConcealment, retrainQuestionIds } = await import("../src/lib/learning/mistakes.ts");
+const { visibleLibraryGateItemId } = await import("../src/lib/learning/gate.ts");
+
 const JSX_RUNTIME = { jsx: createElement, jsxs: createElement, Fragment: Symbol("Fragment") };
 
 test("KoreanInput ignores Enter while an IME composition is active", () => {
@@ -1070,13 +1073,13 @@ test("MasteryGate reports a failed persistence write and retries without another
     "@/lib/learning/gate": {
       buildGateQuestions: () => [{ id: "q1" }],
       GATE_PASS_SCORE: 80,
+      gateHeadline: () => "词汇听写",
       hasSkippedGateAudio: () => false
     }
   });
   const props = {
     kind: "vocab",
     itemId: "v-test",
-    title: "테스트",
     onPassed() {
       saveAttempts += 1;
       return saveSucceeds;
@@ -1085,6 +1088,8 @@ test("MasteryGate reports a failed persistence write and retries without another
   };
 
   let tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /掌握小测 · 词汇听写/);
+  assert.doesNotMatch(textContent(tree), /테스트|안녕하세요/);
   let runner = findElement(tree, (node) => node.type === "DrillRunner");
   runner.props.onResult(100, []);
   tree = hooks.render(MasteryGate, props);
@@ -1101,6 +1106,309 @@ test("MasteryGate reports a failed persistence write and retries without another
   addon = runner.props.resultAddon({ score: 100, answers: [] });
   assert.match(textContent(addon), /学习记录和复习卡已保存/);
   assert.equal(saveAttempts, 2);
+});
+
+test("MasteryGate retry clears skipped-audio alert before the next attempt", () => {
+  const hooks = createHookHarness();
+  const { MasteryGate } = loadComponent("src/components/learning/mastery-gate.tsx", {
+    react: hooks.react,
+    "lucide-react": { RefreshCcw: "RefreshIcon", ShieldCheck: "ShieldIcon", X: "XIcon" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/lib/learning/gate": {
+      buildGateQuestions: () => [{ id: "q1" }],
+      GATE_PASS_SCORE: 80,
+      gateHeadline: () => "最小对立",
+      hasSkippedGateAudio: (answers) => answers.some((entry) => entry.skipped && (entry.question?.type === "listen" || entry.question?.type === "dictation"))
+    }
+  });
+  const props = {
+    kind: "pronunciation",
+    itemId: "plain-aspirated-k",
+    onPassed() {
+      return true;
+    },
+    onClose() {}
+  };
+
+  let tree = hooks.render(MasteryGate, props);
+  let runner = findElement(tree, (node) => node.type === "DrillRunner");
+  const skippedAnswers = [{ skipped: true, question: { type: "listen" } }];
+  runner.props.onResult(40, skippedAnswers);
+  tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /当前音频题被跳过/);
+  assert.doesNotMatch(textContent(tree), /上一轮 40 分/);
+
+  runner = findElement(tree, (node) => node.type === "DrillRunner");
+  const addon = runner.props.resultAddon({ score: 40, answers: skippedAnswers });
+  findButton(addon, "换一组再试").props.onClick();
+  tree = hooks.render(MasteryGate, props);
+  runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.key, 2);
+  assert.doesNotMatch(textContent(tree), /当前音频题被跳过/);
+  assert.doesNotMatch(textContent(tree), /上一轮/);
+
+  runner.props.onResult(50, []);
+  tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /上一轮 50 分/);
+  assert.doesNotMatch(textContent(tree), /当前音频题被跳过/);
+});
+
+test("TrackRow concealment hides source-card answers from chrome and play controls", () => {
+  const hooks = createHookHarness();
+  const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+    "@/lib/utils": { cn }
+  });
+
+  const open = hooks.render(TrackRow, {
+    glyph: "안녕하세요",
+    kicker: "寒暄",
+    title: "안녕하세요",
+    detail: "你好",
+    meta: "表达",
+    expanded: true,
+    onPlay() {},
+    playLabel: "播放 안녕하세요",
+    children: "study body"
+  });
+  assert.match(textContent(open), /안녕하세요/);
+  assert.match(textContent(open), /你好/);
+  assert.ok(findElement(open, (node) => node.props?.["aria-label"] === "播放 안녕하세요"));
+
+  const hidden = hooks.render(TrackRow, {
+    glyph: "안녕하세요",
+    kicker: "寒暄",
+    title: "안녕하세요",
+    detail: "你好",
+    meta: "表达",
+    expanded: true,
+    concealed: true,
+    concealTitle: "词汇听写",
+    onPlay() {},
+    playLabel: "播放 안녕하세요",
+    children: "study body"
+  });
+  const chrome = findElement(hidden, (node) => node.props?.className?.includes("pl-item"));
+  assert.equal(chrome.props["data-concealed"], "true");
+  assert.match(textContent(chrome), /词汇听写/);
+  assert.doesNotMatch(textContent(chrome), /안녕하세요|你好|寒暄|表达/);
+  assert.equal(findElement(hidden, (node) => node.props?.className?.includes("pl-play")), null);
+  assert.equal(findElement(hidden, (node) => node.props?.["aria-label"] === "播放 안녕하세요"), null);
+});
+
+test("library pages conceal TrackRow chrome and drop study spoilers while a MasteryGate is open", () => {
+  const hangulWorkspace = {
+    workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
+    srsState: { cards: {} },
+    toggleHangul: () => true,
+    ensureHangul: () => true,
+    togglePronunciation: () => true,
+    ensurePronunciation: () => true,
+    toggleSoundChange: () => true,
+    ensureSoundChange: () => true
+  };
+  const cases = [
+    {
+      file: "src/app/vocabulary/page.tsx",
+      kind: "vocab",
+      headline: "词汇听写",
+      button: "测一测，再加入复习",
+      answers: ["안녕하세요", "你好"],
+      siblingAnswers: ["지하철", "地铁"],
+      startTitle: "안녕하세요",
+      expectedConcealed: 2,
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedVocab: [], completedLessons: [] } },
+        toggleVocab: () => true,
+        ensureVocab: () => true
+      }
+    },
+    {
+      file: "src/app/grammar/page.tsx",
+      kind: "grammar",
+      headline: "句型小测",
+      button: "测一测，再加入复习",
+      answers: ["话题标记 vs 主语标记", "我是学生。", "不要把 은/는 简单等同于“是”。"],
+      siblingAnswers: ["宾语标记", "把对象标出来"],
+      startTitle: "은/는 与 이/가",
+      expectedConcealed: 2,
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedGrammar: [], completedLessons: [] } },
+        toggleGrammar: () => true,
+        ensureGrammar: () => true
+      }
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "hangul",
+      headline: "字母听辨",
+      button: "测一测，再加入复习",
+      answers: ["ㅏ", "아", "口腔打开"],
+      siblingAnswers: ["ㅑ", "ㅣ + ㅏ 的滑音"],
+      startTitle: "ㅏ",
+      expectedConcealed: 6,
+      workspace: hangulWorkspace
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "pronunciation",
+      headline: "最小对立",
+      button: "测一测，再加入听辨复习",
+      answers: ["가", "카", "松音 ㄱ vs 送气 ㅋ"],
+      siblingAnswers: ["까", "松音 ㄱ vs 紧音 ㄲ"],
+      startTitle: "가 vs 카",
+      expectedConcealed: 6,
+      workspace: hangulWorkspace
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "soundChange",
+      headline: "音变听辨",
+      button: "测一测，再加入听辨复习",
+      answers: ["连音", "收音遇到元音"],
+      siblingAnswers: ["鼻音化", "塞音收音"],
+      startTitle: "连音",
+      expectedConcealed: 6,
+      workspace: hangulWorkspace
+    }
+  ];
+
+  for (const scenario of cases) {
+    const hooks = createHookHarness();
+    const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
+    let tree = hooks.render(Page, {});
+    if (scenario.file.includes("hangul")) {
+      const idleLabs = findElements(tree, (node) => node.type === "button" && String(node.props?.["aria-label"] ?? "").includes("播放音节"));
+      assert.equal(idleLabs.length, 1, `${scenario.kind} fixture should render a syllable lab before a gate opens`);
+      assert.match(textContent(tree), /가|ㄱ \+ ㅏ/);
+    }
+    const host = findElements(tree, (node) => node.type === "TrackRow").find((row) => row.props?.title === scenario.startTitle);
+    assert.ok(host, `${scenario.kind} should render the ${scenario.startTitle} card`);
+    const startButton = findButton(host, scenario.button);
+    startButton.props.onClick();
+    tree = hooks.render(Page, {});
+
+    const gatedRows = findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed);
+    assert.equal(gatedRows.length, scenario.expectedConcealed, `${scenario.kind} should conceal the open card and same-page siblings`);
+    const activeRows = gatedRows.filter((row) => findElement(row, (node) => node.type === "MasteryGate"));
+    assert.equal(activeRows.length, 1, `${scenario.kind} should render one MasteryGate`);
+    const row = activeRows[0];
+    assert.equal(row.props.concealTitle, scenario.headline);
+    const siblings = gatedRows.filter((item) => item !== row);
+    const gate = findElement(row, (node) => node.type === "MasteryGate");
+    assert.ok(gate, `${scenario.kind} should render MasteryGate inside the concealed row`);
+    assert.equal(gate.props.kind, scenario.kind);
+    assert.equal(gate.props.title, undefined);
+    assert.equal(row.props.expanded, true);
+    const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+      react: hooks.react,
+      "next/link": { default: "Link" },
+      "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+      "@/lib/utils": { cn }
+    });
+    for (const sibling of siblings) {
+      assert.equal(sibling.props.expanded, false, `${scenario.kind} siblings should collapse while a gate is open`);
+      assert.equal(sibling.props.onToggle, undefined, `${scenario.kind} siblings should not expand into answer chrome`);
+      const chrome = findElement(TrackRow(sibling.props), (node) => node.props?.className?.includes("pl-item"));
+      const chromeText = textContent(chrome);
+      const leaked = [...scenario.answers, ...scenario.siblingAnswers].filter((answer) => chromeText.includes(answer));
+      assert.deepEqual(leaked, [], `${scenario.kind} sibling chrome leaked ${leaked.join(", ")}`);
+    }
+    const visible = `${row.props.concealTitle ?? ""}${textContent(row)}`;
+    for (const answer of scenario.answers) {
+      assert.equal(visible.includes(answer), false, `${scenario.kind} chrome leaked ${answer}`);
+    }
+    if (scenario.file.includes("hangul")) {
+      const labButtons = findElements(tree, (node) => node.type === "button" && String(node.props?.["aria-label"] ?? "").includes("播放音节"));
+      assert.equal(labButtons.length, 0, `${scenario.kind} should hide syllable labs while a gate is open`);
+      assert.doesNotMatch(textContent(tree), /가|ㄱ \+ ㅏ/, `${scenario.kind} syllable labs leaked hangul cues`);
+    }
+  }
+});
+
+test("library pages unlock sibling chrome when a filter orphans the open MasteryGate", () => {
+  const cases = [
+    {
+      file: "src/app/vocabulary/page.tsx",
+      kind: "vocab",
+      button: "测一测，再加入复习",
+      startTitle: "안녕하세요",
+      siblingTitle: "지하철",
+      orphanQuery: "지하철",
+      keepQuery: "寒暄",
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedVocab: [], completedLessons: [] } },
+        toggleVocab: () => true,
+        ensureVocab: () => true
+      }
+    },
+    {
+      file: "src/app/grammar/page.tsx",
+      kind: "grammar",
+      button: "测一测，再加入复习",
+      startTitle: "은/는 与 이/가",
+      siblingTitle: "을/를",
+      orphanQuery: "宾语标记",
+      keepQuery: "标记",
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedGrammar: [], completedLessons: [] } },
+        toggleGrammar: () => true,
+        ensureGrammar: () => true
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    const hooks = createHookHarness();
+    const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
+    let tree = hooks.render(Page, {});
+    const host = findElements(tree, (node) => node.type === "TrackRow").find((row) => row.props?.title === scenario.startTitle);
+    assert.ok(host, `${scenario.kind} should render the ${scenario.startTitle} card`);
+    findButton(host, scenario.button).props.onClick();
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed).length, 2, `${scenario.kind} should conceal siblings while the gated item is still in view`);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange(scenario.keepQuery);
+    tree = hooks.render(Page, {});
+    const keptRows = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(keptRows.length, 2, `${scenario.kind} keep-query should leave both cards on the page`);
+    assert.equal(keptRows.filter((row) => row.props?.concealed).length, 2, `${scenario.kind} should keep sibling concealment while the gated item still matches`);
+    assert.ok(findElement(tree, (node) => node.type === "MasteryGate"), `${scenario.kind} should keep the in-view MasteryGate open`);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange(scenario.orphanQuery);
+    tree = hooks.render(Page, {});
+    const remaining = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(remaining.length, 1, `${scenario.kind} orphan query should leave the sibling`);
+    assert.equal(remaining[0].props.title, scenario.siblingTitle);
+    assert.equal(remaining[0].props.concealed, false, `${scenario.kind} should unlock concealment after the gated item leaves the filtered page`);
+    assert.equal(remaining[0].props.expanded, true, `${scenario.kind} remaining row should expand again`);
+    assert.equal(typeof remaining[0].props.onToggle, "function", `${scenario.kind} remaining row should accept expand again`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should unmount the orphaned MasteryGate`);
+    findButton(remaining[0], scenario.button);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange("");
+    tree = hooks.render(Page, {});
+    const restored = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(restored.length, 2, `${scenario.kind} should restore both cards after clearing search`);
+    assert.equal(restored.every((row) => !row.props?.concealed), true, `${scenario.kind} must not revive the orphaned gate when the item returns`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should stay closed after the orphaned item returns`);
+
+    const startAgain = restored.find((row) => row.props?.title === scenario.startTitle);
+    findButton(startAgain, scenario.button).props.onClick();
+    tree = hooks.render(Page, {});
+    findElement(tree, (node) => node.type === "CheckboxFilter").props.onChange(true);
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow").length, 0, `${scenario.kind} learned-only filter should hide the unlearned gated item`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should drop the gate when only-learned hides it`);
+    findElement(tree, (node) => node.type === "EmptyState").props.onAction();
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed).length, 0, `${scenario.kind} reset must not leave a stale concealed library`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} reset must not reopen the orphaned gate`);
+  }
 });
 
 test("MistakesPage remounts retrain runner when the target changes", () => {
@@ -1169,8 +1477,12 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
         prompt: id,
         answer: id
       })),
-      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 })
+      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
     },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
     "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
     "@/lib/learning/storage": {
       STORAGE_KEYS: { srs: "srs" },
@@ -1178,7 +1490,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
       useStorageRaw: () => null
     },
     "@/lib/learning/workspace": {
-      gradeReviewCardAndProgress: () => true,
+      submitReviewCardAndProgress: () => ({ ok: true }),
       removeMistakeCardAndPracticeItem: () => true,
     },
     "@/lib/learning/use-learning-workspace": {
@@ -1196,6 +1508,8 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   assert.equal(runner.key, 1);
   assert.equal(runner.props.questions[0].id, "q1");
   assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true }), false);
+  tree = hooks.render(MistakesPage, {});
+  assert.match(textContent(findElement(tree, (node) => node.type === "InlineAlert")), /已被移除，本次答案未计分/);
 
   cards = findElements(tree, (node) => node.props?.item?.id === "q1" || node.props?.item?.id === "q2");
   cards[1].props.onRetrain("q2");
@@ -1203,6 +1517,260 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   assert.equal(runner.key, 2);
   assert.equal(runner.props.questions[0].id, "q2");
+});
+
+test("mistakes retrain conceals in-attempt answer tokens from notebook chrome", () => {
+  const hooks = createHookHarness();
+  const insights = [
+    {
+      id: "q1",
+      itemId: "lesson:q1",
+      prompt: "第一题",
+      answer: "하나",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    },
+    {
+      id: "q2",
+      itemId: "lesson:q2",
+      prompt: "第二题",
+      answer: "둘",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    }
+  ];
+  const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+    "@/lib/utils": { cn }
+  });
+  const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": {
+      ArrowRight: "ArrowRightIcon",
+      CircleAlert: "CircleAlertIcon",
+      Clock: "ClockIcon",
+      Play: "PlayIcon",
+      RefreshCcw: "RefreshIcon",
+      Trash2: "TrashIcon"
+    },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/ui/track-row": { TrackRow },
+    "@/lib/learning/player": { firstHangul: (value, fallback) => value || fallback },
+    "@/lib/learning/mistakes": {
+      buildMistakeInsights: () => insights,
+      buildRetrainQuestions: (_state, ids) => (ids ?? insights.map((item) => item.id)).map((id) => {
+        const item = insights.find((entry) => entry.id === id);
+        return {
+          id,
+          type: "type",
+          prompt: item?.prompt ?? id,
+          answer: item?.answer ?? id
+        };
+      }),
+      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
+    },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
+    "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
+    "@/lib/learning/storage": {
+      STORAGE_KEYS: { srs: "srs" },
+      useClientNow: () => 0,
+      useStorageRaw: () => null
+    },
+    "@/lib/learning/workspace": {
+      submitReviewCardAndProgress: () => ({ ok: true }),
+      removeMistakeCardAndPracticeItem: () => true
+    },
+    "@/lib/learning/use-learning-workspace": {
+      useLearningWorkspace: () => ({ workspace: {} })
+    }
+  });
+
+  const notebookRow = (card) => findElement(card.type(card.props), (node) => node.type === TrackRow);
+  const notebookChrome = (row) => {
+    const tree = TrackRow(row.props);
+    return findElement(tree, (node) => node.props?.className?.includes("pl-item"));
+  };
+
+  let tree = hooks.render(MistakesPage, {});
+  assert.equal(findElement(tree, (node) => node.type === "DrillRunner"), null);
+  const idleQ1 = findElement(tree, (node) => node.props?.item?.id === "q1");
+  const idleQ2 = findElement(tree, (node) => node.props?.item?.id === "q2");
+  const idleQ1Row = notebookRow(idleQ1);
+  const idleQ2Row = notebookRow(idleQ2);
+  assert.equal(idleQ1Row.props.detail, "正确答案：하나");
+  assert.equal(idleQ2Row.props.detail, "正确答案：둘");
+  assert.match(textContent(notebookChrome(idleQ1Row)), /正确答案：하나/);
+
+  idleQ1.props.onRetrain("q1");
+  tree = hooks.render(MistakesPage, {});
+
+  const runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.ok(runner);
+  assert.equal(runner.props.questions[0].id, "q1");
+  assert.equal(runner.props.questions[0].answer, "하나");
+
+  const liveQ1 = findElement(tree, (node) => node.props?.item?.id === "q1");
+  const liveQ2 = findElement(tree, (node) => node.props?.item?.id === "q2");
+  assert.equal(liveQ1.props.inRetrain, true);
+  assert.equal(liveQ2.props.inRetrain, false);
+
+  const liveQ1Row = notebookRow(liveQ1);
+  const liveQ2Row = notebookRow(liveQ2);
+  assert.equal(liveQ1Row.props.concealed, true);
+  assert.equal(liveQ1Row.props.concealTitle, RETRAIN_HEADLINE);
+  assert.equal(liveQ1Row.props.detail, undefined);
+  assert.equal(liveQ1Row.props.expanded, false);
+  assert.equal(liveQ2Row.props.concealed, false);
+  assert.equal(liveQ2Row.props.detail, "正确答案：둘");
+
+  const liveChrome = notebookChrome(liveQ1Row);
+  assert.equal(liveChrome.props["data-concealed"], "true");
+  assert.match(textContent(liveChrome), /错题定向重练/);
+  assert.doesNotMatch(textContent(liveChrome), /하나|正确答案|第一题|课程练习|现在该处理/);
+  assert.doesNotMatch(`${liveQ1Row.props.concealTitle ?? ""}${textContent(liveChrome)}`, /하나/);
+});
+
+test("mistakes retrain grades a frozen card snapshot and refuses a stale live update", () => {
+  const hooks = createHookHarness();
+  const frozenCard = {
+    id: "q1",
+    box: 0,
+    dueAt: 0,
+    correct: 0,
+    wrong: 1,
+    lastSeenAt: null,
+    ease: 2.5,
+    intervalDays: 0,
+    lapses: 0,
+    payload: { kind: "mistake", itemId: "q1", prompt: "第一题", answer: "하나" }
+  };
+  const liveCards = {
+    q1: { ...frozenCard, payload: { ...frozenCard.payload } }
+  };
+  const submitted = [];
+  const insights = [{
+    id: "q1",
+    itemId: "lesson:q1",
+    prompt: "第一题",
+    answer: "하나",
+    correct: 0,
+    wrong: 1,
+    box: 0,
+    dueAt: 0,
+    lastSeenAt: null,
+    due: false,
+    sourceLabel: "课程练习",
+    statusLabel: "巩固中",
+    severity: 4
+  }];
+  const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": {
+      ArrowRight: "ArrowRightIcon",
+      CircleAlert: "CircleAlertIcon",
+      Clock: "ClockIcon",
+      Play: "PlayIcon",
+      RefreshCcw: "RefreshIcon",
+      Trash2: "TrashIcon"
+    },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
+    "@/lib/learning/player": { firstHangul: (value, fallback) => value || fallback },
+    "@/lib/learning/mistakes": {
+      buildMistakeInsights: () => insights,
+      buildRetrainQuestions: () => [{ id: "q1", type: "type", prompt: "第一题", answer: "하나" }],
+      summarizeMistakes: () => ({ total: 1, due: 0, repeated: 0, stabilizing: 1, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
+    },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
+    "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: liveCards }) },
+    "@/lib/learning/storage": {
+      STORAGE_KEYS: { srs: "srs" },
+      useClientNow: () => 0,
+      useStorageRaw: () => null
+    },
+    "@/lib/learning/workspace": {
+      submitReviewCardAndProgress(card, correct, options) {
+        submitted.push({ card, correct, options });
+        return card.correct === frozenCard.correct && card.box === frozenCard.box
+          ? { ok: false, reason: "stale" }
+          : { ok: true };
+      },
+      removeMistakeCardAndPracticeItem: () => true
+    },
+    "@/lib/learning/use-learning-workspace": {
+      useLearningWorkspace: () => ({ workspace: {} })
+    }
+  });
+
+  let tree = hooks.render(MistakesPage, {});
+  const cards = findElements(tree, (node) => node.props?.item?.id === "q1");
+  cards[0].props.onRetrain("q1");
+
+  liveCards.q1 = {
+    ...frozenCard,
+    box: 2,
+    correct: 3,
+    dueAt: 99_000,
+    payload: { ...frozenCard.payload, prompt: "updated" }
+  };
+
+  tree = hooks.render(MistakesPage, {});
+  const runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.props.onAnswer({ question: { id: "q1" }, correct: true, skipped: false }), false);
+  assert.equal(submitted.length, 1);
+  assert.equal(submitted[0].card.correct, frozenCard.correct);
+  assert.equal(submitted[0].card.box, frozenCard.box);
+  assert.equal(submitted[0].card.dueAt, frozenCard.dueAt);
+  assert.equal(submitted[0].options.allowEarly, true);
+
+  tree = hooks.render(MistakesPage, {});
+  const alert = findElement(tree, (node) => node.type === "InlineAlert");
+  assert.match(textContent(alert), /已被更新或推迟，本次答案未重复计分/);
+  assert.doesNotMatch(textContent(alert), /释放浏览器空间/);
 });
 
 test("onboarding unlocks only after playback and recovers from a failed sample", () => {
@@ -1308,10 +1876,49 @@ test("ThemeToggle applies valid theme changes received from another tab", () => 
 
 test("immersion query changes replace a stale in-page material selection", () => {
   const source = readFileSync("src/app/immersion/page.tsx", "utf8");
-  assert.match(source, /const nextMaterialId = requestedMaterialId \|\| defaultMaterialIdRef\.current;/);
-  assert.match(source, /if \(nextMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
+  assert.match(source, /if \(!requestedMaterialId\) return;/);
+  assert.match(source, /if \(requestedMaterialId !== displayedMaterialIdRef\.current\) \{\s*setActiveDraftReady\(false\);\s*\}/);
   assert.match(source, /setSelectedMaterialId\(requestedMaterialId\);\s*notifyNowPlayingLocationChange\(\);/);
   assert.match(source, /window\.history\.replaceState\([^;]+;\s*notifyNowPlayingLocationChange\(\);/);
+});
+
+test("bare immersion landing pins the first resolved material and ignores later defaults", () => {
+  const source = readFileSync("src/app/immersion/page.tsx", "utf8");
+  assert.match(source, /if \(selectedMaterialId\) return;/);
+  assert.match(source, /const landingId = requestedMaterialId \|\| defaultMaterialId;/);
+  assert.match(source, /setSelectedMaterialId\(\(current\) => current \|\| landingId\)/);
+  assert.match(source, /window\.history\.replaceState\(null, "", immersionMaterialHref\(landingId\)\)/);
+  assert.match(source, /resolveImmersionActiveMaterialId\(selectedMaterialId, requestedMaterialId, defaultMaterialId\)/);
+});
+
+test("quiz pins the built question list until the attempt seed changes", () => {
+  const source = readFileSync("src/app/quiz/page.tsx", "utf8");
+  assert.match(source, /const nextPinned = pinQuizAttempt\(pinnedAttempt, seed, liveQuestions\)/);
+  assert.match(source, /if \(nextPinned !== pinnedAttempt\) \{\s*setPinnedAttempt\(nextPinned\);\s*\}/);
+  assert.match(source, /questionsForQuizAttempt\(nextPinned, seed, liveQuestions\)/);
+  assert.match(source, /key=\{seed\}/);
+  assert.doesNotMatch(source, /useMemo\(\(\) => buildProgressQuiz\([^)]+\), \[workspace\.progress, seed, outputEntries, srsState\]\)/);
+});
+
+test("review pins the due queue until the session key changes", () => {
+  const source = readFileSync("src/app/review/page.tsx", "utf8");
+  assert.match(source, /const nextPinned = pinReviewAttempt\(pinnedAttempt, sessionKey, liveQuestions, liveDueCards\)/);
+  assert.match(source, /if \(nextPinned !== pinnedAttempt\) \{\s*setPinnedAttempt\(nextPinned\);\s*\}/);
+  assert.match(source, /questionsForReviewAttempt\(nextPinned, sessionKey, liveQuestions\)/);
+  assert.match(source, /cardsForReviewAttempt\(nextPinned, sessionKey, liveDueCards\)/);
+  assert.match(source, /key=\{sessionKey\}/);
+  assert.match(source, /questions\.length && LEARNING_REFRESH_EVENT_TYPES\.has\(event\.type\)/);
+  assert.doesNotMatch(source, /const questions = useMemo\(\(\) => \{\s*return buildReviewQuestions\(dueCards\);\s*\}, \[dueCards\]\);/);
+});
+
+test("active review queue signals reload on storage and learning-batch but not same-tab grading", () => {
+  const source = readFileSync("src/app/review/page.tsx", "utf8");
+  const refresh = source.slice(source.indexOf("const refreshQueue"), source.indexOf('window.addEventListener("kirina:learning"'));
+  assert.match(refresh, /if \(questions\.length && LEARNING_REFRESH_EVENT_TYPES\.has\(event\.type\)\) \{/);
+  assert.match(refresh, /if \(event\.type === "storage" \|\| event\.type === "kirina:learning-batch"\) setQueueChanged\(true\);/);
+  assert.match(refresh, /return;/);
+  assert.doesNotMatch(refresh, /if \(event\.type === "storage"\) setQueueChanged\(true\);/);
+  assert.doesNotMatch(refresh, /event\.type === "kirina:learning"\) setQueueChanged/);
 });
 
 test("reselecting the active immersion material keeps the live draft armed", () => {
@@ -1353,7 +1960,31 @@ test("completed immersion materials do not claim an unfinished draft restore", (
 
 test("mistakes retrain grades cards even when they are not yet due", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
-  assert.match(source, /gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(source, /pinReviewAttempt\(null, nextSession, questions, cards\)/);
+  assert.match(source, /cardsForReviewAttempt\(pinnedRetrain, retrainSession, \[\]\)/);
+  assert.match(source, /submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+});
+
+test("hangul library conceals same-section sibling chrome while a gate is open", () => {
+  const source = readFileSync("src/app/hangul/page.tsx", "utf8");
+  assert.match(source, /hangulGateOpen/);
+  assert.match(source, /pronunciationGateOpen/);
+  assert.match(source, /soundChangeGateOpen/);
+  assert.match(source, /libraryGateOpen = hangulGateOpen \|\| pronunciationGateOpen \|\| soundChangeGateOpen/);
+  assert.match(source, /siblingLocked/);
+  assert.match(source, /gateConcealment\("hangul", libraryGateOpen\)/);
+  assert.match(source, /gateConcealment\("pronunciation", libraryGateOpen\)/);
+  assert.match(source, /gateConcealment\("soundChange", libraryGateOpen\)/);
+  assert.match(source, /!libraryGateOpen \? \(/);
+  assert.match(source, /data-syllable-labs/);
+});
+
+test("mistakes retrain conceals answer chrome for the live attempt set", () => {
+  const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(source, /retrainConcealment/);
+  assert.match(source, /retrainQuestionIds\(retrainQuestions \? pinnedQuestions : null\)/);
+  assert.match(source, /inRetrain=\{inRetrainIds\.has\(item\.id\)\}/);
+  assert.match(source, /detail=\{inRetrain \? undefined : `正确答案：\$\{item\.answer\}`\}/);
 });
 
 test("all-due mistake retrain requests every selected card", () => {
@@ -1363,7 +1994,13 @@ test("all-due mistake retrain requests every selected card", () => {
 
 test("audio skip goes through onAnswer so review and retrain can reschedule", () => {
   const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
-  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) return;/);
+  assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?return;/);
+  assert.match(source, /if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?releaseQuestionAttempt\(inFlightQuestionIdRef, question\.id\);[\s\S]*?return;[\s\S]*?setAnswers\(next\);/);
+  assert.match(source, /const audioAnswerLocked = Boolean\(audioCheckPending \|\| audioNeedsGesture\);/);
+  assert.match(source, /if \(audioAnswerLocked\) return;/);
+  assert.match(source, /if \(audioUnavailable\) \{\s*skipAudioQuestion\(\);\s*return;/);
+  assert.match(source, /if \(audioAnswerLocked \|\| audioUnavailable\) return;/);
+  assert.match(source, /submitRef\.current = runPrimaryAction;/);
 });
 
 test("review and retrain refuse answers when the queued card disappears", () => {
@@ -1371,7 +2008,12 @@ test("review and retrain refuse answers when the queued card disappears", () => 
   const mistakes = readFileSync("src/app/mistakes/page.tsx", "utf8");
   assert.match(review, /card \? submitReviewCardAndProgress\(card, entry\.correct, \{ skipped: Boolean\(entry\.skipped\) \}\)/);
   assert.match(review, /result\.reason === "storage"/);
-  assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
+  assert.match(mistakes, /card\s*\n\s*\? submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+  assert.match(mistakes, /: \{ ok: false as const, reason: "missing" as const \}/);
+  assert.match(mistakes, /reason === "storage"/);
+  assert.match(mistakes, /reason === "missing"/);
+  assert.match(mistakes, /已被更新或推迟，本次答案未重复计分/);
+  assert.match(mistakes, /已被移除，本次答案未计分/);
 });
 
 test("cinematic scene frames clip media and keep film texture inside the image", () => {
@@ -1396,6 +2038,25 @@ test("cinematic scene frames clip media and keep film texture inside the image",
   assert.doesNotMatch(drill, /<div className="grid overflow-hidden rounded-none border/);
   assert.doesNotMatch(drill, /<article className="overflow-hidden rounded-none border/);
   assert.match(selfStudy, /className="studio-panel paper-rail relative grid gap-3 p-5"/);
+});
+
+test("drill and mastery actions keep clearance from the next-episode bar", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const drill = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
+  const gate = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
+  assert.match(css, /--next-episode-clearance:/);
+  assert.match(css, /scroll-padding-bottom: var\(--next-episode-clearance\)/);
+  assert.match(css, /\.drill-sheet \{\s*padding-bottom: var\(--next-episode-clearance\);/);
+  assert.match(css, /\.drill-actions \{\s*scroll-margin-bottom: var\(--next-episode-clearance\);/);
+  assert.match(css, /\.editorial-shell:has\(\.drill-sheet\) \{ padding-bottom: var\(--next-episode-clearance\); \}/);
+  assert.match(css, /\.next-episode \{[\s\S]*pointer-events: none;/);
+  assert.match(css, /\.next-episode__play \{[\s\S]*order: -1;[\s\S]*pointer-events: auto;/);
+  assert.match(css, /@media \(max-width: 1023px\) \{[\s\S]*\.next-episode__play \{[\s\S]*order: 1;/);
+  assert.match(drill, /className=\{`drill-sheet /);
+  assert.match(drill, /className="drill-actions /);
+  assert.match(gate, /className="mastery-gate /);
+  assert.match(gate, /block: "center"/);
+  assert.doesNotMatch(gate, /block: "nearest"/);
 });
 
 test("progress tracks adapt to the active seasonal theme", () => {
@@ -1562,8 +2223,9 @@ test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a 
 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
-  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
   assert.ok(findButton(tree, "听"));
+  assert.equal(findButton(tree, "提交").props.disabled, true);
 });
 
 test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture", async () => {
@@ -1616,8 +2278,131 @@ test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
-  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
   assert.ok(findButton(tree, "听"));
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+});
+
+test("DrillRunner cannot grade listen or dictation while autoplay is gesture-blocked", async () => {
+  const listenQuestion = {
+    id: "listen-gesture",
+    type: "listen",
+    prompt: "听选",
+    answer: "안녕",
+    choices: ["안녕", "학교"],
+    speak: "안녕"
+  };
+  const dictationQuestion = {
+    id: "dictation-gesture",
+    type: "dictation",
+    prompt: "听写",
+    answer: "안녕하세요",
+    speak: "안녕하세요"
+  };
+
+  const runBlocked = async (question, unlockLabel) => {
+    const hooks = createHookHarness();
+    const listeners = new Map();
+    const speechCalls = [];
+    const checked = [];
+    const mistakes = [];
+    const answered = [];
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": {
+        checkAnswer(item, answer) {
+          checked.push({ id: item.id, answer });
+          return answer === item.answer;
+        }
+      },
+      "@/lib/learning/srs": {
+        recordMistake(id, payload) {
+          mistakes.push({ id, payload });
+          return { id };
+        }
+      },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean(text, options) {
+          speechCalls.push({ text, options });
+          return true;
+        },
+        stopSpeech() {}
+      }
+    }, {
+      queueMicrotask,
+      window: {
+        setTimeout() { return 17; },
+        clearTimeout() {},
+        addEventListener(type, listener) {
+          const entries = listeners.get(type) ?? new Set();
+          entries.add(listener);
+          listeners.set(type, entries);
+        },
+        removeEventListener(type, listener) {
+          listeners.get(type)?.delete(listener);
+        }
+      }
+    });
+    const props = {
+      questions: [question],
+      finishLabel: "交卷",
+      recordMistakes: true,
+      onAnswer(entry) {
+        answered.push(entry);
+      }
+    };
+    let tree = hooks.render(DrillRunner, props);
+    await Promise.resolve();
+    speechCalls[0].options.onerror({ error: "NotAllowedError", reason: "needs-gesture" });
+    tree = hooks.render(DrillRunner, props);
+
+    assert.match(textContent(tree), /浏览器拦截了自动播放/);
+    assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+    assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+    const submit = findButton(tree, "提交");
+    assert.equal(submit.props.disabled, true);
+    submit.props.onClick();
+    dispatchBareKey(listeners, "1");
+    tree = hooks.render(DrillRunner, props);
+    dispatchBareKey(listeners, "Enter");
+    dispatchBareKey(listeners, "Enter");
+    assert.equal(checked.length, 0, `${question.type} needs-gesture must not grade`);
+    assert.equal(mistakes.length, 0, `${question.type} needs-gesture must not enroll SRS`);
+    assert.equal(answered.length, 0, `${question.type} needs-gesture must not commit an answer`);
+
+    findButton(tree, unlockLabel).props.onClick();
+    speechCalls.at(-1).options.onstart();
+    tree = hooks.render(DrillRunner, props);
+    if (question.type === "listen") {
+      const choice = findElement(tree, (node) => node.type === "input" && node.props?.value === question.answer);
+      assert.ok(choice, "listen choices should appear after user-initiated playback");
+      choice.props.onChange();
+    } else {
+      const input = findElement(tree, (node) => node.type === "KoreanInput");
+      assert.ok(input, "dictation input should appear after user-initiated playback");
+      input.props.onChange(question.answer);
+    }
+    tree = hooks.render(DrillRunner, props);
+    const unlocked = findButton(tree, "提交");
+    assert.equal(unlocked.props.disabled, false);
+    unlocked.props.onClick();
+    assert.equal(checked.length, 1);
+    assert.equal(answered.length, 1);
+    assert.equal(answered[0].correct, true);
+    assert.equal(answered[0].skipped, undefined);
+    return { checked, answered };
+  };
+
+  await runBlocked(listenQuestion, "听");
+  await runBlocked(dictationQuestion, "播放");
 });
 
 test("skipping a review audio question defers the card so it is no longer due", async () => {
@@ -2133,6 +2918,516 @@ test("DrillRunner lets a resumed answered audio question advance", () => {
   assert.ok(findElement(tree, (node) => node.props?.role === "status"));
 });
 
+test("DrillRunner records at most one mistake when 提交 fires twice before answers commit", () => {
+  const hooks = createHookHarness();
+  const listeners = new Map();
+  const mistakeCalls = [];
+  const answered = [];
+  let persistMistake = true;
+  const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: hooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        mistakeCalls.push({ id, payload });
+        return persistMistake ? { id, payload, wrong: mistakeCalls.filter((item) => item.id === id).length } : null;
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = listeners.get(type) ?? new Set();
+        entries.add(listener);
+        listeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        listeners.get(type)?.delete(listener);
+      }
+    }
+  });
+
+  const questions = [
+    {
+      id: "gate-q1",
+      type: "choice",
+      prompt: "선택하세요",
+      answer: "맞아요",
+      choices: ["맞아요", "아니에요"],
+      explain: "礼貌肯定。"
+    },
+    {
+      id: "gate-q2",
+      type: "choice",
+      prompt: "하나 더",
+      answer: "네",
+      choices: ["네", "아니요"],
+      explain: "简短肯定。"
+    }
+  ];
+  const props = {
+    questions,
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      answered.push(entry);
+    }
+  };
+
+  let tree = hooks.render(DrillRunner, props);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니에요").props.onChange();
+  tree = hooks.render(DrillRunner, props);
+
+  const submit = findButton(tree, "提交");
+  assert.equal(submit.props.disabled, false);
+  submit.props.onClick();
+  submit.props.onClick();
+  for (const listener of listeners.get("keydown") ?? []) {
+    listener(createBareEnterEvent());
+  }
+  assert.equal(mistakeCalls.length, 1, "overlapping 提交 / Enter must not double-bump SRS");
+  assert.equal(mistakeCalls[0].id, "mistake:gate-q1");
+  assert.equal(answered.length, 1);
+  assert.equal(answered[0].correct, false);
+
+  tree = hooks.render(DrillRunner, props);
+  assert.match(textContent(tree), /正确答案：맞아요/);
+  findButton(tree, "下一题").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니요").props.onChange();
+  tree = hooks.render(DrillRunner, props);
+  const secondSubmit = findButton(tree, "提交");
+  secondSubmit.props.onClick();
+  secondSubmit.props.onClick();
+  assert.equal(mistakeCalls.map((item) => item.id).join(","), "mistake:gate-q1,mistake:gate-q2");
+  assert.equal(answered.length, 2);
+
+  persistMistake = false;
+  const retryHooks = createHookHarness();
+  const retryMistakes = [];
+  const { DrillRunner: RetryRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: retryHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => false },
+    "@/lib/learning/srs": {
+      recordMistake(id) {
+        retryMistakes.push(id);
+        return persistMistake ? { id } : null;
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const retryProps = {
+    questions: [questions[0]],
+    finishLabel: "交卷",
+    recordMistakes: true
+  };
+  tree = retryHooks.render(RetryRunner, retryProps);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "아니에요").props.onChange();
+  tree = retryHooks.render(RetryRunner, retryProps);
+  findButton(tree, "提交").props.onClick();
+  tree = retryHooks.render(RetryRunner, retryProps);
+  assert.match(textContent(tree), /错题没有保存到复习队列/);
+  persistMistake = true;
+  findButton(tree, "提交").props.onClick();
+  findButton(tree, "提交").props.onClick();
+  assert.equal(retryMistakes.length, 2, "failed persist must unlock, then a successful attempt may persist only once");
+});
+
+test("DrillRunner skip and review-style onAnswer refuse stay single-flight", async () => {
+  const skipAnswered = [];
+  const skipHooks = createHookHarness();
+  const speechCalls = [];
+  const { DrillRunner: SkipRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: skipHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": { recordMistake: () => ({}) },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        speechCalls.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const skipProps = {
+    questions: [{
+      id: "listen-skip",
+      type: "listen",
+      prompt: "听选",
+      answer: "안녕",
+      choices: ["안녕", "학교"],
+      speak: "안녕"
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer(entry) {
+      skipAnswered.push(entry);
+    }
+  };
+  let tree = skipHooks.render(SkipRunner, skipProps);
+  await Promise.resolve();
+  speechCalls[0].options.onerror({ error: "network" });
+  tree = skipHooks.render(SkipRunner, skipProps);
+  const skip = findButton(tree, "跳过音频题");
+  skip.props.onClick();
+  skip.props.onClick();
+  assert.equal(skipAnswered.length, 1);
+  assert.equal(skipAnswered[0].skipped, true);
+
+  const reviewHooks = createHookHarness();
+  const reviewAnswers = [];
+  let refuse = true;
+  const { DrillRunner: ReviewRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: reviewHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => false },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": { checkAnswer: () => true },
+    "@/lib/learning/srs": {
+      recordMistake() {
+        throw new Error("review/quiz/mistakes must keep recordMistakes=false");
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener() {},
+      removeEventListener() {}
+    }
+  });
+  const reviewProps = {
+    questions: [{
+      id: "review-q1",
+      type: "choice",
+      prompt: "복습",
+      answer: "네",
+      choices: ["네", "아니요"]
+    }],
+    finishLabel: "结束复习",
+    recordMistakes: false,
+    onAnswer() {
+      reviewAnswers.push(refuse ? false : true);
+      return refuse ? false : undefined;
+    }
+  };
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  findElement(tree, (node) => node.type === "input" && node.props.value === "네").props.onChange();
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  findButton(tree, "提交").props.onClick();
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  assert.doesNotMatch(textContent(tree), /答对了/);
+  refuse = false;
+  const retry = findButton(tree, "提交");
+  retry.props.onClick();
+  retry.props.onClick();
+  assert.equal(reviewAnswers.length, 2, "stale/storage refuse must unlock, then one successful local commit");
+  tree = reviewHooks.render(ReviewRunner, reviewProps);
+  assert.match(textContent(tree), /答对了/);
+});
+
+test("DrillRunner keyboard cannot grade an audio-gated item", async () => {
+  const listenQuestion = {
+    id: "listen-gate",
+    type: "listen",
+    prompt: "听选",
+    answer: "안녕",
+    choices: ["안녕", "학교"],
+    speak: "안녕",
+    explain: "问候。"
+  };
+  const dictationQuestion = {
+    id: "dictation-gate",
+    type: "dictation",
+    prompt: "听写",
+    answer: "안녕하세요",
+    speak: "안녕하세요",
+    explain: "完整问候。"
+  };
+
+  const pendingHooks = createHookHarness();
+  const pendingListeners = new Map();
+  const pendingMistakes = [];
+  const pendingChecked = [];
+  const pendingAnswered = [];
+  const { DrillRunner: PendingRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: pendingHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "loading" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        pendingChecked.push({ id: question.id, answer });
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        pendingMistakes.push({ id, payload });
+        return { id };
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean() { return true; },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = pendingListeners.get(type) ?? new Set();
+        entries.add(listener);
+        pendingListeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        pendingListeners.get(type)?.delete(listener);
+      }
+    }
+  });
+  const pendingProps = {
+    questions: [listenQuestion],
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      pendingAnswered.push(entry);
+    }
+  };
+  let tree = pendingHooks.render(PendingRunner, pendingProps);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+  dispatchBareKey(pendingListeners, "1");
+  tree = pendingHooks.render(PendingRunner, pendingProps);
+  dispatchBareKey(pendingListeners, "Enter");
+  dispatchBareKey(pendingListeners, "Enter");
+  assert.equal(pendingChecked.length, 0, "pending audio must not grade a digit+Enter bypass");
+  assert.equal(pendingMistakes.length, 0);
+  assert.equal(pendingAnswered.length, 0);
+  tree = pendingHooks.render(PendingRunner, pendingProps);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+  assert.doesNotMatch(textContent(tree), /答对了|正确答案|已跳过/);
+
+  for (const voiceStatus of ["missing", "unsupported"]) {
+    const hooks = createHookHarness();
+    const listeners = new Map();
+    const mistakes = [];
+    const checked = [];
+    const answered = [];
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: voiceStatus }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": {
+        checkAnswer(question, answer) {
+          checked.push({ id: question.id, answer });
+          return answer === question.answer;
+        }
+      },
+      "@/lib/learning/srs": {
+        recordMistake(id, payload) {
+          mistakes.push({ id, payload });
+          return { id };
+        }
+      },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean() { return true; },
+        stopSpeech() {}
+      }
+    }, {
+      queueMicrotask,
+      window: {
+        setTimeout() { return 17; },
+        clearTimeout() {},
+        addEventListener(type, listener) {
+          const entries = listeners.get(type) ?? new Set();
+          entries.add(listener);
+          listeners.set(type, entries);
+        },
+        removeEventListener(type, listener) {
+          listeners.get(type)?.delete(listener);
+        }
+      }
+    });
+    const props = {
+      questions: [listenQuestion],
+      finishLabel: "交卷",
+      recordMistakes: true,
+      onAnswer(entry) {
+        answered.push(entry);
+      }
+    };
+    tree = hooks.render(DrillRunner, props);
+    assert.ok(findButton(tree, "跳过音频题"), `${voiceStatus} must offer skip`);
+    dispatchBareKey(listeners, "1");
+    tree = hooks.render(DrillRunner, props);
+    dispatchBareKey(listeners, "Enter");
+    dispatchBareKey(listeners, "Enter");
+    findButton(tree, "跳过音频题").props.onClick();
+    assert.equal(checked.length, 0, `${voiceStatus} digit+Enter must not grade`);
+    assert.equal(mistakes.length, 0, `${voiceStatus} must not recordMistake`);
+    assert.equal(answered.length, 1, `${voiceStatus} overlapping Enter/skip must stay single-flight`);
+    assert.equal(answered[0].skipped, true);
+    assert.equal(answered[0].answer, "");
+    assert.equal(answered[0].correct, false);
+    tree = hooks.render(DrillRunner, props);
+    assert.match(textContent(tree), /已跳过：本题不计分/);
+  }
+
+  const leftoverHooks = createHookHarness();
+  const leftoverListeners = new Map();
+  const leftoverSpeech = [];
+  const leftoverMistakes = [];
+  const leftoverChecked = [];
+  const leftoverAnswered = [];
+  const { DrillRunner: LeftoverRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+    react: leftoverHooks.react,
+    "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+    "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+    "@/lib/learning/evidence": { hasKoreanText: () => true },
+    "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+    "@/lib/learning/quiz": {
+      checkAnswer(question, answer) {
+        leftoverChecked.push({ id: question.id, answer });
+        return answer === question.answer;
+      }
+    },
+    "@/lib/learning/srs": {
+      recordMistake(id, payload) {
+        leftoverMistakes.push({ id, payload });
+        return { id };
+      }
+    },
+    "@/lib/speech": {
+      isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+      speakKorean(text, options) {
+        leftoverSpeech.push({ text, options });
+        return true;
+      },
+      stopSpeech() {}
+    }
+  }, {
+    queueMicrotask,
+    window: {
+      setTimeout() { return 17; },
+      clearTimeout() {},
+      addEventListener(type, listener) {
+        const entries = leftoverListeners.get(type) ?? new Set();
+        entries.add(listener);
+        leftoverListeners.set(type, entries);
+      },
+      removeEventListener(type, listener) {
+        leftoverListeners.get(type)?.delete(listener);
+      }
+    }
+  });
+  const leftoverProps = {
+    questions: [dictationQuestion],
+    finishLabel: "交卷",
+    recordMistakes: true,
+    onAnswer(entry) {
+      leftoverAnswered.push(entry);
+    }
+  };
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  await Promise.resolve();
+  leftoverSpeech[0].options.onstart();
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  const input = findElement(tree, (node) => node.type === "KoreanInput");
+  assert.ok(input);
+  input.props.onChange("안녕하세요");
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  leftoverSpeech[0].options.onerror({ error: "network" });
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  assert.ok(findButton(tree, "跳过音频题"));
+  dispatchBareKey(leftoverListeners, "Enter");
+  dispatchBareKey(leftoverListeners, "Enter");
+  findButton(tree, "跳过音频题").props.onClick();
+  assert.equal(leftoverChecked.length, 0, "failed TTS leftover dictation must not be graded");
+  assert.equal(leftoverMistakes.length, 0);
+  assert.equal(leftoverAnswered.length, 1);
+  assert.equal(leftoverAnswered[0].skipped, true);
+  assert.equal(leftoverAnswered[0].answer, "");
+  tree = leftoverHooks.render(LeftoverRunner, leftoverProps);
+  assert.match(textContent(tree), /已跳过：本题不计分/);
+});
+
 function loadLessonEvidencePanels(hooks, {
   MediaRecorder,
   getUserMedia,
@@ -2314,6 +3609,188 @@ function mockGestureBlockedPlaybackError(error) {
   return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture" || name === "not-allowed";
 }
 
+function loadLibraryGatePage(hooks, file, workspace) {
+  const headlines = {
+    vocab: "词汇听写",
+    hangul: "字母听辨",
+    pronunciation: "最小对立",
+    grammar: "句型小测",
+    soundChange: "音变听辨"
+  };
+  const imports = {
+    react: hooks.react,
+    "lucide-react": { Volume2: "VolumeIcon" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
+    "@/components/ui/filter-console": {
+      CheckboxFilter: "CheckboxFilter",
+      EmptyState: "EmptyState",
+      FilterSummary: "FilterSummary",
+      SearchField: "SearchField",
+      SegmentedFilter: "SegmentedFilter"
+    },
+    "@/components/ui/library-pagination": {
+      LibraryPagination: "LibraryPagination",
+      useLibraryPage(items) {
+        return { items: items.slice(0, 4), page: 0, pages: 1, pageSize: 4, total: items.length, setPage() {} };
+      }
+    },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/learning/library-gate-notice": { LibraryGateNotice: "LibraryGateNotice" },
+    "@/components/learning/onboarding-gate-notice": { OnboardingGateNotice: "OnboardingGateNotice" },
+    "@/components/learning/mastery-gate": { MasteryGate: "MasteryGate" },
+    "@/components/korean/romanization-text": { RomanizationText: "RomanizationText" },
+    "@/lib/learning/compass": { needsOnboardingFunnel: () => false },
+    "@/lib/learning/gate": {
+      gateConcealment(kind, active) {
+        return { concealed: active, concealTitle: active ? headlines[kind] : undefined };
+      },
+      visibleLibraryGateItemId
+    },
+    "@/lib/learning/use-learning-workspace": { useLearningWorkspace: () => workspace },
+    "@/lib/speech": { speakKorean() {}, speakSequence() {} }
+  };
+
+  if (file.includes("vocabulary")) {
+    return loadComponent(file, {
+      ...imports,
+      "@/data/lexicon": {
+        vocab: [{
+          id: "v-annyeonghaseyo",
+          level: "survival",
+          category: "greetings",
+          korean: "안녕하세요",
+          romanization: "annyeonghaseyo",
+          meaning: "你好",
+          example: "안녕하세요, 저는 리나예요.",
+          exampleMeaning: "你好，我是 Lina。",
+          note: "最安全的通用问候。",
+          pos: "expression"
+        }, {
+          id: "v-jihacheol",
+          level: "survival",
+          category: "greetings",
+          korean: "지하철",
+          romanization: "jihacheol",
+          meaning: "地铁",
+          example: "지하철을 타요.",
+          exampleMeaning: "坐地铁。",
+          note: "交通核心词。",
+          pos: "expression"
+        }],
+        vocabCategories: [{ id: "greetings", label: "寒暄" }],
+        vocabLevels: [{ id: "survival", label: "生存核心", target: "0-800", description: "desc" }],
+        vocabPosLabels: { expression: "表达" }
+      }
+    });
+  }
+
+  if (file.includes("grammar")) {
+    return loadComponent(file, {
+      ...imports,
+      "@/data/grammar": {
+        grammarPoints: [{
+          id: "g-topic-subject",
+          level: "foundation",
+          title: "은/는 与 이/가",
+          pattern: "名词 + 은/는 / 이/가",
+          meaning: "话题标记 vs 主语标记",
+          explanation: "은/는 设主题，이/가 标主语。",
+          examples: [{ ko: "저는 학생이에요.", zh: "我是学生。", note: "저는 设话题。" }],
+          pitfalls: ["不要把 은/는 简单等同于“是”。"]
+        }, {
+          id: "g-object",
+          level: "foundation",
+          title: "을/를",
+          pattern: "名词 + 을/를",
+          meaning: "宾语标记",
+          explanation: "把对象标出来。",
+          examples: [{ ko: "밥을 먹어요.", zh: "吃饭。", note: "밥을 是宾语。" }],
+          pitfalls: ["把对象标出来"]
+        }]
+      }
+    });
+  }
+
+  return loadComponent(file, {
+    ...imports,
+    "@/data/hangul": {
+      hangulGroups: [{
+        id: "vowels-basic",
+        title: "基础元音",
+        track: "sound",
+        summary: "summary",
+        items: [{
+          id: "v-a",
+          glyph: "ㅏ",
+          romanization: "a",
+          ipa: "a",
+          cue: "口腔打开，像干净短促的 a",
+          example: "아",
+          exampleMeaning: "啊",
+          sound: "아"
+        }, {
+          id: "v-ya",
+          glyph: "ㅑ",
+          romanization: "ya",
+          ipa: "ja",
+          cue: "ㅣ + ㅏ 的滑音",
+          example: "야",
+          exampleMeaning: "喂",
+          sound: "야"
+        }]
+      }],
+      pronunciationPairs: [{
+        id: "plain-aspirated-k",
+        a: "가",
+        b: "카",
+        focus: "松音 ㄱ vs 送气 ㅋ",
+        tip: "手放嘴前，카 的气流明显。"
+      }, {
+        id: "plain-tense-k",
+        a: "가",
+        b: "까",
+        focus: "松音 ㄱ vs 紧音 ㄲ",
+        tip: "까 更紧，不送气。"
+      }],
+      syllableLabs: [{
+        pattern: "CV",
+        blocks: ["ㄱ", "ㅏ"],
+        result: "가",
+        note: "辅音在左，竖元音在右。"
+      }]
+    },
+    "@/data/sound-changes": {
+      soundChangeRules: [{
+        id: "sc-liaison",
+        korean: "연음",
+        title: "连音",
+        summary: "收音遇到元音开头的音节时，会移过去当下一个音节的初声。",
+        rule: "收音 + ㅇ 开头音节 → 收音变成下一音节的初声",
+        examples: [{ written: "한국어", spoken: "한구거", zh: "韩语", speak: "한국어" }]
+      }, {
+        id: "sc-nasalization",
+        korean: "비음화",
+        title: "鼻音化",
+        summary: "塞音收音遇到鼻音时自己也变成鼻音。",
+        rule: "ㄱ→ㅇ、ㄷ→ㄴ、ㅂ→ㅁ",
+        examples: [{ written: "감사합니다", spoken: "감사함니다", zh: "谢谢", speak: "감사합니다" }]
+      }]
+    },
+    "@/lib/korean/jamo": { decomposeSyllable: () => null },
+    "@/lib/learning/ids": {
+      pronunciationCardId: (id) => `pronunciation:${id}`,
+      soundChangeCardId: (id) => `soundChange:${id}`
+    }
+  });
+}
+
 function findButton(tree, label) {
   const button = findElement(tree, (node) => node.type === "Button" && textContent(node).includes(label));
   assert.ok(button, `Expected button containing ${label}`);
@@ -2461,6 +3938,22 @@ function cn(...values) {
   return values.filter(Boolean).join(" ");
 }
 
+function createReviewAttemptMocks() {
+  return {
+    pinReviewAttempt(_pinned, seed, questions, cards) {
+      return { seed, questions, cards };
+    },
+    questionsForReviewAttempt(pinned, seed, liveQuestions) {
+      if (pinned && pinned.seed === seed && pinned.questions.length > 0) return pinned.questions;
+      return liveQuestions;
+    },
+    cardsForReviewAttempt(pinned, seed, liveCards) {
+      if (pinned && pinned.seed === seed && pinned.questions.length > 0) return pinned.cards;
+      return liveCards;
+    }
+  };
+}
+
 function createJamoMock() {
   return {
     backspaceJamo: (value) => value.slice(0, -1),
@@ -2475,6 +3968,32 @@ function createMediaWindow() {
       return { matches: false, addEventListener() {}, removeEventListener() {} };
     }
   };
+}
+
+function createBareEnterEvent() {
+  return createBareKeyEvent("Enter");
+}
+
+function createBareKeyEvent(key) {
+  return {
+    key,
+    target: {
+      tagName: "BODY",
+      closest() {
+        return null;
+      }
+    },
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true;
+    }
+  };
+}
+
+function dispatchBareKey(listeners, key) {
+  const event = createBareKeyEvent(key);
+  for (const listener of listeners.get("keydown") ?? []) listener(event);
+  return event;
 }
 
 function createKeyEvent(key, { isComposing = false, keyCode = 0 } = {}) {

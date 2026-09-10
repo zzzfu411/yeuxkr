@@ -9,11 +9,47 @@ import { buildDistractors, makeChoices, seededRandom, type Question } from "./qu
 
 export const GATE_PASS_SCORE = 80;
 
+export type GateKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "soundChange";
+
+export const GATE_HEADLINES: Record<GateKind, string> = {
+  hangul: "字母听辨",
+  pronunciation: "最小对立",
+  vocab: "词汇听写",
+  grammar: "句型小测",
+  soundChange: "音变听辨"
+};
+
+export function gateHeadline(kind: GateKind) {
+  return GATE_HEADLINES[kind];
+}
+
+export function gateConcealment(kind: GateKind, active: boolean) {
+  return {
+    concealed: active,
+    concealTitle: active ? gateHeadline(kind) : undefined
+  };
+}
+
+/** Keep a library MasteryGate only while its item is still on the current filtered page. */
+export function visibleLibraryGateItemId(
+  gateItemId: string,
+  visibleItems: ReadonlyArray<{ id?: string } | null | undefined>
+) {
+  if (!gateItemId) return "";
+  return visibleItems.some((item) => item?.id === gateItemId) ? gateItemId : "";
+}
+
+export function collectGateAnswerTokens(kind: GateKind, itemId: string, seed = 1) {
+  return [...new Set(
+    buildGateQuestions(kind, itemId, seed)
+      .map((question) => question.answer)
+      .filter((answer): answer is string => typeof answer === "string" && answer.length > 0)
+  )];
+}
+
 export function hasSkippedGateAudio(answers: Array<{ skipped?: boolean; question?: { type?: string } }>) {
   return answers.some((entry) => entry.skipped && (entry.question?.type === "listen" || entry.question?.type === "dictation"));
 }
-
-export type GateKind = "hangul" | "pronunciation" | "vocab" | "grammar" | "soundChange";
 
 export function buildGateQuestions(kind: GateKind, itemId: string, seed = 1): Question[] {
   const random = seededRandom(seed);
@@ -230,10 +266,10 @@ function buildSoundChangeGate(itemId: string, random: () => number): Question[] 
     {
       id: `${soundChangeQuestionId(itemId)}:gate1`,
       type: "choice",
-      prompt: `${rule.title}（${rule.korean}）：${first.written} 实际读作哪一个？`,
+      prompt: `${first.written} 实际读作哪一个？`,
       answer: first.spoken,
       choices: makeChoices(first.spoken, otherSpoken, 4, random),
-      explain: `${rule.rule}。${first.written} → [${first.spoken}]（${first.zh}）。`,
+      explain: `${rule.title}（${rule.korean}）。${rule.rule}。${first.written} → [${first.spoken}]（${first.zh}）。`,
       speak: first.speak
     },
     {

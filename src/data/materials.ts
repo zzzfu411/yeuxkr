@@ -26,6 +26,15 @@ export function immersionMaterialHref(materialId: string) {
   return `/immersion?material=${encodeURIComponent(materialId)}`;
 }
 
+/** Prefer an explicit pin, then a deep link, then the computed default. */
+export function resolveImmersionActiveMaterialId(
+  pinnedMaterialId: string,
+  requestedMaterialId: string,
+  defaultMaterialId: string
+) {
+  return pinnedMaterialId || requestedMaterialId || defaultMaterialId;
+}
+
 export function getMissingMaterialPrerequisiteIds(
   material: Pick<ImmersionMaterial, "requiredLessons">,
   masteredLessonIds?: Iterable<string> | null

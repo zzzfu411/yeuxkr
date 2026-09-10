@@ -801,6 +801,7 @@ const quizPage = readFileSync("src/app/quiz/page.tsx", "utf8");
 const quizSource = readFileSync("src/lib/learning/quiz.ts", "utf8");
 const reviewPage = readFileSync("src/app/review/page.tsx", "utf8");
 const mistakesPage = readFileSync("src/app/mistakes/page.tsx", "utf8");
+const gateSource = readFileSync("src/lib/learning/gate.ts", "utf8");
 const vocabularyPage = readFileSync("src/app/vocabulary/page.tsx", "utf8");
 const grammarPage = readFileSync("src/app/grammar/page.tsx", "utf8");
 const hangulPage = readFileSync("src/app/hangul/page.tsx", "utf8");
@@ -842,6 +843,36 @@ assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emi
 assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
 assert(drillRunnerSource.includes('role="progressbar"'), "DrillRunner should render a visible progress bar");
 assert(drillRunnerSource.includes("playedListenRef"), "DrillRunner should auto-play listen prompts once per question");
+assert(drillRunnerSource.includes("runPrimaryAction") && drillRunnerSource.includes("submitRef.current = runPrimaryAction"), "DrillRunner Enter should follow the same audio-gated primary action as the button");
+assert(drillRunnerSource.includes("audioAnswerLocked") && drillRunnerSource.includes("audioNeedsGesture") && drillRunnerSource.includes("if (audioAnswerLocked || audioUnavailable) return") && drillRunnerSource.includes("if (audioAnswerLocked) return") && drillRunnerSource.includes("skipAudioQuestion()"), "DrillRunner should refuse to grade while audio is pending, gesture-blocked, or unavailable, and route unavailable Enter to skip");
+assert(drillRunnerSource.includes("drill-sheet") && drillRunnerSource.includes("drill-actions"), "DrillRunner should mark its sheet and primary action row for next-episode clearance");
+const masteryGateSource = readFileSync("src/components/learning/mastery-gate.tsx", "utf8");
+assert(masteryGateSource.includes("mastery-gate") && masteryGateSource.includes('block: "center"'), "MasteryGate should scroll the quiz into the clear center instead of stopping at nearest");
+assert(masteryGateSource.includes("gateHeadline") && masteryGateSource.includes("掌握小测 · {gateHeadline(kind)}"), "MasteryGate chrome should use a generic kind headline instead of the tested token");
+assert(!masteryGateSource.includes("掌握小测 · {title}"), "MasteryGate must not echo the source-card title in its heading");
+assert(vocabularyPage.includes("gateConcealment(\"vocab\"") && hangulPage.includes("gateConcealment(\"hangul\"") && hangulPage.includes("gateConcealment(\"pronunciation\"") && hangulPage.includes("gateConcealment(\"soundChange\"") && grammarPage.includes("gateConcealment(\"grammar\""), "library cards should conceal source chrome while a mastery gate is open");
+assert(hangulPage.includes("siblingLocked") && hangulPage.includes("libraryGateOpen") && hangulPage.includes("hangulGateOpen") && hangulPage.includes("soundChangeGateOpen") && vocabularyPage.includes("siblingLocked") && grammarPage.includes("siblingLocked"), "unpaginated and current-page library siblings should conceal answer-space chrome while any same-page gate is open");
+assert(hangulPage.includes("!libraryGateOpen") && hangulPage.includes("data-syllable-labs") && hangulPage.includes("syllableLabs.map"), "hangul syllable labs should hide distinctive hangul while a library gate is open");
+assert(masteryGateSource.includes("setMissingAudioEvidence(false)") && masteryGateSource.includes("setLastScore(null)") && masteryGateSource.includes("换一组再试"), "MasteryGate retry should clear skipped-audio evidence before the next attempt");
+assert(vocabularyPage.includes("visibleLibraryGateItemId(gateItemId, visibleVocab)") && grammarPage.includes("visibleLibraryGateItemId(gateItemId, visiblePoints)"), "vocab and grammar filters should drop an orphaned mastery gate instead of concealing the remaining list");
+assert(!/MasteryGate[\s\S]{0,180}title=\{/.test(vocabularyPage) && !/MasteryGate[\s\S]{0,180}title=\{/.test(hangulPage) && !/MasteryGate[\s\S]{0,180}title=\{/.test(grammarPage), "library MasteryGate calls should not pass a spoiling title");
+assert(globalsCss.includes("--next-episode-clearance") && globalsCss.includes("scroll-padding-bottom") && globalsCss.includes("scroll-margin-bottom: var(--next-episode-clearance)"), "the floating next-episode bar should reserve scroll clearance for drill and mastery actions");
+assert(globalsCss.includes(".drill-sheet") && globalsCss.includes("padding-bottom: var(--next-episode-clearance)") && globalsCss.includes(".editorial-shell:has(.drill-sheet)"), "in-progress drill sheets should keep real bottom padding above the next-episode play control, including desktop");
+assert(/\.next-episode__play\s*\{[\s\S]*order:\s*-1/.test(globalsCss), "next-episode play should sit on the leading edge so it does not cover right-aligned drill CTAs");
+assert(/@media \(max-width: 1023px\)[\s\S]*\.next-episode__play\s*\{[\s\S]*order:\s*1/.test(globalsCss), "full-bleed next-episode play should sit in the center so it does not cover 上一题 or right-aligned drill CTAs");
+assert(globalsCss.includes(".next-episode") && globalsCss.includes("pointer-events: none") && globalsCss.includes(".next-episode__play") && globalsCss.includes("pointer-events: auto"), "next-episode chrome should not steal pointer events outside the play control");
+assert(smokeBrowser.includes("async function clickAction"), "browser smoke should route overlay-prone DrillRunner clicks through clickAction");
+assert(smokeBrowser.includes("async function assertUnforcedDrillCta") && smokeBrowser.includes("async function assertUnforcedPlayControl"), "browser smoke should hit-test drill CTAs and next-episode play without force");
+assert(smokeBrowser.includes('assertUnforcedDrillCta(quizAutoSavePage, "上一题", "short-phone-390 quiz")'), "browser smoke should unforced hit-test enabled 上一题 on a short phone");
+const smokeWithoutClickActionImpl = smokeBrowser.replace(/async function clickAction\(locator\) \{[\s\S]*?\n\}/, "");
+const leftoverDrillClicks = [...smokeWithoutClickActionImpl.matchAll(/await ([^;\n]+)\.click\((?:\{ force: true \})?\)/g)]
+  .map((match) => match[1])
+  .filter((expr) =>
+    /name: "(提交|下一题|交卷|跳过音频题|完成课程|查看结果|结束复习|重新记录成绩|结束重练)"/.test(expr)
+    || /name: finishLabel/.test(expr)
+    || /skipAudio$/.test(expr.trim())
+  );
+assert(leftoverDrillClicks.length === 0, `browser smoke still has bare DrillRunner clicks: ${leftoverDrillClicks.join(", ")}`);
 const speechSource = readFileSync("src/lib/speech.js", "utf8");
 assert(speechSource.includes("kirina.speech.v1") && learningStorageSource.includes("kirina.speech.v1") && learningBackupSource.includes("normalizeSpeechSettings"), "speech settings key should be declared in speech.js, storage keys, and backup normalization");
 assert(speechSource.includes("ensureVoicesReady") && speechSource.includes("voiceschanged"), "speech should wait for voices to load before first playback");
@@ -861,6 +892,17 @@ assert(quizSource.includes("prioritizeWeakPracticeQuestions") && quizSource.incl
 assert(reviewPage.includes("kirina:learning-batch") && reviewPage.includes("StorageEvent") && reviewPage.includes("REVIEW_STORAGE_REFRESH_KEYS"), "review page should rebuild its frozen due queue after backup/reset or cross-tab storage changes");
 assert(reviewPage.includes('"kirina:learning"') && reviewPage.includes("reviewRefreshEventMatches") && reviewPage.includes("nextDueAt"), "review page should refresh empty queues for same-tab learning events and future due-card rollovers without disrupting an active queue");
 assert(reviewPage.includes("LEARNING_REFRESH_EVENT_TYPES") && reviewPage.includes("questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)"), "review page should skip remounting an active queue for same-tab, batch, and cross-tab learning refreshes");
+assert(reviewPage.includes('event.type === "storage" || event.type === "kirina:learning-batch"') && reviewPage.includes("setQueueChanged(true)"), "active review should surface the reload banner for backup batch and cross-tab storage, not same-tab grading");
+assert(smokeBrowser.includes("an active review queue should surface the reload banner after a same-tab learning-batch import"), "browser smoke should expect the queue-changed banner after an active-queue same-tab batch refresh");
+assert(smokeBrowser.includes("an active review queue should stay silent for same-tab kirina:learning grading events"), "browser smoke should keep own grading events from flipping the active-queue reload banner");
+assert(smokeBrowser.includes("a stale mistakes-retrain snapshot cannot be graded twice after an external update"), "browser smoke should refuse a stale mistakes-retrain card snapshot without a second SRS bump");
+assert(smokeBrowser.includes("mistakes retrain should conceal the SRS answer token in notebook chrome while DrillRunner is live"), "browser smoke should lock mistakes-retrain notebook chrome against open-book answer tokens");
+assert(smokeBrowser.includes("assertMasteryGateChromeDoesNotSpoil") && smokeBrowser.includes("assertLibrarySiblingChromeDoesNotSpoil") && smokeBrowser.includes("assertHangulSyllableLabsDoNotSpoil") && smokeBrowser.includes("vocab gate") && smokeBrowser.includes("hangul gate") && smokeBrowser.includes("pronunciation gate") && smokeBrowser.includes("sound-change gate"), "browser smoke should lock MasteryGate chrome, sibling TrackRows, and hangul syllable labs against open-book spoilers");
+assert(reviewPage.includes("pinReviewAttempt") && reviewPage.includes("questionsForReviewAttempt") && reviewPage.includes("cardsForReviewAttempt") && reviewPage.includes("liveQuestions") && reviewPage.includes("liveDueCards"), "review page should pin the due question list and card lookup for the current session instead of re-deriving them under DrillRunner");
+assert(quizPage.includes("pinQuizAttempt") && quizPage.includes("questionsForQuizAttempt") && quizPage.includes("liveQuestions"), "quiz page should pin the built question list for the current attempt seed instead of reshuffling under DrillRunner");
+assert(quizSource.includes("export function pinQuizAttempt") && quizSource.includes("export function questionsForQuizAttempt"), "progress quiz helpers should freeze an attempt until the seed changes");
+assert(quizSource.includes("export function pinReviewAttempt") && quizSource.includes("export function questionsForReviewAttempt") && quizSource.includes("export function cardsForReviewAttempt"), "review helpers should freeze an in-flight queue until the session seed changes");
+assert(immersionPage.includes("landingId") && immersionPage.includes("if (!requestedMaterialId) return") && immersionPage.includes("resolveImmersionActiveMaterialId"), "immersion should pin the landing material and ignore empty query fallback to a drifting default");
 assert(lessonClientSource.includes("savingRef") && lessonClientSource.includes("handleSave") && lessonClientSource.includes("重新保存"), "lesson result actions should latch in-flight saves and still allow retry after an error");
 assert(pageHeaderSource.includes("compact = false"), "PageHeader should keep a compact variant for tool-like module pages");
 assert(pageHeaderSource.includes('compact ? "text-[clamp(2.25rem,5vw,4.4rem)]"'), "PageHeader compact variant should preserve a responsive H1 hierarchy above module hero headings");
@@ -902,7 +944,10 @@ assert(reviewPage.includes('href="/mistakes"'), "review page should expose a dir
 assert(reviewPage.includes('"/path"') && reviewPage.includes('href="/vocabulary"') && reviewPage.includes("继续路径") && reviewPage.includes("积累词汇") && reviewPage.includes("先去入门") && reviewPage.includes("先补韩文"), "empty review state should offer evidence-building actions instead of a quiz loop");
 assert(mistakesPage.includes("buildMistakeInsights") && mistakesPage.includes("summarizeMistakes"), "mistake notebook should derive weak points from normalized SRS cards");
 assert(mistakesPage.includes("removeMistakeCardAndPracticeItem") && mistakesPage.includes('href="/review"'), "mistake notebook should let learners remove handled mistakes and return to review");
-assert(mistakesPage.includes("buildRetrainQuestions") && mistakesPage.includes("<DrillRunner") && mistakesPage.includes("gradeReviewCardAndProgress"), "mistake notebook should retrain selected mistakes in place and grade them through the shared review pipeline");
+assert(mistakesPage.includes("buildRetrainQuestions") && mistakesPage.includes("<DrillRunner") && mistakesPage.includes("pinReviewAttempt") && mistakesPage.includes("cardsForReviewAttempt") && mistakesPage.includes("submitReviewCardAndProgress"), "mistake notebook should retrain selected mistakes in place and grade a session-frozen card snapshot through the shared review pipeline");
+assert(mistakesPage.includes("allowEarly: true") && mistakesPage.includes('reason === "storage"') && mistakesPage.includes('reason === "missing"') && mistakesPage.includes("未重复计分"), "mistake retrain should still allow early grading against the frozen snapshot and distinguish storage, missing, and stale failures");
+assert(mistakesPage.includes("retrainConcealment") && mistakesPage.includes("retrainQuestionIds") && mistakesPage.includes("inRetrainIds.has(item.id)"), "mistake notebook should conceal in-attempt TrackRow chrome while directed retrain is live");
+assert(gateSource.includes("实际读作哪一个？") && !gateSource.includes("${rule.title}（${rule.korean}）：${first.written}"), "sound-change gate Q1 must not print the rule name that Q2 scores");
 assert(hangulPage.includes("<MasteryGate") && hangulPage.includes("测一测"), "hangul page should gate mastery behind a quick check instead of a bare toggle");
 assert(vocabularyPage.includes("<MasteryGate") && vocabularyPage.includes("测一测"), "vocabulary page should gate mastery behind a quick check instead of a bare toggle");
 assert(grammarPage.includes("<MasteryGate") && grammarPage.includes("测一测"), "grammar page should gate mastery behind a quick check instead of a bare toggle");

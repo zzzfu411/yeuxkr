@@ -11,11 +11,11 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
 import { firstHangul } from "@/lib/learning/player";
-import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
-import type { Question } from "@/lib/learning/quiz";
-import { getSrsStateFromRaw } from "@/lib/learning/srs";
+import { buildMistakeInsights, buildRetrainQuestions, retrainConcealment, retrainQuestionIds, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
+import { cardsForReviewAttempt, pinReviewAttempt, questionsForReviewAttempt, type Question, type ReviewAttemptSnapshot } from "@/lib/learning/quiz";
+import { getSrsStateFromRaw, type SrsCard } from "@/lib/learning/srs";
 import { STORAGE_KEYS, useClientNow, useStorageRaw } from "@/lib/learning/storage";
-import { gradeReviewCardAndProgress, removeMistakeCardAndPracticeItem } from "@/lib/learning/workspace";
+import { removeMistakeCardAndPracticeItem, submitReviewCardAndProgress } from "@/lib/learning/workspace";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 export default function MistakesPage() {
@@ -26,22 +26,36 @@ export default function MistakesPage() {
   const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
   const [retrainSession, setRetrainSession] = useState(0);
   const [retrainError, setRetrainError] = useState("");
+  const [pinnedRetrain, setPinnedRetrain] = useState<ReviewAttemptSnapshot<Question, SrsCard> | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
   const insights = useMemo(() => buildMistakeInsights(srsState, now), [srsState, now]);
   const summary = useMemo(() => summarizeMistakes(srsState, now), [srsState, now]);
   const urgent = insights.slice(0, 4);
   const dueIds = useMemo(() => insights.filter((item) => item.due).map((item) => item.id), [insights]);
+  const pinnedQuestions = questionsForReviewAttempt(pinnedRetrain, retrainSession, retrainQuestions ?? []);
+  const pinnedCards = cardsForReviewAttempt(pinnedRetrain, retrainSession, []);
+  const inRetrainIds = useMemo(() => retrainQuestionIds(retrainQuestions ? pinnedQuestions : null), [pinnedQuestions, retrainQuestions]);
 
   const handleRemove = (id: string) => {
     setStatus(removeMistakeCardAndPracticeItem(id) ? "removed" : "error");
   };
 
+  const stopRetrain = () => {
+    setRetrainQuestions(null);
+    setPinnedRetrain(null);
+  };
+
   const startRetrain = (ids: string[] | null) => {
     const questions = buildRetrainQuestions(srsState, ids, ids?.length ?? 8);
+    const cards = questions
+      .map((question) => srsState.cards[question.id])
+      .filter((card): card is SrsCard => Boolean(card));
+    const nextSession = retrainSession + 1;
     setRetrainError(questions.length ? "" : "这些错题缺少可重练的题面。");
-    setRetrainSession((value) => value + 1);
+    setRetrainSession(nextSession);
     setRetrainQuestions(questions.length ? questions : null);
+    setPinnedRetrain(questions.length ? pinReviewAttempt(null, nextSession, questions, cards) : null);
   };
 
   return (
@@ -96,25 +110,28 @@ export default function MistakesPage() {
             title="错题定向重练"
             copy="做对后，这张卡会晚些再出现；做错后，它会更早回来。"
             action={
-              <Button type="button" variant="secondary" size="sm" onClick={() => setRetrainQuestions(null)}>
+              <Button type="button" variant="secondary" size="sm" onClick={stopRetrain}>
                 退出重练
               </Button>
             }
           />
           <DrillRunner
             key={retrainSession}
-            questions={retrainQuestions}
+            questions={pinnedQuestions}
             finishLabel="结束重练"
             recordMistakes={false}
             onAnswer={(entry) => {
-              const card = srsState.cards[entry.question.id];
-              if (!card || !gradeReviewCardAndProgress(card, entry.correct, { allowEarly: true, skipped: Boolean(entry.skipped) })) {
-                setRetrainError("这张卡片没有保存到复习进度。请释放浏览器空间后再继续。");
+              const card = pinnedCards.find((item) => item.id === entry.question.id);
+              const result = card
+                ? submitReviewCardAndProgress(card, entry.correct, { allowEarly: true, skipped: Boolean(entry.skipped) })
+                : { ok: false as const, reason: "missing" as const };
+              if (result.ok === false) {
+                setRetrainError(retrainCommitError(result.reason));
                 return false;
               }
               setRetrainError("");
             }}
-            onFinish={() => setRetrainQuestions(null)}
+            onFinish={stopRetrain}
           />
         </Surface>
       ) : null}
@@ -141,6 +158,7 @@ export default function MistakesPage() {
                   item={item}
                   now={now}
                   expanded={!collapsed[item.id]}
+                  inRetrain={inRetrainIds.has(item.id)}
                   onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                   onRemove={handleRemove}
                   onRetrain={(id) => startRetrain([id])}
@@ -226,6 +244,7 @@ function MistakeCard({
   item,
   now,
   expanded,
+  inRetrain,
   onExpand,
   onRemove,
   onRetrain
@@ -234,6 +253,7 @@ function MistakeCard({
   item: MistakeInsight;
   now: number;
   expanded: boolean;
+  inRetrain: boolean;
   onExpand: () => void;
   onRemove: (id: string) => void;
   onRetrain: (id: string) => void;
@@ -244,12 +264,13 @@ function MistakeCard({
       glyph={firstHangul(item.prompt, "오")}
       kicker={item.sourceLabel}
       title={item.prompt}
-      detail={`正确答案：${item.answer}`}
+      detail={inRetrain ? undefined : `正确答案：${item.answer}`}
       meta={item.statusLabel}
-      expanded={expanded}
-      onToggle={onExpand}
-      onPlay={() => onRetrain(item.id)}
+      expanded={inRetrain ? false : expanded}
+      onToggle={inRetrain ? undefined : onExpand}
+      onPlay={inRetrain ? undefined : () => onRetrain(item.id)}
       playLabel={`重练 ${item.prompt}`}
+      {...retrainConcealment(inRetrain)}
     >
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -305,6 +326,16 @@ function PlanStep({ index, title, detail, href }: { index: number; title: string
       href={href}
     />
   );
+}
+
+function retrainCommitError(reason: "missing" | "stale" | "not-due" | "storage") {
+  if (reason === "storage") {
+    return "这张卡片没有保存到复习进度。请检查浏览器存储权限和剩余空间，再重试。";
+  }
+  if (reason === "missing") {
+    return "这张卡片已被移除，本次答案未计分。";
+  }
+  return "这张卡片已被更新或推迟，本次答案未重复计分。";
 }
 
 function dueLabel(item: MistakeInsight, now: number) {

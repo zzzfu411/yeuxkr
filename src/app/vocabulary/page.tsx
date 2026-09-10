@@ -9,6 +9,7 @@ import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
+import { gateConcealment, visibleLibraryGateItemId } from "@/lib/learning/gate";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
@@ -49,6 +50,8 @@ export default function VocabularyPage() {
   }, [categoryFilter, learned, levelFilter, onlyLearned, query]);
   const pagination = useLibraryPage(filteredVocab, JSON.stringify([query, levelFilter, categoryFilter, onlyLearned]), 12);
   const visibleVocab = pagination.items;
+  const visibleGateItemId = visibleLibraryGateItemId(gateItemId, visibleVocab);
+  if (visibleGateItemId !== gateItemId) setGateItemId(visibleGateItemId);
   const byLevel = groupBy(visibleVocab, "level");
   const levelCounts = countBy(filteredVocab, "level");
   const categoryCounts = countBy(filteredVocab, "category");
@@ -142,7 +145,10 @@ export default function VocabularyPage() {
         <Surface key={level.id} variant="plain" className={(byLevel[level.id] ?? []).length ? "" : "hidden"}>
           <SectionHeading kicker={`显示 ${byLevel[level.id]?.length ?? 0} · 匹配 ${levelCounts[level.id] ?? 0} · 长期目标 ${level.target}`} title={level.label} copy={level.description} />
           <div>
-            {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => (
+            {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => {
+              const gating = visibleGateItemId === item.id && !learned.has(item.id);
+              const siblingLocked = Boolean(visibleGateItemId) && !gating;
+              return (
               <TrackRow
                 key={item.id}
                 index={itemIndex + 1}
@@ -152,11 +158,25 @@ export default function VocabularyPage() {
                 detail={item.meaning}
                 meta={item.pos ? (vocabPosLabels[item.pos] ?? item.pos) : undefined}
                 completed={learned.has(item.id)}
-                expanded={!collapsed[item.id]}
-                onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                expanded={gating || (!siblingLocked && !collapsed[item.id])}
+                onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.korean)}
                 playLabel={`播放 ${item.korean}`}
+                {...gateConcealment("vocab", Boolean(visibleGateItemId))}
               >
+                {gating ? (
+                  <MasteryGate
+                    kind="vocab"
+                    itemId={item.id}
+                    onPassed={() => {
+                      const saved = ensureVocabSrs(item.id);
+                      if (saved) setGateItemId("");
+                      return saved;
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : (
+                  <>
                 <RomanizationText
                   text={item.romanization}
                   preference={workspace.profile.romanization}
@@ -193,29 +213,19 @@ export default function VocabularyPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    aria-expanded={gateItemId === item.id}
+                    aria-expanded={visibleGateItemId === item.id}
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
                   >
                     测一测，再加入复习
                   </Button>
                 )}
-                {gateItemId === item.id && !learned.has(item.id) ? (
-                  <MasteryGate
-                    kind="vocab"
-                    itemId={item.id}
-                    title={item.korean}
-                    onPassed={() => {
-                      const saved = ensureVocabSrs(item.id);
-                      if (saved) setGateItemId("");
-                      return saved;
-                    }}
-                    onClose={() => setGateItemId("")}
-                  />
-                ) : null}
                 {srsErrorId === item.id ? <SrsError /> : null}
+                  </>
+                )}
               </TrackRow>
-            ))}
+              );
+            })}
           </div>
         </Surface>
       ))}

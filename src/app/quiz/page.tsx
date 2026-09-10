@@ -8,7 +8,7 @@ import { LearningCompass } from "@/components/learning/learning-compass";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, Surface } from "@/components/ui/section";
-import { buildProgressQuiz } from "@/lib/learning/quiz";
+import { buildProgressQuiz, pinQuizAttempt, questionsForQuizAttempt, type Question, type QuizAttemptSnapshot } from "@/lib/learning/quiz";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { commitQuizSession } from "@/lib/learning/workspace";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
@@ -27,7 +27,16 @@ export default function QuizPage() {
   const [seed, setSeed] = useState(1);
   const [saveError, setSaveError] = useState("");
   const [savedQuizId, setSavedQuizId] = useState("");
-  const questions = useMemo(() => buildProgressQuiz(workspace.progress, 10, seed, outputEntries, srsState), [workspace.progress, seed, outputEntries, srsState]);
+  const [pinnedAttempt, setPinnedAttempt] = useState<QuizAttemptSnapshot<Question> | null>(null);
+  const liveQuestions = useMemo(
+    () => buildProgressQuiz(workspace.progress, 10, seed, outputEntries, srsState),
+    [workspace.progress, seed, outputEntries, srsState]
+  );
+  const nextPinned = pinQuizAttempt(pinnedAttempt, seed, liveQuestions);
+  if (nextPinned !== pinnedAttempt) {
+    setPinnedAttempt(nextPinned);
+  }
+  const questions = questionsForQuizAttempt(nextPinned, seed, liveQuestions);
   const quizId = `mixed:${seed}`;
   const nextQuiz = () => {
     setSaveError("");

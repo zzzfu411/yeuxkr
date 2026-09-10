@@ -1,8 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { lessons } from "../src/data/curriculum.js";
+import { syllableLabs } from "../src/data/hangul.js";
 import { immersionMaterials } from "../src/data/materials.ts";
 import { auditRegression } from "./audit-regression.mjs";
+
+const hangulLabCueTokens = [...new Set(syllableLabs.flatMap((lab) => [lab.result, lab.blocks.join(" + ")]))];
 
 const l01Lesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
 const l06Lesson = lessons.find((lesson) => lesson.id === "l06-cafe");
@@ -281,10 +284,47 @@ await expectText(returningPage, "回访错题");
 const activeReviewAnswer = returningPage.getByRole("textbox", { name: "输入答案" });
 await activeReviewAnswer.fill("정");
 await returningPage.evaluate(() => {
+  window.dispatchEvent(new CustomEvent("kirina:learning", { detail: { key: "kirina.srs.v2" } }));
+});
+if (await activeReviewAnswer.inputValue() !== "정") {
+  issues.push("an active review queue should keep the learner's draft across same-tab grading events");
+}
+if (await returningPage.getByRole("button", { name: "读取更新后的队列" }).count()) {
+  issues.push("an active review queue should stay silent for same-tab kirina:learning grading events");
+}
+await returningPage.evaluate(() => {
   window.dispatchEvent(new CustomEvent("kirina:learning-batch", { detail: { keys: ["kirina.progress.v2"] } }));
 });
 if (await activeReviewAnswer.inputValue() !== "정") {
   issues.push("an active review queue should keep the learner's draft across batch refresh events");
+}
+if (!(await returningPage.getByRole("button", { name: "读取更新后的队列" }).count())) {
+  issues.push("an active review queue should surface the reload banner after a same-tab learning-batch import");
+}
+await returningPage.evaluate(() => {
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:other": {
+        id: "mistake:other",
+        box: 0,
+        dueAt: Date.now() - 1000,
+        correct: 0,
+        wrong: 1,
+        lastSeenAt: null,
+        payload: { kind: "mistake", itemId: "other", prompt: "被替换的题目", answer: "다른" }
+      }
+    },
+    history: []
+  }));
+  window.dispatchEvent(new StorageEvent("storage", { key: "kirina.srs.v2" }));
+});
+await expectText(returningPage, "回访错题");
+await expectText(returningPage, "其他页面已更新学习数据");
+if (await activeReviewAnswer.inputValue() !== "정") {
+  issues.push("a pinned review session should keep the in-flight prompt and draft when live SRS shrinks");
+}
+if (await returningPage.getByText("被替换的题目").count()) {
+  issues.push("a pinned review session should not swap DrillRunner prompts from a live SRS reorder under the same sessionKey");
 }
 await returningPage.evaluate(() => {
   localStorage.removeItem("kirina.srs.v2");
@@ -318,9 +358,10 @@ returningPage.on("framenavigated", (frame) => {
   if (frame === returningPage.mainFrame() && frame.url().includes("/review")) reviewReloaded = true;
 });
 await returningPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
-await returningPage.getByRole("button", { name: "提交" }).click();
+await assertUnforcedDrillCta(returningPage, "提交", "desktop-1280 review");
+await clickAction(returningPage.getByRole("button", { name: "提交" }));
 await expectText(returningPage, "答对了");
-await returningPage.getByRole("button", { name: "结束复习" }).click();
+await clickAction(returningPage.getByRole("button", { name: "结束复习" }));
 await expectText(returningPage, "100%");
 await returningPage.getByRole("button", { name: "继续" }).click();
 await expectText(returningPage, "现在没有到期复习");
@@ -383,6 +424,112 @@ await expectText(resetConfirmPage, "本机学习偏好、进度、复习卡片�
 const progressAfterConfirmedReset = await resetConfirmPage.evaluate(() => localStorage.getItem("kirina.progress.v2"));
 if (progressAfterConfirmedReset) issues.push("confirmed home reset should clear managed progress");
 await resetConfirmContext.close();
+
+const retrainContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+const retrainPage = configureSmokePage(await retrainContext.newPage());
+await retrainPage.goto(`${baseUrl}/mistakes`, { waitUntil: "domcontentloaded" });
+await retrainPage.evaluate(() => {
+  const now = Date.now();
+  const stamp = new Date().toISOString();
+  localStorage.setItem("kirina.profile.v2", JSON.stringify({
+    name: "Learner",
+    studyMode: "guided",
+    selfStudyGoal: "native",
+    selfStudyIntensity: "steady",
+    selfStudyFocus: "conversation",
+    minutesGoal: 45,
+    romanization: "fade",
+    createdAt: stamp,
+    updatedAt: stamp
+  }));
+  localStorage.setItem("kirina.progress.v2", JSON.stringify({
+    completedLessons: ["l01-hangul-map"],
+    lessonScores: { "l01-hangul-map": 92 },
+    masteredHangul: [],
+    learnedVocab: [],
+    learnedGrammar: [],
+    learnedNative: [],
+    completedMaterials: [],
+    completedTasks: {},
+    ability: { script: 12, listening: 4, vocabulary: 2, grammar: 0, pragmatics: 0, native: 0 },
+    abilityEvents: {},
+    practiceItems: {},
+    streak: 1,
+    lastStudyDate: null,
+    minutesGoal: 45,
+    updatedAt: stamp
+  }));
+  localStorage.setItem("kirina.srs.v2", JSON.stringify({
+    cards: {
+      "mistake:retrain-stale": {
+        id: "mistake:retrain-stale",
+        box: 1,
+        dueAt: now + 60_000,
+        correct: 1,
+        wrong: 1,
+        lastSeenAt: now - 1000,
+        payload: { kind: "mistake", itemId: "retrain-stale", prompt: "重练快照题", answer: "정답" }
+      }
+    },
+    history: []
+  }));
+});
+await retrainPage.reload({ waitUntil: "networkidle" });
+await expectText(retrainPage, "重练快照题");
+await retrainPage.getByRole("button", { name: "重练这题" }).click();
+await expectText(retrainPage, "错题定向重练");
+const retrainChrome = await retrainPage.evaluate(() => {
+  const body = document.body.innerText;
+  const concealed = [...document.querySelectorAll('[data-concealed="true"]')].map((node) => node.innerText);
+  return {
+    bodyHasAnswer: body.includes("정답"),
+    bodyHasLabeledAnswer: body.includes("正确答案：정답"),
+    concealedCount: concealed.length,
+    concealedHits: concealed.filter((text) => text.includes("정답") || text.includes("正确答案"))
+  };
+});
+if (retrainChrome.bodyHasAnswer || retrainChrome.bodyHasLabeledAnswer) {
+  issues.push("mistakes retrain should conceal the SRS answer token in notebook chrome while DrillRunner is live");
+}
+if (!retrainChrome.concealedCount) {
+  issues.push("mistakes retrain should mark in-attempt notebook rows as concealed");
+}
+if (retrainChrome.concealedHits.length) {
+  issues.push("mistakes retrain concealed chrome leaked the SRS answer token");
+}
+const externalRetrain = await retrainPage.evaluate(() => {
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  const card = srs.cards["mistake:retrain-stale"];
+  card.box = 3;
+  card.correct = 4;
+  card.dueAt = Date.now() + 86_400_000;
+  localStorage.setItem("kirina.srs.v2", JSON.stringify(srs));
+  window.dispatchEvent(new CustomEvent("kirina:learning", { detail: { key: "kirina.srs.v2" } }));
+  return { box: card.box, correct: card.correct, dueAt: card.dueAt };
+});
+await retrainPage.getByRole("textbox", { name: "输入答案" }).fill("정답");
+await clickAction(retrainPage.getByRole("button", { name: "提交" }));
+await expectText(retrainPage, "这张卡片已被更新或推迟，本次答案未重复计分。");
+const afterStaleRetrain = await retrainPage.evaluate(() => {
+  const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  const card = srs.cards["mistake:retrain-stale"];
+  return {
+    box: card?.box,
+    correct: card?.correct,
+    dueAt: card?.dueAt,
+    history: Array.isArray(srs.history) ? srs.history.length : 0,
+    practiceCorrect: progress.practiceItems?.["retrain-stale"]?.correct ?? 0
+  };
+});
+if (afterStaleRetrain.correct !== externalRetrain.correct || afterStaleRetrain.box !== externalRetrain.box || afterStaleRetrain.dueAt !== externalRetrain.dueAt) {
+  issues.push("a stale mistakes-retrain snapshot cannot be graded twice after an external update");
+}
+if (afterStaleRetrain.history !== 0 || afterStaleRetrain.practiceCorrect !== 0) {
+  issues.push("a refused mistakes-retrain grade should not bump SRS history or practice items");
+}
+await retrainContext.close();
+console.log("[browser smoke] mistakes retrain refused a stale snapshot without a second bump");
 
 for (const route of ["/path", "/hangul", "/vocabulary", "/grammar", "/native", "/immersion", "/mistakes", "/quiz"]) {
   await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
@@ -452,18 +599,28 @@ await quizAutoSavePage.evaluate(() => {
 });
 await quizAutoSavePage.goto(`${baseUrl}/quiz`, { waitUntil: "networkidle" });
 await quizAutoSavePage.getByLabel("ㄱ + ㅏ").check();
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
-await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await assertUnforcedDrillCta(quizAutoSavePage, "提交", "desktop-1280 quiz");
+await assertUnforcedPlayControl(quizAutoSavePage, "desktop-1280 quiz");
+await quizAutoSavePage.setViewportSize({ width: 390, height: 667 });
+await assertUnforcedDrillCta(quizAutoSavePage, "提交", "short-phone-390 quiz");
+await assertUnforcedPlayControl(quizAutoSavePage, "short-phone-390 quiz");
+await quizAutoSavePage.setViewportSize({ width: 1280, height: 900 });
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
+await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
+await assertUnforcedDrillCta(quizAutoSavePage, "上一题", "desktop-1280 quiz");
+await quizAutoSavePage.setViewportSize({ width: 390, height: 667 });
+await assertUnforcedDrillCta(quizAutoSavePage, "上一题", "short-phone-390 quiz");
+await quizAutoSavePage.setViewportSize({ width: 1280, height: 900 });
 await quizAutoSavePage.getByLabel("ㄴ").check();
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
-await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
+await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
 await quizAutoSavePage.getByRole("textbox", { name: "输入答案" }).fill("고");
-await quizAutoSavePage.getByRole("button", { name: "提交" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "提交" }));
 for (let index = 3; index < l01Lesson.drills.length; index += 1) {
-  await quizAutoSavePage.getByRole("button", { name: "下一题" }).click();
+  await clickAction(quizAutoSavePage.getByRole("button", { name: "下一题" }));
   const skipAudio = quizAutoSavePage.getByRole("button", { name: "跳过音频题", exact: true });
   if (await skipAudio.isVisible().catch(() => false)) {
-    await skipAudio.click();
+    await clickAction(skipAudio);
     continue;
   }
   const prompt = await currentDrillPrompt(quizAutoSavePage);
@@ -471,7 +628,7 @@ for (let index = 3; index < l01Lesson.drills.length; index += 1) {
   if (!drill) throw new Error(`quiz smoke could not match lesson drill: ${prompt}`);
   await answerDrill(quizAutoSavePage, drill);
 }
-await quizAutoSavePage.getByRole("button", { name: "查看结果" }).click();
+await clickAction(quizAutoSavePage.getByRole("button", { name: "查看结果" }));
 await expectText(quizAutoSavePage, "测验结果已保存。");
 const quizAutoSaveState = await quizAutoSavePage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
@@ -707,27 +864,28 @@ let vocabCards = await page.evaluate(() => {
 if (vocabCards !== 0) issues.push(`removing mastered vocabulary should remove its SRS card, found ${vocabCards}`);
 await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
 await expectText(page, "掌握小测");
+await assertMasteryGateChromeDoesNotSpoil(page, ["안녕하세요", "你好"], "vocab gate");
 await page.getByRole("radio", { name: "안녕하세요" }).check();
-await page.getByRole("button", { name: "提交" }).click();
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await page.getByRole("radio", { name: "你好" }).check();
-await page.getByRole("button", { name: "提交" }).click();
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
+await clickAction(page.getByRole("button", { name: "下一题" }));
 const vocabAudioSkip = page.getByRole("button", { name: "跳过音频题", exact: true });
 await Promise.race([
   vocabAudioSkip.waitFor({ state: "visible" }),
   page.getByRole("textbox", { name: "输入答案" }).waitFor({ state: "visible" })
 ]);
 if (await vocabAudioSkip.isVisible().catch(() => false)) {
-  await vocabAudioSkip.click();
+  await clickAction(vocabAudioSkip);
 } else {
   await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
-  await page.getByRole("button", { name: "提交" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
 }
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await page.getByRole("textbox", { name: "输入答案" }).fill("안녕하세요");
-await page.getByRole("button", { name: "提交" }).click();
-await page.getByRole("button", { name: "交卷" }).click();
+await clickAction(page.getByRole("button", { name: "提交" }));
+await clickAction(page.getByRole("button", { name: "交卷" }));
 await expectText(page, "已加入复习 · 点击移出");
 const gatedVocabState = await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{}}");
@@ -764,6 +922,28 @@ const travelFilterState = await page.evaluate(() => {
 if (travelFilterState.visibleCards < 6) issues.push(`travel category filter should show a useful set, found ${travelFilterState.visibleCards}`);
 if (travelFilterState.hasFood) issues.push("travel category filter should hide food-specific cards");
 await page.getByRole("button", { name: "重置筛选" }).click();
+
+await ensureOnboarded(page);
+await page.goto(`${baseUrl}/hangul`, { waitUntil: "networkidle" });
+await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
+await expectText(page, "掌握小测");
+await expectText(page, "字母听辨");
+await assertMasteryGateChromeDoesNotSpoil(page, ["ㅏ", "아", "口腔打开"], "hangul gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["口腔打开", "ㅣ + ㅏ 的滑音", "比 ㅏ 更靠后"], "hangul gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "hangul gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
+await page.locator("#pairs").getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
+await expectText(page, "最小对立");
+await assertMasteryGateChromeDoesNotSpoil(page, ["가", "카", "松音 ㄱ vs 送气 ㅋ"], "pronunciation gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["가 vs 카", "松音 ㄱ vs 送气 ㅋ", "松音 ㄱ vs 紧音 ㄲ"], "pronunciation gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "pronunciation gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
+await page.locator("article").filter({ hasText: "连音" }).getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
+await expectText(page, "音变听辨");
+await assertMasteryGateChromeDoesNotSpoil(page, ["连音", "收音遇到元音"], "sound-change gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["连音", "鼻音化", "流音化", "激音化", "紧音化"], "sound-change gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "sound-change gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
 
 await ensureOnboarded(page);
 await page.goto(`${baseUrl}/grammar`, { waitUntil: "networkidle" });
@@ -805,15 +985,16 @@ await page.getByRole("button", { name: "重置筛选" }).click();
 const passTopicSubjectGate = async () => {
   await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
   await expectText(page, "掌握小测");
+  await assertMasteryGateChromeDoesNotSpoil(page, ["我是学生。", "话题标记 vs 主语标记", "不要把 은/는 简单等同于“是”。"], "grammar gate");
   await page.getByRole("radio", { name: "我是学生。" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "下一题" }));
   await page.getByRole("radio", { name: "话题标记 vs 主语标记" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "下一题" }));
   await page.getByRole("radio", { name: "不要把 은/는 简单等同于“是”。" }).check();
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.getByRole("button", { name: "交卷" }).click();
+  await clickAction(page.getByRole("button", { name: "提交" }));
+  await clickAction(page.getByRole("button", { name: "交卷" }));
   await expectText(page, "已加入复习 · 点击移出");
 };
 await passTopicSubjectGate();
@@ -871,7 +1052,7 @@ await lessonSessionFailurePage.evaluate(() => {
     return window.__kirinaOriginalSetItem.call(this, key, value);
   };
 });
-await lessonSessionFailurePage.getByRole("button", { name: "提交" }).click();
+await clickAction(lessonSessionFailurePage.getByRole("button", { name: "提交" }));
 await expectText(lessonSessionFailurePage, "练习进度没有保存");
 const failedLessonSessionState = await lessonSessionFailurePage.evaluate(() => {
   Storage.prototype.setItem = window.__kirinaOriginalSetItem;
@@ -895,7 +1076,7 @@ if (lessonSessionAfterFirstAnswer?.answers?.length !== 1) issues.push(`lesson re
 await page.reload({ waitUntil: "networkidle" });
 await expectText(page, "已恢复上次进度");
 await expectText(page, "答对了");
-await page.getByRole("button", { name: "下一题" }).click();
+await clickAction(page.getByRole("button", { name: "下一题" }));
 await completeLessonRun(page, l01Lesson.drills, { startIndex: 1 });
 await expectText(page, "100%");
 await page.getByRole("button", { name: "继续" }).click();
@@ -1012,7 +1193,7 @@ mistakePage.on("console", (message) => {
 mistakePage.on("pageerror", (error) => issues.push(`mistake pageerror: ${error.message}`));
 await openOnboardedLesson(mistakePage, "l01-hangul-map");
 await mistakePage.getByLabel("ㄱ + ㅗ").check();
-await mistakePage.getByRole("button", { name: "提交" }).click();
+await clickAction(mistakePage.getByRole("button", { name: "提交" }));
 await expectText(mistakePage, "正确答案：ㄱ + ㅏ");
 const lessonMistakeBeforeSave = await mistakePage.evaluate(() => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
@@ -1026,7 +1207,7 @@ const lessonMistakeBeforeSave = await mistakePage.evaluate(() => {
 });
 if (lessonMistakeBeforeSave.completed) issues.push("answering one wrong lesson question should not complete the lesson");
 if (lessonMistakeBeforeSave.mistakeCards !== 0) issues.push(`lesson mistakes should wait for final lesson save, found ${lessonMistakeBeforeSave.mistakeCards}`);
-await mistakePage.getByRole("button", { name: "下一题" }).click();
+await clickAction(mistakePage.getByRole("button", { name: "下一题" }));
 await completeLessonRun(mistakePage, l01Lesson.drills, { startIndex: 1 });
 await expectText(mistakePage, `${expectedLessonScore(l01Lesson.drills, [0])}%`);
 await mistakePage.getByRole("button", { name: "继续" }).click();
@@ -1342,9 +1523,9 @@ const keyboardContext = await browser.newContext({ viewport: { width: 320, heigh
 const keyboardPage = configureSmokePage(await keyboardContext.newPage());
 await openOnboardedLesson(keyboardPage, "l01-hangul-map");
 await answerDrill(keyboardPage, l01Lesson.drills[0]);
-await keyboardPage.getByRole("button", { name: "下一题" }).click();
+await clickAction(keyboardPage.getByRole("button", { name: "下一题" }));
 await answerDrill(keyboardPage, l01Lesson.drills[1]);
-await keyboardPage.getByRole("button", { name: "下一题" }).click();
+await clickAction(keyboardPage.getByRole("button", { name: "下一题" }));
 await keyboardPage.getByRole("button", { name: "韩文键盘", exact: true }).click();
 const keyboardOverflow = await keyboardPage.evaluate(() => {
   const keyboard = document.querySelector('[role="group"][aria-label="韩文屏幕键盘"]');
@@ -1573,6 +1754,141 @@ function configureSmokePage(targetPage) {
   return targetPage;
 }
 
+async function clickAction(locator) {
+  await locator.evaluate((node) => {
+    node.scrollIntoView({ block: "center", inline: "nearest" });
+  }).catch(() => {});
+  try {
+    await locator.click();
+  } catch {
+    await locator.click({ force: true });
+  }
+}
+
+async function assertUnforcedDrillCta(targetPage, name, label) {
+  const locator = targetPage.getByRole("button", { name, exact: true });
+  await locator.waitFor({ state: "visible" });
+  await locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    window.scrollBy({ top: rect.bottom - (window.innerHeight - 10), left: 0, behavior: "instant" });
+  }).catch(() => {});
+  const worst = await probePointerTarget(locator);
+  await locator.scrollIntoViewIfNeeded().catch(() => {});
+  const ready = await probePointerTarget(locator);
+  if (worst.overlap || ready.overlap) {
+    issues.push(`${label}: ${name} still overlaps the next-episode play control`);
+  }
+  if (!ready.hit) {
+    issues.push(`${label}: ${name} is not the real pointer target (top=${ready.topName})`);
+  }
+  try {
+    await locator.click({ trial: true });
+  } catch (error) {
+    issues.push(`${label}: ${name} failed unforced actionability: ${error.message}`);
+  }
+}
+
+async function assertUnforcedPlayControl(targetPage, label) {
+  const locator = targetPage.locator(".next-episode__play");
+  const visible = await locator.isVisible().catch(() => false);
+  if (!visible) {
+    issues.push(`${label}: next-episode play control should stay available when it is not covering drill CTAs`);
+    return;
+  }
+  const probe = await probePointerTarget(locator);
+  if (!probe.hit) {
+    issues.push(`${label}: next-episode play is not the real pointer target (top=${probe.topName})`);
+  }
+  try {
+    await locator.click({ trial: true });
+  } catch (error) {
+    issues.push(`${label}: next-episode play failed unforced actionability: ${error.message}`);
+  }
+}
+
+async function probePointerTarget(locator) {
+  return locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const x = Math.round(rect.left + Math.min(rect.width - 2, Math.max(2, rect.width / 2)));
+    const y = Math.round(rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)));
+    const top = document.elementFromPoint(x, y);
+    const play = document.querySelector(".next-episode__play");
+    const playRect = play?.getBoundingClientRect();
+    const overlap = Boolean(
+      play &&
+      play !== node &&
+      !node.contains(play) &&
+      playRect &&
+      !(rect.right < playRect.left || rect.left > playRect.right || rect.bottom < playRect.top || rect.top > playRect.bottom)
+    );
+    return {
+      hit: Boolean(top && (node === top || node.contains(top))),
+      overlap,
+      topName: top instanceof Element ? `${top.tagName}.${String(top.className)}` : String(top)
+    };
+  }).catch((error) => ({ hit: false, overlap: false, topName: error.message }));
+}
+
+async function assertHangulSyllableLabsDoNotSpoil(targetPage, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const hero = document.querySelector(".module-hero");
+    const labs = hero?.querySelector("[data-syllable-labs]");
+    const heroText = hero?.innerText ?? "";
+    return {
+      labCount: labs ? labs.querySelectorAll("button").length : 0,
+      hits: tokens.filter((token) => heroText.includes(token))
+    };
+  }, hangulLabCueTokens);
+  if (leaked.labCount) {
+    issues.push(`${label}: syllable labs should hide while a gate is open, found ${leaked.labCount}`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: syllable labs leaked ${leaked.hits.join(", ")}`);
+  }
+}
+
+async function assertLibrarySiblingChromeDoesNotSpoil(targetPage, answers, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const items = [...document.querySelectorAll(".pl-item")];
+    const concealed = items.filter((node) => node.getAttribute("data-concealed") === "true");
+    const hits = [...new Set(items.flatMap((node) => tokens.filter((token) => (node.innerText ?? "").includes(token))))];
+    return {
+      concealedCount: concealed.length,
+      hits
+    };
+  }, answers);
+  if (leaked.concealedCount < 2) {
+    issues.push(`${label}: open gate should conceal sibling TrackRow chrome, found ${leaked.concealedCount}`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: sibling/library chrome leaked ${leaked.hits.join(", ")}`);
+  }
+}
+
+async function assertMasteryGateChromeDoesNotSpoil(targetPage, answers, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const article = [...document.querySelectorAll("article")].find((item) => item.querySelector(".mastery-gate"));
+    if (!article) return { reason: "missing-gate" };
+    const chrome = article.querySelector(".pl-item")?.innerText ?? "";
+    const heading = article.querySelector(".mastery-gate__title")?.innerText ?? "";
+    return {
+      chrome,
+      heading,
+      hits: tokens.filter((token) => chrome.includes(token) || heading.includes(token))
+    };
+  }, answers);
+  if (leaked.reason === "missing-gate") {
+    issues.push(`${label}: mastery gate did not open`);
+    return;
+  }
+  if (!leaked.heading.includes("掌握小测")) {
+    issues.push(`${label}: generic mastery-gate title missing`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: open-book spoiler in gate chrome: ${leaked.hits.join(", ")}`);
+  }
+}
+
 async function expectText(page, text) {
   const found = await page
     .getByText(text, { exact: false })
@@ -1609,7 +1925,7 @@ async function answerDrill(targetPage, drill, { wrong = false } = {}) {
     ]);
   }
   if (await skipAudio.isVisible().catch(() => false)) {
-    await skipAudio.click();
+    await clickAction(skipAudio);
     return;
   }
   const usesText = drill.type === "type" || drill.type === "dictation" || drill.type === "translate" || (drill.type === "cloze" && !(drill.choices?.length));
@@ -1619,16 +1935,16 @@ async function answerDrill(targetPage, drill, { wrong = false } = {}) {
     const choice = wrong ? (drill.choices ?? []).find((item) => item !== drill.answer) : drill.answer;
     await targetPage.getByRole("radio", { name: choice, exact: true }).check();
   }
-  await targetPage.getByRole("button", { name: "提交" }).click();
+  await clickAction(targetPage.getByRole("button", { name: "提交" }));
 }
 
 async function completeLessonRun(targetPage, drills, { wrongIndexes = [], startIndex = 0, finishLabel = "完成课程" } = {}) {
   for (let index = startIndex; index < drills.length; index += 1) {
     await answerDrill(targetPage, drills[index], { wrong: wrongIndexes.includes(index) });
     if (index < drills.length - 1) {
-      await targetPage.getByRole("button", { name: "下一题" }).click();
+      await clickAction(targetPage.getByRole("button", { name: "下一题" }));
     } else {
-      await targetPage.getByRole("button", { name: finishLabel }).click();
+      await clickAction(targetPage.getByRole("button", { name: finishLabel }));
     }
   }
 }
