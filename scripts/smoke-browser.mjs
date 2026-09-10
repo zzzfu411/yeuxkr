@@ -475,6 +475,25 @@ await retrainPage.reload({ waitUntil: "networkidle" });
 await expectText(retrainPage, "重练快照题");
 await retrainPage.getByRole("button", { name: "重练这题" }).click();
 await expectText(retrainPage, "错题定向重练");
+const retrainChrome = await retrainPage.evaluate(() => {
+  const body = document.body.innerText;
+  const concealed = [...document.querySelectorAll('[data-concealed="true"]')].map((node) => node.innerText);
+  return {
+    bodyHasAnswer: body.includes("정답"),
+    bodyHasLabeledAnswer: body.includes("正确答案：정답"),
+    concealedCount: concealed.length,
+    concealedHits: concealed.filter((text) => text.includes("정답") || text.includes("正确答案"))
+  };
+});
+if (retrainChrome.bodyHasAnswer || retrainChrome.bodyHasLabeledAnswer) {
+  issues.push("mistakes retrain should conceal the SRS answer token in notebook chrome while DrillRunner is live");
+}
+if (!retrainChrome.concealedCount) {
+  issues.push("mistakes retrain should mark in-attempt notebook rows as concealed");
+}
+if (retrainChrome.concealedHits.length) {
+  issues.push("mistakes retrain concealed chrome leaked the SRS answer token");
+}
 const externalRetrain = await retrainPage.evaluate(() => {
   const srs = JSON.parse(localStorage.getItem("kirina.srs.v2") ?? "{\"cards\":{},\"history\":[]}");
   const card = srs.cards["mistake:retrain-stale"];

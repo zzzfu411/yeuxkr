@@ -801,6 +801,7 @@ const quizPage = readFileSync("src/app/quiz/page.tsx", "utf8");
 const quizSource = readFileSync("src/lib/learning/quiz.ts", "utf8");
 const reviewPage = readFileSync("src/app/review/page.tsx", "utf8");
 const mistakesPage = readFileSync("src/app/mistakes/page.tsx", "utf8");
+const gateSource = readFileSync("src/lib/learning/gate.ts", "utf8");
 const vocabularyPage = readFileSync("src/app/vocabulary/page.tsx", "utf8");
 const grammarPage = readFileSync("src/app/grammar/page.tsx", "utf8");
 const hangulPage = readFileSync("src/app/hangul/page.tsx", "utf8");
@@ -891,6 +892,7 @@ assert(reviewPage.includes('event.type === "storage" || event.type === "kirina:l
 assert(smokeBrowser.includes("an active review queue should surface the reload banner after a same-tab learning-batch import"), "browser smoke should expect the queue-changed banner after an active-queue same-tab batch refresh");
 assert(smokeBrowser.includes("an active review queue should stay silent for same-tab kirina:learning grading events"), "browser smoke should keep own grading events from flipping the active-queue reload banner");
 assert(smokeBrowser.includes("a stale mistakes-retrain snapshot cannot be graded twice after an external update"), "browser smoke should refuse a stale mistakes-retrain card snapshot without a second SRS bump");
+assert(smokeBrowser.includes("mistakes retrain should conceal the SRS answer token in notebook chrome while DrillRunner is live"), "browser smoke should lock mistakes-retrain notebook chrome against open-book answer tokens");
 assert(smokeBrowser.includes("assertMasteryGateChromeDoesNotSpoil") && smokeBrowser.includes("vocab gate") && smokeBrowser.includes("hangul gate") && smokeBrowser.includes("pronunciation gate"), "browser smoke should lock MasteryGate chrome against open-book spoilers for vocab, hangul, and pronunciation");
 assert(reviewPage.includes("pinReviewAttempt") && reviewPage.includes("questionsForReviewAttempt") && reviewPage.includes("cardsForReviewAttempt") && reviewPage.includes("liveQuestions") && reviewPage.includes("liveDueCards"), "review page should pin the due question list and card lookup for the current session instead of re-deriving them under DrillRunner");
 assert(quizPage.includes("pinQuizAttempt") && quizPage.includes("questionsForQuizAttempt") && quizPage.includes("liveQuestions"), "quiz page should pin the built question list for the current attempt seed instead of reshuffling under DrillRunner");
@@ -940,6 +942,8 @@ assert(mistakesPage.includes("buildMistakeInsights") && mistakesPage.includes("s
 assert(mistakesPage.includes("removeMistakeCardAndPracticeItem") && mistakesPage.includes('href="/review"'), "mistake notebook should let learners remove handled mistakes and return to review");
 assert(mistakesPage.includes("buildRetrainQuestions") && mistakesPage.includes("<DrillRunner") && mistakesPage.includes("pinReviewAttempt") && mistakesPage.includes("cardsForReviewAttempt") && mistakesPage.includes("submitReviewCardAndProgress"), "mistake notebook should retrain selected mistakes in place and grade a session-frozen card snapshot through the shared review pipeline");
 assert(mistakesPage.includes("allowEarly: true") && mistakesPage.includes('reason === "storage"') && mistakesPage.includes('reason === "missing"') && mistakesPage.includes("未重复计分"), "mistake retrain should still allow early grading against the frozen snapshot and distinguish storage, missing, and stale failures");
+assert(mistakesPage.includes("retrainConcealment") && mistakesPage.includes("retrainQuestionIds") && mistakesPage.includes("inRetrainIds.has(item.id)"), "mistake notebook should conceal in-attempt TrackRow chrome while directed retrain is live");
+assert(gateSource.includes("实际读作哪一个？") && !gateSource.includes("${rule.title}（${rule.korean}）：${first.written}"), "sound-change gate Q1 must not print the rule name that Q2 scores");
 assert(hangulPage.includes("<MasteryGate") && hangulPage.includes("测一测"), "hangul page should gate mastery behind a quick check instead of a bare toggle");
 assert(vocabularyPage.includes("<MasteryGate") && vocabularyPage.includes("测一测"), "vocabulary page should gate mastery behind a quick check instead of a bare toggle");
 assert(grammarPage.includes("<MasteryGate") && grammarPage.includes("测一测"), "grammar page should gate mastery behind a quick check instead of a bare toggle");

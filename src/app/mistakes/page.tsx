@@ -11,7 +11,7 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
 import { firstHangul } from "@/lib/learning/player";
-import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
+import { buildMistakeInsights, buildRetrainQuestions, retrainConcealment, retrainQuestionIds, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
 import { cardsForReviewAttempt, pinReviewAttempt, questionsForReviewAttempt, type Question, type ReviewAttemptSnapshot } from "@/lib/learning/quiz";
 import { getSrsStateFromRaw, type SrsCard } from "@/lib/learning/srs";
 import { STORAGE_KEYS, useClientNow, useStorageRaw } from "@/lib/learning/storage";
@@ -35,6 +35,7 @@ export default function MistakesPage() {
   const dueIds = useMemo(() => insights.filter((item) => item.due).map((item) => item.id), [insights]);
   const pinnedQuestions = questionsForReviewAttempt(pinnedRetrain, retrainSession, retrainQuestions ?? []);
   const pinnedCards = cardsForReviewAttempt(pinnedRetrain, retrainSession, []);
+  const inRetrainIds = useMemo(() => retrainQuestionIds(retrainQuestions ? pinnedQuestions : null), [pinnedQuestions, retrainQuestions]);
 
   const handleRemove = (id: string) => {
     setStatus(removeMistakeCardAndPracticeItem(id) ? "removed" : "error");
@@ -157,6 +158,7 @@ export default function MistakesPage() {
                   item={item}
                   now={now}
                   expanded={!collapsed[item.id]}
+                  inRetrain={inRetrainIds.has(item.id)}
                   onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                   onRemove={handleRemove}
                   onRetrain={(id) => startRetrain([id])}
@@ -242,6 +244,7 @@ function MistakeCard({
   item,
   now,
   expanded,
+  inRetrain,
   onExpand,
   onRemove,
   onRetrain
@@ -250,6 +253,7 @@ function MistakeCard({
   item: MistakeInsight;
   now: number;
   expanded: boolean;
+  inRetrain: boolean;
   onExpand: () => void;
   onRemove: (id: string) => void;
   onRetrain: (id: string) => void;
@@ -260,12 +264,13 @@ function MistakeCard({
       glyph={firstHangul(item.prompt, "오")}
       kicker={item.sourceLabel}
       title={item.prompt}
-      detail={`正确答案：${item.answer}`}
+      detail={inRetrain ? undefined : `正确答案：${item.answer}`}
       meta={item.statusLabel}
-      expanded={expanded}
-      onToggle={onExpand}
-      onPlay={() => onRetrain(item.id)}
+      expanded={inRetrain ? false : expanded}
+      onToggle={inRetrain ? undefined : onExpand}
+      onPlay={inRetrain ? undefined : () => onRetrain(item.id)}
       playLabel={`重练 ${item.prompt}`}
+      {...retrainConcealment(inRetrain)}
     >
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">

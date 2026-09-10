@@ -257,10 +257,10 @@ function buildSoundChangeGate(itemId: string, random: () => number): Question[] 
     {
       id: `${soundChangeQuestionId(itemId)}:gate1`,
       type: "choice",
-      prompt: `${rule.title}（${rule.korean}）：${first.written} 实际读作哪一个？`,
+      prompt: `${first.written} 实际读作哪一个？`,
       answer: first.spoken,
       choices: makeChoices(first.spoken, otherSpoken, 4, random),
-      explain: `${rule.rule}。${first.written} → [${first.spoken}]（${first.zh}）。`,
+      explain: `${rule.title}（${rule.korean}）。${rule.rule}。${first.written} → [${first.spoken}]（${first.zh}）。`,
       speak: first.speak
     },
     {

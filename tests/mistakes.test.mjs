@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes } = await import("../src/lib/learning/mistakes.ts");
+const { buildMistakeInsights, buildRetrainQuestions, RETRAIN_HEADLINE, retrainConcealment, retrainQuestionIds, summarizeMistakes } = await import("../src/lib/learning/mistakes.ts");
 
 function card(id, overrides = {}) {
   return {
@@ -150,4 +150,24 @@ test("buildRetrainQuestions turns mistake payloads into full drill questions", (
 
   const limited = buildRetrainQuestions(state, null, 1);
   assert.equal(limited.length, 1);
+});
+
+test("retrain concealment only covers ids currently in the attempt", () => {
+  assert.deepEqual(retrainConcealment(false), { concealed: false, concealTitle: undefined });
+  assert.deepEqual(retrainConcealment(true), { concealed: true, concealTitle: RETRAIN_HEADLINE });
+  assert.equal(RETRAIN_HEADLINE.includes("정답"), false);
+  assert.equal(RETRAIN_HEADLINE.includes("正确答案"), false);
+
+  const questions = buildRetrainQuestions({
+    cards: {
+      "mistake:live": card("mistake:live", { payload: { prompt: "选正确的助词", answer: "이" } }),
+      "mistake:idle": card("mistake:idle", { payload: { prompt: "补全句子", answer: "와서" } })
+    },
+    history: []
+  }, ["mistake:live"]);
+  const inRetrain = retrainQuestionIds(questions);
+  assert.deepEqual([...inRetrain], ["mistake:live"]);
+  assert.deepEqual(retrainQuestionIds(null), new Set());
+  assert.equal(inRetrain.has("mistake:live"), true);
+  assert.equal(inRetrain.has("mistake:idle"), false);
 });

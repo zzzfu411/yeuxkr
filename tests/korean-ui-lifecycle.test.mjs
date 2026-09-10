@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
+const { RETRAIN_HEADLINE, retrainConcealment, retrainQuestionIds } = await import("../src/lib/learning/mistakes.ts");
+
 const JSX_RUNTIME = { jsx: createElement, jsxs: createElement, Fragment: Symbol("Fragment") };
 
 test("KoreanInput ignores Enter while an IME composition is active", () => {
@@ -1289,7 +1291,10 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
         prompt: id,
         answer: id
       })),
-      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 })
+      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
     },
     "@/lib/learning/quiz": createReviewAttemptMocks(),
     "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
@@ -1326,6 +1331,147 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   runner = findElement(tree, (node) => node.type === "DrillRunner");
   assert.equal(runner.key, 2);
   assert.equal(runner.props.questions[0].id, "q2");
+});
+
+test("mistakes retrain conceals in-attempt answer tokens from notebook chrome", () => {
+  const hooks = createHookHarness();
+  const insights = [
+    {
+      id: "q1",
+      itemId: "lesson:q1",
+      prompt: "第一题",
+      answer: "하나",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    },
+    {
+      id: "q2",
+      itemId: "lesson:q2",
+      prompt: "第二题",
+      answer: "둘",
+      correct: 0,
+      wrong: 1,
+      box: 0,
+      dueAt: 0,
+      lastSeenAt: null,
+      due: true,
+      sourceLabel: "课程练习",
+      statusLabel: "现在该处理",
+      severity: 7
+    }
+  ];
+  const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+    "@/lib/utils": { cn }
+  });
+  const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": {
+      ArrowRight: "ArrowRightIcon",
+      CircleAlert: "CircleAlertIcon",
+      Clock: "ClockIcon",
+      Play: "PlayIcon",
+      RefreshCcw: "RefreshIcon",
+      Trash2: "TrashIcon"
+    },
+    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/ui/track-row": { TrackRow },
+    "@/lib/learning/player": { firstHangul: (value, fallback) => value || fallback },
+    "@/lib/learning/mistakes": {
+      buildMistakeInsights: () => insights,
+      buildRetrainQuestions: (_state, ids) => (ids ?? insights.map((item) => item.id)).map((id) => {
+        const item = insights.find((entry) => entry.id === id);
+        return {
+          id,
+          type: "type",
+          prompt: item?.prompt ?? id,
+          answer: item?.answer ?? id
+        };
+      }),
+      summarizeMistakes: () => ({ total: 2, due: 2, repeated: 0, stabilizing: 0, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
+    },
+    "@/lib/learning/quiz": createReviewAttemptMocks(),
+    "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: {} }) },
+    "@/lib/learning/storage": {
+      STORAGE_KEYS: { srs: "srs" },
+      useClientNow: () => 0,
+      useStorageRaw: () => null
+    },
+    "@/lib/learning/workspace": {
+      submitReviewCardAndProgress: () => ({ ok: true }),
+      removeMistakeCardAndPracticeItem: () => true
+    },
+    "@/lib/learning/use-learning-workspace": {
+      useLearningWorkspace: () => ({ workspace: {} })
+    }
+  });
+
+  const notebookRow = (card) => findElement(card.type(card.props), (node) => node.type === TrackRow);
+  const notebookChrome = (row) => {
+    const tree = TrackRow(row.props);
+    return findElement(tree, (node) => node.props?.className?.includes("pl-item"));
+  };
+
+  let tree = hooks.render(MistakesPage, {});
+  assert.equal(findElement(tree, (node) => node.type === "DrillRunner"), null);
+  const idleQ1 = findElement(tree, (node) => node.props?.item?.id === "q1");
+  const idleQ2 = findElement(tree, (node) => node.props?.item?.id === "q2");
+  const idleQ1Row = notebookRow(idleQ1);
+  const idleQ2Row = notebookRow(idleQ2);
+  assert.equal(idleQ1Row.props.detail, "正确答案：하나");
+  assert.equal(idleQ2Row.props.detail, "正确答案：둘");
+  assert.match(textContent(notebookChrome(idleQ1Row)), /正确答案：하나/);
+
+  idleQ1.props.onRetrain("q1");
+  tree = hooks.render(MistakesPage, {});
+
+  const runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.ok(runner);
+  assert.equal(runner.props.questions[0].id, "q1");
+  assert.equal(runner.props.questions[0].answer, "하나");
+
+  const liveQ1 = findElement(tree, (node) => node.props?.item?.id === "q1");
+  const liveQ2 = findElement(tree, (node) => node.props?.item?.id === "q2");
+  assert.equal(liveQ1.props.inRetrain, true);
+  assert.equal(liveQ2.props.inRetrain, false);
+
+  const liveQ1Row = notebookRow(liveQ1);
+  const liveQ2Row = notebookRow(liveQ2);
+  assert.equal(liveQ1Row.props.concealed, true);
+  assert.equal(liveQ1Row.props.concealTitle, RETRAIN_HEADLINE);
+  assert.equal(liveQ1Row.props.detail, undefined);
+  assert.equal(liveQ1Row.props.expanded, false);
+  assert.equal(liveQ2Row.props.concealed, false);
+  assert.equal(liveQ2Row.props.detail, "正确答案：둘");
+
+  const liveChrome = notebookChrome(liveQ1Row);
+  assert.equal(liveChrome.props["data-concealed"], "true");
+  assert.match(textContent(liveChrome), /错题定向重练/);
+  assert.doesNotMatch(textContent(liveChrome), /하나|正确答案|第一题|课程练习|现在该处理/);
+  assert.doesNotMatch(`${liveQ1Row.props.concealTitle ?? ""}${textContent(liveChrome)}`, /하나/);
 });
 
 test("mistakes retrain grades a frozen card snapshot and refuses a stale live update", () => {
@@ -1388,7 +1534,10 @@ test("mistakes retrain grades a frozen card snapshot and refuses a stale live up
     "@/lib/learning/mistakes": {
       buildMistakeInsights: () => insights,
       buildRetrainQuestions: () => [{ id: "q1", type: "type", prompt: "第一题", answer: "하나" }],
-      summarizeMistakes: () => ({ total: 1, due: 0, repeated: 0, stabilizing: 1, mastered: 0 })
+      summarizeMistakes: () => ({ total: 1, due: 0, repeated: 0, stabilizing: 1, mastered: 0 }),
+      RETRAIN_HEADLINE,
+      retrainConcealment,
+      retrainQuestionIds
     },
     "@/lib/learning/quiz": createReviewAttemptMocks(),
     "@/lib/learning/srs": { getSrsStateFromRaw: () => ({ cards: liveCards }) },
@@ -1628,6 +1777,14 @@ test("mistakes retrain grades cards even when they are not yet due", () => {
   assert.match(source, /pinReviewAttempt\(null, nextSession, questions, cards\)/);
   assert.match(source, /cardsForReviewAttempt\(pinnedRetrain, retrainSession, \[\]\)/);
   assert.match(source, /submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
+});
+
+test("mistakes retrain conceals answer chrome for the live attempt set", () => {
+  const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
+  assert.match(source, /retrainConcealment/);
+  assert.match(source, /retrainQuestionIds\(retrainQuestions \? pinnedQuestions : null\)/);
+  assert.match(source, /inRetrain=\{inRetrainIds\.has\(item\.id\)\}/);
+  assert.match(source, /detail=\{inRetrain \? undefined : `正确答案：\$\{item\.answer\}`\}/);
 });
 
 test("all-due mistake retrain requests every selected card", () => {

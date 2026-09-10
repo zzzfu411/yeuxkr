@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const { buildGateQuestions, collectGateAnswerTokens, GATE_HEADLINES, GATE_PASS_SCORE, gateConcealment, gateHeadline, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
 const { UNLOCK_SCORE } = await import("../src/data/curriculum.js");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
+const { soundChangeRules } = await import("../src/data/sound-changes.js");
 
 test("gate pass score demands real mastery", () => {
   assert.equal(GATE_PASS_SCORE, UNLOCK_SCORE);
@@ -80,12 +81,30 @@ test("sound change gate tests spoken form, rule identity, and written dictation"
   assert.equal(questions.length, 3);
   assert.equal(questions[0].type, "choice");
   assert.equal(questions[0].answer, "한구거");
+  assert.equal(questions[0].prompt, "한국어 实际读作哪一个？");
   assert.equal(questions[1].answer, "连音");
   assert.equal(questions[2].type, "dictation");
   assert.equal(questions[2].answer, "옷이");
   assert.equal(checkAnswer(questions[2], "옷이"), true);
   assert.equal(checkAnswer(questions[2], "오시"), false);
+  assert.match(questions[0].explain, /连音（연음）/);
 });
+
+test("sound change Q1 stem does not print the rule name that Q2 scores", () => {
+  for (const rule of soundChangeRules) {
+    const questions = buildGateQuestions("soundChange", rule.id, 7);
+    if (!questions.length) continue;
+    assert.equal(questions[0].prompt.includes(rule.title), false, `${rule.id} Q1 leaked title ${rule.title}`);
+    assert.equal(questions[0].prompt.includes(rule.korean), false, `${rule.id} Q1 leaked korean ${rule.korean}`);
+    assert.equal(questions[0].prompt.includes(questions[1].answer), false, `${rule.id} Q1 leaked Q2 answer`);
+    assert.equal(questions[0].explain.includes(rule.title), true);
+    assert.equal(questions[0].explain.includes(rule.korean), true);
+  }
+});
+
+// Hangul Q2 must show item.glyph to ask for its romanization. That glyph is also
+// Q3's answer, so seeing Q2 creates sequential familiarity — not a free printed
+// key the way sound-change Q1 used to print Q2's rule title. Left as-is.
 
 test("gate headlines stay generic and never echo the tested answers", () => {
   const cases = [
