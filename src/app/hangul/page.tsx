@@ -76,7 +76,8 @@ export default function HangulPage() {
         asset="hangul"
         imageClassName="min-h-80 border-0"
       >
-        <div className="grid gap-3 md:grid-cols-2">
+        {!libraryGateOpen ? (
+        <div className="grid gap-3 md:grid-cols-2" data-syllable-labs="">
           {syllableLabs.map((lab: any) => (
             <button
               key={lab.result}
@@ -91,6 +92,7 @@ export default function HangulPage() {
             </button>
           ))}
         </div>
+        ) : null}
       </ModuleHero>
 
       {hangulGroups.map((group: any) => (

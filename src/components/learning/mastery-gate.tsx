@@ -98,6 +98,8 @@ export function MasteryGate({
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => {
                 setPersistenceFailed(false);
+                setMissingAudioEvidence(false);
+                setLastScore(null);
                 setAttempt((value) => value + 1);
               }}>
                 <RefreshCcw className="h-4 w-4" aria-hidden="true" />

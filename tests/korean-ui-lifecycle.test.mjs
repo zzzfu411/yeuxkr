@@ -1108,6 +1108,53 @@ test("MasteryGate reports a failed persistence write and retries without another
   assert.equal(saveAttempts, 2);
 });
 
+test("MasteryGate retry clears skipped-audio alert before the next attempt", () => {
+  const hooks = createHookHarness();
+  const { MasteryGate } = loadComponent("src/components/learning/mastery-gate.tsx", {
+    react: hooks.react,
+    "lucide-react": { RefreshCcw: "RefreshIcon", ShieldCheck: "ShieldIcon", X: "XIcon" },
+    "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/lib/learning/gate": {
+      buildGateQuestions: () => [{ id: "q1" }],
+      GATE_PASS_SCORE: 80,
+      gateHeadline: () => "最小对立",
+      hasSkippedGateAudio: (answers) => answers.some((entry) => entry.skipped && (entry.question?.type === "listen" || entry.question?.type === "dictation"))
+    }
+  });
+  const props = {
+    kind: "pronunciation",
+    itemId: "plain-aspirated-k",
+    onPassed() {
+      return true;
+    },
+    onClose() {}
+  };
+
+  let tree = hooks.render(MasteryGate, props);
+  let runner = findElement(tree, (node) => node.type === "DrillRunner");
+  const skippedAnswers = [{ skipped: true, question: { type: "listen" } }];
+  runner.props.onResult(40, skippedAnswers);
+  tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /当前音频题被跳过/);
+  assert.doesNotMatch(textContent(tree), /上一轮 40 分/);
+
+  runner = findElement(tree, (node) => node.type === "DrillRunner");
+  const addon = runner.props.resultAddon({ score: 40, answers: skippedAnswers });
+  findButton(addon, "换一组再试").props.onClick();
+  tree = hooks.render(MasteryGate, props);
+  runner = findElement(tree, (node) => node.type === "DrillRunner");
+  assert.equal(runner.key, 2);
+  assert.doesNotMatch(textContent(tree), /当前音频题被跳过/);
+  assert.doesNotMatch(textContent(tree), /上一轮/);
+
+  runner.props.onResult(50, []);
+  tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /上一轮 50 分/);
+  assert.doesNotMatch(textContent(tree), /当前音频题被跳过/);
+});
+
 test("TrackRow concealment hides source-card answers from chrome and play controls", () => {
   const hooks = createHookHarness();
   const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
@@ -1234,6 +1281,11 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
     const hooks = createHookHarness();
     const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
     let tree = hooks.render(Page, {});
+    if (scenario.file.includes("hangul")) {
+      const idleLabs = findElements(tree, (node) => node.type === "button" && String(node.props?.["aria-label"] ?? "").includes("播放音节"));
+      assert.equal(idleLabs.length, 1, `${scenario.kind} fixture should render a syllable lab before a gate opens`);
+      assert.match(textContent(tree), /가|ㄱ \+ ㅏ/);
+    }
     const host = findElements(tree, (node) => node.type === "TrackRow").find((row) => row.props?.title === scenario.startTitle);
     assert.ok(host, `${scenario.kind} should render the ${scenario.startTitle} card`);
     const startButton = findButton(host, scenario.button);
@@ -1269,6 +1321,11 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
     const visible = `${row.props.concealTitle ?? ""}${textContent(row)}`;
     for (const answer of scenario.answers) {
       assert.equal(visible.includes(answer), false, `${scenario.kind} chrome leaked ${answer}`);
+    }
+    if (scenario.file.includes("hangul")) {
+      const labButtons = findElements(tree, (node) => node.type === "button" && String(node.props?.["aria-label"] ?? "").includes("播放音节"));
+      assert.equal(labButtons.length, 0, `${scenario.kind} should hide syllable labs while a gate is open`);
+      assert.doesNotMatch(textContent(tree), /가|ㄱ \+ ㅏ/, `${scenario.kind} syllable labs leaked hangul cues`);
     }
   }
 });
@@ -1918,6 +1975,8 @@ test("hangul library conceals same-section sibling chrome while a gate is open",
   assert.match(source, /gateConcealment\("hangul", libraryGateOpen\)/);
   assert.match(source, /gateConcealment\("pronunciation", libraryGateOpen\)/);
   assert.match(source, /gateConcealment\("soundChange", libraryGateOpen\)/);
+  assert.match(source, /!libraryGateOpen \? \(/);
+  assert.match(source, /data-syllable-labs/);
 });
 
 test("mistakes retrain conceals answer chrome for the live attempt set", () => {
@@ -3700,7 +3759,12 @@ function loadLibraryGatePage(hooks, file, workspace) {
         focus: "松音 ㄱ vs 紧音 ㄲ",
         tip: "까 更紧，不送气。"
       }],
-      syllableLabs: []
+      syllableLabs: [{
+        pattern: "CV",
+        blocks: ["ㄱ", "ㅏ"],
+        result: "가",
+        note: "辅音在左，竖元音在右。"
+      }]
     },
     "@/data/sound-changes": {
       soundChangeRules: [{

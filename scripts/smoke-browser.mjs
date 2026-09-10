@@ -1,8 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { lessons } from "../src/data/curriculum.js";
+import { syllableLabs } from "../src/data/hangul.js";
 import { immersionMaterials } from "../src/data/materials.ts";
 import { auditRegression } from "./audit-regression.mjs";
+
+const hangulLabCueTokens = [...new Set(syllableLabs.flatMap((lab) => [lab.result, lab.blocks.join(" + ")]))];
 
 const l01Lesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
 const l06Lesson = lessons.find((lesson) => lesson.id === "l06-cafe");
@@ -927,16 +930,19 @@ await expectText(page, "掌握小测");
 await expectText(page, "字母听辨");
 await assertMasteryGateChromeDoesNotSpoil(page, ["ㅏ", "아", "口腔打开"], "hangul gate");
 await assertLibrarySiblingChromeDoesNotSpoil(page, ["口腔打开", "ㅣ + ㅏ 的滑音", "比 ㅏ 更靠后"], "hangul gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "hangul gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 await page.locator("#pairs").getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
 await expectText(page, "最小对立");
 await assertMasteryGateChromeDoesNotSpoil(page, ["가", "카", "松音 ㄱ vs 送气 ㅋ"], "pronunciation gate");
 await assertLibrarySiblingChromeDoesNotSpoil(page, ["가 vs 카", "松音 ㄱ vs 送气 ㅋ", "松音 ㄱ vs 紧音 ㄲ"], "pronunciation gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "pronunciation gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 await page.locator("article").filter({ hasText: "连音" }).getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
 await expectText(page, "音变听辨");
 await assertMasteryGateChromeDoesNotSpoil(page, ["连音", "收音遇到元音"], "sound-change gate");
 await assertLibrarySiblingChromeDoesNotSpoil(page, ["连音", "鼻音化", "流音化", "激音化", "紧音化"], "sound-change gate");
+await assertHangulSyllableLabsDoNotSpoil(page, "sound-change gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 
 await ensureOnboarded(page);
@@ -1821,6 +1827,24 @@ async function probePointerTarget(locator) {
       topName: top instanceof Element ? `${top.tagName}.${String(top.className)}` : String(top)
     };
   }).catch((error) => ({ hit: false, overlap: false, topName: error.message }));
+}
+
+async function assertHangulSyllableLabsDoNotSpoil(targetPage, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const hero = document.querySelector(".module-hero");
+    const labs = hero?.querySelector("[data-syllable-labs]");
+    const heroText = hero?.innerText ?? "";
+    return {
+      labCount: labs ? labs.querySelectorAll("button").length : 0,
+      hits: tokens.filter((token) => heroText.includes(token))
+    };
+  }, hangulLabCueTokens);
+  if (leaked.labCount) {
+    issues.push(`${label}: syllable labs should hide while a gate is open, found ${leaked.labCount}`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: syllable labs leaked ${leaked.hits.join(", ")}`);
+  }
 }
 
 async function assertLibrarySiblingChromeDoesNotSpoil(targetPage, answers, label) {
