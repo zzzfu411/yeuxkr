@@ -1202,7 +1202,7 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       answers: ["ㅏ", "아", "口腔打开"],
       siblingAnswers: ["ㅑ", "ㅣ + ㅏ 的滑音"],
       startTitle: "ㅏ",
-      expectedConcealed: 2,
+      expectedConcealed: 6,
       workspace: hangulWorkspace
     },
     {
@@ -1213,7 +1213,7 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       answers: ["가", "카", "松音 ㄱ vs 送气 ㅋ"],
       siblingAnswers: ["까", "松音 ㄱ vs 紧音 ㄲ"],
       startTitle: "가 vs 카",
-      expectedConcealed: 2,
+      expectedConcealed: 6,
       workspace: hangulWorkspace
     },
     {
@@ -1224,7 +1224,7 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       answers: ["连音", "收音遇到元音"],
       siblingAnswers: ["鼻音化", "塞音收音"],
       startTitle: "连音",
-      expectedConcealed: 2,
+      expectedConcealed: 6,
       workspace: hangulWorkspace
     }
   ];
@@ -1240,13 +1240,11 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
     tree = hooks.render(Page, {});
 
     const gatedRows = findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed);
-    assert.equal(gatedRows.length, scenario.expectedConcealed, `${scenario.kind} should conceal the open card and same-section siblings`);
-    for (const row of gatedRows) {
-      assert.equal(row.props.concealTitle, scenario.headline);
-    }
+    assert.equal(gatedRows.length, scenario.expectedConcealed, `${scenario.kind} should conceal the open card and same-page siblings`);
     const activeRows = gatedRows.filter((row) => findElement(row, (node) => node.type === "MasteryGate"));
     assert.equal(activeRows.length, 1, `${scenario.kind} should render one MasteryGate`);
     const row = activeRows[0];
+    assert.equal(row.props.concealTitle, scenario.headline);
     const siblings = gatedRows.filter((item) => item !== row);
     const gate = findElement(row, (node) => node.type === "MasteryGate");
     assert.ok(gate, `${scenario.kind} should render MasteryGate inside the concealed row`);
