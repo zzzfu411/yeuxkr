@@ -38,6 +38,15 @@ export default function HangulPage() {
   const romanizationScaffold = workspace.progress.completedLessons.length < 6;
   const pronunciationCards = new Set(Object.keys(srsState.cards).filter((id) => id.startsWith("pronunciation:")));
   const soundChangeCards = new Set(Object.keys(srsState.cards).filter((id) => id.startsWith("soundChange:")));
+  const hangulGateOpen = hangulGroups.some((group: any) =>
+    group.items.some((item: any) => item.id === gateItemId && !mastered.has(item.id))
+  );
+  const pronunciationGateOpen = pronunciationPairs.some(
+    (pair: any) => pair.id === gateItemId && !pronunciationCards.has(pronunciationCardId(pair.id))
+  );
+  const soundChangeGateOpen = soundChangeRules.some(
+    (rule: any) => rule.id === gateItemId && !soundChangeCards.has(soundChangeCardId(rule.id))
+  );
   const toggleSrs = (id: string, action: () => boolean) => {
     if (action()) {
       setSrsErrorId((current) => (current === id ? "" : current));
@@ -90,8 +99,8 @@ export default function HangulPage() {
             {group.items.map((item: any, itemIndex: number) => {
               const soundRole = getSoundRole(group.id);
               const relation = getExampleRelation(item, group.id);
-              const expanded = !collapsed[item.id];
               const gating = gateItemId === item.id && !mastered.has(item.id);
+              const siblingLocked = hangulGateOpen && !gating;
               return (
               <TrackRow
                 key={item.id}
@@ -102,11 +111,11 @@ export default function HangulPage() {
                 detail={item.cue}
                 meta={item.sound}
                 completed={mastered.has(item.id)}
-                expanded={expanded}
-                onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                expanded={gating || (!siblingLocked && !collapsed[item.id])}
+                onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.sound)}
                 playLabel={`播放${soundRole} ${item.sound}`}
-                {...gateConcealment("hangul", gating)}
+                {...gateConcealment("hangul", hangulGateOpen)}
               >
                 {gating ? (
                   <MasteryGate
@@ -183,6 +192,7 @@ export default function HangulPage() {
         <div id="pairs">
           {pronunciationPairs.map((pair: any, pairIndex: number) => {
             const gating = gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id));
+            const siblingLocked = pronunciationGateOpen && !gating;
             return (
             <TrackRow
               key={pair.id}
@@ -192,11 +202,11 @@ export default function HangulPage() {
               title={`${pair.a} vs ${pair.b}`}
               detail={pair.focus}
               completed={pronunciationCards.has(pronunciationCardId(pair.id))}
-              expanded={!collapsed[pair.id]}
-              onToggle={() => setCollapsed((current) => ({ ...current, [pair.id]: !current[pair.id] }))}
+              expanded={gating || (!siblingLocked && !collapsed[pair.id])}
+              onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [pair.id]: !current[pair.id] }))}
               onPlay={() => speakSequence([pair.a, pair.b])}
               playLabel={`播放对比：先 ${pair.a}，后 ${pair.b}`}
-              {...gateConcealment("pronunciation", gating)}
+              {...gateConcealment("pronunciation", pronunciationGateOpen)}
             >
               {gating ? (
                 <MasteryGate
@@ -256,6 +266,7 @@ export default function HangulPage() {
             const added = soundChangeCards.has(cardId);
             const first = rule.examples?.[0];
             const gating = gateItemId === rule.id && !added;
+            const siblingLocked = soundChangeGateOpen && !gating;
             return (
               <TrackRow
                 key={rule.id}
@@ -265,11 +276,11 @@ export default function HangulPage() {
                 title={rule.title}
                 detail={rule.summary}
                 completed={added}
-                expanded={!collapsed[rule.id]}
-                onToggle={() => setCollapsed((current) => ({ ...current, [rule.id]: !current[rule.id] }))}
+                expanded={gating || (!siblingLocked && !collapsed[rule.id])}
+                onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [rule.id]: !current[rule.id] }))}
                 onPlay={first ? () => speakKorean(first.speak) : undefined}
                 playLabel={first ? `播放 ${first.written}` : undefined}
-                {...gateConcealment("soundChange", gating)}
+                {...gateConcealment("soundChange", soundChangeGateOpen)}
               >
                 {gating ? (
                   <MasteryGate

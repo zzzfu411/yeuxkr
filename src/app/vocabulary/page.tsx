@@ -145,6 +145,7 @@ export default function VocabularyPage() {
           <div>
             {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => {
               const gating = gateItemId === item.id && !learned.has(item.id);
+              const siblingLocked = Boolean(gateItemId) && !gating;
               return (
               <TrackRow
                 key={item.id}
@@ -155,11 +156,11 @@ export default function VocabularyPage() {
                 detail={item.meaning}
                 meta={item.pos ? (vocabPosLabels[item.pos] ?? item.pos) : undefined}
                 completed={learned.has(item.id)}
-                expanded={!collapsed[item.id]}
-                onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                expanded={gating || (!siblingLocked && !collapsed[item.id])}
+                onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.korean)}
                 playLabel={`播放 ${item.korean}`}
-                {...gateConcealment("vocab", gating)}
+                {...gateConcealment("vocab", Boolean(gateItemId))}
               >
                 {gating ? (
                   <MasteryGate

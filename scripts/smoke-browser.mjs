@@ -926,10 +926,17 @@ await page.getByRole("button", { name: "测一测，再加入复习" }).first().
 await expectText(page, "掌握小测");
 await expectText(page, "字母听辨");
 await assertMasteryGateChromeDoesNotSpoil(page, ["ㅏ", "아", "口腔打开"], "hangul gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["ㅑ", "ㅓ", "ㅗ", "口腔打开"], "hangul gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 await page.locator("#pairs").getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
 await expectText(page, "最小对立");
 await assertMasteryGateChromeDoesNotSpoil(page, ["가", "카", "松音 ㄱ vs 送气 ㅋ"], "pronunciation gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["가 vs 카", "松音 ㄱ vs 送气 ㅋ", "松音 ㄱ vs 紧音 ㄲ"], "pronunciation gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
+await page.locator("article").filter({ hasText: "连音" }).getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
+await expectText(page, "音变听辨");
+await assertMasteryGateChromeDoesNotSpoil(page, ["连音", "收音遇到元音"], "sound-change gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["连音", "鼻音化", "流音化", "激音化", "紧音化"], "sound-change gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 
 await ensureOnboarded(page);
@@ -1814,6 +1821,24 @@ async function probePointerTarget(locator) {
       topName: top instanceof Element ? `${top.tagName}.${String(top.className)}` : String(top)
     };
   }).catch((error) => ({ hit: false, overlap: false, topName: error.message }));
+}
+
+async function assertLibrarySiblingChromeDoesNotSpoil(targetPage, answers, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const items = [...document.querySelectorAll(".pl-item")];
+    const concealed = items.filter((node) => node.getAttribute("data-concealed") === "true");
+    const hits = [...new Set(items.flatMap((node) => tokens.filter((token) => (node.innerText ?? "").includes(token))))];
+    return {
+      concealedCount: concealed.length,
+      hits
+    };
+  }, answers);
+  if (leaked.concealedCount < 2) {
+    issues.push(`${label}: open gate should conceal sibling TrackRow chrome, found ${leaked.concealedCount}`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: sibling/library chrome leaked ${leaked.hits.join(", ")}`);
+  }
 }
 
 async function assertMasteryGateChromeDoesNotSpoil(targetPage, answers, label) {

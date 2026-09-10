@@ -163,6 +163,7 @@ export function DrillRunner({
   const currentPlaybackStatus = audioPlayback.questionId === question?.id ? audioPlayback.status : "pending";
   const audioCheckPending = audioQuestion && !existing && (voiceStatus === "loading" || (voiceStatus === "ready" && currentPlaybackStatus === "pending"));
   const audioNeedsGesture = audioQuestion && !existing && currentPlaybackStatus === "needs-gesture";
+  const audioAnswerLocked = Boolean(audioCheckPending || audioNeedsGesture);
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
@@ -245,7 +246,7 @@ export function DrillRunner({
         submitRef.current();
         return;
       }
-      if (audioCheckPending || audioUnavailable) return;
+      if (audioAnswerLocked || audioUnavailable) return;
       if ((question.choices?.length ?? 0) > 0 && !answers[index]) {
         const choiceIndex = Number(event.key);
         const choices = question.choices ?? [];
@@ -257,7 +258,7 @@ export function DrillRunner({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [answers, audioCheckPending, audioUnavailable, finished, index, question]);
+  }, [answers, audioAnswerLocked, audioUnavailable, finished, index, question]);
 
   const skipAudioQuestion = () => {
     if (!question || existing || !audioUnavailable) return;
@@ -288,7 +289,7 @@ export function DrillRunner({
       }
       return;
     }
-    if (audioCheckPending) return;
+    if (audioAnswerLocked) return;
     if (audioUnavailable) {
       skipAudioQuestion();
       return;
@@ -333,7 +334,7 @@ export function DrillRunner({
   };
 
   const runPrimaryAction = () => {
-    if (audioCheckPending) return;
+    if (audioAnswerLocked) return;
     if (audioUnavailable && !existing) {
       skipAudioQuestion();
       return;
@@ -529,7 +530,7 @@ export function DrillRunner({
           </details>
         ) : null}
 
-        {!audioUnavailable && !audioCheckPending && usesTextEntry ? (
+        {!audioUnavailable && !audioAnswerLocked && usesTextEntry ? (
           hasKoreanText(question.answer) ? (
             <div className="mt-6 grid gap-2 font-extrabold">
               输入答案（可用屏幕韩文键盘）
@@ -559,7 +560,7 @@ export function DrillRunner({
               />
             </label>
           )
-        ) : !audioUnavailable && !audioCheckPending ? (
+        ) : !audioUnavailable && !audioAnswerLocked ? (
           <fieldset className="mt-6 grid gap-2">
             <legend className="sr-only">{question.prompt}</legend>
             {(question.choices ?? []).map((choice, choiceIndex) => (
@@ -623,7 +624,7 @@ export function DrillRunner({
           type="button"
           onClick={runPrimaryAction}
           disabled={
-            audioCheckPending ||
+            audioAnswerLocked ||
             (!audioUnavailable && !existing && !value.trim()) ||
             (!existing && lockedQuestionId === question.id)
           }

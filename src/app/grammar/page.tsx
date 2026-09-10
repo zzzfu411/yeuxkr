@@ -138,6 +138,7 @@ export default function GrammarPage() {
           <div>
             {points.map((point: any, pointIndex: number) => {
               const gating = gateItemId === point.id && !learned.has(point.id);
+              const siblingLocked = Boolean(gateItemId) && !gating;
               return (
               <TrackRow
                 key={point.id}
@@ -147,11 +148,11 @@ export default function GrammarPage() {
                 title={point.title}
                 detail={point.meaning}
                 completed={learned.has(point.id)}
-                expanded={!collapsed[point.id]}
-                onToggle={() => setCollapsed((current) => ({ ...current, [point.id]: !current[point.id] }))}
+                expanded={gating || (!siblingLocked && !collapsed[point.id])}
+                onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [point.id]: !current[point.id] }))}
                 onPlay={point.examples?.[0]?.ko ? () => speakKorean(point.examples[0].ko) : undefined}
                 playLabel={point.examples?.[0]?.ko ? `播放 ${point.examples[0].ko}` : undefined}
-                {...gateConcealment("grammar", gating)}
+                {...gateConcealment("grammar", Boolean(gateItemId))}
               >
                 {gating ? (
                   <MasteryGate

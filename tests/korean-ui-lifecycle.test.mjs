@@ -1153,6 +1153,16 @@ test("TrackRow concealment hides source-card answers from chrome and play contro
 });
 
 test("library pages conceal TrackRow chrome and drop study spoilers while a MasteryGate is open", () => {
+  const hangulWorkspace = {
+    workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
+    srsState: { cards: {} },
+    toggleHangul: () => true,
+    ensureHangul: () => true,
+    togglePronunciation: () => true,
+    ensurePronunciation: () => true,
+    toggleSoundChange: () => true,
+    ensureSoundChange: () => true
+  };
   const cases = [
     {
       file: "src/app/vocabulary/page.tsx",
@@ -1160,10 +1170,28 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       headline: "词汇听写",
       button: "测一测，再加入复习",
       answers: ["안녕하세요", "你好"],
+      siblingAnswers: ["지하철", "地铁"],
+      startTitle: "안녕하세요",
+      expectedConcealed: 2,
       workspace: {
         workspace: { profile: { romanization: "show" }, progress: { learnedVocab: [], completedLessons: [] } },
         toggleVocab: () => true,
         ensureVocab: () => true
+      }
+    },
+    {
+      file: "src/app/grammar/page.tsx",
+      kind: "grammar",
+      headline: "句型小测",
+      button: "测一测，再加入复习",
+      answers: ["话题标记 vs 主语标记", "我是学生。", "不要把 은/는 简单等同于“是”。"],
+      siblingAnswers: ["宾语标记", "把对象标出来"],
+      startTitle: "은/는 与 이/가",
+      expectedConcealed: 2,
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedGrammar: [], completedLessons: [] } },
+        toggleGrammar: () => true,
+        ensureGrammar: () => true
       }
     },
     {
@@ -1172,16 +1200,10 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       headline: "字母听辨",
       button: "测一测，再加入复习",
       answers: ["ㅏ", "아", "口腔打开"],
-      workspace: {
-        workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
-        srsState: { cards: {} },
-        toggleHangul: () => true,
-        ensureHangul: () => true,
-        togglePronunciation: () => true,
-        ensurePronunciation: () => true,
-        toggleSoundChange: () => true,
-        ensureSoundChange: () => true
-      }
+      siblingAnswers: ["ㅑ", "ㅣ + ㅏ 的滑音"],
+      startTitle: "ㅏ",
+      expectedConcealed: 2,
+      workspace: hangulWorkspace
     },
     {
       file: "src/app/hangul/page.tsx",
@@ -1189,16 +1211,21 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
       headline: "最小对立",
       button: "测一测，再加入听辨复习",
       answers: ["가", "카", "松音 ㄱ vs 送气 ㅋ"],
-      workspace: {
-        workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
-        srsState: { cards: {} },
-        toggleHangul: () => true,
-        ensureHangul: () => true,
-        togglePronunciation: () => true,
-        ensurePronunciation: () => true,
-        toggleSoundChange: () => true,
-        ensureSoundChange: () => true
-      }
+      siblingAnswers: ["까", "松音 ㄱ vs 紧音 ㄲ"],
+      startTitle: "가 vs 카",
+      expectedConcealed: 2,
+      workspace: hangulWorkspace
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "soundChange",
+      headline: "音变听辨",
+      button: "测一测，再加入听辨复习",
+      answers: ["连音", "收音遇到元音"],
+      siblingAnswers: ["鼻音化", "塞音收音"],
+      startTitle: "连音",
+      expectedConcealed: 2,
+      workspace: hangulWorkspace
     }
   ];
 
@@ -1206,18 +1233,40 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
     const hooks = createHookHarness();
     const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
     let tree = hooks.render(Page, {});
-    const startButton = findButton(tree, scenario.button);
+    const host = findElements(tree, (node) => node.type === "TrackRow").find((row) => row.props?.title === scenario.startTitle);
+    assert.ok(host, `${scenario.kind} should render the ${scenario.startTitle} card`);
+    const startButton = findButton(host, scenario.button);
     startButton.props.onClick();
     tree = hooks.render(Page, {});
 
     const gatedRows = findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed);
-    assert.equal(gatedRows.length, 1, `${scenario.kind} should conceal exactly one source card`);
-    const row = gatedRows[0];
-    assert.equal(row.props.concealTitle, scenario.headline);
+    assert.equal(gatedRows.length, scenario.expectedConcealed, `${scenario.kind} should conceal the open card and same-section siblings`);
+    for (const row of gatedRows) {
+      assert.equal(row.props.concealTitle, scenario.headline);
+    }
+    const activeRows = gatedRows.filter((row) => findElement(row, (node) => node.type === "MasteryGate"));
+    assert.equal(activeRows.length, 1, `${scenario.kind} should render one MasteryGate`);
+    const row = activeRows[0];
+    const siblings = gatedRows.filter((item) => item !== row);
     const gate = findElement(row, (node) => node.type === "MasteryGate");
     assert.ok(gate, `${scenario.kind} should render MasteryGate inside the concealed row`);
     assert.equal(gate.props.kind, scenario.kind);
     assert.equal(gate.props.title, undefined);
+    assert.equal(row.props.expanded, true);
+    const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+      react: hooks.react,
+      "next/link": { default: "Link" },
+      "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+      "@/lib/utils": { cn }
+    });
+    for (const sibling of siblings) {
+      assert.equal(sibling.props.expanded, false, `${scenario.kind} siblings should collapse while a gate is open`);
+      assert.equal(sibling.props.onToggle, undefined, `${scenario.kind} siblings should not expand into answer chrome`);
+      const chrome = findElement(TrackRow(sibling.props), (node) => node.props?.className?.includes("pl-item"));
+      const chromeText = textContent(chrome);
+      const leaked = [...scenario.answers, ...scenario.siblingAnswers].filter((answer) => chromeText.includes(answer));
+      assert.deepEqual(leaked, [], `${scenario.kind} sibling chrome leaked ${leaked.join(", ")}`);
+    }
     const visible = `${row.props.concealTitle ?? ""}${textContent(row)}`;
     for (const answer of scenario.answers) {
       assert.equal(visible.includes(answer), false, `${scenario.kind} chrome leaked ${answer}`);
@@ -1779,6 +1828,17 @@ test("mistakes retrain grades cards even when they are not yet due", () => {
   assert.match(source, /submitReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)/);
 });
 
+test("hangul library conceals same-section sibling chrome while a gate is open", () => {
+  const source = readFileSync("src/app/hangul/page.tsx", "utf8");
+  assert.match(source, /hangulGateOpen/);
+  assert.match(source, /pronunciationGateOpen/);
+  assert.match(source, /soundChangeGateOpen/);
+  assert.match(source, /siblingLocked/);
+  assert.match(source, /gateConcealment\("hangul", hangulGateOpen\)/);
+  assert.match(source, /gateConcealment\("pronunciation", pronunciationGateOpen\)/);
+  assert.match(source, /gateConcealment\("soundChange", soundChangeGateOpen\)/);
+});
+
 test("mistakes retrain conceals answer chrome for the live attempt set", () => {
   const source = readFileSync("src/app/mistakes/page.tsx", "utf8");
   assert.match(source, /retrainConcealment/);
@@ -1796,9 +1856,10 @@ test("audio skip goes through onAnswer so review and retrain can reschedule", ()
   const source = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
   assert.match(source, /const entry = \{ question, answer: "", correct: false, skipped: true \};\s*if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?return;/);
   assert.match(source, /if \(onAnswer\?\.\(entry\) === false\) \{[\s\S]*?releaseQuestionAttempt\(inFlightQuestionIdRef, question\.id\);[\s\S]*?return;[\s\S]*?setAnswers\(next\);/);
-  assert.match(source, /if \(audioCheckPending\) return;/);
+  assert.match(source, /const audioAnswerLocked = Boolean\(audioCheckPending \|\| audioNeedsGesture\);/);
+  assert.match(source, /if \(audioAnswerLocked\) return;/);
   assert.match(source, /if \(audioUnavailable\) \{\s*skipAudioQuestion\(\);\s*return;/);
-  assert.match(source, /if \(audioCheckPending \|\| audioUnavailable\) return;/);
+  assert.match(source, /if \(audioAnswerLocked \|\| audioUnavailable\) return;/);
   assert.match(source, /submitRef\.current = runPrimaryAction;/);
 });
 
@@ -2022,8 +2083,9 @@ test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a 
 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
-  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
   assert.ok(findButton(tree, "听"));
+  assert.equal(findButton(tree, "提交").props.disabled, true);
 });
 
 test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture", async () => {
@@ -2076,8 +2138,131 @@ test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
-  assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
   assert.ok(findButton(tree, "听"));
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+});
+
+test("DrillRunner cannot grade listen or dictation while autoplay is gesture-blocked", async () => {
+  const listenQuestion = {
+    id: "listen-gesture",
+    type: "listen",
+    prompt: "听选",
+    answer: "안녕",
+    choices: ["안녕", "학교"],
+    speak: "안녕"
+  };
+  const dictationQuestion = {
+    id: "dictation-gesture",
+    type: "dictation",
+    prompt: "听写",
+    answer: "안녕하세요",
+    speak: "안녕하세요"
+  };
+
+  const runBlocked = async (question, unlockLabel) => {
+    const hooks = createHookHarness();
+    const listeners = new Map();
+    const speechCalls = [];
+    const checked = [];
+    const mistakes = [];
+    const answered = [];
+    const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
+      react: hooks.react,
+      "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
+      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/ui/button": { Button: "Button" },
+      "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
+      "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
+      "@/lib/learning/evidence": { hasKoreanText: () => true },
+      "@/lib/learning/ids": { mistakeCardId: (id) => `mistake:${id}` },
+      "@/lib/learning/quiz": {
+        checkAnswer(item, answer) {
+          checked.push({ id: item.id, answer });
+          return answer === item.answer;
+        }
+      },
+      "@/lib/learning/srs": {
+        recordMistake(id, payload) {
+          mistakes.push({ id, payload });
+          return { id };
+        }
+      },
+      "@/lib/speech": {
+        isGestureBlockedPlaybackError: mockGestureBlockedPlaybackError,
+        speakKorean(text, options) {
+          speechCalls.push({ text, options });
+          return true;
+        },
+        stopSpeech() {}
+      }
+    }, {
+      queueMicrotask,
+      window: {
+        setTimeout() { return 17; },
+        clearTimeout() {},
+        addEventListener(type, listener) {
+          const entries = listeners.get(type) ?? new Set();
+          entries.add(listener);
+          listeners.set(type, entries);
+        },
+        removeEventListener(type, listener) {
+          listeners.get(type)?.delete(listener);
+        }
+      }
+    });
+    const props = {
+      questions: [question],
+      finishLabel: "交卷",
+      recordMistakes: true,
+      onAnswer(entry) {
+        answered.push(entry);
+      }
+    };
+    let tree = hooks.render(DrillRunner, props);
+    await Promise.resolve();
+    speechCalls[0].options.onerror({ error: "NotAllowedError", reason: "needs-gesture" });
+    tree = hooks.render(DrillRunner, props);
+
+    assert.match(textContent(tree), /浏览器拦截了自动播放/);
+    assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+    assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+    const submit = findButton(tree, "提交");
+    assert.equal(submit.props.disabled, true);
+    submit.props.onClick();
+    dispatchBareKey(listeners, "1");
+    tree = hooks.render(DrillRunner, props);
+    dispatchBareKey(listeners, "Enter");
+    dispatchBareKey(listeners, "Enter");
+    assert.equal(checked.length, 0, `${question.type} needs-gesture must not grade`);
+    assert.equal(mistakes.length, 0, `${question.type} needs-gesture must not enroll SRS`);
+    assert.equal(answered.length, 0, `${question.type} needs-gesture must not commit an answer`);
+
+    findButton(tree, unlockLabel).props.onClick();
+    speechCalls.at(-1).options.onstart();
+    tree = hooks.render(DrillRunner, props);
+    if (question.type === "listen") {
+      const choice = findElement(tree, (node) => node.type === "input" && node.props?.value === question.answer);
+      assert.ok(choice, "listen choices should appear after user-initiated playback");
+      choice.props.onChange();
+    } else {
+      const input = findElement(tree, (node) => node.type === "KoreanInput");
+      assert.ok(input, "dictation input should appear after user-initiated playback");
+      input.props.onChange(question.answer);
+    }
+    tree = hooks.render(DrillRunner, props);
+    const unlocked = findButton(tree, "提交");
+    assert.equal(unlocked.props.disabled, false);
+    unlocked.props.onClick();
+    assert.equal(checked.length, 1);
+    assert.equal(answered.length, 1);
+    assert.equal(answered[0].correct, true);
+    assert.equal(answered[0].skipped, undefined);
+    return { checked, answered };
+  };
+
+  await runBlocked(listenQuestion, "听");
+  await runBlocked(dictationQuestion, "播放");
 });
 
 test("skipping a review audio question defers the card so it is no longer due", async () => {
@@ -3346,10 +3531,48 @@ function loadLibraryGatePage(hooks, file, workspace) {
           exampleMeaning: "你好，我是 Lina。",
           note: "最安全的通用问候。",
           pos: "expression"
+        }, {
+          id: "v-jihacheol",
+          level: "survival",
+          category: "greetings",
+          korean: "지하철",
+          romanization: "jihacheol",
+          meaning: "地铁",
+          example: "지하철을 타요.",
+          exampleMeaning: "坐地铁。",
+          note: "交通核心词。",
+          pos: "expression"
         }],
         vocabCategories: [{ id: "greetings", label: "寒暄" }],
         vocabLevels: [{ id: "survival", label: "生存核心", target: "0-800", description: "desc" }],
         vocabPosLabels: { expression: "表达" }
+      }
+    });
+  }
+
+  if (file.includes("grammar")) {
+    return loadComponent(file, {
+      ...imports,
+      "@/data/grammar": {
+        grammarPoints: [{
+          id: "g-topic-subject",
+          level: "foundation",
+          title: "은/는 与 이/가",
+          pattern: "名词 + 은/는 / 이/가",
+          meaning: "话题标记 vs 主语标记",
+          explanation: "은/는 设主题，이/가 标主语。",
+          examples: [{ ko: "저는 학생이에요.", zh: "我是学生。", note: "저는 设话题。" }],
+          pitfalls: ["不要把 은/는 简单等同于“是”。"]
+        }, {
+          id: "g-object",
+          level: "foundation",
+          title: "을/를",
+          pattern: "名词 + 을/를",
+          meaning: "宾语标记",
+          explanation: "把对象标出来。",
+          examples: [{ ko: "밥을 먹어요.", zh: "吃饭。", note: "밥을 是宾语。" }],
+          pitfalls: ["把对象标出来"]
+        }]
       }
     });
   }
@@ -3371,6 +3594,15 @@ function loadLibraryGatePage(hooks, file, workspace) {
           example: "아",
           exampleMeaning: "啊",
           sound: "아"
+        }, {
+          id: "v-ya",
+          glyph: "ㅑ",
+          romanization: "ya",
+          ipa: "ja",
+          cue: "ㅣ + ㅏ 的滑音",
+          example: "야",
+          exampleMeaning: "喂",
+          sound: "야"
         }]
       }],
       pronunciationPairs: [{
@@ -3379,10 +3611,32 @@ function loadLibraryGatePage(hooks, file, workspace) {
         b: "카",
         focus: "松音 ㄱ vs 送气 ㅋ",
         tip: "手放嘴前，카 的气流明显。"
+      }, {
+        id: "plain-tense-k",
+        a: "가",
+        b: "까",
+        focus: "松音 ㄱ vs 紧音 ㄲ",
+        tip: "까 更紧，不送气。"
       }],
       syllableLabs: []
     },
-    "@/data/sound-changes": { soundChangeRules: [] },
+    "@/data/sound-changes": {
+      soundChangeRules: [{
+        id: "sc-liaison",
+        korean: "연음",
+        title: "连音",
+        summary: "收音遇到元音开头的音节时，会移过去当下一个音节的初声。",
+        rule: "收音 + ㅇ 开头音节 → 收音变成下一音节的初声",
+        examples: [{ written: "한국어", spoken: "한구거", zh: "韩语", speak: "한국어" }]
+      }, {
+        id: "sc-nasalization",
+        korean: "비음화",
+        title: "鼻音化",
+        summary: "塞音收音遇到鼻音时自己也变成鼻音。",
+        rule: "ㄱ→ㅇ、ㄷ→ㄴ、ㅂ→ㅁ",
+        examples: [{ written: "감사합니다", spoken: "감사함니다", zh: "谢谢", speak: "감사합니다" }]
+      }]
+    },
     "@/lib/korean/jamo": { decomposeSyllable: () => null },
     "@/lib/learning/ids": {
       pronunciationCardId: (id) => `pronunciation:${id}`,

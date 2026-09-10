@@ -90,6 +90,14 @@ test("sound change gate tests spoken form, rule identity, and written dictation"
   assert.match(questions[0].explain, /连音（연음）/);
 });
 
+test("sound change Q2 identifies a rule title that sibling cards would otherwise print", () => {
+  const questions = buildGateQuestions("soundChange", "sc-liaison", 7);
+  const siblingTitles = soundChangeRules.filter((rule) => rule.id !== "sc-liaison").map((rule) => rule.title);
+  assert.equal(questions[1].answer, "连音");
+  assert.equal(questions[1].choices.includes("连音"), true);
+  assert.equal(questions[1].choices.every((choice) => choice === "连音" || siblingTitles.includes(choice)), true);
+});
+
 test("sound change Q1 stem does not print the rule name that Q2 scores", () => {
   for (const rule of soundChangeRules) {
     const questions = buildGateQuestions("soundChange", rule.id, 7);
