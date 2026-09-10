@@ -926,7 +926,7 @@ await page.getByRole("button", { name: "测一测，再加入复习" }).first().
 await expectText(page, "掌握小测");
 await expectText(page, "字母听辨");
 await assertMasteryGateChromeDoesNotSpoil(page, ["ㅏ", "아", "口腔打开"], "hangul gate");
-await assertLibrarySiblingChromeDoesNotSpoil(page, ["ㅑ", "ㅓ", "ㅗ", "口腔打开"], "hangul gate");
+await assertLibrarySiblingChromeDoesNotSpoil(page, ["口腔打开", "ㅣ + ㅏ 的滑音", "比 ㅏ 更靠后"], "hangul gate");
 await page.getByRole("button", { name: "关闭掌握小测" }).click();
 await page.locator("#pairs").getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
 await expectText(page, "最小对立");
