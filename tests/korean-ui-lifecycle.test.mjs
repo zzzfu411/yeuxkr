@@ -1070,13 +1070,13 @@ test("MasteryGate reports a failed persistence write and retries without another
     "@/lib/learning/gate": {
       buildGateQuestions: () => [{ id: "q1" }],
       GATE_PASS_SCORE: 80,
+      gateHeadline: () => "词汇听写",
       hasSkippedGateAudio: () => false
     }
   });
   const props = {
     kind: "vocab",
     itemId: "v-test",
-    title: "테스트",
     onPassed() {
       saveAttempts += 1;
       return saveSucceeds;
@@ -1085,6 +1085,8 @@ test("MasteryGate reports a failed persistence write and retries without another
   };
 
   let tree = hooks.render(MasteryGate, props);
+  assert.match(textContent(tree), /掌握小测 · 词汇听写/);
+  assert.doesNotMatch(textContent(tree), /테스트|안녕하세요/);
   let runner = findElement(tree, (node) => node.type === "DrillRunner");
   runner.props.onResult(100, []);
   tree = hooks.render(MasteryGate, props);
@@ -1101,6 +1103,124 @@ test("MasteryGate reports a failed persistence write and retries without another
   addon = runner.props.resultAddon({ score: 100, answers: [] });
   assert.match(textContent(addon), /学习记录和复习卡已保存/);
   assert.equal(saveAttempts, 2);
+});
+
+test("TrackRow concealment hides source-card answers from chrome and play controls", () => {
+  const hooks = createHookHarness();
+  const { TrackRow } = loadComponent("src/components/ui/track-row.tsx", {
+    react: hooks.react,
+    "next/link": { default: "Link" },
+    "lucide-react": { ArrowRight: "ArrowRightIcon", Volume2: "VolumeIcon" },
+    "@/lib/utils": { cn }
+  });
+
+  const open = hooks.render(TrackRow, {
+    glyph: "안녕하세요",
+    kicker: "寒暄",
+    title: "안녕하세요",
+    detail: "你好",
+    meta: "表达",
+    expanded: true,
+    onPlay() {},
+    playLabel: "播放 안녕하세요",
+    children: "study body"
+  });
+  assert.match(textContent(open), /안녕하세요/);
+  assert.match(textContent(open), /你好/);
+  assert.ok(findElement(open, (node) => node.props?.["aria-label"] === "播放 안녕하세요"));
+
+  const hidden = hooks.render(TrackRow, {
+    glyph: "안녕하세요",
+    kicker: "寒暄",
+    title: "안녕하세요",
+    detail: "你好",
+    meta: "表达",
+    expanded: true,
+    concealed: true,
+    concealTitle: "词汇听写",
+    onPlay() {},
+    playLabel: "播放 안녕하세요",
+    children: "study body"
+  });
+  const chrome = findElement(hidden, (node) => node.props?.className?.includes("pl-item"));
+  assert.equal(chrome.props["data-concealed"], "true");
+  assert.match(textContent(chrome), /词汇听写/);
+  assert.doesNotMatch(textContent(chrome), /안녕하세요|你好|寒暄|表达/);
+  assert.equal(findElement(hidden, (node) => node.props?.className?.includes("pl-play")), null);
+  assert.equal(findElement(hidden, (node) => node.props?.["aria-label"] === "播放 안녕하세요"), null);
+});
+
+test("library pages conceal TrackRow chrome and drop study spoilers while a MasteryGate is open", () => {
+  const cases = [
+    {
+      file: "src/app/vocabulary/page.tsx",
+      kind: "vocab",
+      headline: "词汇听写",
+      button: "测一测，再加入复习",
+      answers: ["안녕하세요", "你好"],
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedVocab: [], completedLessons: [] } },
+        toggleVocab: () => true,
+        ensureVocab: () => true
+      }
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "hangul",
+      headline: "字母听辨",
+      button: "测一测，再加入复习",
+      answers: ["ㅏ", "아", "口腔打开"],
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
+        srsState: { cards: {} },
+        toggleHangul: () => true,
+        ensureHangul: () => true,
+        togglePronunciation: () => true,
+        ensurePronunciation: () => true,
+        toggleSoundChange: () => true,
+        ensureSoundChange: () => true
+      }
+    },
+    {
+      file: "src/app/hangul/page.tsx",
+      kind: "pronunciation",
+      headline: "最小对立",
+      button: "测一测，再加入听辨复习",
+      answers: ["가", "카", "松音 ㄱ vs 送气 ㅋ"],
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { masteredHangul: [], completedLessons: [] } },
+        srsState: { cards: {} },
+        toggleHangul: () => true,
+        ensureHangul: () => true,
+        togglePronunciation: () => true,
+        ensurePronunciation: () => true,
+        toggleSoundChange: () => true,
+        ensureSoundChange: () => true
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    const hooks = createHookHarness();
+    const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
+    let tree = hooks.render(Page, {});
+    const startButton = findButton(tree, scenario.button);
+    startButton.props.onClick();
+    tree = hooks.render(Page, {});
+
+    const gatedRows = findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed);
+    assert.equal(gatedRows.length, 1, `${scenario.kind} should conceal exactly one source card`);
+    const row = gatedRows[0];
+    assert.equal(row.props.concealTitle, scenario.headline);
+    const gate = findElement(row, (node) => node.type === "MasteryGate");
+    assert.ok(gate, `${scenario.kind} should render MasteryGate inside the concealed row`);
+    assert.equal(gate.props.kind, scenario.kind);
+    assert.equal(gate.props.title, undefined);
+    const visible = `${row.props.concealTitle ?? ""}${textContent(row)}`;
+    for (const answer of scenario.answers) {
+      assert.equal(visible.includes(answer), false, `${scenario.kind} chrome leaked ${answer}`);
+    }
+  }
 });
 
 test("MistakesPage remounts retrain runner when the target changes", () => {
@@ -3005,6 +3125,113 @@ function createActiveMediaHarness() {
 function mockGestureBlockedPlaybackError(error) {
   const name = typeof error === "string" ? error : error?.error || error?.name || error?.reason;
   return name === "NotAllowedError" || name === "play-rejected" || name === "needs-gesture" || name === "not-allowed";
+}
+
+function loadLibraryGatePage(hooks, file, workspace) {
+  const headlines = {
+    vocab: "词汇听写",
+    hangul: "字母听辨",
+    pronunciation: "最小对立",
+    grammar: "句型小测",
+    soundChange: "音变听辨"
+  };
+  const imports = {
+    react: hooks.react,
+    "lucide-react": { Volume2: "VolumeIcon" },
+    "@/components/ui/button": { Button: "Button" },
+    "@/components/ui/inline-alert": { InlineAlert: "InlineAlert" },
+    "@/components/ui/track-row": { TrackRow: "TrackRow" },
+    "@/components/ui/filter-console": {
+      CheckboxFilter: "CheckboxFilter",
+      EmptyState: "EmptyState",
+      FilterSummary: "FilterSummary",
+      SearchField: "SearchField",
+      SegmentedFilter: "SegmentedFilter"
+    },
+    "@/components/ui/library-pagination": {
+      LibraryPagination: "LibraryPagination",
+      useLibraryPage(items) {
+        return { items: items.slice(0, 4), page: 0, pages: 1, pageSize: 4, total: items.length, setPage() {} };
+      }
+    },
+    "@/components/ui/section": {
+      ModuleHero: "ModuleHero",
+      PageHeader: "PageHeader",
+      SectionHeading: "SectionHeading",
+      Surface: "Surface"
+    },
+    "@/components/learning/library-gate-notice": { LibraryGateNotice: "LibraryGateNotice" },
+    "@/components/learning/onboarding-gate-notice": { OnboardingGateNotice: "OnboardingGateNotice" },
+    "@/components/learning/mastery-gate": { MasteryGate: "MasteryGate" },
+    "@/components/korean/romanization-text": { RomanizationText: "RomanizationText" },
+    "@/lib/learning/compass": { needsOnboardingFunnel: () => false },
+    "@/lib/learning/gate": {
+      gateConcealment(kind, active) {
+        return { concealed: active, concealTitle: active ? headlines[kind] : undefined };
+      }
+    },
+    "@/lib/learning/use-learning-workspace": { useLearningWorkspace: () => workspace },
+    "@/lib/speech": { speakKorean() {}, speakSequence() {} }
+  };
+
+  if (file.includes("vocabulary")) {
+    return loadComponent(file, {
+      ...imports,
+      "@/data/lexicon": {
+        vocab: [{
+          id: "v-annyeonghaseyo",
+          level: "survival",
+          category: "greetings",
+          korean: "안녕하세요",
+          romanization: "annyeonghaseyo",
+          meaning: "你好",
+          example: "안녕하세요, 저는 리나예요.",
+          exampleMeaning: "你好，我是 Lina。",
+          note: "最安全的通用问候。",
+          pos: "expression"
+        }],
+        vocabCategories: [{ id: "greetings", label: "寒暄" }],
+        vocabLevels: [{ id: "survival", label: "生存核心", target: "0-800", description: "desc" }],
+        vocabPosLabels: { expression: "表达" }
+      }
+    });
+  }
+
+  return loadComponent(file, {
+    ...imports,
+    "@/data/hangul": {
+      hangulGroups: [{
+        id: "vowels-basic",
+        title: "基础元音",
+        track: "sound",
+        summary: "summary",
+        items: [{
+          id: "v-a",
+          glyph: "ㅏ",
+          romanization: "a",
+          ipa: "a",
+          cue: "口腔打开，像干净短促的 a",
+          example: "아",
+          exampleMeaning: "啊",
+          sound: "아"
+        }]
+      }],
+      pronunciationPairs: [{
+        id: "plain-aspirated-k",
+        a: "가",
+        b: "카",
+        focus: "松音 ㄱ vs 送气 ㅋ",
+        tip: "手放嘴前，카 的气流明显。"
+      }],
+      syllableLabs: []
+    },
+    "@/data/sound-changes": { soundChangeRules: [] },
+    "@/lib/korean/jamo": { decomposeSyllable: () => null },
+    "@/lib/learning/ids": {
+      pronunciationCardId: (id) => `pronunciation:${id}`,
+      soundChangeCardId: (id) => `soundChange:${id}`
+    }
+  });
 }
 
 function findButton(tree, label) {

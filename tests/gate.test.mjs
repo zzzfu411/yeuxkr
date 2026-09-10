@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildGateQuestions, GATE_PASS_SCORE, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
+const { buildGateQuestions, collectGateAnswerTokens, GATE_HEADLINES, GATE_PASS_SCORE, gateConcealment, gateHeadline, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
 const { UNLOCK_SCORE } = await import("../src/data/curriculum.js");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
 
@@ -87,6 +87,29 @@ test("sound change gate tests spoken form, rule identity, and written dictation"
   assert.equal(checkAnswer(questions[2], "오시"), false);
 });
 
+test("gate headlines stay generic and never echo the tested answers", () => {
+  const cases = [
+    ["vocab", "v-annyeonghaseyo"],
+    ["hangul", "v-a"],
+    ["pronunciation", "plain-aspirated-k"],
+    ["grammar", "g-topic-subject"],
+    ["soundChange", "sc-liaison"]
+  ];
+  for (const [kind, itemId] of cases) {
+    const headline = gateHeadline(kind);
+    const answers = collectGateAnswerTokens(kind, itemId);
+    assert.equal(headline, GATE_HEADLINES[kind]);
+    assert.ok(headline.length > 0);
+    for (const answer of distinctiveTokens(answers)) {
+      assert.equal(headline.includes(answer), false, `${kind} headline leaked ${answer}`);
+    }
+    const concealment = gateConcealment(kind, true);
+    assert.equal(concealment.concealed, true);
+    assert.equal(concealment.concealTitle, headline);
+    assert.deepEqual(gateConcealment(kind, false), { concealed: false, concealTitle: undefined });
+  }
+});
+
 test("gate questions are deterministic per seed and unknown items return nothing", () => {
   const first = buildGateQuestions("vocab", "v-annyeonghaseyo", 42);
   const second = buildGateQuestions("vocab", "v-annyeonghaseyo", 42);
@@ -97,3 +120,7 @@ test("gate questions are deterministic per seed and unknown items return nothing
   assert.deepEqual(buildGateQuestions("hangul", "missing-item", 1), []);
   assert.deepEqual(buildGateQuestions("pronunciation", "missing-item", 1), []);
 });
+
+function distinctiveTokens(answers) {
+  return answers.filter((answer) => answer.length >= 2 || /[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(answer));
+}

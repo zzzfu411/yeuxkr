@@ -9,6 +9,7 @@ import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
+import { gateConcealment } from "@/lib/learning/gate";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { hangulGroups, pronunciationPairs, syllableLabs } from "@/data/hangul";
@@ -90,6 +91,7 @@ export default function HangulPage() {
               const soundRole = getSoundRole(group.id);
               const relation = getExampleRelation(item, group.id);
               const expanded = !collapsed[item.id];
+              const gating = gateItemId === item.id && !mastered.has(item.id);
               return (
               <TrackRow
                 key={item.id}
@@ -104,7 +106,20 @@ export default function HangulPage() {
                 onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.sound)}
                 playLabel={`播放${soundRole} ${item.sound}`}
+                {...gateConcealment("hangul", gating)}
               >
+                {gating ? (
+                  <MasteryGate
+                    kind="hangul"
+                    itemId={item.id}
+                    onPassed={() => {
+                      const saved = toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id));
+                      if (saved) setGateItemId("");
+                      return saved;
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : (
                 <div className="grid gap-3">
                   <div className="grid gap-1 font-mono text-sm font-medium text-[var(--ink-soft)]">
                     <RomanizationText
@@ -153,21 +168,9 @@ export default function HangulPage() {
                       测一测，再加入复习
                     </Button>
                   )}
-                  {gateItemId === item.id && !mastered.has(item.id) ? (
-                    <MasteryGate
-                      kind="hangul"
-                      itemId={item.id}
-                      title={item.glyph}
-                      onPassed={() => {
-                        const saved = toggleSrs(`hangul:${item.id}`, () => ensureHangul(item.id));
-                        if (saved) setGateItemId("");
-                        return saved;
-                      }}
-                      onClose={() => setGateItemId("")}
-                    />
-                  ) : null}
                   {srsErrorId === `hangul:${item.id}` ? <SrsError /> : null}
                 </div>
+                )}
               </TrackRow>
               );
             })}
@@ -178,7 +181,9 @@ export default function HangulPage() {
       <Surface variant="plain">
         <SectionHeading kicker="소리 비교 · 对比发音" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
         <div id="pairs">
-          {pronunciationPairs.map((pair: any, pairIndex: number) => (
+          {pronunciationPairs.map((pair: any, pairIndex: number) => {
+            const gating = gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id));
+            return (
             <TrackRow
               key={pair.id}
               index={pairIndex + 1}
@@ -191,7 +196,21 @@ export default function HangulPage() {
               onToggle={() => setCollapsed((current) => ({ ...current, [pair.id]: !current[pair.id] }))}
               onPlay={() => speakSequence([pair.a, pair.b])}
               playLabel={`播放对比：先 ${pair.a}，后 ${pair.b}`}
+              {...gateConcealment("pronunciation", gating)}
             >
+              {gating ? (
+                <MasteryGate
+                  kind="pronunciation"
+                  itemId={pair.id}
+                  onPassed={() => {
+                    const saved = toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id));
+                    if (saved) setGateItemId("");
+                    return saved;
+                  }}
+                  onClose={() => setGateItemId("")}
+                />
+              ) : (
+                <>
               <p className="text-sm leading-6 text-[var(--muted)]">{pair.tip}</p>
               {pronunciationCards.has(pronunciationCardId(pair.id)) ? (
                 <Button
@@ -216,22 +235,12 @@ export default function HangulPage() {
                   测一测，再加入听辨复习
                 </Button>
               )}
-              {gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id)) ? (
-                <MasteryGate
-                  kind="pronunciation"
-                  itemId={pair.id}
-                  title={`${pair.a} vs ${pair.b}`}
-                  onPassed={() => {
-                    const saved = toggleSrs(`pronunciation:${pair.id}`, () => ensurePronunciation(pair.id));
-                    if (saved) setGateItemId("");
-                    return saved;
-                  }}
-                  onClose={() => setGateItemId("")}
-                />
-              ) : null}
               {srsErrorId === `pronunciation:${pair.id}` ? <SrsError className="mt-3" /> : null}
+                </>
+              )}
             </TrackRow>
-          ))}
+            );
+          })}
         </div>
       </Surface>
 
@@ -246,6 +255,7 @@ export default function HangulPage() {
             const cardId = soundChangeCardId(rule.id);
             const added = soundChangeCards.has(cardId);
             const first = rule.examples?.[0];
+            const gating = gateItemId === rule.id && !added;
             return (
               <TrackRow
                 key={rule.id}
@@ -259,7 +269,21 @@ export default function HangulPage() {
                 onToggle={() => setCollapsed((current) => ({ ...current, [rule.id]: !current[rule.id] }))}
                 onPlay={first ? () => speakKorean(first.speak) : undefined}
                 playLabel={first ? `播放 ${first.written}` : undefined}
+                {...gateConcealment("soundChange", gating)}
               >
+                {gating ? (
+                  <MasteryGate
+                    kind="soundChange"
+                    itemId={rule.id}
+                    onPassed={() => {
+                      const saved = toggleSrs(cardId, () => ensureSoundChange(rule.id));
+                      if (saved) setGateItemId("");
+                      return saved;
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : (
+                  <>
                 <p className="rounded-[var(--radius)] border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-2 font-mono text-xs font-medium text-[var(--ink-soft)]">{rule.rule}</p>
                 <div className="mt-3 grid gap-2">
                   {rule.examples.map((example: any) => (
@@ -299,20 +323,9 @@ export default function HangulPage() {
                     测一测，再加入听辨复习
                   </Button>
                 )}
-                {gateItemId === rule.id && !added ? (
-                  <MasteryGate
-                    kind="soundChange"
-                    itemId={rule.id}
-                    title={rule.title}
-                    onPassed={() => {
-                      const saved = toggleSrs(cardId, () => ensureSoundChange(rule.id));
-                      if (saved) setGateItemId("");
-                      return saved;
-                    }}
-                    onClose={() => setGateItemId("")}
-                  />
-                ) : null}
                 {srsErrorId === cardId ? <SrsError /> : null}
+                  </>
+                )}
               </TrackRow>
             );
           })}

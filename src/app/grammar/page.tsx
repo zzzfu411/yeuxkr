@@ -10,6 +10,7 @@ import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
+import { gateConcealment } from "@/lib/learning/gate";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
 import { grammarPoints } from "@/data/grammar";
@@ -135,7 +136,9 @@ export default function GrammarPage() {
         <Surface key={level} variant="plain">
           <SectionHeading kicker={`${level} · 显示 ${points.length} · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
           <div>
-            {points.map((point: any, pointIndex: number) => (
+            {points.map((point: any, pointIndex: number) => {
+              const gating = gateItemId === point.id && !learned.has(point.id);
+              return (
               <TrackRow
                 key={point.id}
                 index={pointIndex + 1}
@@ -148,7 +151,21 @@ export default function GrammarPage() {
                 onToggle={() => setCollapsed((current) => ({ ...current, [point.id]: !current[point.id] }))}
                 onPlay={point.examples?.[0]?.ko ? () => speakKorean(point.examples[0].ko) : undefined}
                 playLabel={point.examples?.[0]?.ko ? `播放 ${point.examples[0].ko}` : undefined}
+                {...gateConcealment("grammar", gating)}
               >
+                {gating ? (
+                  <MasteryGate
+                    kind="grammar"
+                    itemId={point.id}
+                    onPassed={() => {
+                      const saved = ensureGrammarSrs(point.id);
+                      if (saved) setGateItemId("");
+                      return saved;
+                    }}
+                    onClose={() => setGateItemId("")}
+                  />
+                ) : (
+                  <>
                 <p className="leading-7 text-[var(--muted)]">{point.explanation}</p>
                 <div className="mt-3 grid gap-2">
                   {point.examples.map((example: any) => (
@@ -192,22 +209,12 @@ export default function GrammarPage() {
                     测一测，再加入复习
                   </Button>
                 )}
-                {gateItemId === point.id && !learned.has(point.id) ? (
-                  <MasteryGate
-                    kind="grammar"
-                    itemId={point.id}
-                    title={point.title}
-                    onPassed={() => {
-                      const saved = ensureGrammarSrs(point.id);
-                      if (saved) setGateItemId("");
-                      return saved;
-                    }}
-                    onClose={() => setGateItemId("")}
-                  />
-                ) : null}
                 {srsErrorId === point.id ? <SrsError /> : null}
+                  </>
+                )}
               </TrackRow>
-            ))}
+              );
+            })}
           </div>
         </Surface>
       ))}

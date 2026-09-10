@@ -842,6 +842,7 @@ let vocabCards = await page.evaluate(() => {
 if (vocabCards !== 0) issues.push(`removing mastered vocabulary should remove its SRS card, found ${vocabCards}`);
 await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
 await expectText(page, "掌握小测");
+await assertMasteryGateChromeDoesNotSpoil(page, ["안녕하세요", "你好"], "vocab gate");
 await page.getByRole("radio", { name: "안녕하세요" }).check();
 await clickAction(page.getByRole("button", { name: "提交" }));
 await clickAction(page.getByRole("button", { name: "下一题" }));
@@ -901,6 +902,18 @@ if (travelFilterState.hasFood) issues.push("travel category filter should hide f
 await page.getByRole("button", { name: "重置筛选" }).click();
 
 await ensureOnboarded(page);
+await page.goto(`${baseUrl}/hangul`, { waitUntil: "networkidle" });
+await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
+await expectText(page, "掌握小测");
+await expectText(page, "字母听辨");
+await assertMasteryGateChromeDoesNotSpoil(page, ["ㅏ", "아", "口腔打开"], "hangul gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
+await page.locator("#pairs").getByRole("button", { name: "测一测，再加入听辨复习" }).first().click();
+await expectText(page, "最小对立");
+await assertMasteryGateChromeDoesNotSpoil(page, ["가", "카", "松音 ㄱ vs 送气 ㅋ"], "pronunciation gate");
+await page.getByRole("button", { name: "关闭掌握小测" }).click();
+
+await ensureOnboarded(page);
 await page.goto(`${baseUrl}/grammar`, { waitUntil: "networkidle" });
 await expectText(page, "筛选要练的句型");
 const defaultGrammarState = await page.evaluate(() => {
@@ -940,6 +953,7 @@ await page.getByRole("button", { name: "重置筛选" }).click();
 const passTopicSubjectGate = async () => {
   await page.getByRole("button", { name: "测一测，再加入复习" }).first().click();
   await expectText(page, "掌握小测");
+  await assertMasteryGateChromeDoesNotSpoil(page, ["我是学生。", "话题标记 vs 主语标记", "不要把 은/는 简单等同于“是”。"], "grammar gate");
   await page.getByRole("radio", { name: "我是学生。" }).check();
   await clickAction(page.getByRole("button", { name: "提交" }));
   await clickAction(page.getByRole("button", { name: "下一题" }));
@@ -1781,6 +1795,30 @@ async function probePointerTarget(locator) {
       topName: top instanceof Element ? `${top.tagName}.${String(top.className)}` : String(top)
     };
   }).catch((error) => ({ hit: false, overlap: false, topName: error.message }));
+}
+
+async function assertMasteryGateChromeDoesNotSpoil(targetPage, answers, label) {
+  const leaked = await targetPage.evaluate((tokens) => {
+    const article = [...document.querySelectorAll("article")].find((item) => item.querySelector(".mastery-gate"));
+    if (!article) return { reason: "missing-gate" };
+    const chrome = article.querySelector(".pl-item")?.innerText ?? "";
+    const heading = article.querySelector(".mastery-gate__title")?.innerText ?? "";
+    return {
+      chrome,
+      heading,
+      hits: tokens.filter((token) => chrome.includes(token) || heading.includes(token))
+    };
+  }, answers);
+  if (leaked.reason === "missing-gate") {
+    issues.push(`${label}: mastery gate did not open`);
+    return;
+  }
+  if (!leaked.heading.includes("掌握小测")) {
+    issues.push(`${label}: generic mastery-gate title missing`);
+  }
+  if (leaked.hits.length) {
+    issues.push(`${label}: open-book spoiler in gate chrome: ${leaked.hits.join(", ")}`);
+  }
 }
 
 async function expectText(page, text) {

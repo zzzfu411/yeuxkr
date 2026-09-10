@@ -15,6 +15,8 @@ export function TrackRow({
   completed = false,
   active = false,
   expanded = false,
+  concealed = false,
+  concealTitle,
   onToggle,
   onPlay,
   href,
@@ -30,6 +32,8 @@ export function TrackRow({
   completed?: boolean;
   active?: boolean;
   expanded?: boolean;
+  concealed?: boolean;
+  concealTitle?: string;
   onToggle?: () => void;
   onPlay?: () => void;
   href?: string;
@@ -37,22 +41,28 @@ export function TrackRow({
   children?: ReactNode;
 }) {
   const order = index != null ? String(index).padStart(2, "0") : "·";
+  const shownGlyph = concealed ? "·" : glyph;
+  const shownTitle = concealed ? (concealTitle || "掌握小测") : title;
+  const shownDetail = concealed ? undefined : detail;
+  const shownMeta = concealed ? undefined : meta;
+  const shownKicker = concealed ? undefined : kicker;
+  const playHandler = concealed ? undefined : onPlay;
   const titleInner = (
     <>
       <span className="flex flex-wrap items-center gap-2">
-        {kicker ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--ocean)]">{kicker}</span> : null}
+        {shownKicker ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--ocean)]">{shownKicker}</span> : null}
         {completed ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--celadon)]">已掌握</span> : null}
       </span>
-      <strong className="line-clamp-2 block break-words font-serif text-xl font-black leading-tight">{title}</strong>
-      {detail ? <span className="mt-0.5 line-clamp-2 block text-sm font-bold leading-5 text-[var(--muted)]">{detail}</span> : null}
+      <strong className="line-clamp-2 block break-words font-serif text-xl font-black leading-tight">{shownTitle}</strong>
+      {shownDetail ? <span className="mt-0.5 line-clamp-2 block text-sm font-bold leading-5 text-[var(--muted)]">{shownDetail}</span> : null}
     </>
   );
 
   return (
     <article className="pl-block">
-      <div className={cn("pl-item", completed && "is-done", (active || expanded) && "is-open", active && "is-active")}>
+      <div className={cn("pl-item", completed && "is-done", (active || expanded) && "is-open", active && "is-active", concealed && "is-concealed")} data-concealed={concealed ? "true" : undefined}>
         <span className="font-mono text-[0.7rem] font-black text-[var(--fade)]">{order}</span>
-        <span className="pl-cover hangul-display" lang="ko" aria-hidden="true">{glyph}</span>
+        <span className="pl-cover hangul-display" lang="ko" aria-hidden="true">{shownGlyph}</span>
         {onToggle ? (
           <button
             type="button"
@@ -69,17 +79,17 @@ export function TrackRow({
         ) : (
           <div className="min-w-0 py-1">{titleInner}</div>
         )}
-        {meta ? <span className="hidden font-mono text-xs font-black text-[var(--muted)] sm:inline">{meta}</span> : <span />}
-        {onPlay ? (
+        {shownMeta ? <span className="hidden font-mono text-xs font-black text-[var(--muted)] sm:inline">{shownMeta}</span> : <span />}
+        {playHandler ? (
           <button
             type="button"
             className="pl-play"
             aria-label={playLabel ?? `播放 ${title}`}
-            onClick={onPlay}
+            onClick={playHandler}
           >
             <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
-        ) : href ? (
+        ) : href && !concealed ? (
           <Link href={href} className="pl-play" aria-label={playLabel ?? `打开 ${title}`}>
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
