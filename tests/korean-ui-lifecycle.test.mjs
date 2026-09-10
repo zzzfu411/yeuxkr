@@ -1833,10 +1833,11 @@ test("hangul library conceals same-section sibling chrome while a gate is open",
   assert.match(source, /hangulGateOpen/);
   assert.match(source, /pronunciationGateOpen/);
   assert.match(source, /soundChangeGateOpen/);
+  assert.match(source, /libraryGateOpen = hangulGateOpen \|\| pronunciationGateOpen \|\| soundChangeGateOpen/);
   assert.match(source, /siblingLocked/);
-  assert.match(source, /gateConcealment\("hangul", hangulGateOpen\)/);
-  assert.match(source, /gateConcealment\("pronunciation", pronunciationGateOpen\)/);
-  assert.match(source, /gateConcealment\("soundChange", soundChangeGateOpen\)/);
+  assert.match(source, /gateConcealment\("hangul", libraryGateOpen\)/);
+  assert.match(source, /gateConcealment\("pronunciation", libraryGateOpen\)/);
+  assert.match(source, /gateConcealment\("soundChange", libraryGateOpen\)/);
 });
 
 test("mistakes retrain conceals answer chrome for the live attempt set", () => {

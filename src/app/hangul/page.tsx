@@ -47,6 +47,7 @@ export default function HangulPage() {
   const soundChangeGateOpen = soundChangeRules.some(
     (rule: any) => rule.id === gateItemId && !soundChangeCards.has(soundChangeCardId(rule.id))
   );
+  const libraryGateOpen = hangulGateOpen || pronunciationGateOpen || soundChangeGateOpen;
   const toggleSrs = (id: string, action: () => boolean) => {
     if (action()) {
       setSrsErrorId((current) => (current === id ? "" : current));
@@ -100,7 +101,7 @@ export default function HangulPage() {
               const soundRole = getSoundRole(group.id);
               const relation = getExampleRelation(item, group.id);
               const gating = gateItemId === item.id && !mastered.has(item.id);
-              const siblingLocked = hangulGateOpen && !gating;
+              const siblingLocked = libraryGateOpen && !gating;
               return (
               <TrackRow
                 key={item.id}
@@ -115,7 +116,7 @@ export default function HangulPage() {
                 onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.sound)}
                 playLabel={`播放${soundRole} ${item.sound}`}
-                {...gateConcealment("hangul", hangulGateOpen)}
+                {...gateConcealment("hangul", libraryGateOpen)}
               >
                 {gating ? (
                   <MasteryGate
@@ -192,7 +193,7 @@ export default function HangulPage() {
         <div id="pairs">
           {pronunciationPairs.map((pair: any, pairIndex: number) => {
             const gating = gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id));
-            const siblingLocked = pronunciationGateOpen && !gating;
+            const siblingLocked = libraryGateOpen && !gating;
             return (
             <TrackRow
               key={pair.id}
@@ -206,7 +207,7 @@ export default function HangulPage() {
               onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [pair.id]: !current[pair.id] }))}
               onPlay={() => speakSequence([pair.a, pair.b])}
               playLabel={`播放对比：先 ${pair.a}，后 ${pair.b}`}
-              {...gateConcealment("pronunciation", pronunciationGateOpen)}
+              {...gateConcealment("pronunciation", libraryGateOpen)}
             >
               {gating ? (
                 <MasteryGate
@@ -266,7 +267,7 @@ export default function HangulPage() {
             const added = soundChangeCards.has(cardId);
             const first = rule.examples?.[0];
             const gating = gateItemId === rule.id && !added;
-            const siblingLocked = soundChangeGateOpen && !gating;
+            const siblingLocked = libraryGateOpen && !gating;
             return (
               <TrackRow
                 key={rule.id}
@@ -280,7 +281,7 @@ export default function HangulPage() {
                 onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [rule.id]: !current[rule.id] }))}
                 onPlay={first ? () => speakKorean(first.speak) : undefined}
                 playLabel={first ? `播放 ${first.written}` : undefined}
-                {...gateConcealment("soundChange", soundChangeGateOpen)}
+                {...gateConcealment("soundChange", libraryGateOpen)}
               >
                 {gating ? (
                   <MasteryGate
