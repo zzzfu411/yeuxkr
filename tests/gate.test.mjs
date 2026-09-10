@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const { buildGateQuestions, collectGateAnswerTokens, GATE_HEADLINES, GATE_PASS_SCORE, gateConcealment, gateHeadline, hasSkippedGateAudio } = await import("../src/lib/learning/gate.ts");
+const { buildGateQuestions, collectGateAnswerTokens, GATE_HEADLINES, GATE_PASS_SCORE, gateConcealment, gateHeadline, hasSkippedGateAudio, visibleLibraryGateItemId } = await import("../src/lib/learning/gate.ts");
 const { UNLOCK_SCORE } = await import("../src/data/curriculum.js");
 const { checkAnswer } = await import("../src/lib/learning/quiz.ts");
 const { soundChangeRules } = await import("../src/data/sound-changes.js");
@@ -135,6 +135,15 @@ test("gate headlines stay generic and never echo the tested answers", () => {
     assert.equal(concealment.concealTitle, headline);
     assert.deepEqual(gateConcealment(kind, false), { concealed: false, concealTitle: undefined });
   }
+});
+
+test("visibleLibraryGateItemId drops a gate once the item leaves the current page", () => {
+  const page = [{ id: "v-annyeonghaseyo" }, { id: "v-jihacheol" }];
+  assert.equal(visibleLibraryGateItemId("", page), "");
+  assert.equal(visibleLibraryGateItemId("v-annyeonghaseyo", page), "v-annyeonghaseyo");
+  assert.equal(visibleLibraryGateItemId("v-annyeonghaseyo", page.filter((item) => item.id !== "v-annyeonghaseyo")), "");
+  assert.equal(visibleLibraryGateItemId("v-annyeonghaseyo", []), "");
+  assert.equal(visibleLibraryGateItemId("v-missing", page), "");
 });
 
 test("gate questions are deterministic per seed and unknown items return nothing", () => {

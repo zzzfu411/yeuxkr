@@ -5,6 +5,7 @@ import vm from "node:vm";
 import ts from "typescript";
 
 const { RETRAIN_HEADLINE, retrainConcealment, retrainQuestionIds } = await import("../src/lib/learning/mistakes.ts");
+const { visibleLibraryGateItemId } = await import("../src/lib/learning/gate.ts");
 
 const JSX_RUNTIME = { jsx: createElement, jsxs: createElement, Fragment: Symbol("Fragment") };
 
@@ -1269,6 +1270,87 @@ test("library pages conceal TrackRow chrome and drop study spoilers while a Mast
     for (const answer of scenario.answers) {
       assert.equal(visible.includes(answer), false, `${scenario.kind} chrome leaked ${answer}`);
     }
+  }
+});
+
+test("library pages unlock sibling chrome when a filter orphans the open MasteryGate", () => {
+  const cases = [
+    {
+      file: "src/app/vocabulary/page.tsx",
+      kind: "vocab",
+      button: "测一测，再加入复习",
+      startTitle: "안녕하세요",
+      siblingTitle: "지하철",
+      orphanQuery: "지하철",
+      keepQuery: "寒暄",
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedVocab: [], completedLessons: [] } },
+        toggleVocab: () => true,
+        ensureVocab: () => true
+      }
+    },
+    {
+      file: "src/app/grammar/page.tsx",
+      kind: "grammar",
+      button: "测一测，再加入复习",
+      startTitle: "은/는 与 이/가",
+      siblingTitle: "을/를",
+      orphanQuery: "宾语标记",
+      keepQuery: "标记",
+      workspace: {
+        workspace: { profile: { romanization: "show" }, progress: { learnedGrammar: [], completedLessons: [] } },
+        toggleGrammar: () => true,
+        ensureGrammar: () => true
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    const hooks = createHookHarness();
+    const { default: Page } = loadLibraryGatePage(hooks, scenario.file, scenario.workspace);
+    let tree = hooks.render(Page, {});
+    const host = findElements(tree, (node) => node.type === "TrackRow").find((row) => row.props?.title === scenario.startTitle);
+    assert.ok(host, `${scenario.kind} should render the ${scenario.startTitle} card`);
+    findButton(host, scenario.button).props.onClick();
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed).length, 2, `${scenario.kind} should conceal siblings while the gated item is still in view`);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange(scenario.keepQuery);
+    tree = hooks.render(Page, {});
+    const keptRows = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(keptRows.length, 2, `${scenario.kind} keep-query should leave both cards on the page`);
+    assert.equal(keptRows.filter((row) => row.props?.concealed).length, 2, `${scenario.kind} should keep sibling concealment while the gated item still matches`);
+    assert.ok(findElement(tree, (node) => node.type === "MasteryGate"), `${scenario.kind} should keep the in-view MasteryGate open`);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange(scenario.orphanQuery);
+    tree = hooks.render(Page, {});
+    const remaining = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(remaining.length, 1, `${scenario.kind} orphan query should leave the sibling`);
+    assert.equal(remaining[0].props.title, scenario.siblingTitle);
+    assert.equal(remaining[0].props.concealed, false, `${scenario.kind} should unlock concealment after the gated item leaves the filtered page`);
+    assert.equal(remaining[0].props.expanded, true, `${scenario.kind} remaining row should expand again`);
+    assert.equal(typeof remaining[0].props.onToggle, "function", `${scenario.kind} remaining row should accept expand again`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should unmount the orphaned MasteryGate`);
+    findButton(remaining[0], scenario.button);
+
+    findElement(tree, (node) => node.type === "SearchField").props.onChange("");
+    tree = hooks.render(Page, {});
+    const restored = findElements(tree, (node) => node.type === "TrackRow");
+    assert.equal(restored.length, 2, `${scenario.kind} should restore both cards after clearing search`);
+    assert.equal(restored.every((row) => !row.props?.concealed), true, `${scenario.kind} must not revive the orphaned gate when the item returns`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should stay closed after the orphaned item returns`);
+
+    const startAgain = restored.find((row) => row.props?.title === scenario.startTitle);
+    findButton(startAgain, scenario.button).props.onClick();
+    tree = hooks.render(Page, {});
+    findElement(tree, (node) => node.type === "CheckboxFilter").props.onChange(true);
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow").length, 0, `${scenario.kind} learned-only filter should hide the unlearned gated item`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} should drop the gate when only-learned hides it`);
+    findElement(tree, (node) => node.type === "EmptyState").props.onAction();
+    tree = hooks.render(Page, {});
+    assert.equal(findElements(tree, (node) => node.type === "TrackRow" && node.props?.concealed).length, 0, `${scenario.kind} reset must not leave a stale concealed library`);
+    assert.equal(findElement(tree, (node) => node.type === "MasteryGate"), null, `${scenario.kind} reset must not reopen the orphaned gate`);
   }
 });
 
@@ -3509,7 +3591,8 @@ function loadLibraryGatePage(hooks, file, workspace) {
     "@/lib/learning/gate": {
       gateConcealment(kind, active) {
         return { concealed: active, concealTitle: active ? headlines[kind] : undefined };
-      }
+      },
+      visibleLibraryGateItemId
     },
     "@/lib/learning/use-learning-workspace": { useLearningWorkspace: () => workspace },
     "@/lib/speech": { speakKorean() {}, speakSequence() {} }

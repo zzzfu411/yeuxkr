@@ -9,7 +9,7 @@ import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { MasteryGate } from "@/components/learning/mastery-gate";
-import { gateConcealment } from "@/lib/learning/gate";
+import { gateConcealment, visibleLibraryGateItemId } from "@/lib/learning/gate";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { TrackRow } from "@/components/ui/track-row";
@@ -50,6 +50,8 @@ export default function VocabularyPage() {
   }, [categoryFilter, learned, levelFilter, onlyLearned, query]);
   const pagination = useLibraryPage(filteredVocab, JSON.stringify([query, levelFilter, categoryFilter, onlyLearned]), 12);
   const visibleVocab = pagination.items;
+  const visibleGateItemId = visibleLibraryGateItemId(gateItemId, visibleVocab);
+  if (visibleGateItemId !== gateItemId) setGateItemId(visibleGateItemId);
   const byLevel = groupBy(visibleVocab, "level");
   const levelCounts = countBy(filteredVocab, "level");
   const categoryCounts = countBy(filteredVocab, "category");
@@ -144,8 +146,8 @@ export default function VocabularyPage() {
           <SectionHeading kicker={`显示 ${byLevel[level.id]?.length ?? 0} · 匹配 ${levelCounts[level.id] ?? 0} · 长期目标 ${level.target}`} title={level.label} copy={level.description} />
           <div>
             {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => {
-              const gating = gateItemId === item.id && !learned.has(item.id);
-              const siblingLocked = Boolean(gateItemId) && !gating;
+              const gating = visibleGateItemId === item.id && !learned.has(item.id);
+              const siblingLocked = Boolean(visibleGateItemId) && !gating;
               return (
               <TrackRow
                 key={item.id}
@@ -160,7 +162,7 @@ export default function VocabularyPage() {
                 onToggle={siblingLocked ? undefined : () => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
                 onPlay={() => speakKorean(item.korean)}
                 playLabel={`播放 ${item.korean}`}
-                {...gateConcealment("vocab", Boolean(gateItemId))}
+                {...gateConcealment("vocab", Boolean(visibleGateItemId))}
               >
                 {gating ? (
                   <MasteryGate
@@ -211,7 +213,7 @@ export default function VocabularyPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    aria-expanded={gateItemId === item.id}
+                    aria-expanded={visibleGateItemId === item.id}
                     disabled={enrollBlocked}
                     onClick={() => setGateItemId((current) => (current === item.id ? "" : item.id))}
                   >

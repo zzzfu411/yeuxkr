@@ -30,6 +30,15 @@ export function gateConcealment(kind: GateKind, active: boolean) {
   };
 }
 
+/** Keep a library MasteryGate only while its item is still on the current filtered page. */
+export function visibleLibraryGateItemId(
+  gateItemId: string,
+  visibleItems: ReadonlyArray<{ id?: string } | null | undefined>
+) {
+  if (!gateItemId) return "";
+  return visibleItems.some((item) => item?.id === gateItemId) ? gateItemId : "";
+}
+
 export function collectGateAnswerTokens(kind: GateKind, itemId: string, seed = 1) {
   return [...new Set(
     buildGateQuestions(kind, itemId, seed)
