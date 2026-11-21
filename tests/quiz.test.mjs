@@ -443,7 +443,7 @@ test("buildProgressQuiz includes output archive target rewrites", () => {
   assert.equal(Boolean(outputQuestion), true);
   assert.equal(outputQuestion.type, "type");
   assert.equal(outputQuestion.answer, "아이스 아메리카노 하나 포장해 주세요.");
-  assert.equal(outputQuestion.acceptable.includes("저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요."), true);
+  assert.equal(outputQuestion.acceptable.includes("저는 카페에서 아이스 아메리카노를 주문하고 카드로 계산하고 싶어요."), false);
   assert.match(outputQuestion.prompt, /外带表达不稳/);
 });
 

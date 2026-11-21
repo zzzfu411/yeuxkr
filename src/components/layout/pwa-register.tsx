@@ -1,11 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MonitorDown } from "lucide-react";
+import { MonitorDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LEGACY_OFFLINE_CACHE_PREFIX = "kirina-korean-next-";
 const LEGACY_OFFLINE_RELOAD_KEY = "kirina.legacy-offline-reload.v1";
+const INSTALL_DISMISSED_KEY = "kirina.pwa.dismissed.v1";
+
+function isInstallPromptDismissed() {
+  try {
+    return window.localStorage.getItem(INSTALL_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function persistInstallPromptDismissed() {
+  try {
+    window.localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+  } catch {
+    // Storage access is optional when dismissing UI hints.
+  }
+}
 
 type InstallStatus = "unavailable" | "available" | "prompting" | "accepted" | "installed";
 
@@ -69,6 +86,7 @@ export async function removeLegacyOfflineData(
 export function PwaRegister() {
   const [installStatus, setInstallStatus] = useState<InstallStatus>("unavailable");
   const [showIosGuide, setShowIosGuide] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const installedRef = useRef(false);
 
@@ -121,7 +139,7 @@ export function PwaRegister() {
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      if (installedRef.current || isStandaloneMode(window, navigator)) return;
+      if (installedRef.current || isStandaloneMode(window, navigator) || isInstallPromptDismissed()) return;
       installPromptRef.current = event as BeforeInstallPromptEvent;
       setInstallStatus("available");
       setShowIosGuide(false);
@@ -135,7 +153,7 @@ export function PwaRegister() {
     };
 
     markInstalledIfStandalone();
-    if (!installedRef.current) setShowIosGuide(isIosSafari(navigator));
+    if (!installedRef.current && !isInstallPromptDismissed()) setShowIosGuide(isIosSafari(navigator));
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
     displayModeQuery.addEventListener("change", markInstalledIfStandalone);
@@ -170,31 +188,47 @@ export function PwaRegister() {
     }
   };
 
+  const dismissInstallPrompt = () => {
+    setDismissed(true);
+    setShowIosGuide(false);
+    persistInstallPromptDismissed();
+  };
+
+  if (dismissed || installStatus === "installed") return null;
+
   if (installStatus === "available") {
     return (
       <div
-        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 flex items-center justify-between gap-3 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-brutal-sm md:bottom-3 md:left-auto md:max-w-80 lg:bottom-3"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 flex items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--paper-hi)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--ink)] shadow-[var(--shadow-soft)] md:bottom-3 md:left-auto md:max-w-96 lg:bottom-3"
         role="status"
         aria-live="polite"
       >
         <span>可添加桌面入口；课程内容仍需联网加载。</span>
-        <Button type="button" size="sm" onClick={promptInstall} className="shrink-0">
-          <MonitorDown className="h-4 w-4" aria-hidden="true" />
-          添加到桌面
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button type="button" size="sm" onClick={promptInstall} className="shrink-0">
+            <MonitorDown className="h-4 w-4" aria-hidden="true" />
+            添加到桌面
+          </Button>
+          <Button type="button" variant="ghost" size="icon" aria-label="关闭安装提示" onClick={dismissInstallPrompt}>
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (!showIosGuide || installStatus === "installed") return null;
+  if (!showIosGuide) return null;
 
   return (
     <div
-      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 rounded-none border-[3px] border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-bold leading-5 text-[var(--ink)] shadow-brutal-sm md:bottom-3 md:left-auto md:max-w-80 lg:bottom-3"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 flex items-center justify-between gap-2 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--paper-hi)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--ink)] shadow-[var(--shadow-soft)] md:bottom-3 md:left-auto md:max-w-96 lg:bottom-3"
       role="status"
       aria-live="polite"
     >
-      在浏览器中轻点“分享” → “添加到主屏幕”；课程内容仍需联网加载。
+      <span>在浏览器中轻点“分享” → “添加到主屏幕”；课程内容仍需联网加载。</span>
+      <Button type="button" variant="ghost" size="icon" aria-label="关闭安装提示" onClick={dismissInstallPrompt} className="shrink-0">
+        <X className="h-4 w-4" aria-hidden="true" />
+      </Button>
     </div>
   );
 }

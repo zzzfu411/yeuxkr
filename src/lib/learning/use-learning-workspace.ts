@@ -152,7 +152,7 @@ function useLearningWorkspaceState() {
 
   const workspace = useMemo(() => buildLearningWorkspace(profile, progress, srs.due, outputEvidence), [profile, progress, srs.due, outputEvidence]);
 
-  return {
+  return useMemo(() => ({
     workspace,
     srs,
     srsState,
@@ -185,5 +185,37 @@ function useLearningWorkspaceState() {
     clearMaterialArchive,
     recordQuizProgress,
     reset
-  };
+  }), [
+    workspace,
+    srs,
+    srsState,
+    outputState.entries,
+    validOutputEntries,
+    saveProfile,
+    saveSelfStudyPlan,
+    saveSelfStudyCheckpoint,
+    completeLesson,
+    saveCapstoneEvidence,
+    saveLessonTaskEvidence,
+    invalidateLessonTaskRecording,
+    invalidateCapstoneRecording,
+    toggleHangul,
+    ensureHangul,
+    togglePronunciation,
+    ensurePronunciation,
+    toggleSoundChange,
+    ensureSoundChange,
+    toggleVocab,
+    ensureVocab,
+    toggleGrammar,
+    ensureGrammar,
+    toggleNative,
+    saveNativeEvidence,
+    completeMaterial,
+    recordOutput,
+    saveOutputArchive,
+    completeCheckpoint,
+    clearMaterialArchive,
+    reset
+  ]);
 }

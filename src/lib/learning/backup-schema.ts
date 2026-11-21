@@ -19,9 +19,9 @@ const oneOf = (...values: unknown[]): Check => (v, p) => values.includes(v) ? nu
 // Older backups may omit fields introduced later. Present fields must have valid shapes.
 const shape = (fields: Record<string, Check>, required: string[] = []): Check => (v, p) => {
   if (!isPlainRecord(v)) return `${p} 应为对象`;
-  for (const key of required) if (!(key in v)) return `${p}.${key} 缺失`;
+  for (const key of required) if (!Object.prototype.hasOwnProperty.call(v, key)) return `${p}.${key} 缺失`;
   for (const [key, check] of Object.entries(fields)) {
-    if (!(key in v)) continue;
+    if (!Object.prototype.hasOwnProperty.call(v, key)) continue;
     const error = check(v[key], `${p}.${key}`); if (error) return error;
   }
   return null;
@@ -63,7 +63,8 @@ const schemas: Record<string, Check> = {
   })) }),
   [STORAGE_KEYS.drafts]: shape({
     immersion: record(shape({ dictationEvidence: text, retellEvidence: text, draft: text, weakPoint: text, targetRewrite: text, checkedRubric: strings, selfCheck: strings, selectedOutputId: text, updatedAt: text })),
-    selfStudyCheckpoints: record(shape({ evidence: text, updatedAt: text }))
+    selfStudyCheckpoints: record(shape({ evidence: text, updatedAt: text })),
+    nativeExpressions: record(shape({ listened: boolean, retell: text, transfer: text, updatedAt: text }))
   }),
   [STORAGE_KEYS.speech]: shape({ voiceURI: text, rate: number, dismissedVoiceWarning: boolean }),
   // Retired mistake metadata is ignored during migration, but must still be structured JSON.

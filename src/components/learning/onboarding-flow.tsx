@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import { KoreanInput } from "@/components/korean/korean-input";
 import { SpeechSettings } from "@/components/korean/speech-settings";
 import { useKoreanVoiceStatus } from "@/components/korean/speech-status";
@@ -110,8 +110,8 @@ export function OnboardingFlow() {
         <Surface className="p-0 md:p-0">
           <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
             <div className="paper-rail relative p-5 pt-8 md:p-8 md:pt-10">
-              <p className="eyebrow">첫 장면 · 先认识一下</p>
-              <h1 className="inkline mt-3 font-serif text-4xl font-normal leading-tight md:text-5xl">你好，从这里开始学韩语。</h1>
+              <p className="eyebrow">안녕 · 先认识一下</p>
+              <h1 className="page-title mt-3 text-[clamp(1.8rem,3.5vw,2.7rem)]">你好，从这里开始学韩语。</h1>
               <p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">
                 接下来选目标、试听韩语，再打出一个韩文字。大约三分钟，完成后直接进入第一课。
               </p>
@@ -130,7 +130,7 @@ export function OnboardingFlow() {
                 </Button>
               </div>
             </div>
-            <VisualPanel
+            <ArtScene
               asset="hangul"
               priority
               sizes="(max-width: 1024px) 100vw, 28rem"
@@ -143,7 +143,7 @@ export function OnboardingFlow() {
 
       {step === 1 ? (
         <Surface className="paper-rail p-5 pt-8 md:p-8 md:pt-10">
-          <p className="eyebrow">둘째 장면 · 想先学会什么</p>
+          <p className="eyebrow">목표 · 想先学会什么</p>
           <h1 className="inkline mt-3 font-serif text-3xl font-normal leading-tight md:text-4xl">这次学韩语，最想先做到什么？</h1>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {GOAL_OPTIONS.map((option, index) => (

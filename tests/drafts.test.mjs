@@ -4,11 +4,14 @@ import { STORAGE_KEYS } from "../src/lib/learning/storage.ts";
 import {
   clearImmersionMaterialDraft,
   clearSelfStudyCheckpointDraft,
+  clearNativeExpressionDraft,
   getImmersionMaterialDraft,
   getLearningDraftStateFromRaw,
   getSelfStudyCheckpointDrafts,
+  getNativeExpressionDraft,
   saveImmersionMaterialDraft,
-  saveSelfStudyCheckpointDraft
+  saveSelfStudyCheckpointDraft,
+  saveNativeExpressionDraft
 } from "../src/lib/learning/drafts.ts";
 
 const store = new Map();
@@ -103,7 +106,42 @@ test("draft writes report storage failures", () => {
   try {
     assert.equal(saveImmersionMaterialDraft("im-cafe-real-speed", { draft: "아메리카노 주세요." }), false);
     assert.equal(saveSelfStudyCheckpointDraft("checkpoint-a", "录音 75 秒"), false);
+    assert.equal(saveNativeExpressionDraft("nuance:thanks", { retell: "감사합니다." }), false);
   } finally {
     failOnSetKey = "";
   }
+});
+
+test("expression drafts survive partial edits and clearing preserves other learning drafts", () => {
+  store.clear();
+  saveImmersionMaterialDraft("im-cafe-real-speed", { draft: "아메리카노 주세요." });
+  assert.equal(saveNativeExpressionDraft("nuance:thanks", { listened: true, retell: " 감사합니다. " }), true);
+  assert.equal(saveNativeExpressionDraft("nuance:thanks", { transfer: "고마워." }), true);
+  assert.equal(getNativeExpressionDraft("nuance:thanks").retell, "감사합니다.");
+  assert.equal(getNativeExpressionDraft("nuance:thanks").listened, true);
+  assert.equal(getNativeExpressionDraft("nuance:thanks").transfer, "고마워.");
+  assert.equal(clearNativeExpressionDraft("nuance:thanks"), true);
+  assert.equal(getNativeExpressionDraft("nuance:thanks"), null);
+  assert.equal(getImmersionMaterialDraft("im-cafe-real-speed").draft, "아메리카노 주세요.");
+});
+
+test("expression draft failures preserve the previous draft and malformed evidence does not create listening credit", () => {
+  store.clear();
+  saveNativeExpressionDraft("nuance:thanks", { retell: "감사합니다." });
+  const previous = store.get(STORAGE_KEYS.drafts);
+  failOnSetKey = STORAGE_KEYS.drafts;
+  try {
+    assert.equal(saveNativeExpressionDraft("nuance:thanks", { transfer: "고마워." }), false);
+    assert.equal(clearNativeExpressionDraft("nuance:thanks"), false);
+    assert.equal(store.get(STORAGE_KEYS.drafts), previous);
+  } finally { failOnSetKey = ""; }
+  const damaged = getLearningDraftStateFromRaw(JSON.stringify({ nativeExpressions: {
+    "nuance:thanks": { listened: "yes", retell: "가".repeat(4200), transfer: 12 },
+    empty: {}, bad: null
+  } }));
+  assert.equal(damaged.nativeExpressions["nuance:thanks"].listened, false);
+  assert.equal(damaged.nativeExpressions["nuance:thanks"].retell.length, 1200);
+  assert.equal(damaged.nativeExpressions["nuance:thanks"].transfer, "");
+  assert.equal(damaged.nativeExpressions.empty, undefined);
+  assert.deepEqual(getLearningDraftStateFromRaw(JSON.stringify({ immersion: {} })).nativeExpressions, {});
 });

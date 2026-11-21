@@ -3,8 +3,8 @@ export const soundChangeRules = [
     id: "sc-liaison",
     korean: "연음",
     title: "连音",
-    summary: "收音遇到元音开头的音节时，会移过去当下一个音节的初声。这是韩语听起来“连成一片”的最大原因。",
-    rule: "收音 + ㅇ 开头音节 → 收音变成下一音节的初声",
+    summary: "收音接元音开头的助词、词尾或后缀时，通常按原音连到下一音节；双收音通常前一个留在原位，后一个连过去。若后接独立实词，可能先按代表音处理，不能一律照拼写连读。",
+    rule: "收音 + 元音开头的助词/词尾/后缀 → 通常按原音连读（ㅎ 等另有规则）",
     stage: "foundation",
     examples: [
       { written: "한국어", spoken: "한구거", romanization: "han-gu-geo", zh: "韩语", speak: "한국어" },
@@ -29,8 +29,8 @@ export const soundChangeRules = [
     id: "sc-liquidization",
     korean: "유음화",
     title: "流音化",
-    summary: "ㄴ 和 ㄹ 相邻时，ㄴ 会被同化成 ㄹ，两个音节间读成 ㄹㄹ。",
-    rule: "ㄴ + ㄹ 或 ㄹ + ㄴ → ㄹㄹ",
+    summary: "ㄴ 和 ㄹ 相邻时通常读成 ㄹㄹ，如 연락、설날。部分词按词的构成读成 ㄴㄴ，如 생산량 [생산냥]，遇到新词应核对词典读音。",
+    rule: "ㄴ + ㄹ 或 ㄹ + ㄴ → 通常为 ㄹㄹ；部分词如 생산량 例外",
     stage: "growth",
     examples: [
       { written: "연락", spoken: "열락", romanization: "yeol-lak", zh: "联络", speak: "연락" },
@@ -68,8 +68,8 @@ export const soundChangeRules = [
     id: "sc-h-drop",
     korean: "ㅎ탈락",
     title: "ㅎ 脱落",
-    summary: "收音 ㅎ 遇到元音开头的音节时直接消失。좋아요 读作 조아요，많이 读作 마니。",
-    rule: "收音 ㅎ + 元音 → ㅎ 不发音",
+    summary: "词干末的 ㅎ（含 ㄶ、ㅀ）接元音开头的词尾或后缀时，ㅎ 不发音；双收音中留下的辅音连到后面。좋아요 读作 조아요，많이 读作 마니。",
+    rule: "词干末 ㅎ/ㄶ/ㅀ + 元音开头的词尾/后缀 → ㅎ 脱落",
     stage: "foundation",
     examples: [
       { written: "좋아요", spoken: "조아요", romanization: "jo-a-yo", zh: "好/喜欢", speak: "좋아요" },
@@ -81,8 +81,8 @@ export const soundChangeRules = [
     id: "sc-palatalization",
     korean: "구개음화",
     title: "腭化",
-    summary: "收音 ㄷ/ㅌ 遇到 이 时，会变成 지/치。같이 读作 가치 是最高频的例子。",
-    rule: "ㄷ + 이 → 지；ㅌ + 이 → 치",
+    summary: "收音 ㄷ/ㅌ（含 ㄾ）接以 이 开头的助词或后缀时，连读为 지/치，如 같이 [가치]。规则涉及语素边界，并非任何相邻的 ㄷ/ㅌ 与 이 都要腭化。",
+    rule: "ㄷ/ㅌ + 이 开头的助词或后缀 → 지/치",
     stage: "growth",
     examples: [
       { written: "같이", spoken: "가치", romanization: "ga-chi", zh: "一起", speak: "같이" },

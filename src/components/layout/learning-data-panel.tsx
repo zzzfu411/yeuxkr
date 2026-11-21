@@ -30,8 +30,31 @@ export function LearningDataPanel() {
   const mutationRef = useRef(false);
   const importRequestRef = useRef(0);
   const previewRef = useRef<HTMLHeadingElement | null>(null);
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const summaryRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => { if (pendingImport) previewRef.current?.focus(); }, [pendingImport]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !detailsRef.current?.open || mutationRef.current) return;
+      detailsRef.current.open = false;
+      summaryRef.current?.focus();
+    };
+    const handlePointerDown = (event: MouseEvent) => {
+      const details = detailsRef.current;
+      if (!details?.open || mutationRef.current) return;
+      if (!details.contains(event.target as Node)) {
+        details.open = false;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, []);
 
   const cancelImport = () => {
     if (mutationRef.current) return;
@@ -152,7 +175,7 @@ export function LearningDataPanel() {
   };
 
   return (
-    <div className="order-2 col-span-1 flex min-w-0 items-center justify-end lg:order-3" aria-label="本地学习数据">
+    <div className="flex min-w-0 items-center justify-end" aria-label="本地学习数据">
       <input
         ref={inputRef}
         hidden
@@ -165,6 +188,7 @@ export function LearningDataPanel() {
         }}
       />
       <details
+        ref={detailsRef}
         className="group relative"
         onToggle={(event) => {
           if (!(event.currentTarget as HTMLDetailsElement).open) {
@@ -173,17 +197,16 @@ export function LearningDataPanel() {
           }
         }}
       >
-        <summary aria-label="学习数据" className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+        <summary ref={summaryRef} aria-label="学习数据" className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_58%,transparent)] px-3 text-sm font-normal text-[var(--ink-soft)] shadow-paper-sm transition hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)] [&::-webkit-details-marker]:hidden">
           <Database className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">学习数据</span>
-          {status !== "idle" ? <span className={`hidden font-script text-xs font-normal sm:inline ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
+          <span>学习数据</span>
+          {status !== "idle" ? <span className={`hidden text-xs font-normal sm:inline ${panelStatusTextClassName(status)}`}>{statusLabels[status]}</span> : null}
           <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
         <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 grid max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] gap-3 overflow-y-auto overscroll-contain rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_94%,transparent)] p-4 shadow-editorial backdrop-blur-md">
-          <span className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 -rotate-2 border-x border-dashed border-[var(--tape-edge)] bg-[var(--tape)] opacity-70" aria-hidden="true" />
           <div>
             <p className="eyebrow">本机学习记录</p>
-            <strong className="mt-1 block font-brush text-xl font-normal">备份与存储</strong>
+            <strong className="mt-1 block text-lg font-semibold">备份与存储</strong>
           </div>
           <fieldset disabled={busy} className="grid grid-cols-2 gap-2">
             <Button type="button" variant="secondary" size="sm" title="导出本地学习数据" onClick={exportData}>

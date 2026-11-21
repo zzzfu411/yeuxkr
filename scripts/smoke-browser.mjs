@@ -3,6 +3,10 @@ import { fileURLToPath } from "node:url";
 import { lessons } from "../src/data/curriculum.js";
 import { immersionMaterials } from "../src/data/materials.ts";
 import { auditRegression } from "./audit-regression.mjs";
+import { studioRegression } from "./studio-regression.mjs";
+import { recoveryRegression } from "./recovery-regression.mjs";
+import { libraryUxRegression } from "./library-ux-regression.mjs";
+import { productVisualRegression } from "./product-visual-regression.mjs";
 
 const l01Lesson = lessons.find((lesson) => lesson.id === "l01-hangul-map");
 const l06Lesson = lessons.find((lesson) => lesson.id === "l06-cafe");
@@ -91,8 +95,8 @@ await page.addInitScript(() => {
 await page.goto(baseUrl, { waitUntil: "networkidle" });
 await page.screenshot({ path: fileURLToPath(new URL("app-home-wide.png", outDir)), fullPage: false });
 await page.screenshot({ path: fileURLToPath(new URL("home-onboarding.png", outDir)), fullPage: true });
-await expectText(page, "完成三分钟入门");
-const onboardingLink = page.getByRole("link", { name: "开始这一集", exact: true });
+await expectText(page, "约 3 分钟完成入门设置，再开始第一课。");
+const onboardingLink = page.getByRole("link", { name: "开始学习", exact: true });
 if (await onboardingLink.count() !== 1) {
   issues.push("first-visit home should expose exactly one onboarding action");
 } else {
@@ -125,6 +129,7 @@ const legacyCachesAfterReload = await page.evaluate(async () => (
 if (legacyCachesAfterReload) issues.push(`legacy offline cache survived a real reload cleanup: ${legacyCachesAfterReload}`);
 await page.screenshot({ path: fileURLToPath(new URL("home-dashboard.png", outDir)), fullPage: true });
 console.log("[browser smoke] home loaded; checking local learning data");
+await page.goto(`${baseUrl}/settings`, { waitUntil: "networkidle" });
 await verifyLearningDataPanel(page, outDir, issues);
 console.log("[browser smoke] local learning data checks passed; checking returning learner flow");
 
@@ -195,13 +200,14 @@ await returningPage.evaluate(() => {
 });
 await returningPage.reload({ waitUntil: "networkidle" });
 console.log("[browser smoke] returning learner state restored");
-await expectText(returningPage, "45 分钟");
+await returningPage.goto(`${baseUrl}/settings`, { waitUntil: "networkidle" });
+if (await returningPage.getByLabel("每日学习分钟").inputValue() !== "45") issues.push("personal preferences should retain the daily 45-minute goal");
 const guidedModeButton = returningPage.getByRole("button", { name: "按路径", exact: true });
 if (await guidedModeButton.getAttribute("aria-pressed") !== "true") {
   issues.push("returning learner home should show guided mode as selected");
 }
 await returningPage.getByRole("button", { name: "自学" }).click();
-await expectText(returningPage, "学习方式已更新");
+await expectText(returningPage, "设置已保存");
 if (await returningPage.getByRole("button", { name: "自学", exact: true }).getAttribute("aria-pressed") !== "true") {
   issues.push("self-study mode switch should show self-study as selected");
 }
@@ -241,8 +247,9 @@ const selfPlanTaskState = await returningPage.evaluate(() => {
 if (!selfPlanTaskState.completed) issues.push("saving a self-study plan should complete the open:self-plan task");
 if (selfPlanTaskState.minutesGoal !== 45) issues.push(`saving self-study plan should preserve minutesGoal 45, found ${selfPlanTaskState.minutesGoal}`);
 if (selfPlanTaskState.studyMode !== "guided") issues.push(`saving self-study plan should preserve selected study mode, found ${selfPlanTaskState.studyMode}`);
-await returningPage.goto(baseUrl, { waitUntil: "networkidle" });
-await expectText(returningPage, "今日已确认");
+await returningPage.goto(`${baseUrl}/settings`, { waitUntil: "networkidle" });
+await returningPage.getByRole("button", { name: "计划与记录", exact: true }).click();
+await returningPage.getByRole("button", { name: "保存学习计划", exact: true }).waitFor();
 await returningPage.goto(`${baseUrl}/self-study`, { waitUntil: "networkidle" });
 await returningPage.getByLabel("学习记录").first().fill("随便看看");
 await expectText(returningPage, "请先完成一课或加入一项学习内容");
@@ -271,8 +278,8 @@ await returningPage.evaluate(() => {
   window.__kirinaSmokeMarker = "self-study-link";
 });
 await returningPage.getByRole("link", { name: "自然表达" }).first().click();
-await returningPage.waitForURL("**/native", { waitUntil: "networkidle" });
-await expectText(returningPage, "同一个意思，换个关系就要换种说法。");
+await returningPage.waitForURL((url) => url.pathname === "/study" && url.searchParams.get("view") === "expression", { waitUntil: "networkidle" });
+await expectText(returningPage, "今天先练 6 个自然表达");
 console.log("[browser smoke] client-side module navigation passed");
 const selfStudyMarker = await returningPage.evaluate(() => window.__kirinaSmokeMarker).catch(() => null);
 if (selfStudyMarker !== "self-study-link") issues.push("self-study module links should use client-side navigation without a full page reload");
@@ -374,12 +381,13 @@ await resetConfirmPage.evaluate(() => {
   }));
 });
 await resetConfirmPage.reload({ waitUntil: "networkidle" });
-await resetConfirmPage.getByRole("button", { name: "重置本机进度", exact: true }).click();
-await expectText(resetConfirmPage, "再点一次会清空学习偏好");
+await resetConfirmPage.goto(`${baseUrl}/settings`, { waitUntil: "networkidle" });
+await resetConfirmPage.locator('summary[aria-label="学习数据"]').click();
+await resetConfirmPage.getByRole("button", { name: "重置", exact: true }).click();
+await expectText(resetConfirmPage, "再次点击会清空本机课程");
 const progressAfterFirstResetClick = await resetConfirmPage.evaluate(() => localStorage.getItem("kirina.progress.v2"));
 if (!progressAfterFirstResetClick) issues.push("home reset should preserve learning data until the confirmation click");
-await resetConfirmPage.getByRole("button", { name: "确认清空全部数据", exact: true }).click();
-await expectText(resetConfirmPage, "本机学习偏好、进度、复习卡片、输出、草稿和作品集已清空");
+await Promise.all([resetConfirmPage.waitForEvent("load"), resetConfirmPage.getByRole("button", { name: "确认重置", exact: true }).click()]);
 const progressAfterConfirmedReset = await resetConfirmPage.evaluate(() => localStorage.getItem("kirina.progress.v2"));
 if (progressAfterConfirmedReset) issues.push("confirmed home reset should clear managed progress");
 await resetConfirmContext.close();
@@ -500,9 +508,10 @@ pathPage.on("console", (message) => {
 pathPage.on("pageerror", (error) => issues.push(`path pageerror: ${error.message}`));
 await pathPage.goto(`${baseUrl}/path`, { waitUntil: "networkidle" });
 await expectText(pathPage, "先完成入门");
-await expectText(pathPage, "韩文不是字母表");
+await expectText(pathPage, "韩文：把字母拼成音节块");
 await expectText(pathPage, "先入门");
 await pathPage.goto(`${baseUrl}/immersion?material=im-cafe-real-speed`, { waitUntil: "networkidle" });
+await pathPage.locator("#material-prerequisites > summary").click();
 await expectText(pathPage, "先学第 1 课");
 await pathPage.goto(`${baseUrl}/self-study`, { waitUntil: "networkidle" });
 await expectText(pathPage, "先完成三分钟入门，再保存你的学习计划。");
@@ -551,8 +560,8 @@ await ensureOnboarded(page);
 await page.goto(`${baseUrl}/native`, { waitUntil: "networkidle" });
 await expectText(page, "今天先练 6 个自然表达");
 const defaultNativeSlice = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("保存练习并加入复习") || item.textContent?.includes("已加入复习"));
-  const playButtons = [...document.querySelectorAll("article button")].filter((button) => button.textContent?.includes("PLAY"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.querySelector(".pl-item button[aria-expanded]"));
+  const playButtons = [...document.querySelectorAll("article button")].filter((button) => button.textContent?.includes("试听"));
   return {
     visibleCards: cards.length,
     playButtons: playButtons.length,
@@ -563,14 +572,14 @@ const defaultNativeSlice = await page.evaluate(() => {
   };
 });
 if (defaultNativeSlice.visibleCards !== 6) issues.push(`default native page should show a six-card daily slice, found ${defaultNativeSlice.visibleCards}`);
-if (defaultNativeSlice.playButtons !== 6) issues.push(`default native cards should show one key playable line each, found ${defaultNativeSlice.playButtons}`);
+if (defaultNativeSlice.playButtons !== 1) issues.push(`default native slice should expand only its first practice card, found ${defaultNativeSlice.playButtons} open practices`);
 if (!defaultNativeSlice.hasPragmatics || !defaultNativeSlice.hasNuance) issues.push("default native slice should mix pragmatic scenarios and nuance cards");
 if (!defaultNativeSlice.hasExpand) issues.push("default native page should offer an expand-all action");
 if (!defaultNativeSlice.hasLineExpand) issues.push("native cards should let learners expand complete rehearsals after the key line");
 await page.getByLabel("搜索表达").fill("아아");
 await expectText(page, "咖啡店点单");
 const nativeSearchState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("保存练习并加入复习") || item.textContent?.includes("已加入复习"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.querySelector(".pl-item button[aria-expanded]"));
   return {
     visibleCards: cards.length,
     hasFirstMeeting: cards.some((item) => item.textContent?.includes("第一次见面"))
@@ -579,10 +588,11 @@ const nativeSearchState = await page.evaluate(() => {
 if (nativeSearchState.visibleCards !== 1) issues.push(`native search should narrow to one cafe scenario, found ${nativeSearchState.visibleCards}`);
 if (nativeSearchState.hasFirstMeeting) issues.push("native search should hide unrelated first-meeting scenario");
 await page.getByRole("button", { name: "重置筛选" }).first().click();
+await page.locator(".filter-disclosure summary").click();
 await page.getByRole("radio", { name: /语气细差/ }).click();
 await expectText(page, "感谢的温度");
 const nativeTrackState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("保存练习并加入复习") || item.textContent?.includes("已加入复习"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.querySelector(".pl-item button[aria-expanded]"));
   return {
     visibleCards: cards.length,
     hasPragmatics: cards.some((item) => item.textContent?.includes("咖啡店点单"))
@@ -591,7 +601,7 @@ const nativeTrackState = await page.evaluate(() => {
 if (nativeTrackState.visibleCards < 4) issues.push(`native nuance filter should show nuance cards, found ${nativeTrackState.visibleCards}`);
 if (nativeTrackState.hasPragmatics) issues.push("native nuance filter should hide pragmatic scenarios");
 const thanksCard = page.locator("article").filter({ hasText: "感谢的温度" }).first();
-await thanksCard.getByRole("button", { name: /PLAY/ }).first().click();
+await thanksCard.getByRole("button", { name: /试听/ }).first().click();
 await thanksCard.getByRole("checkbox", { name: "已实际播放关键台词" }).waitFor();
 await page.waitForFunction(() => {
   const card = [...document.querySelectorAll("article")].find((item) => item.textContent?.includes("感谢的温度"));
@@ -612,9 +622,11 @@ const nativeStateAfterAdd = await page.evaluate(() => {
 });
 if (nativeStateAfterAdd.learnedNative !== 1) issues.push(`adding native nuance should persist learnedNative, found ${nativeStateAfterAdd.learnedNative}`);
 if (nativeStateAfterAdd.nativeCards !== 1) issues.push(`adding native nuance should create one native SRS card, found ${nativeStateAfterAdd.nativeCards}`);
+const expressionDraftsAfterSave = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("kirina.drafts.v1") ?? "{}").nativeExpressions ?? {}));
+if (expressionDraftsAfterSave.length) issues.push("saving a complete native practice must clear its local draft");
 await page.getByLabel("只看已加入复习").check();
 const learnedNativeOnlyState = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("保存练习并加入复习") || item.textContent?.includes("已加入复习"));
+  const cards = [...document.querySelectorAll("article")].filter((item) => item.querySelector(".pl-item button[aria-expanded]"));
   return {
     visibleCards: cards.length,
     hasUnlearnedButton: cards.some((item) => item.textContent?.includes("保存练习并加入复习"))
@@ -752,6 +764,7 @@ const subwaySearchState = await page.evaluate(() => {
 if (subwaySearchState.visibleCards < 1) issues.push("vocabulary search should show matching subway vocabulary or collocations");
 if (subwaySearchState.hasUnrelatedGreeting) issues.push("vocabulary search should hide unrelated greeting cards");
 await page.getByRole("button", { name: "重置筛选" }).click();
+await page.locator(".filter-disclosure > summary").click();
 await page.getByRole("radio", { name: /移动/ }).click();
 await expectText(page, "숙소");
 const travelFilterState = await page.evaluate(() => {
@@ -767,7 +780,7 @@ await page.getByRole("button", { name: "重置筛选" }).click();
 
 await ensureOnboarded(page);
 await page.goto(`${baseUrl}/grammar`, { waitUntil: "networkidle" });
-await expectText(page, "筛选要练的句型");
+await page.getByLabel("搜索语法", { exact: true }).waitFor();
 const defaultGrammarState = await page.evaluate(() => {
   const cards = [...document.querySelectorAll("article")].filter((item) => item.textContent?.includes("测一测，再加入复习") || item.textContent?.includes("已加入复习"));
   return {
@@ -789,6 +802,7 @@ const grammarSearchState = await page.evaluate(() => {
 if (grammarSearchState.visibleCards !== 1) issues.push(`grammar search should narrow to one progressive card, found ${grammarSearchState.visibleCards}`);
 if (grammarSearchState.hasTopicMarker) issues.push("grammar search should hide unrelated topic marker card");
 await page.getByRole("button", { name: "重置筛选" }).click();
+await page.locator(".filter-disclosure > summary").click();
 await page.getByRole("radio", { name: /进阶语法/ }).click();
 await expectText(page, "进阶语法");
 await expectText(page, "-는 것");
@@ -883,7 +897,7 @@ await lessonSessionFailureContext.close();
 
 await ensureOnboarded(page);
 await page.goto(`${baseUrl}/learn/l01-hangul-map`, { waitUntil: "networkidle" });
-await expectText(page, "韩文不是字母表");
+await expectText(page, "韩文：把字母拼成音节块");
 await answerDrill(page, l01Lesson.drills[0]);
 await expectText(page, "答对了");
 const lessonSessionAfterFirstAnswer = await page.evaluate(() => {
@@ -1119,10 +1133,24 @@ await lockedLessonContext.close();
 await page.goto(`${baseUrl}/immersion`, { waitUntil: "networkidle" });
 await expectText(page, "自编情境听读：先听，再写，再复述。");
 await expectText(page, "前置课程");
-await expectText(page, "前置课程还没完成，暂时不显示原文和朗读");
+await expectText(page, "可以先看原文、试听和保留草稿");
+await expectText(page, cafeMaterial.lines[0].ko);
+if (!(await page.getByRole("button", { name: "播放第 1 句", exact: true }).isEnabled())) issues.push("material preview should allow listening before prerequisites");
+const materialPreviewEvidenceBefore = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return JSON.stringify({ materialEvidence: progress.materialEvidence, completedMaterials: progress.completedMaterials, ability: progress.ability });
+});
+await page.getByRole("button", { name: "播放第 1 句", exact: true }).click();
+const materialPreviewEvidenceAfter = await page.evaluate(() => {
+  const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
+  return JSON.stringify({ materialEvidence: progress.materialEvidence, completedMaterials: progress.completedMaterials, ability: progress.ability });
+});
+if (materialPreviewEvidenceAfter !== materialPreviewEvidenceBefore) issues.push("material preview playback should not create completion or ability evidence");
+await page.getByRole("button", { name: "前往：写下一句听写", exact: true }).click();
+if (await page.evaluate(() => document.activeElement?.id) !== "material-dictation") issues.push("listening step navigation should focus the requested exercise");
 const sameMaterialDraftMarker = "当前材料草稿不应因重复点击而丢失。";
 await page.getByLabel("复述完成").fill(sameMaterialDraftMarker);
-await page.getByText("查看学习安排与阶段进度", { exact: true }).click();
+await page.locator(".learning-compass > summary").click();
 const continueSameMaterial = page.getByRole("link", { name: "继续", exact: true });
 if (await continueSameMaterial.count()) {
   await continueSameMaterial.click();
@@ -1159,13 +1187,14 @@ await page.getByRole("textbox", { name: "输出草稿" }).fill("저는 카페에
 await page.locator("label").filter({ hasText: "自然" }).click();
 await page.getByLabel("需要修正的弱点").fill("外带表达不够稳");
 await page.getByLabel("送回复习的目标改写").fill("아이스 아메리카노 하나 포장해 주세요.");
+if (!(await page.locator("#material-draft-feedback").textContent()).includes("草稿形式已齐全")) issues.push("valid output draft should explain that its submission form is complete");
 if (await page.getByRole("button", { name: "保存输出" }).isEnabled()) issues.push("locked material should not allow saving output into the archive");
 if (await page.getByRole("button", { name: "完成练习并加入复习" }).isEnabled()) issues.push("material completion should still require self-check after dictation, retell, and output evidence");
 await page.locator("label").filter({ hasText: "是否先说核心名词再说数量" }).click();
 await page.locator("label").filter({ hasText: "是否使用 주세요 或 드릴까요" }).click();
 await page.locator("label").filter({ hasText: "是否能不看中文复述交易流程" }).click();
 if (await page.getByRole("button", { name: "完成练习并加入复习" }).isEnabled()) issues.push("material completion should still require lesson prerequisites after evidence and self-check");
-await expectText(page, "完成这些课程后，才会开放原文、朗读和输出存档");
+await expectText(page, "前置课程尚未完成，当前只能保留草稿");
 await page.evaluate((completedLessons) => {
   const progress = JSON.parse(localStorage.getItem("kirina.progress.v2") ?? "{}");
   progress.completedLessons = completedLessons;
@@ -1174,7 +1203,7 @@ await page.evaluate((completedLessons) => {
   localStorage.setItem("kirina.progress.v2", JSON.stringify(progress));
 }, cafePrerequisiteLessonIds);
 await page.reload({ waitUntil: "networkidle" });
-await expectText(page, "前置课程已完成，可以开始听写、复述和改写。");
+await expectText(page, "前置课程已完成");
 await expectText(page, "已恢复上次的草稿");
 await page.getByRole("button", { name: "显示译文" }).click();
 await expectText(page, "欢迎光临");
@@ -1384,7 +1413,7 @@ const mobileRoutes = [
   ["/quiz", "mobile-quiz.png"],
   ["/learn/l06-cafe", "mobile-lesson-cafe.png"]
 ];
-const primaryNavigationRoutes = new Set(["/", "/path", "/hangul", "/review", "/immersion"]);
+const primaryNavigationRoutes = new Set(mobileRoutes.map(([route]) => route).filter(route => route !== "/self-study" && route !== "/settings"));
 for (const viewport of viewportChecks) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   for (const [route, screenshotName] of mobileRoutes) {
@@ -1428,15 +1457,15 @@ for (const viewport of viewportChecks) {
         issues.push(`${viewport.label} active primary navigation item is outside the visible navigation viewport on ${route}`);
       }
     } else {
-      const activeSecondaryNavigation = await page.locator('nav[aria-label="主导航"] details [aria-current="page"]').count();
+      const activeSecondaryNavigation = await page.locator('header a[aria-label="我的学习"][aria-current="page"]').count();
       if (activeSecondaryNavigation !== 1) {
-        issues.push(`${viewport.label} secondary route should be marked inside the more-scenes menu on ${route}`);
+        issues.push(`${viewport.label} personal route should mark the My Learning entry on ${route}`);
       }
     }
     if (viewport.width <= 360) {
       const headerControlOverlap = await page.evaluate(() => {
-        const theme = document.querySelector('header .season-switcher');
-        const data = document.querySelector('header [aria-label="本地学习数据"] details');
+        const theme = document.querySelector('header .brand-lockup');
+        const data = document.querySelector('header .main-nav');
         if (!(theme instanceof HTMLElement) || !(data instanceof HTMLElement)) return null;
         const themeRect = theme.getBoundingClientRect();
         const dataRect = data.getBoundingClientRect();
@@ -1454,8 +1483,16 @@ for (const viewport of viewportChecks) {
   }
 }
 
+try { await studioRegression(browser, baseUrl, outDir); }
+catch (error) { issues.push(`Studio regression: ${error.stack ?? error.message}`); }
 try { await auditRegression(browser, baseUrl, outDir); }
 catch (error) { issues.push(`Audit regression: ${error.stack ?? error.message}`); }
+try { await recoveryRegression(browser, baseUrl, outDir); }
+catch (error) { issues.push(`recovery regression: ${error.message}`); }
+try { await libraryUxRegression(browser, baseUrl, outDir); }
+catch (error) { issues.push(`Library UX regression: ${error.stack ?? error.message}`); }
+try { await productVisualRegression(browser, baseUrl, outDir); }
+catch (error) { issues.push(`Product visual regression: ${error.stack ?? error.message}`); }
 await browser.close();
 
 if (issues.length) {
@@ -1576,6 +1613,7 @@ function configureSmokePage(targetPage) {
 async function expectText(page, text) {
   const found = await page
     .getByText(text, { exact: false })
+    .filter({ visible: true })
     .first()
     .waitFor({ state: "visible", timeout: 8000 })
     .then(() => true)
@@ -1685,10 +1723,10 @@ async function warmLazyMedia(page) {
   await page.evaluate(async () => {
     const step = Math.max(240, Math.floor(window.innerHeight * 0.72));
     for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
-      window.scrollTo(0, y);
+      window.scrollTo({ top: y, left: 0, behavior: "instant" });
       await new Promise((resolve) => window.setTimeout(resolve, 40));
     }
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   });
   await page.waitForLoadState("networkidle").catch(() => {});
 }

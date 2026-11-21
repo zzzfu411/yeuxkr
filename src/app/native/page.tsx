@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, FilePenLine, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
+import Link from "@/components/learning/studio-link";
+import { ArrowRight, Clock, ExternalLink, FilePenLine, History, MessagesSquare, Mic2, Plus, ShieldCheck, Sparkles, Trash2, Volume2 } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
 import { Button } from "@/components/ui/button";
 import { TrackRow } from "@/components/ui/track-row";
-import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
+import { CheckboxFilter, EmptyState, FilterDisclosure, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { getCurrentInAppNativeStage, nativeRoadmapTotals } from "@/data/native-roadmap";
@@ -17,15 +17,19 @@ import { pragmaticScenarios } from "@/data/pragmatics";
 import { countSavedCollocationEvidence, useNativePortfolio, type NativePortfolioDraft, type NativePortfolioEntry } from "@/lib/learning/native-portfolio";
 import { firstHangul } from "@/lib/learning/player";
 import { speakKorean } from "@/lib/speech";
+import { countBy, normalizeSearch } from "@/lib/learning/library-filter";
 import { needsOnboardingFunnel } from "@/lib/learning/compass";
 import { countCheckpointCredits, countNativePracticeEvidence, hasCompleteNativePracticeEvidence, type NativeEvidenceInput } from "@/lib/learning/workspace";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+import { clearNativeExpressionDraft, getNativeExpressionDraft, saveNativeExpressionDraft } from "@/lib/learning/drafts";
 
 const trackOptions = [
   { id: "all", label: "全部" },
   { id: "pragmatics", label: "场景语用" },
   { id: "nuance", label: "语气细差" }
 ];
+
+const expressionLevelLabels: Record<string, string> = { foundation: "基础交际", growth: "连贯表达", native: "语用进阶" };
 
 export default function NativePage() {
   const { workspace, toggleNative, saveNativeEvidence } = useLearningWorkspace();
@@ -38,7 +42,7 @@ export default function NativePage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [evidenceErrorId, setEvidenceErrorId] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const portfolioEvidence = {
     vocabulary: workspace.progress.learnedVocab.length,
     collocations: countSavedCollocationEvidence(workspace.progress.learnedVocab),
@@ -50,24 +54,29 @@ export default function NativePage() {
   const { currentStage, inAppPortfolioComplete } = getCurrentInAppNativeStage(portfolioEvidence);
   const stageTargets = currentStage.deliverables;
   const nativeItems = useMemo(() => buildNativeItems(), []);
-  const filteredItems = useMemo(() => {
+  const matchingItems = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return nativeItems.filter((item) => {
-      const matchesTrack = trackFilter === "all" || item.track === trackFilter;
-      const matchesLevel = levelFilter === "all" || item.level === levelFilter;
       const matchesLearned = !onlyLearned || learned.has(item.srsId);
       const searchable = normalizeSearch(item.searchText);
-      return matchesTrack && matchesLevel && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
+      return matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [learned, levelFilter, nativeItems, onlyLearned, query, trackFilter]);
-  const trackCounts = countBy(filteredItems, "track");
+  }, [learned, nativeItems, onlyLearned, query]);
+  const filteredItems = useMemo(() => matchingItems.filter((item) =>
+    (trackFilter === "all" || item.track === trackFilter) &&
+    (levelFilter === "all" || item.level === levelFilter)
+  ), [matchingItems, trackFilter, levelFilter]);
+  const trackCounts = countBy(matchingItems.filter((item) => levelFilter === "all" || item.level === levelFilter), "track");
   const levelOptions = useMemo(() => {
     const levels = [...new Set(nativeItems.map((item) => item.level))];
-    return [{ id: "all", label: "全部" }, ...levels.map((level) => ({ id: level, label: `${level} ${countBy(filteredItems, "level")[level] ?? 0}` }))];
-  }, [filteredItems, nativeItems]);
+    const counts = countBy(matchingItems.filter((item) => trackFilter === "all" || item.track === trackFilter), "level");
+    return [{ id: "all", label: "全部" }, ...levels.map((level) => ({ id: level, label: `${expressionLevelLabels[level] ?? level} ${counts[level] ?? 0}` }))];
+  }, [matchingItems, nativeItems, trackFilter]);
   const focusedFilterActive = Boolean(query.trim()) || trackFilter !== "all" || levelFilter !== "all" || onlyLearned;
   const visibleItems = showAll || focusedFilterActive ? filteredItems : buildDailyNativeSlice(filteredItems, 6);
   const hiddenItemCount = Math.max(0, filteredItems.length - visibleItems.length);
+  const isExpanded = (id: string) => expanded[id] ?? id === visibleItems[0]?.id;
+  const toggleExpanded = (id: string) => setExpanded((current) => ({ ...current, [id]: !(current[id] ?? id === visibleItems[0]?.id) }));
   const pragmaticItems = visibleItems.filter((item) => item.track === "pragmatics");
   const nuanceItems = visibleItems.filter((item) => item.track === "nuance");
   const portfolioRows = [
@@ -83,7 +92,7 @@ export default function NativePage() {
   );
   const activeFilters = [
     trackFilter !== "all" ? trackOptions.find((item) => item.id === trackFilter)?.label ?? trackFilter : null,
-    levelFilter !== "all" ? levelFilter : null,
+    levelFilter !== "all" ? expressionLevelLabels[levelFilter] ?? levelFilter : null,
     onlyLearned ? "已加入复习" : null,
     query.trim() ? `搜索：${query.trim()}` : null
   ];
@@ -103,13 +112,14 @@ export default function NativePage() {
     setSrsErrorId(itemId);
   };
   const saveNativeCardEvidence = (itemId: string, evidence: NativeEvidenceInput) => {
-    if (enrollBlocked) return;
+    if (enrollBlocked) return false;
     if (saveNativeEvidence(itemId, evidence)) {
       setEvidenceErrorId((current) => (current === itemId ? "" : current));
       setSrsErrorId((current) => (current === itemId ? "" : current));
-      return;
+      return true;
     }
     setEvidenceErrorId(itemId);
+    return false;
   };
 
   return (
@@ -124,20 +134,18 @@ export default function NativePage() {
       <OnboardingGateNotice copy="先完成三分钟入门，之后的自然表达练习才会计入学习进度。" />
       <LibraryGateNotice focus="native" />
 
-      <section className="grid gap-4 border-y border-[var(--line)] py-5">
+      <section className="library-filters grid gap-3">
         <SectionHeading
-          kicker="오늘의 연습 · 今天先练"
-          title="今天先练 6 个自然表达"
-          copy="每张卡先听一句，再用自己的韩语复述，最后换一种关系改写。完成后可以加入间隔复习。"
+          title={focusedFilterActive ? `找到 ${filteredItems.length} 个表达` : showAll ? `全部 ${filteredItems.length} 个表达` : `今天先练 ${visibleItems.length} 个自然表达`}
           action={activeFilters.filter(Boolean).length ? (
             <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               重置筛选
             </Button>
           ) : null}
         />
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           <SearchField label="搜索表达" value={query} onChange={setQuery} placeholder="输入 韩语 / 中文 / 语气 / 场景 / 关系" />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
+          <FilterDisclosure activeCount={activeFilters.filter(Boolean).length - Number(Boolean(query.trim()))}>
             <SegmentedFilter
               label="训练轨道"
               value={trackFilter}
@@ -151,20 +159,15 @@ export default function NativePage() {
               onChange={setLevelFilter}
             />
             <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
-          </div>
-          <FilterSummary count={filteredItems.length} filters={activeFilters} unit="expressions" />
-          {!focusedFilterActive ? (
-            <div className="grid gap-3 rounded-none border border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm font-bold leading-6 text-[var(--muted)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-              <span>
-                先练这 {visibleItems.length} 个表达。听过、复述过，并换一种关系改写后，再加入复习。还有 {hiddenItemCount} 个表达可以展开。
-              </span>
-              {showAll || hiddenItemCount ? (
+          </FilterDisclosure>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <FilterSummary count={focusedFilterActive || showAll ? filteredItems.length : visibleItems.length} filters={activeFilters} unit={focusedFilterActive || showAll ? "个表达" : `个今日表达 · 共 ${filteredItems.length} 个`} />
+            {!focusedFilterActive && (showAll || hiddenItemCount) ? (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起" : "展开全部表达"}
+                  {showAll ? "只看今日表达" : "展开全部表达"}
                 </Button>
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -176,7 +179,7 @@ export default function NativePage() {
 
       {pragmaticItems.length ? (
         <section className="grid gap-4">
-          <SectionHeading kicker="상황과 관계 · 场合与关系" title="场景语用" copy="先看关系和场合，再听每一句如何留余地、确认信息或缓和请求。" />
+          <h2 className="text-lg font-semibold">场景语用</h2>
           <div>
             {pragmaticItems.map((item, index) => (
               <NativeCard
@@ -187,8 +190,8 @@ export default function NativePage() {
                 evidence={workspace.progress.nativeEvidence[item.srsId]}
                 hasError={srsErrorId === item.srsId}
                 hasEvidenceError={evidenceErrorId === item.srsId}
-                expanded={!collapsed[item.id]}
-                onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                expanded={isExpanded(item.id)}
+                onExpand={() => toggleExpanded(item.id)}
                 onToggle={() => toggleNativeSrs(item.srsId)}
                 onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
                 enrollBlocked={enrollBlocked}
@@ -200,7 +203,7 @@ export default function NativePage() {
 
       {nuanceItems.length ? (
         <section className="grid gap-4">
-          <SectionHeading kicker="말의 온도 · 语气细差" title="语义细微差别" copy="同一个中文意思在韩语里会因为语气、语域和关系距离发生偏移。" />
+          <h2 className="text-lg font-semibold">语义细微差别</h2>
           <div id="nuance">
             {nuanceItems.map((item, index) => (
               <NativeCard
@@ -211,8 +214,8 @@ export default function NativePage() {
                 evidence={workspace.progress.nativeEvidence[item.srsId]}
                 hasError={srsErrorId === item.srsId}
                 hasEvidenceError={evidenceErrorId === item.srsId}
-                expanded={!collapsed[item.id]}
-                onExpand={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                expanded={isExpanded(item.id)}
+                onExpand={() => toggleExpanded(item.id)}
                 onToggle={() => toggleNativeSrs(item.srsId)}
                 onSaveEvidence={(evidence) => saveNativeCardEvidence(item.srsId, evidence)}
                 enrollBlocked={enrollBlocked}
@@ -222,6 +225,9 @@ export default function NativePage() {
         </section>
       ) : null}
 
+      <details className="library-about">
+        <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">练习方法与阶段目标</summary>
+        <div className="grid gap-6 pt-4">
       <section className="grid gap-4">
         <SectionHeading
           kicker="오늘 · 今天"
@@ -302,8 +308,13 @@ export default function NativePage() {
           </div>
         </div>
       </section>
+        </div>
+      </details>
 
-      <LongTermNativePortfolio />
+      <details className="library-about" id="portfolio-disclosure">
+        <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">长期进阶作品集</summary>
+        <LongTermNativePortfolio />
+      </details>
     </div>
   );
 }
@@ -671,11 +682,10 @@ function NativeCard({
   expanded: boolean;
   onExpand: () => void;
   onToggle: () => void;
-  onSaveEvidence: (evidence: NativeEvidenceInput) => void;
+  onSaveEvidence: (evidence: NativeEvidenceInput) => boolean;
   enrollBlocked?: boolean;
 }) {
   const Icon = item.track === "pragmatics" ? MessagesSquare : Sparkles;
-  const relationProfile = buildRelationProfile(item);
   const [showAllLines, setShowAllLines] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const incomingDraft = useMemo(
@@ -685,20 +695,51 @@ function NativeCard({
   const [listened, setListened] = useState(incomingDraft.listened);
   const [retell, setRetell] = useState(incomingDraft.retell);
   const [transfer, setTransfer] = useState(incomingDraft.transfer);
+  const liveDraftRef = useRef(incomingDraft);
+  const [draftStatus, setDraftStatus] = useState<"" | "saved" | "restored" | "save-error" | "clear-error">("");
   const incomingDraftSignature = useMemo(() => JSON.stringify(incomingDraft), [incomingDraft]);
   const previousIncomingDraftSignatureRef = useRef(incomingDraftSignature);
   const draftBaselineRef = useRef(incomingDraft);
   useEffect(() => {
+    let cancelled = false;
+    const initialDraft = liveDraftRef.current;
+    queueMicrotask(() => {
+      if (cancelled || !sameNativePracticeDraft(initialDraft, liveDraftRef.current)) return;
+      const stored = getNativeExpressionDraft(item.srsId);
+      if (!stored) return;
+      liveDraftRef.current = nativePracticeDraft(stored);
+      setListened(stored.listened);
+      setRetell(stored.retell);
+      setTransfer(stored.transfer);
+      setDraftStatus("restored");
+    });
+    return () => { cancelled = true; };
+  }, [item.srsId]);
+  useEffect(() => {
     if (incomingDraftSignature === previousIncomingDraftSignatureRef.current) return;
     const previousDraft = draftBaselineRef.current;
-    const currentDraft = { listened, retell, transfer };
+    const currentDraft = liveDraftRef.current;
     previousIncomingDraftSignatureRef.current = incomingDraftSignature;
     draftBaselineRef.current = incomingDraft;
     if (!sameNativePracticeDraft(currentDraft, previousDraft)) return;
+    liveDraftRef.current = incomingDraft;
     setListened(incomingDraft.listened);
     setRetell(incomingDraft.retell);
     setTransfer(incomingDraft.transfer);
   }, [incomingDraft, incomingDraftSignature, listened, retell, transfer]);
+  const updatePracticeDraft = (patch: Partial<NativePracticeDraft>) => {
+    const next = { ...liveDraftRef.current, ...patch };
+    liveDraftRef.current = next;
+    setListened(next.listened);
+    setRetell(next.retell);
+    setTransfer(next.transfer);
+    setDraftStatus(saveNativeExpressionDraft(item.srsId, next) ? "saved" : "save-error");
+  };
+  const savePractice = () => {
+    if (!onSaveEvidence(liveDraftRef.current)) return;
+    draftBaselineRef.current = liveDraftRef.current;
+    setDraftStatus(clearNativeExpressionDraft(item.srsId) ? "" : "clear-error");
+  };
   const visibleLines = showAllLines ? item.lines : item.lines.slice(0, 1);
   const hiddenLineCount = Math.max(0, item.lines.length - visibleLines.length);
   const evidenceComplete = hasCompleteNativePracticeEvidence({ listened, retell, transfer }, item.srsId);
@@ -706,10 +747,10 @@ function NativeCard({
     evidence &&
     evidenceComplete &&
     evidence.listened === listened &&
-    evidence.retell.trim() === retell.trim() &&
-    evidence.transfer.trim() === transfer.trim()
+    (evidence.retell ?? "").trim() === retell.trim() &&
+    (evidence.transfer ?? "").trim() === transfer.trim()
   );
-  const evidenceDirty = Boolean(evidence && evidenceComplete && !evidenceSaved);
+  const evidenceDirty = Boolean(evidence && !sameNativePracticeDraft({ listened, retell, transfer }, incomingDraft));
   const handleToggle = () => {
     if (!learned) return;
     if (!confirmRemove) {
@@ -724,13 +765,13 @@ function NativeCard({
     <TrackRow
       index={index}
       glyph={firstHangul(firstLine?.ko ?? item.title, "말")}
-      kicker={item.level}
+      kicker={expressionLevelLabels[item.level] ?? item.level}
       title={item.title}
-      detail={item.summary}
+      detail={expanded ? undefined : item.summary}
       completed={learned}
       expanded={expanded}
       onToggle={onExpand}
-      onPlay={firstLine ? () => speakKorean(firstLine.ko, { onstart: () => setListened(true) }) : undefined}
+      onPlay={firstLine ? () => speakKorean(firstLine.ko, { onstart: () => updatePracticeDraft({ listened: true }) }) : undefined}
       playLabel={firstLine ? `播放 ${firstLine.ko}` : undefined}
     >
       <div className="grid gap-4">
@@ -754,28 +795,6 @@ function NativeCard({
       ) : null}
       {hasError ? <SrsError /> : null}
       <p className="text-sm leading-6 text-[var(--muted)]">{item.summary}</p>
-      <div className="grid gap-2 rounded-none border border-[var(--line)] bg-[var(--card)] p-3 sm:grid-cols-4">
-        {relationProfile.map((slot) => (
-          <div key={slot.label} className="rounded-none bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] px-3 py-2">
-            <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--muted)]">{slot.label}</span>
-            <strong className="mt-1 block text-sm leading-5 text-[var(--ink)]">{slot.value}</strong>
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-2 rounded-none border border-[var(--border)] bg-[var(--yellow-soft)] p-3 text-xs font-black leading-5 text-[var(--muted)] sm:grid-cols-3">
-        <span className="inline-flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-[var(--brass)]" />
-          先听一句
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-[var(--brass)]" />
-          换关系复述
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-[var(--brass)]" />
-          再加入复习
-        </span>
-      </div>
       {item.contrast.length ? (
         <div className="flex flex-wrap gap-2">
           {item.contrast.map((part) => (
@@ -791,11 +810,11 @@ function NativeCard({
             key={line.ko}
             type="button"
             className="focus-ring rounded-none border border-[var(--line)] bg-[var(--card)] p-3 text-left transition hover:-translate-y-0.5"
-            onClick={() => speakKorean(line.ko, { onstart: () => setListened(true) })}
+            onClick={() => speakKorean(line.ko, { onstart: () => updatePracticeDraft({ listened: true }) })}
           >
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-black text-[var(--ocean)]">
               <Volume2 className="h-4 w-4" />
-              PLAY
+              试听
             </span>
             <strong className="hangul-display block text-xl" lang="ko">{line.ko}</strong>
             <span className="mt-1 block text-sm text-[var(--muted)]">{line.zh}</span>
@@ -831,21 +850,27 @@ function NativeCard({
           点击上方任一句播放。声音真正开始后，才会记录“已听”；手动勾选不算。
         </p>
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
-          韩语复述
+          <span id={`native-retell-label-${item.id}`}>韩语复述</span>
           <textarea
+            aria-labelledby={`native-retell-label-${item.id}`}
             className="focus-ring min-h-20 resize-y rounded-none border border-[var(--line)] bg-[var(--card)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={retell}
+            maxLength={1200}
+            lang="ko"
             placeholder="用韩语复述这张卡的关系、场合或语气动作。"
-            onChange={(event) => setRetell(event.target.value)}
+            onChange={(event) => updatePracticeDraft({ retell: event.target.value })}
           />
         </label>
         <label className="grid gap-1 text-sm font-bold text-[var(--muted)]">
-          换一种关系
+          <span id={`native-transfer-label-${item.id}`}>换一种关系</span>
           <textarea
+            aria-labelledby={`native-transfer-label-${item.id}`}
             className="focus-ring min-h-20 resize-y rounded-none border border-[var(--line)] bg-[var(--card)] p-3 font-bold text-[var(--ink)] focus:border-[var(--ocean)]"
             value={transfer}
+            maxLength={1200}
+            lang="ko"
             placeholder="换成朋友/前辈/店员/同事等另一种关系，用韩语改写一句。"
-            onChange={(event) => setTransfer(event.target.value)}
+            onChange={(event) => updatePracticeDraft({ transfer: event.target.value })}
           />
         </label>
         {hasEvidenceError ? (
@@ -853,7 +878,18 @@ function NativeCard({
             还不能保存：请先完成听辨，再填写韩语复述和关系改写。
           </InlineAlert>
         ) : null}
-        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={enrollBlocked || !evidenceComplete || evidenceSaved} onClick={() => onSaveEvidence({ listened, retell, transfer })}>
+        {draftStatus === "save-error" || draftStatus === "clear-error" ? (
+          <InlineAlert>
+            {draftStatus === "save-error" ? "草稿没有保存到本机。当前文字仍在，请释放浏览器空间后重试。" : "练习记录已保存，但旧草稿未清理。请重试清理。"}
+            <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={() => {
+              if (draftStatus === "clear-error") setDraftStatus(clearNativeExpressionDraft(item.srsId) ? "" : "clear-error");
+              else updatePracticeDraft({});
+            }}>重试</Button>
+          </InlineAlert>
+        ) : draftStatus === "saved" || draftStatus === "restored" ? (
+          <p className="text-xs leading-5 text-[var(--muted)]" role="status">{draftStatus === "restored" ? "已恢复本机草稿。" : "草稿已自动保存到本机。"}完成后再保存练习记录。</p>
+        ) : null}
+        <Button type="button" variant={evidenceSaved ? "secondary" : "primary"} size="sm" className="w-fit" disabled={enrollBlocked || !evidenceComplete || evidenceSaved} onClick={savePractice}>
           {enrollBlocked ? "先完成入门" : evidenceSaved ? "已保存" : evidenceDirty ? "保存修改" : "保存练习并加入复习"}
         </Button>
       </div>
@@ -959,54 +995,3 @@ function buildDailyNativeSlice(items: NativeItem[], limit: number) {
   return selected;
 }
 
-function buildRelationProfile(item: NativeItem) {
-  const text = `${item.context} ${item.goal} ${item.nativeMove} ${item.lines.map((line) => `${line.zh} ${line.note}`).join(" ")}`;
-  return [
-    { label: "关系", value: inferRelation(text, item) },
-    { label: "场合", value: inferSetting(text, item) },
-    { label: "直接度", value: inferDirectness(text, item) },
-    { label: "语气动作", value: inferMove(text, item) }
-  ];
-}
-
-function inferRelation(text: string, item: NativeItem) {
-  if (/朋友|亲近/.test(text)) return "亲近关系";
-  if (/前辈|老师|同事|工作|正式|陌生人|店员/.test(text)) return "保持礼貌距离";
-  if (item.track === "nuance") return "按语域切换";
-  return "默认礼貌";
-}
-
-function inferSetting(text: string, item: NativeItem) {
-  if (/咖啡|店员|点单/.test(text)) return "服务场景";
-  if (/媒体|看剧|综艺|评价/.test(text)) return "内容讨论";
-  if (/工作|学习|会议|方法|确认/.test(text)) return "协作讨论";
-  if (/问路|地铁|方向/.test(text)) return "陌生求助";
-  return item.track === "nuance" ? "同义表达选择" : "日常对话";
-}
-
-function inferDirectness(text: string, item: NativeItem) {
-  if (/拒绝|不同意|缓冲|留余地|것 같아요|아마|좀|약간/.test(text)) return "低直接度";
-  if (/正式|감사합니다|죄송합니다/.test(text)) return "正式克制";
-  if (item.level === "native") return "语气微调";
-  return "安全直接";
-}
-
-function inferMove(text: string, item: NativeItem) {
-  if (/确认|한번 더|다시|천천히/.test(text)) return "确认/请求";
-  if (/感谢|고마|감사/.test(text)) return "感谢";
-  if (/道歉|미안|죄송/.test(text)) return "道歉";
-  if (/不同意|다르게|그럴 수도/.test(text)) return "先承认再转向";
-  if (/评价|아쉽|좋|어려운/.test(text)) return "评价降调";
-  return item.track === "nuance" ? "语域选择" : "自然接话";
-}
-
-function countBy(items: NativeItem[], key: "track" | "level") {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    acc[item[key]] = (acc[item[key]] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
-function normalizeSearch(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}

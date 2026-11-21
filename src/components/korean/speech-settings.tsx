@@ -48,7 +48,7 @@ export function SpeechSettings({ className }: { className?: string }) {
         <label className="grid gap-1 text-sm font-extrabold">
           系统备用语音
           <select
-            className="focus-ring min-h-11 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
+            className="focus-ring min-h-11 rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3"
             value={voiceURI}
             disabled={!voices.length}
             aria-describedby={storageError ? "speech-settings-storage-error" : undefined}
@@ -100,7 +100,7 @@ export function SpeechSettings({ className }: { className?: string }) {
             {storageError}
           </p>
         ) : null}
-        <Button type="button" variant="secondary" size="sm" className="justify-self-start" onClick={() => speakKorean("안녕하세요")}>
+        <Button type="button" variant="secondary" size="sm" className="justify-self-start" onClick={() => speakKorean("안녕하세요", { preferSystemVoice: voices.length > 0 })}>
           <Volume2 className="h-4 w-4" aria-hidden="true" />
           试听 안녕하세요
         </Button>

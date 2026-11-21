@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { getLibraryGateForLesson, type LibraryCounts } from "@/lib/learning/path-gates";
 import { libraryCountsForWrite } from "@/lib/learning/workspace";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";

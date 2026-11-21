@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Volume2 } from "lucide-react";
+import { ChevronDown, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { TrackRow } from "@/components/ui/track-row";
@@ -32,6 +32,7 @@ export default function HangulPage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [selectedSyllable, setSelectedSyllable] = useState(syllableLabs[0]);
   const enrollBlocked = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const mastered = new Set(workspace.progress.masteredHangul);
   const romanizationScaffold = workspace.progress.completedLessons.length < 6;
@@ -65,25 +66,37 @@ export default function HangulPage() {
         asset="hangul"
         imageClassName="min-h-80 border-0"
       >
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex flex-wrap gap-2" aria-label="选择音节并试听">
           {syllableLabs.map((lab: any) => (
             <button
               key={lab.result}
               type="button"
-              className="focus-ring rounded-[var(--radius)] border border-[var(--line)] bg-[var(--wash-1)] p-4 text-left transition-colors hover:bg-[var(--wash-2)]"
-              onClick={() => speakKorean(lab.result)}
+              className={`focus-ring hangul-display min-h-12 min-w-12 rounded-[var(--radius-sm)] border px-3 text-2xl ${selectedSyllable.result === lab.result ? "border-[var(--accent)] bg-[var(--seal-soft)] text-[var(--accent)]" : "border-[var(--line)] hover:bg-[var(--wash-2)]"}`}
+              aria-pressed={selectedSyllable.result === lab.result}
+              onClick={() => { setSelectedSyllable(lab); speakKorean(lab.result); }}
               aria-label={`播放音节 ${lab.result}，结构 ${lab.blocks.join(" 加 ")}`}
             >
-              <strong className="hangul-display block text-5xl" lang="ko">{lab.result}</strong>
-              <span className="mt-2 block font-mono text-xs font-medium text-[var(--ink-soft)]" lang="ko">{lab.blocks.join(" + ")}</span>
-              <small className="mt-2 block leading-5 text-[var(--muted)]">{lab.note}</small>
+              <span lang="ko">{lab.result}</span>
             </button>
           ))}
         </div>
+        <div className="mt-4 grid gap-1" aria-live="polite" aria-atomic="true">
+          <p className="hangul-display text-xl" lang="ko">{selectedSyllable.blocks.join(" + ")} = {selectedSyllable.result}</p>
+          <p className="text-sm leading-6 text-[var(--muted)]">{selectedSyllable.note}</p>
+        </div>
       </ModuleHero>
 
+      <details className="filter-disclosure">
+        <summary className="focus-ring">按主题查找字母与发音<ChevronDown className="ml-auto h-4 w-4" aria-hidden="true" /></summary>
+        <nav className="flex flex-wrap gap-x-5 gap-y-1 py-2" aria-label="韩文页内目录">
+          {hangulGroups.map((group: any) => <a key={group.id} className="text-link focus-ring" href={`#hangul-${group.id}`}>{group.title}</a>)}
+          <a className="text-link focus-ring" href="#hangul-pronunciation">发音与拼写辨析</a>
+          <a className="text-link focus-ring" href="#hangul-sound-changes">音变规则</a>
+        </nav>
+      </details>
+
       {hangulGroups.map((group: any) => (
-        <Surface key={group.id} variant="plain">
+        <Surface key={group.id} id={`hangul-${group.id}`} variant="plain" className="scroll-mt-24">
           <SectionHeading kicker={group.track === "sound" ? "소리 · 发音" : "글자 · 字形"} title={group.title} copy={group.summary} />
           <div>
             {group.items.map((item: any, itemIndex: number) => {
@@ -175,15 +188,15 @@ export default function HangulPage() {
         </Surface>
       ))}
 
-      <Surface variant="plain">
-        <SectionHeading kicker="소리 비교 · 对比发音" title="最小对立听辨" copy="先听后读，重点比较气流、紧张度和唇形。" />
+      <Surface id="hangul-pronunciation" variant="plain" className="scroll-mt-24">
+        <SectionHeading kicker="소리 비교 · 对比发音" title="发音与拼写辨析" copy="比较气流、紧张度和唇形；常见近同音项目结合词义与字形练习。" />
         <div id="pairs">
           {pronunciationPairs.map((pair: any, pairIndex: number) => (
             <TrackRow
               key={pair.id}
               index={pairIndex + 1}
               glyph={pair.a}
-              kicker="最小对立"
+              kicker={pair.spellingPrompts ? "拼写辨析" : "发音对比"}
               title={`${pair.a} vs ${pair.b}`}
               detail={pair.focus}
               completed={pronunciationCards.has(pronunciationCardId(pair.id))}
@@ -213,7 +226,7 @@ export default function HangulPage() {
                   disabled={enrollBlocked}
                   onClick={() => setGateItemId((current) => (current === pair.id ? "" : pair.id))}
                 >
-                  测一测，再加入听辨复习
+                  {pair.spellingPrompts ? "测一测，再加入拼写复习" : "测一测，再加入听辨复习"}
                 </Button>
               )}
               {gateItemId === pair.id && !pronunciationCards.has(pronunciationCardId(pair.id)) ? (
@@ -235,7 +248,7 @@ export default function HangulPage() {
         </div>
       </Surface>
 
-      <Surface variant="plain">
+      <Surface id="hangul-sound-changes" variant="plain" className="scroll-mt-24">
         <SectionHeading
           kicker="이어 읽기 · 连读音变"
           title="音变实验室"

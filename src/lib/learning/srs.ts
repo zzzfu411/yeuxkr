@@ -2,9 +2,8 @@
 
 import { parseJson, readJson, writeJson, STORAGE_KEYS } from "./storage.ts";
 import { lessons } from "../../data/curriculum-runtime.js";
-import { grammarPoints } from "../../data/grammar.js";
+import { grammarIds, vocabIds } from "../../data/catalog-ids.generated.js";
 import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
-import { vocab } from "../../data/lexicon.js";
 import { immersionMaterials } from "../../data/materials.ts";
 import { nuanceSets } from "../../data/nuance.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
@@ -34,8 +33,8 @@ const DAY_MS = 1000 * 60 * 60 * 24;
 const FALLBACK_TIME = 0;
 const hangulIdSet = new Set(hangulGroups.flatMap((group: any) => group.items.map((item: any) => item.id)));
 const pronunciationIdSet = new Set(pronunciationPairs.map((pair: any) => pair.id));
-const vocabIdSet = new Set(vocab.map((item: any) => item.id));
-const grammarIdSet = new Set(grammarPoints.map((item: any) => item.id));
+const vocabIdSet = new Set(vocabIds);
+const grammarIdSet = new Set(grammarIds);
 const materialIdSet = new Set(immersionMaterials.map((item) => item.id));
 const soundChangeIdSet = new Set(soundChangeRules.map((rule: any) => rule.id));
 const nativeIdSet = new Set([

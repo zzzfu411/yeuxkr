@@ -1,6 +1,6 @@
 "use client";
 
-import { checkAnswer, lessonQuestions, type Question } from "./quiz.ts";
+import { checkAnswer, lessonQuestions, type Question } from "./lesson-questions.ts";
 import { nowIso, parseJson, readJson, STORAGE_KEYS, writeJson } from "./storage.ts";
 
 export interface SerializedLessonAnswer {

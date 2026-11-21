@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, BookOpenCheck, CircleAlert, Compass, MapPinned, NotebookTabs, Radio, RefreshCcw, Sparkles } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import Link from "@/components/learning/studio-link";
+import { useEmbeddedPage } from "@/components/layout/embedded-page";
+import { ArrowRight, ChevronDown, BookOpenCheck, CircleAlert, Compass, MapPinned, NotebookTabs, Radio, RefreshCcw, Sparkles } from "lucide-react";
+import { ArtScene } from "@/components/assets/art-scene";
 import { Button } from "@/components/ui/button";
 import { buildSelfStudyPlan } from "@/data/self-study";
 import type { DisplayVisualAssetId } from "@/data/visuals/assets";
@@ -86,6 +87,8 @@ export function LearningCompass({
   condensed?: boolean;
   isFirstVisit?: boolean;
 }) {
+  const embedded = useEmbeddedPage();
+  if (embedded) return null;
   const config = contextConfig[active];
   const plan = buildSelfStudyPlan(workspace.profile as any);
   const funnel = isFirstVisit || needsOnboardingFunnel(workspace.profile, workspace.progress);
@@ -172,106 +175,109 @@ export function LearningCompass({
 
   if (condensed) {
     return (
-      <section className={cn("surface paper-rail relative p-4 pt-7 md:p-5 md:pt-8", className)}>
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)] lg:items-end">
-            <div className="min-w-0">
-              <p className="eyebrow">{config.kicker}</p>
-              <h2 className="inkline mt-2 w-fit max-w-full font-serif text-2xl font-normal leading-tight md:text-3xl">
-                {primary?.title ?? config.title}
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-                {primary?.reason ?? primary?.detail ?? config.copy}
-              </p>
+      <details className={cn("learning-compass disclosure", className)}>
+        <summary>学习进度与安排<span>{workspace.proficiency.current.band} · 课程 {pathPercent}%</span><ChevronDown className="h-4 w-4" aria-hidden="true" /></summary>
+        <div className="compass-content">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)] lg:items-end">
+              <div className="min-w-0">
+                <p className="eyebrow">{config.kicker}</p>
+                <h2 className="mt-2 w-fit max-w-full text-lg font-semibold leading-snug">
+                  {primary?.title ?? config.title}
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
+                  {primary?.reason ?? primary?.detail ?? config.copy}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 border-y border-[var(--line)] sm:grid-cols-4">
+                <CompactMetric label="阶段" value={workspace.proficiency.current.band} />
+                <CompactMetric label="课程" value={`${pathPercent}%`} />
+                <CompactMetric label="材料" value={`${materialPercent}%`} />
+                <CompactMetric label="错题" value={mistakeStat} />
+              </div>
             </div>
-            <div className="grid grid-cols-2 border-y border-[var(--line)] sm:grid-cols-4">
-              <CompactMetric label="阶段" value={workspace.proficiency.current.band} />
-              <CompactMetric label="课程" value={`${pathPercent}%`} />
-              <CompactMetric label="材料" value={`${materialPercent}%`} />
-              <CompactMetric label="错题" value={mistakeStat} />
+            <div className="flex flex-wrap gap-2 xl:justify-end">
+              {showPrimaryCta && primary ? (
+                <Button asChild size="sm">
+                  <Link href={primary.href}>
+                    继续
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : null}
+              {active !== "path" ? (
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={routeHref}>
+                    <Compass className="h-4 w-4" />
+                    路线
+                  </Link>
+                </Button>
+              ) : null}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 xl:justify-end">
-            {showPrimaryCta && primary ? (
-              <Button asChild size="sm">
-                <Link href={primary.href}>
-                  继续
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            ) : null}
-            {active !== "path" ? (
-              <Button asChild variant="secondary" size="sm">
-                <Link href={routeHref}>
-                  <Compass className="h-4 w-4" />
-                  路线
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-5 min-w-0 overflow-hidden border-y border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)]">
-          <nav className="nav-scroll flex w-full max-w-full snap-x overflow-x-auto md:grid md:grid-cols-4 md:overflow-visible xl:grid-cols-7" aria-label="学习路线">
-            {tracks.map((track) => {
-              const Icon = track.icon;
-              return (
-                <Link
-                  key={track.id}
-                  href={track.href}
-                  aria-label={`打开${track.label}`}
-                  aria-current={track.active ? "page" : undefined}
-                  className={cn(
-                    "focus-ring group relative grid min-h-[4.75rem] min-w-[11.5rem] snap-start content-between border-r border-[var(--line)] px-3 py-2.5 transition-colors last:border-r-0 hover:bg-[var(--wash-2)] md:min-w-0",
-                    track.active
-                      ? "bg-[var(--wash-2)] before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-[var(--seal)]"
-                      : "bg-transparent"
-                  )}
-                >
-                  <span className="flex min-w-0 items-start justify-between gap-2">
-                    <span className={cn(
-                      "inline-flex min-w-0 items-center gap-1.5 text-xs leading-4",
-                      track.active ? "text-[var(--seal)]" : "text-[var(--ink-soft)]"
-                    )}>
-                      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="break-words">{track.label}</span>
+          <div className="mt-5 min-w-0 overflow-hidden border-y border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)]">
+            <nav className="nav-scroll flex w-full max-w-full snap-x overflow-x-auto md:grid md:grid-cols-4 md:overflow-visible xl:grid-cols-7" aria-label="学习路线">
+              {tracks.map((track) => {
+                const Icon = track.icon;
+                return (
+                  <Link
+                    key={track.id}
+                    href={track.href}
+                    aria-label={`打开${track.label}`}
+                    aria-current={track.active ? "page" : undefined}
+                    className={cn(
+                      "focus-ring group relative grid min-h-[4.75rem] min-w-[11.5rem] snap-start content-between border-r border-[var(--line)] px-3 py-2.5 transition-colors last:border-r-0 hover:bg-[var(--wash-2)] md:min-w-0",
+                      track.active
+                        ? "bg-[var(--wash-2)] before:absolute before:inset-y-2 before:left-0 before:w-px before:bg-[var(--seal)]"
+                        : "bg-transparent"
+                    )}
+                  >
+                    <span className="flex min-w-0 items-start justify-between gap-2">
+                      <span className={cn(
+                        "inline-flex min-w-0 items-center gap-1.5 text-xs leading-4",
+                        track.active ? "text-[var(--seal)]" : "text-[var(--ink-soft)]"
+                      )}>
+                        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        <span className="break-words">{track.label}</span>
+                      </span>
+                      <strong className="shrink-0 font-serif text-lg font-normal leading-none">{track.stat}</strong>
                     </span>
-                    <strong className="shrink-0 font-serif text-lg font-normal leading-none">{track.stat}</strong>
-                  </span>
-                  <span className="mt-2 line-clamp-2 text-[0.72rem] leading-5 text-[var(--muted)]">{track.detail}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-        {nextRequirements.length ? (
-          <div className="mt-5 grid gap-3 border-t border-[var(--line)] pt-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-5">
-            <span className="inline-flex items-center gap-2 text-xs text-[var(--seal)]">
-              <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
-              下一阶段还需
-            </span>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
-              {nextRequirements.map((item) => (
-                <div key={item.metric} className="min-w-0">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span>{item.label}</span>
-                    <span className="text-[var(--muted)]">{item.current}/{item.target}</span>
-                  </div>
-                  <div className="mt-2 h-px bg-[var(--line)]">
-                    <div className="h-px bg-[var(--seal)]" style={{ width: `${Math.min(100, Math.round((item.current / item.target) * 100))}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <span className="mt-2 line-clamp-2 text-[0.72rem] leading-5 text-[var(--muted)]">{track.detail}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-        ) : null}
-      </section>
+          {nextRequirements.length ? (
+            <div className="mt-5 grid gap-3 border-t border-[var(--line)] pt-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start md:gap-5">
+              <span className="inline-flex items-center gap-2 text-xs text-[var(--seal)]">
+                <BookOpenCheck className="h-4 w-4" aria-hidden="true" />
+                下一阶段还需
+              </span>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
+                {nextRequirements.map((item) => (
+                  <div key={item.metric} className="min-w-0">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span>{item.label}</span>
+                      <span className="text-[var(--muted)]">{item.current}/{item.target}</span>
+                    </div>
+                    <div className="mt-2 h-px bg-[var(--line)]">
+                      <div className="h-px bg-[var(--seal)]" style={{ width: `${Math.min(100, Math.round((item.current / item.target) * 100))}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </details>
     );
   }
 
   return (
     <section className={cn("grid gap-5", className)}>
       <div className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.4fr)]">
-        <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+
         <div className="paper-rail relative p-5 pt-8 md:p-7 md:pt-9">
           <p className="eyebrow">{config.kicker}</p>
           <h2 className="inkline mt-3 max-w-4xl font-serif text-3xl font-normal leading-tight md:text-5xl">{config.title}</h2>
@@ -308,7 +314,7 @@ export function LearningCompass({
           </div>
         </div>
         <div className="relative border-t border-[var(--line)] p-4 pt-7 lg:border-l lg:border-t-0 lg:p-5 lg:pt-8">
-          <VisualPanel asset={config.asset} priority={active === "workspace"} sizes="(max-width: 1024px) 100vw, 28rem" treatment="inset" className="min-h-64" />
+          <ArtScene asset={config.asset} priority={active === "workspace"} sizes="(max-width: 1024px) 100vw, 28rem" treatment="inset" className="min-h-64" />
           <div className="mt-4 grid grid-cols-4 border-y border-[var(--line)] py-3">
             <CompassMetric label="课程" value={`${pathPercent}%`} />
             <CompassMetric label="材料" value={`${materialPercent}%`} />

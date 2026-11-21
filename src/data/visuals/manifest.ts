@@ -12,8 +12,9 @@ export interface VisualAssetManifestEntry {
   derivative: "png-source-and-webp-display" | "png-source-and-pwa-icons";
 }
 
-const aesthetic = "Original Korean slice-of-life drama frame: seasonal natural light, porcelain white, mist blue, subtitle navy, muted camellia and leaf green, believable everyday texture, restrained 35mm grain, generous breathing room; no copied shows or actors, no readable text, no logos, no watermark, no fake interface.";
-const generatedAt = "2026-09-05";
+const aesthetic = "Original Seoul street photography collage and oversized accurate Hangul die-cut stickers; cobalt blue, lemon, tangerine, lilac, clean white breathing room. Original fictional street composition, no copied branding, no fake interface, no watermark.";
+const generatedAt = "2026-09-08";
+const letterAesthetic = "One independent Hangul letter or short word, bold printed typography, white die-cut outline, cobalt blue, lemon, tangerine or lilac; real transparent alpha, no scenery, no shared collage, no watermark.";
 
 export const visualAssetManifest: Record<VisualAssetId, VisualAssetManifestEntry> = Object.fromEntries(
   Object.values(visualAssets).map((asset) => [
@@ -22,12 +23,12 @@ export const visualAssetManifest: Record<VisualAssetId, VisualAssetManifestEntry
       id: asset.id,
       provider: "openai-imagegen",
       label: asset.manifestLabel,
-      aesthetic,
-      prompt: `${asset.promptSummary} ${aesthetic}`,
+      aesthetic: asset.id.startsWith("letter") ? letterAesthetic : aesthetic,
+      prompt: `${asset.promptSummary} ${asset.id.startsWith("letter") ? letterAesthetic : aesthetic}`,
       sourceFile: `public${asset.source}`,
       // Historical key retained for validation compatibility.
       webpFile: `public${asset.src}`,
-      generatedAt,
+      generatedAt: asset.id.startsWith("letter") ? "2026-09-09" : generatedAt,
       derivative: asset.id === "iconBase" ? "png-source-and-pwa-icons" : "png-source-and-webp-display"
     }
   ])

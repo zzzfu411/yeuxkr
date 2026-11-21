@@ -1,6 +1,6 @@
-import type { KeyboardEvent } from "react";
-import { Search } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import type { KeyboardEvent, ReactNode } from "react";
+import { ChevronDown, Search, SlidersHorizontal } from "lucide-react";
+import { ArtScene } from "@/components/assets/art-scene";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -27,13 +27,27 @@ export function SearchField({
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <input
           type="search"
-          className="focus-ring min-h-11 w-full rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_62%,transparent)] px-10 text-base text-[var(--ink)] shadow-[inset_0_1px_0_var(--sheen)] transition placeholder:text-[var(--ink-faint)] hover:border-[var(--line-strong)]"
+          className="focus-ring min-h-11 w-full rounded-[var(--radius)] border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_62%,transparent)] px-10 text-base text-[var(--ink)] shadow-none transition placeholder:text-[var(--ink-faint)] hover:border-[var(--line-strong)]"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
         />
       </span>
     </label>
+  );
+}
+
+export function FilterDisclosure({ children, activeCount = 0 }: { children: ReactNode; activeCount?: number }) {
+  return (
+    <details className="filter-disclosure">
+      <summary className="focus-ring">
+        <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+        筛选条件
+        {activeCount > 0 ? <span className="filter-count">{activeCount} 项已选</span> : null}
+        <ChevronDown className="ml-auto h-4 w-4" aria-hidden="true" />
+      </summary>
+      <div className="grid gap-4 pt-3">{children}</div>
+    </details>
   );
 }
 
@@ -97,7 +111,7 @@ export function SegmentedFilter({
             className={cn(
               "focus-ring min-h-11 rounded-[var(--radius)] border px-3 text-sm font-normal transition",
               value === item.id
-                ? "border-[var(--line-strong)] bg-[var(--wash-3)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--ink-soft)]"
+                ? "border-[var(--accent)] bg-[var(--seal-soft)] text-[var(--accent)]"
                 : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)] hover:text-[var(--ink)]"
             )}
             onClick={() => onChange(item.id)}
@@ -125,14 +139,14 @@ export function CheckboxFilter({
   return (
     <label
       className={cn(
-        "focus-ring grid min-h-10 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border px-3 text-sm font-normal transition focus-within:border-[var(--line-strong)]",
+        "focus-ring grid min-h-11 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius)] border px-3 text-sm font-normal transition focus-within:border-[var(--line-strong)]",
         checked
-          ? "border-[var(--line-strong)] bg-[var(--wash-3)] text-[var(--ink)] shadow-[inset_0_-2px_0_var(--ink-soft)]"
+          ? "border-[var(--accent)] bg-[var(--seal-soft)] text-[var(--accent)]"
           : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_48%,transparent)] text-[var(--muted)] hover:border-[var(--line-strong)] hover:bg-[var(--wash-2)]",
         className
       )}
     >
-      <input className="h-4 w-4 accent-[var(--ink-soft)]" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input className="h-4 w-4 accent-[var(--accent)]" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
       {label}
     </label>
   );
@@ -185,7 +199,7 @@ export function EmptyState({
           {actionLabel}
         </Button>
       </div>
-      <VisualPanel asset={asset} treatment="inset" overlay="bottom" className="min-h-44" sizes="15rem" />
+      <ArtScene asset={asset} treatment="inset" overlay="none" className="min-h-44" sizes="15rem" />
     </div>
   );
 }

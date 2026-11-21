@@ -3,7 +3,7 @@ export const m0Lessons = [
     id: "l01-hangul-map",
     order: 1,
     milestone: "m0",
-    title: "韩文不是字母表，是拼块系统",
+    title: "韩文：把字母拼成音节块",
     subtitle: "理解辅音、元音、收音如何拼成一个音节块。",
     duration: 12,
     focus: [
@@ -17,8 +17,8 @@ export const m0Lessons = [
     ],
     teach: [
       {
-        title: "拼块，不是字母排队",
-        body: "韩文音节块通常由初声、中声、可选终声组成，一个块读一拍。",
+        title: "字母组合成音节块",
+        body: "韩文用字母记录语音，书写时把字母组合成音节块。每块通常由初声、中声、可选终声组成，先按一个块一个音节来读。",
         speak: "한",
         romanization: "han",
         examples: [

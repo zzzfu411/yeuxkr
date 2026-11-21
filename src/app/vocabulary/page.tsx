@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { LibraryPagination, useLibraryPage } from "@/components/ui/library-pagination";
 import { Button } from "@/components/ui/button";
-import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
+import { CheckboxFilter, EmptyState, FilterDisclosure, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
@@ -15,6 +15,7 @@ import { TrackRow } from "@/components/ui/track-row";
 import { vocab, vocabCategories, vocabLevels, vocabPosLabels } from "@/data/lexicon";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 import { speakKorean } from "@/lib/speech";
+import { countBy, groupBy, normalizeSearch } from "@/lib/learning/library-filter";
 
 export default function VocabularyPage() {
   const { workspace, toggleVocab, ensureVocab } = useLearningWorkspace();
@@ -28,11 +29,9 @@ export default function VocabularyPage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const filteredVocab = useMemo(() => {
+  const matchingVocab = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return vocab.filter((item: any) => {
-      const matchesLevel = levelFilter === "all" || item.level === levelFilter;
-      const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
       const matchesLearned = !onlyLearned || learned.has(item.id);
       const searchable = normalizeSearch([
         item.korean,
@@ -44,14 +43,19 @@ export default function VocabularyPage() {
         item.note,
         categoryLabel(item.category)
       ].join(" "));
-      return matchesLevel && matchesCategory && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
+      return matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [categoryFilter, learned, levelFilter, onlyLearned, query]);
+  }, [learned, onlyLearned, query]);
+  const filteredVocab = useMemo(() => matchingVocab.filter((item: any) =>
+    (levelFilter === "all" || item.level === levelFilter) &&
+    (categoryFilter === "all" || item.category === categoryFilter)
+  ), [matchingVocab, levelFilter, categoryFilter]);
   const pagination = useLibraryPage(filteredVocab, JSON.stringify([query, levelFilter, categoryFilter, onlyLearned]), 12);
   const visibleVocab = pagination.items;
   const byLevel = groupBy(visibleVocab, "level");
-  const levelCounts = countBy(filteredVocab, "level");
   const categoryCounts = countBy(filteredVocab, "category");
+  const levelOptionCounts = countBy(matchingVocab.filter((item: any) => categoryFilter === "all" || item.category === categoryFilter), "level");
+  const categoryOptionCounts = countBy(matchingVocab.filter((item: any) => levelFilter === "all" || item.level === levelFilter), "category");
   const activeFilters = [
     levelFilter !== "all" ? levelLabel(levelFilter) : null,
     categoryFilter !== "all" ? categoryLabel(categoryFilter) : null,
@@ -96,41 +100,31 @@ export default function VocabularyPage() {
 
 
 
-      <Surface>
-        <SectionHeading
-          kicker="골라 연습하기 · 选择练习"
-          title="找到今天要练的词"
-          copy="按阶段、场景或已学状态筛选。也可以搜索韩语、中文、罗马音和例句。"
-          action={activeFilters.length ? (
-            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-              重置筛选
-            </Button>
-          ) : null}
-        />
+      <Surface variant="plain" className="library-filters">
         <div className="grid gap-4">
           <SearchField label="搜索词汇" value={query} onChange={setQuery} placeholder="输入韩语、中文、罗马音或场景" />
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+          <FilterDisclosure activeCount={activeFilters.length - Number(Boolean(query.trim()))}>
             <SegmentedFilter
               label="层级"
               value={levelFilter}
-              options={[{ id: "all", label: "全部" }, ...vocabLevels.map((level: any) => ({ id: level.id, label: `${level.label} ${levelCounts[level.id] ?? 0}` }))]}
+              options={[{ id: "all", label: "全部" }, ...vocabLevels.map((level: any) => ({ id: level.id, label: `${level.label} ${levelOptionCounts[level.id] ?? 0}` }))]}
               onChange={setLevelFilter}
             />
             <SegmentedFilter
               label="场景"
               value={categoryFilter}
-              options={[{ id: "all", label: "全部" }, ...vocabCategories.map((category: any) => ({ id: category.id, label: `${category.label} ${categoryCounts[category.id] ?? 0}` }))]}
+              options={[{ id: "all", label: "全部" }, ...vocabCategories.map((category: any) => ({ id: category.id, label: `${category.label} ${categoryOptionCounts[category.id] ?? 0}` }))]}
               onChange={setCategoryFilter}
             />
             <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
-          </div>
-          <FilterSummary count={filteredVocab.length} filters={activeFilters} />
+          </FilterDisclosure>
+          {activeFilters.length ? <div className="flex flex-wrap items-center justify-between gap-2"><FilterSummary count={filteredVocab.length} filters={activeFilters} /><Button type="button" variant="ghost" size="sm" onClick={resetFilters}>重置筛选</Button></div> : null}
 
         </div>
       </Surface>
 
       <div id="library-results" tabIndex={-1} className="focus-ring scroll-mt-40">
-        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="词汇分页" resultsId="library-results" />
+        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="词汇分页" resultsId="library-results" compact />
       </div>
       {!filteredVocab.length ? (
         <Surface>
@@ -140,7 +134,7 @@ export default function VocabularyPage() {
 
       {vocabLevels.map((level: any) => (
         <Surface key={level.id} variant="plain" className={(byLevel[level.id] ?? []).length ? "" : "hidden"}>
-          <SectionHeading kicker={`显示 ${byLevel[level.id]?.length ?? 0} · 匹配 ${levelCounts[level.id] ?? 0} · 长期目标 ${level.target}`} title={level.label} copy={level.description} />
+          <SectionHeading title={level.label} copy={level.description} />
           <div>
             {(byLevel[level.id] ?? []).map((item: any, itemIndex: number) => (
               <TrackRow
@@ -150,7 +144,7 @@ export default function VocabularyPage() {
                 kicker={categoryLabel(item.category)}
                 title={item.korean}
                 detail={item.meaning}
-                meta={item.pos ? (vocabPosLabels[item.pos] ?? item.pos) : undefined}
+                meta={item.pos ? (vocabPosLabels[item.pos as keyof typeof vocabPosLabels] ?? item.pos) : undefined}
                 completed={learned.has(item.id)}
                 expanded={!collapsed[item.id]}
                 onToggle={() => setCollapsed((current) => ({ ...current, [item.id]: !current[item.id] }))}
@@ -243,22 +237,6 @@ export default function VocabularyPage() {
   );
 }
 
-function groupBy(items: any[], key: string) {
-  return items.reduce<Record<string, any[]>>((acc, item) => {
-    const value = item[key];
-    acc[value] ??= [];
-    acc[value].push(item);
-    return acc;
-  }, {});
-}
-
-function countBy(items: any[], key: string) {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    const value = item[key];
-    acc[value] = (acc[value] ?? 0) + 1;
-    return acc;
-  }, {});
-}
 
 function categoryLabel(id: string) {
   return vocabCategories.find((item: any) => item.id === id)?.label ?? id;
@@ -268,9 +246,6 @@ function levelLabel(id: string) {
   return vocabLevels.find((item: any) => item.id === id)?.label ?? id;
 }
 
-function normalizeSearch(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
 
 function SrsError() {
   return (

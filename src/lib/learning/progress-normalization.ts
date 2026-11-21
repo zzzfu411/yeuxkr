@@ -1,8 +1,7 @@
 // Pure normalization and evidence validation for persisted profile/progress data.
 import { lessons, getLessonPrerequisites, UNLOCK_SCORE } from "../../data/curriculum-runtime.js";
 import { hangulGroups } from "../../data/hangul.js";
-import { vocab } from "../../data/lexicon.js";
-import { grammarPoints } from "../../data/grammar.js";
+import { grammarIds, vocabIds } from "../../data/catalog-ids.generated.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
 import { nuanceSets } from "../../data/nuance.js";
 
@@ -31,9 +30,9 @@ export const lessonIdSet: Set<string> = new Set(lessons.map((lesson: any) => Str
 
 export const hangulIdSet = new Set(hangulGroups.flatMap((group: any) => group.items.map((item: any) => item.id)));
 
-export const vocabIdSet = new Set(vocab.map((item: any) => item.id));
+export const vocabIdSet = new Set(vocabIds);
 
-export const grammarIdSet = new Set(grammarPoints.map((item: any) => item.id));
+export const grammarIdSet = new Set(grammarIds);
 
 export const nativeIdSet = new Set([
   ...pragmaticScenarios.map((item: any) => `pragmatics:${item.id}`),

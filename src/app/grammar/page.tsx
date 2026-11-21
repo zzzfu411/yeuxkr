@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { LibraryPagination, useLibraryPage } from "@/components/ui/library-pagination";
 import { Button } from "@/components/ui/button";
-import { CheckboxFilter, EmptyState, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
+import { CheckboxFilter, EmptyState, FilterDisclosure, FilterSummary, SearchField, SegmentedFilter } from "@/components/ui/filter-console";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";
@@ -14,6 +14,7 @@ import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui
 import { TrackRow } from "@/components/ui/track-row";
 import { grammarPoints } from "@/data/grammar";
 import { speakKorean } from "@/lib/speech";
+import { countBy, groupBy, normalizeSearch } from "@/lib/learning/library-filter";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
 
 const levelLabels: Record<string, string> = {
@@ -32,10 +33,9 @@ export default function GrammarPage() {
   const [srsErrorId, setSrsErrorId] = useState("");
   const [gateItemId, setGateItemId] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const filteredPoints = useMemo(() => {
+  const matchingPoints = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
     return grammarPoints.filter((point: any) => {
-      const matchesLevel = levelFilter === "all" || point.level === levelFilter;
       const matchesLearned = !onlyLearned || learned.has(point.id);
       const searchable = normalizeSearch([
         point.title,
@@ -46,13 +46,15 @@ export default function GrammarPage() {
         ...(point.examples ?? []).flatMap((example: any) => [example.ko, example.zh, example.note]),
         ...(point.pitfalls ?? [])
       ].join(" "));
-      return matchesLevel && matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
+      return matchesLearned && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
-  }, [learned, levelFilter, onlyLearned, query]);
+  }, [learned, onlyLearned, query]);
+  const filteredPoints = useMemo(() => matchingPoints.filter((point: any) => levelFilter === "all" || point.level === levelFilter), [matchingPoints, levelFilter]);
   const pagination = useLibraryPage(filteredPoints, JSON.stringify([query, levelFilter, onlyLearned]), 6);
   const visiblePoints = pagination.items;
-  const byLevel = groupBy(visiblePoints, "level");
   const levelCounts = countBy(filteredPoints, "level");
+  const byLevel = groupBy(visiblePoints, "level");
+  const levelOptionCounts = countBy(matchingPoints, "level");
   const activeFilters = [
     levelFilter !== "all" ? levelLabels[levelFilter] ?? levelFilter : null,
     onlyLearned ? "已加入复习" : null,
@@ -95,35 +97,25 @@ export default function GrammarPage() {
 
 
 
-      <Surface>
-        <SectionHeading
-          kicker="골라 연습하기 · 选择练习"
-          title="筛选要练的句型"
-          copy="可以按阶段筛选，也可以搜索结构、含义或例句。先练一小组，能造句后再加入间隔复习。"
-          action={activeFilters.length ? (
-            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-              重置筛选
-            </Button>
-          ) : null}
-        />
+      <Surface variant="plain" className="library-filters">
         <div className="grid gap-4">
           <SearchField label="搜索语法" value={query} onChange={setQuery} placeholder="输入结构、韩语例句或中文含义" />
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <FilterDisclosure activeCount={activeFilters.length - Number(Boolean(query.trim()))}>
             <SegmentedFilter
               label="语法层级"
               value={levelFilter}
-              options={[{ id: "all", label: "全部" }, ...Object.entries(levelLabels).map(([id, label]) => ({ id, label: `${label} ${levelCounts[id] ?? 0}` }))]}
+              options={[{ id: "all", label: "全部" }, ...Object.entries(levelLabels).map(([id, label]) => ({ id, label: `${label} ${levelOptionCounts[id] ?? 0}` }))]}
               onChange={setLevelFilter}
             />
             <CheckboxFilter label="只看已加入复习" checked={onlyLearned} onChange={setOnlyLearned} />
-          </div>
-          <FilterSummary count={filteredPoints.length} filters={activeFilters} />
+          </FilterDisclosure>
+          {activeFilters.length ? <div className="flex flex-wrap items-center justify-between gap-2"><FilterSummary count={filteredPoints.length} filters={activeFilters} /><Button type="button" variant="ghost" size="sm" onClick={resetFilters}>重置筛选</Button></div> : null}
 
         </div>
       </Surface>
 
       <div id="library-results" tabIndex={-1} className="focus-ring scroll-mt-40">
-        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法分页" resultsId="library-results" />
+        <LibraryPagination {...pagination} onPage={(next) => { setGateItemId(""); pagination.setPage(next); }} label="语法分页" resultsId="library-results" compact />
       </div>
       {!filteredPoints.length ? (
         <Surface>
@@ -133,7 +125,7 @@ export default function GrammarPage() {
 
       {Object.entries(byLevel).map(([level, points]) => (
         <Surface key={level} variant="plain">
-          <SectionHeading kicker={`${level} · 显示 ${points.length} · 匹配 ${levelCounts[level] ?? 0}`} title={levelLabels[level] ?? level} />
+          <SectionHeading title={levelLabels[level] ?? level} />
           <div>
             {points.map((point: any, pointIndex: number) => (
               <TrackRow
@@ -237,26 +229,6 @@ export default function GrammarPage() {
   );
 }
 
-function groupBy(items: any[], key: string) {
-  return items.reduce<Record<string, any[]>>((acc, item) => {
-    const value = item[key];
-    acc[value] ??= [];
-    acc[value].push(item);
-    return acc;
-  }, {});
-}
-
-function countBy(items: any[], key: string) {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    const value = item[key];
-    acc[value] = (acc[value] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
-function normalizeSearch(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
 
 function SrsError() {
   return (

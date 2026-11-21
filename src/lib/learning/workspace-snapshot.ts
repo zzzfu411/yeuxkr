@@ -1,8 +1,9 @@
+import { pronunciationAbilities } from "./phonology.ts";
 // Read-side evidence, proficiency, and task recommendations. No progress writes.
 import { normalizeLearningProgress, hangulIdSet, vocabIdSet, grammarIdSet, hasCompleteNativePracticeEvidence, normalizeMaterialSelfCheck, isRecord, abilityIds, lessonIdSet, clampNumber } from "./progress-normalization.ts";
 import { lessons, getNextLesson, isLessonMastered, UNLOCK_SCORE } from "../../data/curriculum-runtime.js";
 import { hangulGroups } from "../../data/hangul.js";
-import { vocab } from "../../data/lexicon.js";
+import { vocabIds } from "../../data/catalog-ids.generated.js";
 
 import { immersionMaterialHref, immersionMaterials } from "../../data/materials.ts";
 import { buildSelfStudyPlan } from "../../data/self-study.js";
@@ -64,8 +65,8 @@ export function buildLearningWorkspace(profile: UserProfile, progress: LearningP
       totalLessons: lessons.length,
       masteredHangul: allHangul.filter((item: any) => progress.masteredHangul.includes(item.id)).length,
       totalHangul: allHangul.length,
-      learnedVocab: vocab.filter((item: any) => progress.learnedVocab.includes(item.id)).length,
-      totalVocab: vocab.length,
+      learnedVocab: (() => { const learned = new Set(progress.learnedVocab); return vocabIds.filter((id) => learned.has(id)).length; })(),
+      totalVocab: vocabIds.length,
       completedMaterials: validMaterialEntries,
       totalMaterials: immersionMaterials.length,
       outputEntries: validOutputEntries,
@@ -832,7 +833,7 @@ function findLessonByReviewItemId(itemId: string) {
 export function mapQuestionToAbilities(questionId: string): AbilityId[] {
   if (hasQuestionPrefix(questionId, "lesson")) return mapLessonCardToAbilities(questionId);
   if (hasQuestionPrefix(questionId, "hangul")) return ["script"];
-  if (hasQuestionPrefix(questionId, "pronunciation")) return ["listening"];
+  if (hasQuestionPrefix(questionId, "pronunciation")) return pronunciationAbilities(questionId.split(":")[1]);
   if (hasQuestionPrefix(questionId, "soundChange")) return ["listening"];
   if (hasQuestionPrefix(questionId, "vocab")) return ["vocabulary"];
   if (hasQuestionPrefix(questionId, "grammar")) return ["grammar"];
@@ -841,7 +842,7 @@ export function mapQuestionToAbilities(questionId: string): AbilityId[] {
   if (hasQuestionPrefix(questionId, "materialRetell")) return ["listening", "pragmatics", "native"];
   if (hasQuestionPrefix(questionId, "outputTransfer")) return ["grammar", "pragmatics", "native"];
   if (hasCardPrefix(questionId, "hangul")) return ["script"];
-  if (hasCardPrefix(questionId, "pronunciation")) return ["listening"];
+  if (hasCardPrefix(questionId, "pronunciation")) return pronunciationAbilities(questionId.split(":")[1]);
   if (hasCardPrefix(questionId, "vocab")) return ["vocabulary"];
   if (hasCardPrefix(questionId, "grammar")) return ["grammar"];
   if (hasCardPrefix(questionId, "output")) return ["grammar", "pragmatics", "native"];
@@ -893,9 +894,11 @@ function abilityFromEvents(events: LearningProgress["abilityEvents"] = {}) {
     const explicitAbilities = isRecord(value)
       ? abilityIds.filter((ability) => Number(value[ability] ?? 0) > 0)
       : [];
-    const abilities = explicitAbilities.length ? explicitAbilities : abilitiesForEventId(eventId);
+    const mappedAbilities = abilitiesForEventId(eventId);
+    const spellingEvent = mappedAbilities.length === 1 && mappedAbilities[0] === "script" && /(?:^|:)(?:pronunciation|pq):/.test(eventId);
+    const abilities = spellingEvent ? mappedAbilities : explicitAbilities.length ? explicitAbilities : mappedAbilities;
     if (!abilities.length) continue;
-    const applied = normalizeAbilityEventValue(value, abilities);
+    const applied = normalizeAbilityEventValue(spellingEvent && isRecord(value) ? { script: Math.max(Number(value.script ?? 0), Number(value.listening ?? 0)) } : value, abilities);
     for (const ability of abilities) {
       result[ability] = (result[ability] ?? 0) + (applied[ability] ?? 0);
     }
@@ -904,7 +907,7 @@ function abilityFromEvents(events: LearningProgress["abilityEvents"] = {}) {
 }
 
 function abilitiesForEventId(eventId: string): AbilityId[] {
-  if (eventId.startsWith("pronunciation:")) return ["listening"];
+  if (eventId.startsWith("pronunciation:")) return pronunciationAbilities(eventId.split(":")[1]);
   if (eventId.startsWith("soundChange:")) return ["listening"];
   if (eventId.startsWith("review:")) {
     const cardId = eventId.slice("review:".length).split(":").slice(0, -1).join(":");

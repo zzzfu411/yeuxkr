@@ -43,6 +43,7 @@ debug.log
 .chrome-dom/
 .preview/
 .agents/
+.codex/
 tmp/
 /generated/
 preview-*.png

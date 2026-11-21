@@ -108,6 +108,9 @@ test("learning backup exports normalized managed learning entries", () => {
     },
     selfStudyCheckpoints: {
       "foundation:1": { evidence: " 录音 75 秒 " }
+    },
+    nativeExpressions: {
+      "nuance:thanks": { listened: true, retell: " 감사합니다. ", transfer: "고마워." }
     }
   }));
   store.set(STORAGE_KEYS.nativePortfolio, JSON.stringify([{
@@ -133,6 +136,8 @@ test("learning backup exports normalized managed learning entries", () => {
   assert.deepEqual(srs.cards, {});
   assert.equal(drafts.immersion["im-cafe-real-speed"].draft, "아메리카노 주세요.");
   assert.equal(drafts.selfStudyCheckpoints["foundation:1"].evidence, "录音 75 秒");
+  assert.equal(drafts.nativeExpressions["nuance:thanks"].retell, "감사합니다.");
+  assert.equal(drafts.nativeExpressions["nuance:thanks"].listened, true);
   assert.equal(nativePortfolio.entries[0].title, "新闻评论");
   assert.equal(nativePortfolio.entries[0].learningMinutes, 45);
   assert.equal(backup.entries[STORAGE_KEYS.mistakes], undefined);
@@ -164,6 +169,7 @@ test("backup validation checks each container and retains supported partial lega
     [STORAGE_KEYS.lessonSession, { sessions: { l01: { answers: {} } } }],
     [STORAGE_KEYS.nativePortfolio, { version: 2, entries: [] }],
     [STORAGE_KEYS.drafts, { immersion: { m: { selfCheck: "done" } } }],
+    [STORAGE_KEYS.drafts, { nativeExpressions: { n: { listened: "yes" } } }],
     [STORAGE_KEYS.speech, { rate: "fast" }]
   ];
   for (const [key, value] of invalid) assert.equal(parseLearningBackupText(JSON.stringify({ version: 1, app: "kirina-korean", entries: { [key]: JSON.stringify(value) } })), null);

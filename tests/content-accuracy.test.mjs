@@ -20,6 +20,16 @@ test("written teaching decompositions agree with actual Hangul syllables", () =>
   assert.equal(decompositionMatches("읽", ["ㅇㅏㄹㄱ"]), false);
   assert.equal(decompositionMatches("한글", ["ㅎㅏㄴ"]), false);
   assert.equal(checkTeachingDecompositions([{ id: "bad", teach: [{ body: "看见 한글 先数两块，再拆 ㅎㅏㄴ / ㄱㅡㄱ。" }] }]).length, 1);
+  assert.equal(checkTeachingDecompositions([{ id: "bad", teach: [{ body: "把 ㄱ、ㅏ、ㄴ 三个字母压成 한。" }] }]).length, 1);
+  assert.equal(checkTeachingDecompositions([{ id: "good", teach: [{ body: "把 ㅎ、ㅏ、ㄴ 三个字母压成 한。" }] }]).length, 0);
+  assert.equal(checkTeachingDecompositions([{ id: "bad", teach: [{ body: "用 ㄱ + ㅗ 拼成 가。" }] }]).length, 1);
+});
+
+test("the double-coda lesson includes all eleven distinct compound codas", () => {
+  const lesson = lessons.find((item) => item.id === "l47-double-batchim");
+  const catalog = lesson.teach.find((entry) => String(entry.body).includes("겹받침"));
+  const writtenCodas = [...catalog.body.matchAll(/([ㄱ-ㅎ])→/gu)].map((match) => match[1]);
+  assert.deepEqual(writtenCodas.sort(), ["ㄳ", "ㄵ", "ㄶ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅄ"].sort());
 });
 
 test("Hangul cards separate the target sound from the example word", () => {

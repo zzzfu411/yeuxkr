@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
+import Link from "@/components/learning/studio-link";
+import { useEmbeddedPage } from "@/components/layout/embedded-page";
 import { ArrowRight, BookOpenCheck, ChevronsDown, ClipboardCheck, Layers3, MapPinned } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ function rangeLabel(range: string) {
 }
 
 export default function PathPage() {
+  const embedded = useEmbeddedPage();
   const { workspace } = useLearningWorkspace();
   const [showAllStages, setShowAllStages] = useState(false);
   const [focusedMilestoneId, setFocusedMilestoneId] = useState<string | null>(null);
@@ -81,16 +83,17 @@ export default function PathPage() {
   })?.id ?? milestones.at(-1)?.id;
   const currentMilestoneIndex = Math.max(0, milestones.findIndex((milestone: any) => milestone.id === currentMilestoneId));
   const focusedMilestone = milestones.find((milestone: any) => milestone.id === focusedMilestoneId) ?? null;
-  const visibleMilestones = useMemo(() => {
+  const visibleMilestones = (() => {
     if (focusedMilestoneId) return milestones.filter((milestone: any) => milestone.id === focusedMilestoneId);
     if (showAllStages) return milestones;
+    if (embedded) return milestones.filter((milestone: any) => milestone.id === currentMilestoneId);
     const ids = new Set([
       milestones[Math.max(0, currentMilestoneIndex - 1)]?.id,
       milestones[currentMilestoneIndex]?.id,
       milestones[Math.min(milestones.length - 1, currentMilestoneIndex + 1)]?.id
     ].filter(Boolean));
     return milestones.filter((milestone: any) => ids.has(milestone.id));
-  }, [currentMilestoneIndex, focusedMilestoneId, showAllStages]);
+  })();
 
   const focusMilestone = (milestoneId: string) => {
     setFocusedMilestoneId(milestoneId);
@@ -114,12 +117,13 @@ export default function PathPage() {
     setShowAllStages(false);
   };
 
-  const coreQueueTitle = focusedMilestone ? `${focusedMilestone.title}课程` : showAllStages ? `${lessons.length} 节主线课程` : "当前阶段";
+  const currentMilestone = milestones.find((milestone: any) => milestone.id === currentMilestoneId);
+  const coreQueueTitle = focusedMilestone ? `${focusedMilestone.title}课程` : showAllStages ? `${lessons.length} 节主线课程` : embedded ? currentMilestone?.title ?? "当前课程" : "当前阶段";
   const coreQueueCopy = focusedMilestone
     ? "这里只显示所选阶段。可以随时回到当前阶段，或展开全部课程。"
     : showAllStages
       ? "课程按阶段排列，并标出当前建议、已完成内容和前置要求。"
-      : "先看当前阶段和相邻阶段。想查看全貌时，再展开全部课程。";
+      : embedded ? "按顺序学完一课，再进入下一课。完整路线与阶段要求在下方。" : "先看当前阶段和相邻阶段。想查看全貌时，再展开全部课程。";
 
   return (
     <div className="grid gap-6">
@@ -130,7 +134,7 @@ export default function PathPage() {
         compact
       />
 
-      <ModuleHero
+      {embedded ? null : <ModuleHero
         kicker="다섯 단계 · 五个阶段"
         title="五个阶段，60 节主线课程。"
         copy={`每个阶段都有课程和练习要求。完成课程，并通过对应的听读、输出和阶段检查，才会进入下一阶段。`}
@@ -144,8 +148,129 @@ export default function PathPage() {
             </Link>
           </Button>
         ) : null}
-      </ModuleHero>
+      </ModuleHero>}
 
+      <div id="core-queue" className="scroll-mt-40 lg:scroll-mt-28" tabIndex={-1}>
+      <Surface variant="plain">
+        <SectionHeading
+          kicker={embedded ? undefined : "지금 배울 것 · 当前课程"}
+          title={coreQueueTitle}
+          copy={coreQueueCopy}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {embedded && workspace.nextLesson ? <Button asChild size="sm"><Link href={continueHref}>{continueLabel}</Link></Button> : null}
+              {focusedMilestone ? (
+                <Button type="button" variant="ghost" size="sm" onClick={showCurrentWindow}>
+                  当前窗口
+                </Button>
+              ) : null}
+              <Button type="button" variant="secondary" size="sm" onClick={showFullRoute}>
+                <ChevronsDown className="h-4 w-4" />
+                {showAllStages && !focusedMilestone ? "收起路线窗口" : "展开全部课程"}
+              </Button>
+            </div>
+          }
+        />
+        <div className="grid gap-5">
+          {visibleMilestones.map((milestone: any) => {
+            const milestoneIndex = milestones.findIndex((item: any) => item.id === milestone.id);
+            const milestoneLessons = lessons.filter((lesson: any) => lesson.milestone === milestone.id);
+            const pendingIndex = milestoneLessons.findIndex((lesson: any) => !isLessonMastered(lesson.id, completedIds, scores));
+            const windowStart = Math.max(0, pendingIndex - 1);
+            const displayedLessons = embedded && !showAllStages && !focusedMilestoneId
+              ? milestoneLessons.slice(windowStart, windowStart + 6)
+              : milestoneLessons;
+            const stageProgress = milestoneProgressById.get(milestone.id);
+            if (!stageProgress) return null;
+            return (
+              <article
+                key={milestone.id}
+                className={`grid gap-4 border-t border-[var(--line)] py-5 first:border-t-0 first:pt-0 ${embedded && !showAllStages && !focusedMilestone ? "" : "lg:grid-cols-[13rem_minmax(0,1fr)]"}`}
+              >
+                {embedded && !showAllStages && !focusedMilestone ? <details className="course-progress">
+                  <summary className="focus-ring flex min-h-11 items-center gap-3 text-sm text-[var(--muted)]">
+                    <span>已完成 {stageProgress.course.completed}/{stageProgress.course.total} 课</span>
+                    <span className="ml-auto">查看阶段要求</span><ChevronsDown className="h-4 w-4" aria-hidden="true" />
+                  </summary>
+                  <div className="pb-4"><StageProgressSummary progress={stageProgress} expanded /></div>
+                </details> : <div className="lg:sticky lg:top-24 lg:self-start">
+                  <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">
+                    第 {milestoneIndex + 1} 阶段
+                  </span>
+                  <h3 className="mt-2 font-serif text-2xl font-black leading-tight">{milestone.title}</h3>
+                  <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">{rangeLabel(milestone.range)}</p>
+                  <StageProgressSummary progress={stageProgress} expanded={!embedded} />
+                </div>}
+
+                <div>
+                  {displayedLessons.map((lesson: any) => {
+                    const mastered = isLessonMastered(lesson.id, completedIds, scores);
+                    const unlocked = isLessonUnlocked(lesson.id, completedIds, scores);
+                    const prerequisites = getLessonPrerequisites(lesson.id);
+                    const missing = prerequisites.filter((item: any) => !isLessonMastered(item.id, completedIds, scores));
+                    const isCurrent = recommendNextLessonNow && nextLessonId === lesson.id;
+                    const libraryGate = getLibraryGateForLesson(lesson, libraryCounts);
+                    const enterable = unlocked && libraryGate.ok && !(needsOnboarding && !mastered);
+                    const actionable = firstActionableLesson(
+                      missing.map((item: any) => item.id),
+                      completedIds,
+                      scores,
+                      workspace.nextLesson?.id
+                    );
+                    const kicker = needsOnboarding && !mastered
+                      ? "先入门"
+                      : isCurrent ? "当前建议" : mastered ? "已完成" : enterable ? "可学习" : unlocked ? "还需补基础" : "先学前置课";
+                    const detail = !enterable
+                      ? `${lesson.subtitle}${missing.length ? ` 建议先学：${missing.map((item: any) => item.title).join("、")}` : ""}${libraryGate.missing.length ? ` 先补${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}` : ""}`
+                      : lesson.subtitle;
+                    const rowHref = needsOnboarding && !mastered
+                      ? "/onboarding"
+                      : mastered || enterable
+                        ? `/learn/${lesson.id}`
+                        : !unlocked
+                          ? (actionable ? `/learn/${actionable.id}` : "/path")
+                          : libraryRepairHref(libraryGate) ?? (actionable ? `/learn/${actionable.id}` : `/learn/${lesson.id}`);
+                    const rowPlayLabel = needsOnboarding && !mastered
+                      ? "先完成入门"
+                      : mastered || enterable
+                        ? `打开 ${lesson.title}`
+                        : !unlocked
+                          ? `先去 ${actionable?.title ?? "当前可上课"}`
+                          : `先补${libraryGate.missing[0]?.label ?? "基础内容"}`;
+                    return (
+                      <TrackRow
+                        key={lesson.id}
+                        index={lesson.order}
+                        glyph={firstHangul(lesson.title, "한")}
+                        kicker={kicker}
+                        title={lesson.title}
+                        detail={detail}
+                        meta={`${lesson.duration} 分钟`}
+                        completed={mastered}
+                        active={isCurrent}
+                        href={rowHref}
+                        playLabel={rowPlayLabel}
+                      />
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {embedded ? null : <div className="mt-4">
+          <Button asChild variant="secondary">
+            <Link href="/">
+              回到工作台
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>}
+      </Surface>
+      </div>
+
+      <details className="disclosure course-stages" open={embedded ? undefined : true}>
+      <summary>查看五个学习阶段<span>课程顺序与进度</span><ChevronsDown className="h-4 w-4" aria-hidden="true" /></summary>
       <section className="grid gap-3" aria-labelledby="stage-progress-title">
         <h2 id="stage-progress-title" className="sr-only">阶段课程与能力检查进度</h2>
         <div className="nav-scroll -mx-4 grid auto-cols-[17rem] grid-flow-col gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid-flow-row lg:grid-cols-3 lg:px-0 xl:grid-cols-5">
@@ -217,116 +342,13 @@ export default function PathPage() {
         })}
         </div>
       </section>
-
-      <div id="core-queue" className="scroll-mt-40 lg:scroll-mt-28" tabIndex={-1}>
-      <Surface variant="plain">
-        <SectionHeading
-          kicker="지금 배울 것 · 当前课程"
-          title={coreQueueTitle}
-          copy={coreQueueCopy}
-          action={
-            <div className="flex flex-wrap gap-2">
-              {focusedMilestone ? (
-                <Button type="button" variant="ghost" size="sm" onClick={showCurrentWindow}>
-                  当前窗口
-                </Button>
-              ) : null}
-              <Button type="button" variant="secondary" size="sm" onClick={showFullRoute}>
-                <ChevronsDown className="h-4 w-4" />
-                {showAllStages && !focusedMilestone ? "收起路线窗口" : "展开全部课程"}
-              </Button>
-            </div>
-          }
-        />
-        <div className="grid gap-5">
-          {visibleMilestones.map((milestone: any) => {
-            const milestoneIndex = milestones.findIndex((item: any) => item.id === milestone.id);
-            const milestoneLessons = lessons.filter((lesson: any) => lesson.milestone === milestone.id);
-            const stageProgress = milestoneProgressById.get(milestone.id);
-            if (!stageProgress) return null;
-            return (
-              <article
-                key={milestone.id}
-                className="grid gap-4 border-t border-[var(--line)] py-5 first:border-t-0 first:pt-0 lg:grid-cols-[13rem_minmax(0,1fr)]"
-              >
-                <div className="lg:sticky lg:top-24 lg:self-start">
-                  <span className="font-mono text-xs font-black uppercase text-[var(--ocean)]">
-                    Stage {String(milestoneIndex + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="mt-2 font-serif text-2xl font-black leading-tight">{milestone.title}</h3>
-                  <p className="mt-2 text-sm font-bold leading-6 text-[var(--muted)]">{milestone.range}</p>
-                  <StageProgressSummary progress={stageProgress} expanded />
-                </div>
-
-                <div>
-                  {milestoneLessons.map((lesson: any) => {
-                    const mastered = isLessonMastered(lesson.id, completedIds, scores);
-                    const unlocked = isLessonUnlocked(lesson.id, completedIds, scores);
-                    const prerequisites = getLessonPrerequisites(lesson.id);
-                    const missing = prerequisites.filter((item: any) => !isLessonMastered(item.id, completedIds, scores));
-                    const isCurrent = recommendNextLessonNow && nextLessonId === lesson.id;
-                    const libraryGate = getLibraryGateForLesson(lesson, libraryCounts);
-                    const enterable = unlocked && libraryGate.ok && !(needsOnboarding && !mastered);
-                    const actionable = firstActionableLesson(
-                      missing.map((item: any) => item.id),
-                      completedIds,
-                      scores,
-                      workspace.nextLesson?.id
-                    );
-                    const kicker = needsOnboarding && !mastered
-                      ? "先入门"
-                      : isCurrent ? "当前建议" : mastered ? "已完成" : enterable ? "可学习" : unlocked ? "还需补基础" : "先学前置课";
-                    const detail = !enterable
-                      ? `${lesson.subtitle}${missing.length ? ` 建议先学：${missing.map((item: any) => item.title).join("、")}` : ""}${libraryGate.missing.length ? ` 先补${libraryGate.missing.map((gap) => `${gap.label} ${gap.current}/${gap.target}`).join("、")}` : ""}`
-                      : lesson.subtitle;
-                    const rowHref = needsOnboarding && !mastered
-                      ? "/onboarding"
-                      : mastered || enterable
-                        ? `/learn/${lesson.id}`
-                        : !unlocked
-                          ? (actionable ? `/learn/${actionable.id}` : "/path")
-                          : libraryRepairHref(libraryGate) ?? (actionable ? `/learn/${actionable.id}` : `/learn/${lesson.id}`);
-                    const rowPlayLabel = needsOnboarding && !mastered
-                      ? "先完成入门"
-                      : mastered || enterable
-                        ? `打开 ${lesson.title}`
-                        : !unlocked
-                          ? `先去 ${actionable?.title ?? "当前可上课"}`
-                          : `先补${libraryGate.missing[0]?.label ?? "基础内容"}`;
-                    return (
-                      <TrackRow
-                        key={lesson.id}
-                        index={lesson.order}
-                        glyph={firstHangul(lesson.title, "한")}
-                        kicker={kicker}
-                        title={lesson.title}
-                        detail={detail}
-                        meta={`${lesson.duration} 分钟`}
-                        completed={mastered}
-                        active={isCurrent}
-                        href={rowHref}
-                        playLabel={rowPlayLabel}
-                      />
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-        <div className="mt-4">
-          <Button asChild variant="secondary">
-            <Link href="/">
-              回到工作台
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </Surface>
-      </div>
+      </details>
 
       <LearningCompass workspace={workspace} active="path" condensed isFirstVisit={needsOnboarding} />
 
+      <details className="disclosure course-background" open={embedded ? undefined : true}>
+        <summary>阶段要求与长期路线<span>按需了解</span><ChevronsDown className="h-4 w-4" aria-hidden="true" /></summary>
+        <div className="grid gap-6 py-4">
       <Surface variant="plain">
         <SectionHeading
           kicker="지금까지 · 学到哪里"
@@ -356,7 +378,7 @@ export default function PathPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(level.requirements ?? []).slice(0, 5).map((requirement: any) => (
                       <span key={`${level.id}:${requirement.metric}`} className="rounded-none border border-[var(--line)] px-2 py-1 text-xs font-bold">
-                        {proficiencyMetrics[requirement.metric] ?? requirement.metric} {requirement.target}
+                        {proficiencyMetrics[requirement.metric as keyof typeof proficiencyMetrics] ?? requirement.metric} {requirement.target}
                       </span>
                     ))}
                   </div>
@@ -409,6 +431,8 @@ export default function PathPage() {
           </div>
         </div>
       </Surface>
+        </div>
+      </details>
     </div>
   );
 }

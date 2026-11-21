@@ -8,7 +8,7 @@ export async function auditRegression(browser, baseUrl, outDir) {
   page.setDefaultTimeout(8000);
   const evidence = { measuredAt: new Date().toISOString(), layouts: [], checks: [] };
   try {
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    await page.goto(baseUrl + '/settings', { waitUntil: 'networkidle' });
     const dataTrigger = page.locator('summary[aria-label="学习数据"]');
     assert.equal(await dataTrigger.count(), 1, 'data menu must have a stable accessible name');
     await dataTrigger.click();
@@ -68,6 +68,7 @@ export async function auditRegression(browser, baseUrl, outDir) {
       }
     }
     await page.setViewportSize({width:320,height:844});
+    await page.goto(baseUrl + '/settings', { waitUntil: 'networkidle' });
     const trigger=page.locator('summary.season-trigger');
     await trigger.click();
     const themeLabels=await page.locator('.theme-toggle button').allTextContents();

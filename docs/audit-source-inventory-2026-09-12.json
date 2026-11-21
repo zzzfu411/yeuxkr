@@ -1,0 +1,1313 @@
+{
+  "measuredAt": "2026-09-11T16:30:14.851Z",
+  "counts": {
+    ".github": 1,
+    "root configuration/documentation": 11,
+    "design": 10,
+    "scripts": 19,
+    "src": 141,
+    "tests": 32
+  },
+  "content": {
+    "lessons": 60,
+    "vocab": 722,
+    "grammar": 83,
+    "hangul": 47,
+    "pronunciation": 10,
+    "materials": 29,
+    "questionTypes": {
+      "choice": 200,
+      "type": 55,
+      "listen": 62,
+      "cloze": 84,
+      "dictation": 72,
+      "translate": 39
+    }
+  },
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 1564,
+      "lines": 56,
+      "sha256": "cf50bec6cf4a869f0b5206b2b6ca2505efc48509b843a6956cba095c66b35831"
+    },
+    {
+      "path": "CLAUDE.md",
+      "bytes": 2480,
+      "lines": 30,
+      "sha256": "168d861a5c6ccfba26bad7504a7e12959f86c066810fb49722915722e3545676"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9715,
+      "lines": 128,
+      "sha256": "30780cd301a6f836304e08eb60b3b55b3bc53dec1b4e1cdb680a78900f3e3f98"
+    },
+    {
+      "path": "design/art-direction.md",
+      "bytes": 3919,
+      "lines": 31,
+      "sha256": "0fa9dce8752180527fef898ac9d8ffc09e6b9687889b3a378923bb3022e8ec89"
+    },
+    {
+      "path": "design/centered-learning-home.md",
+      "bytes": 3750,
+      "lines": 46,
+      "sha256": "4d3508da36749bac13469a496c9d8e84809bc34663c7546d52ac248e80f35428"
+    },
+    {
+      "path": "design/content-voice.md",
+      "bytes": 3346,
+      "lines": 53,
+      "sha256": "97fc2d1b1b212fdd94b99db5ff4e221d25a45d5853a19d3bc03d8cdf5039296d"
+    },
+    {
+      "path": "design/curriculum-overhaul.md",
+      "bytes": 2004,
+      "lines": 50,
+      "sha256": "c9552d1d779cba9b0902e959de2f849c84dba7cda66b7453fcb3ac4ea6b48f90"
+    },
+    {
+      "path": "design/kdrama-redesign.md",
+      "bytes": 13768,
+      "lines": 205,
+      "sha256": "2562bc0761d5f8093e4baea3f007f60565126debe2eb71e588fb6374c976b7a6"
+    },
+    {
+      "path": "design/learning-note-home.md",
+      "bytes": 4771,
+      "lines": 58,
+      "sha256": "a0002643674fcc40e1340c65bd9b79dbf51917adbdee088d0c58a063084383a9"
+    },
+    {
+      "path": "design/learning-trajectory.md",
+      "bytes": 4155,
+      "lines": 57,
+      "sha256": "4d8ba6d6b6dd46e50ea9fcdc6b74f7ef5df4cec5351a537c56f36f8ea7ecb7fa"
+    },
+    {
+      "path": "design/quiet-learning-spaces.md",
+      "bytes": 4902,
+      "lines": 60,
+      "sha256": "41cd0b3b4d0b65bf05e9de1afd227eba9d949dead3c074a5ba2847338ffb870a"
+    },
+    {
+      "path": "design/scattered-fragments.md",
+      "bytes": 9526,
+      "lines": 115,
+      "sha256": "66759f232e6414e71d9e8610d13adfe2902ba2475324f1be189c67fcdb8ac08f"
+    },
+    {
+      "path": "design/seoul-sticker-redesign.md",
+      "bytes": 12757,
+      "lines": 125,
+      "sha256": "1c153dcff7e82a9ae3e15d9f80dffb38416bdb0c9800f42238996f33f4a7fc99"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "bytes": 578,
+      "lines": 26,
+      "sha256": "9d9f6bc2afec0cf029dea7dd00366018d3f11966233f285573ded4c96de72735"
+    },
+    {
+      "path": "next.config.mjs",
+      "bytes": 559,
+      "lines": 21,
+      "sha256": "48908705da0f50a9c116cc4840d86c34c06e4070d982bff1c680c42d06ae05d5"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 252274,
+      "lines": 7327,
+      "sha256": "5b385dfff678d5ddf7e62350e50c72e666203ccd119d04f962a899808106004c"
+    },
+    {
+      "path": "package.json",
+      "bytes": 2195,
+      "lines": 61,
+      "sha256": "785ca2c13ea2f84b038fafa5409187982358c8842a125363c5574047b07e5599"
+    },
+    {
+      "path": "postcss.config.mjs",
+      "bytes": 103,
+      "lines": 9,
+      "sha256": "2147573f4053310e348ad9d722882426c884376f42a354daea89bcd663b33b25"
+    },
+    {
+      "path": "scripts/audit-regression.mjs",
+      "bytes": 10343,
+      "lines": 156,
+      "sha256": "7c5ac4dacc508a12fa54c9c7306086fcc6b18ab67ac7f0e36db0493b14c07d1c"
+    },
+    {
+      "path": "scripts/build-curriculum-runtime.mjs",
+      "bytes": 846,
+      "lines": 14,
+      "sha256": "38df6f811b2e67fbffd5ba5ee3c636579dd3033d4b67a63305d96eebc60492b7"
+    },
+    {
+      "path": "scripts/build-speech-corpus.mjs",
+      "bytes": 4233,
+      "lines": 110,
+      "sha256": "2bc22172eb1ffa5e7bbe622cd0272ff1b13ed39c62cdfe83c948151e17ed03ff"
+    },
+    {
+      "path": "scripts/check-performance.mjs",
+      "bytes": 1293,
+      "lines": 19,
+      "sha256": "e470bbd263d4f9d81e627ef3b59525bbf7d952d017681f5c5bd8df5cf929c785"
+    },
+    {
+      "path": "scripts/check-release.mjs",
+      "bytes": 503,
+      "lines": 11,
+      "sha256": "6fc38fcfee3e9d3c95abce3be8148e980a4088812c4542a18cf76cd8a223448c"
+    },
+    {
+      "path": "scripts/check-smoke.mjs",
+      "bytes": 4561,
+      "lines": 147,
+      "sha256": "3b063e3a517bf2e6a7d859816e10e0e291888bba0e87b15a25fea5361b69ff0b"
+    },
+    {
+      "path": "scripts/generate-imagegen-assets.ps1",
+      "bytes": 2710,
+      "lines": 73,
+      "sha256": "fd98390cd91fd92dae9436b4488972fc8ec525545ea938b78cbbf6864ffa8dd2"
+    },
+    {
+      "path": "scripts/generate-speech-assets.py",
+      "bytes": 8513,
+      "lines": 226,
+      "sha256": "e0508f3630b1005aba6cc535e9d4e67541aa640ddbc41f26c41bce628c1d6e6c"
+    },
+    {
+      "path": "scripts/http-smoke.mjs",
+      "bytes": 14583,
+      "lines": 333,
+      "sha256": "5ffa7f0d33106d8663c45de4f9e8d442233b5070193a7b471d2461ae3cf1d8f5"
+    },
+    {
+      "path": "scripts/imagegen-jobs.json",
+      "bytes": 19532,
+      "lines": 147,
+      "sha256": "1391973babb87fda58787b50d8ea0515311cc3f7855e0b644ecc13999ad623bc"
+    },
+    {
+      "path": "scripts/prepare-imagegen-assets.mjs",
+      "bytes": 1923,
+      "lines": 35,
+      "sha256": "1c3d36f667156950471a59ddb249b63eeb4f49f4afcf52fdabc520d7cca5b243"
+    },
+    {
+      "path": "scripts/recovery-regression.mjs",
+      "bytes": 2226,
+      "lines": 33,
+      "sha256": "acc8cf4f4753c93cbf412837ef33508575c38686b5cbd569eeb4655d7ef95f97"
+    },
+    {
+      "path": "scripts/restructure-content.mjs",
+      "bytes": 5371,
+      "lines": 154,
+      "sha256": "d9b21f5c88d89189f0d08b77b1ae64dbdcb029d7df06a7aaefafec28e7de8e03"
+    },
+    {
+      "path": "scripts/serve.mjs",
+      "bytes": 1101,
+      "lines": 38,
+      "sha256": "dc76329355401092fea9edd4a2aa5055e3dad10ae65d5efac45e4948e0363bc1"
+    },
+    {
+      "path": "scripts/smoke-audit.mjs",
+      "bytes": 554,
+      "lines": 11,
+      "sha256": "af81370a08e1890092dd12328cc7a24187c9de29736594bd0a8c0cbd769be0b4"
+    },
+    {
+      "path": "scripts/smoke-browser.mjs",
+      "bytes": 101629,
+      "lines": 1708,
+      "sha256": "44978096233d7c594c77baf93bcd1d999ca650bf2178f44a909d177ba4e29640"
+    },
+    {
+      "path": "scripts/speech-corpus.json",
+      "bytes": 107252,
+      "lines": 4851,
+      "sha256": "a673ba54f47dc57e27171cce9375fd63ef1db7fee380c65d908f3181950aaf6e"
+    },
+    {
+      "path": "scripts/studio-regression.mjs",
+      "bytes": 10380,
+      "lines": 154,
+      "sha256": "8f3a6d0353eda2c054af63b064b1b92cb4ab73c114ec9e42bebcc5374577ea4b"
+    },
+    {
+      "path": "scripts/validate.mjs",
+      "bytes": 83599,
+      "lines": 1065,
+      "sha256": "5260cbd236c2f9d99cd2824589282afc969fe0cfa8bcce85c3b96e8432cd55e9"
+    },
+    {
+      "path": "src/app/error.tsx",
+      "bytes": 965,
+      "lines": 22,
+      "sha256": "35bec1f52ff9bd76b2598a48dfd34bfbb4e4a4ff1f0ec8af2f1a10a41995c370"
+    },
+    {
+      "path": "src/app/globals.css",
+      "bytes": 33321,
+      "lines": 505,
+      "sha256": "ee0acee9394c04ff4f4e8df294f19bf2123e5ceadca38db9e418ab38d3fca7b0"
+    },
+    {
+      "path": "src/app/grammar/layout.tsx",
+      "bytes": 244,
+      "lines": 6,
+      "sha256": "87145b93ebb09f3bd6557f7b9d67fb3360acfe9189376e035ea163e02454ec23"
+    },
+    {
+      "path": "src/app/grammar/page.tsx",
+      "bytes": 11862,
+      "lines": 266,
+      "sha256": "257cbc4acfeaf4c3296b271b361a913b50da58f51b1fdd54da7fc5ee1d11f412"
+    },
+    {
+      "path": "src/app/hangul/layout.tsx",
+      "bytes": 242,
+      "lines": 6,
+      "sha256": "4841f7730b8903f8bb145a4351900dbebae06de6978549d2943d540de0833efa"
+    },
+    {
+      "path": "src/app/hangul/page.tsx",
+      "bytes": 16843,
+      "lines": 360,
+      "sha256": "2db4cb1c96475956ba50fd18c599fc07402da979c04d20e9126d83ce4dfb3132"
+    },
+    {
+      "path": "src/app/immersion/layout.tsx",
+      "bytes": 248,
+      "lines": 6,
+      "sha256": "f6b30d89eb547f256d209d7b908ec30098c15747fc1c75022f3b34e2a61ad849"
+    },
+    {
+      "path": "src/app/immersion/page.tsx",
+      "bytes": 48680,
+      "lines": 977,
+      "sha256": "073d04845fa8cbe3d4313ae155dac80828b09e086f69baf7c68bb5212d335646"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "bytes": 1503,
+      "lines": 45,
+      "sha256": "98bd040ca113e5bb3b56faa11f8c1eedad50c0aae1d9cfe1e291ba50eafe9fef"
+    },
+    {
+      "path": "src/app/learn/[lessonId]/lesson-client.tsx",
+      "bytes": 27695,
+      "lines": 538,
+      "sha256": "cfcbe7873f0c280d2eca51fb39aba82adb0b904b54170dd3943e9712ba5199cb"
+    },
+    {
+      "path": "src/app/learn/[lessonId]/page.tsx",
+      "bytes": 990,
+      "lines": 24,
+      "sha256": "8611b2c32f46cd887edcbc48029a6526ed838794ae2f2819bd9e44611e4e8fe8"
+    },
+    {
+      "path": "src/app/mistakes/layout.tsx",
+      "bytes": 246,
+      "lines": 6,
+      "sha256": "220ee4bcaf03e9a58652cecfa23821a9906a7cec89e019c2ac1beba47bd0ded1"
+    },
+    {
+      "path": "src/app/mistakes/page.tsx",
+      "bytes": 14145,
+      "lines": 318,
+      "sha256": "a3c9e38ede5067dc077a1e615617a9da335d261e70b3ed2351580ad207a1aef1"
+    },
+    {
+      "path": "src/app/native/layout.tsx",
+      "bytes": 242,
+      "lines": 6,
+      "sha256": "a91db68c99ad45958d5519f91ed3cea01f4ab964142ceb1a6f5a682c44e3a20f"
+    },
+    {
+      "path": "src/app/native/page.tsx",
+      "bytes": 49065,
+      "lines": 1015,
+      "sha256": "113b5b6460e685db7e413024ef39f56305ab5147f9dc01b50e97149802545ec3"
+    },
+    {
+      "path": "src/app/not-found.tsx",
+      "bytes": 605,
+      "lines": 12,
+      "sha256": "eb3ce0f61960c31ef668adb24a473d0c3662ccd509b7fae7d96de54b31f9aa9d"
+    },
+    {
+      "path": "src/app/onboarding/layout.tsx",
+      "bytes": 250,
+      "lines": 6,
+      "sha256": "a17cf15fe2ebf95b1d50bf2c1e42bb117d3e051c56bc122de3c674ca3c555ef4"
+    },
+    {
+      "path": "src/app/onboarding/page.tsx",
+      "bytes": 220,
+      "lines": 12,
+      "sha256": "7d880d5c20900149eae083139870f2531e1d92c984bde9a01af77bffa670de07"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "bytes": 2967,
+      "lines": 51,
+      "sha256": "7390df3848a4f77c41d0eee1a0a7823db28ecea4217f0aaf3a61f6c7e13bff28"
+    },
+    {
+      "path": "src/app/path/layout.tsx",
+      "bytes": 238,
+      "lines": 6,
+      "sha256": "f1d89ea61a0210ab8ec1c904f5ab51d81b0167728c63cde922133f4c4eb2c6c0"
+    },
+    {
+      "path": "src/app/path/page.tsx",
+      "bytes": 27317,
+      "lines": 524,
+      "sha256": "683c05e471b2aeb4bbb273479469e07d2e01055dd083de152000a614ff241bdc"
+    },
+    {
+      "path": "src/app/practice/layout.tsx",
+      "bytes": 247,
+      "lines": 5,
+      "sha256": "49f5a7a2ffb2b24738dab44e960e2bff5a1fdaaa00230d417cc0ab72dc303613"
+    },
+    {
+      "path": "src/app/practice/page.tsx",
+      "bytes": 416,
+      "lines": 8,
+      "sha256": "b7986a213cc6fe1a7af7fb7b899f8ff4ba1d68198cfcede84a6fc5f6f5d4ed94"
+    },
+    {
+      "path": "src/app/quiz/layout.tsx",
+      "bytes": 238,
+      "lines": 6,
+      "sha256": "ebb0c11f41335be8cf3bfe9db3fa15b7fcf84da5baf521be4a4b417526611d0f"
+    },
+    {
+      "path": "src/app/quiz/page.tsx",
+      "bytes": 6277,
+      "lines": 151,
+      "sha256": "380652d6b5a7e8f656bb8ec331dc025977500bf9cbbe59c03ee64e273b65b05c"
+    },
+    {
+      "path": "src/app/review/layout.tsx",
+      "bytes": 242,
+      "lines": 6,
+      "sha256": "d17ddc3287cc569f92687262caaac43381ba71b532d4a578f6707f43a9e1b4a8"
+    },
+    {
+      "path": "src/app/review/page.tsx",
+      "bytes": 12247,
+      "lines": 268,
+      "sha256": "7e383e860297da3cc2b77b5b5cee853073fe9c2ef89e5ab3598c95e8238e4435"
+    },
+    {
+      "path": "src/app/robots.ts",
+      "bytes": 312,
+      "lines": 8,
+      "sha256": "d20f424dfb1276f5d0ddcfa40dad25767c9c4f474186c6c1e4027692ace20c99"
+    },
+    {
+      "path": "src/app/self-study/layout.tsx",
+      "bytes": 250,
+      "lines": 6,
+      "sha256": "761f0abf39b91197f911d4c1438ecd65735021ab750f67ec0afb4aa1595f8902"
+    },
+    {
+      "path": "src/app/self-study/page.tsx",
+      "bytes": 27058,
+      "lines": 527,
+      "sha256": "384c9c5cb3ace34e8f15b4aff068f003be2abf90941c0cdd6cbd732ad34afd08"
+    },
+    {
+      "path": "src/app/settings/layout.tsx",
+      "bytes": 246,
+      "lines": 6,
+      "sha256": "e4f7d658c09c80b6b4b17d3e7a27d79360b93b69cb3e293c37edfff5edefc9fb"
+    },
+    {
+      "path": "src/app/settings/page.tsx",
+      "bytes": 7188,
+      "lines": 153,
+      "sha256": "751293bd2cd5ad72dc04e7bef1178fde21fd91b38478e8ee8aca6c611c3e24d4"
+    },
+    {
+      "path": "src/app/sitemap.ts",
+      "bytes": 499,
+      "lines": 11,
+      "sha256": "bba2b2ca838a6bc217890cdbaa59d59094f5c75f4fbf7acac3f8f0769b88c9b2"
+    },
+    {
+      "path": "src/app/study/layout.tsx",
+      "bytes": 238,
+      "lines": 5,
+      "sha256": "a4081cf0bcdabeca65b45edab50ee8062f1ab0f32407f809276156749b8c212e"
+    },
+    {
+      "path": "src/app/study/page.tsx",
+      "bytes": 407,
+      "lines": 8,
+      "sha256": "3dc7a32dd5c0ee4929ba3d89ee2a68a264eae6a3ed578c9174271245961b8d52"
+    },
+    {
+      "path": "src/app/vocabulary/layout.tsx",
+      "bytes": 250,
+      "lines": 6,
+      "sha256": "3bdd26e77c059e7e12fcf3d1a08f9ce6978e019a3019857313f0ca27599fde32"
+    },
+    {
+      "path": "src/app/vocabulary/page.tsx",
+      "bytes": 12874,
+      "lines": 280,
+      "sha256": "992a824b8fcf27199830d90ffc8e7360dfdd032af0296ee0d401edc65916eaac"
+    },
+    {
+      "path": "src/components/assets/art-scene.tsx",
+      "bytes": 2000,
+      "lines": 33,
+      "sha256": "b9c06e991448555fc6ca7dd52b096df9c128044a4cb3f3c2ca1cd4290129afcf"
+    },
+    {
+      "path": "src/components/assets/visual-panel.tsx",
+      "bytes": 4333,
+      "lines": 103,
+      "sha256": "bbccc3ea161ba3c2e7447a51d10cc675db881fd63d13b5148ff4714896fc7476"
+    },
+    {
+      "path": "src/components/korean/hangul-keyboard.tsx",
+      "bytes": 3889,
+      "lines": 126,
+      "sha256": "2d45e8123d4387cd93fe566c107b9616da157452a8a7fa202ee397409c9ea6d8"
+    },
+    {
+      "path": "src/components/korean/korean-input.tsx",
+      "bytes": 7347,
+      "lines": 208,
+      "sha256": "48293769daef4316272c98ca93cb1c28eacfd3a27dae4d463bda942f6cc9e05c"
+    },
+    {
+      "path": "src/components/korean/romanization-text.tsx",
+      "bytes": 1174,
+      "lines": 38,
+      "sha256": "797a2d6a4001f9ac50664ca225368734fc833f9979d2c3351d8e20d67b5f0725"
+    },
+    {
+      "path": "src/components/korean/speech-settings.tsx",
+      "bytes": 4751,
+      "lines": 111,
+      "sha256": "72f95988936a8084396a6890638717c0a8bb688fa6e3acd10a02434f7f9f3b52"
+    },
+    {
+      "path": "src/components/korean/speech-status.tsx",
+      "bytes": 5850,
+      "lines": 135,
+      "sha256": "579c538894ec3be8437c8102752279d8f7a0708ebbd9d476bf052b81cc8ec408"
+    },
+    {
+      "path": "src/components/layout/app-shell.tsx",
+      "bytes": 4005,
+      "lines": 80,
+      "sha256": "0a29e06525c6cfc9f400439e4c5c53c5d3fbe2cb5d1d48c0fda7f859fca193bd"
+    },
+    {
+      "path": "src/components/layout/embedded-page.tsx",
+      "bytes": 365,
+      "lines": 14,
+      "sha256": "df1e756bda00ed37fd6b24e8007539a4788bbbb76eec591309aa7024ba5759c1"
+    },
+    {
+      "path": "src/components/layout/learning-data-panel.tsx",
+      "bytes": 13474,
+      "lines": 267,
+      "sha256": "1f76a6ccd996a4ed97b3869d32723759e337561b3a63cef6029635960b727737"
+    },
+    {
+      "path": "src/components/layout/now-playing.tsx",
+      "bytes": 2501,
+      "lines": 78,
+      "sha256": "b2815a128d9f33ad2c9e7220947ec6d8343cf1a3e903dbefc1723758e8cf2053"
+    },
+    {
+      "path": "src/components/layout/pwa-register.tsx",
+      "bytes": 8746,
+      "lines": 220,
+      "sha256": "a9f67cbd663651d604df9522f77b527dde28f1b8608ccddfb7de7dd50c12eb06"
+    },
+    {
+      "path": "src/components/layout/studio-intro.tsx",
+      "bytes": 731,
+      "lines": 14,
+      "sha256": "781fb7f8f61dc19bcb841b58409df784072d52b23cb5342f0f26cf666df8fb88"
+    },
+    {
+      "path": "src/components/layout/studio-navigation.tsx",
+      "bytes": 2022,
+      "lines": 33,
+      "sha256": "96e3ab0119c4eb28683f3014f6f7b3e3a2dc5893478bd59dbb0ecab9e71c2aaa"
+    },
+    {
+      "path": "src/components/layout/studio-workspace.tsx",
+      "bytes": 1655,
+      "lines": 37,
+      "sha256": "b2f6a368f3753cbcfd8d9cce9d26101a398ffcf73a80e3a12c1526efcb18f21d"
+    },
+    {
+      "path": "src/components/learning/ability-bars.tsx",
+      "bytes": 1162,
+      "lines": 31,
+      "sha256": "860d15f10465377fb6970734ffc84ab55bca746d833ed7b408b5a14c390d26dc"
+    },
+    {
+      "path": "src/components/learning/drill-runner.tsx",
+      "bytes": 26976,
+      "lines": 642,
+      "sha256": "d1054891d54c5ebde156f57ba8021b1e13936e64d90da39e2ddc9bb925eaa3b0"
+    },
+    {
+      "path": "src/components/learning/learning-compass.tsx",
+      "bytes": 19384,
+      "lines": 396,
+      "sha256": "fb3a848fc2fafc85d8f0c2bdb6b4923dd0ff1a437856b17e83219615f7965c64"
+    },
+    {
+      "path": "src/components/learning/lesson-evidence-panels.tsx",
+      "bytes": 44499,
+      "lines": 968,
+      "sha256": "abe4f5295dd24f6a8dfb7a63573a51c626e1267d65b78c59c31c8c1b9507f878"
+    },
+    {
+      "path": "src/components/learning/lesson-result-actions.tsx",
+      "bytes": 8530,
+      "lines": 210,
+      "sha256": "f9376728b8f29903bcb0bb6872ecc2526e26dc4d485c53db437a784157a6c31f"
+    },
+    {
+      "path": "src/components/learning/library-gate-notice.tsx",
+      "bytes": 1448,
+      "lines": 31,
+      "sha256": "9ec48134744d78cf26d1f59bcc35a0b23c2c86344d09c25f13bf69136938f581"
+    },
+    {
+      "path": "src/components/learning/mastery-gate.tsx",
+      "bytes": 4983,
+      "lines": 124,
+      "sha256": "a8548aa8cb17944734b15bba4372b963a364af05535c1aee6fadfcc635a2fca4"
+    },
+    {
+      "path": "src/components/learning/onboarding-flow.tsx",
+      "bytes": 14782,
+      "lines": 290,
+      "sha256": "2f322ef9220789423440487b95f9c2f2e6220fff72f78917e2caaa8adc46f7d3"
+    },
+    {
+      "path": "src/components/learning/onboarding-gate-notice.tsx",
+      "bytes": 838,
+      "lines": 19,
+      "sha256": "b7ceeda4f8fc552bd2af4dabb5d2a06147ae1455a7e8b8a9d27ed186d0ecf7bc"
+    },
+    {
+      "path": "src/components/learning/studio-link.tsx",
+      "bytes": 410,
+      "lines": 9,
+      "sha256": "8d38e84a8569d65b8f54a982db10677b4410456b3142812bd1b8160845ae439b"
+    },
+    {
+      "path": "src/components/learning/task-card.tsx",
+      "bytes": 2336,
+      "lines": 54,
+      "sha256": "c4aef1cd47c19f410096ddd5539b4ad8820d2e39c1abd5348cdeab30f41a56d6"
+    },
+    {
+      "path": "src/components/theme/theme-toggle.tsx",
+      "bytes": 3570,
+      "lines": 114,
+      "sha256": "e3c63251f15b933b4dbb85684d75eedf074e8a5e0efce2735c683021a55b25c2"
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "bytes": 1944,
+      "lines": 48,
+      "sha256": "72c88a50c124b38a489894c2fa850f56ae0c8900ea0394e062f4c9d796b67784"
+    },
+    {
+      "path": "src/components/ui/filter-console.tsx",
+      "bytes": 6843,
+      "lines": 206,
+      "sha256": "29b82f74042aa41cbeeb171ff5114635b21cc30a0600b858692c64b855dd6622"
+    },
+    {
+      "path": "src/components/ui/inline-alert.tsx",
+      "bytes": 904,
+      "lines": 30,
+      "sha256": "479c631d1f5f42d4d1f4553af9121e332b6ea90d33abf612eeec7f93b8e4a374"
+    },
+    {
+      "path": "src/components/ui/library-pagination.tsx",
+      "bytes": 1985,
+      "lines": 40,
+      "sha256": "24214c68da4b841993173ddcd20f549f7c43b3946ce94bdde58c9932be67757c"
+    },
+    {
+      "path": "src/components/ui/section.tsx",
+      "bytes": 3581,
+      "lines": 146,
+      "sha256": "3370f81a4a2596160f693278b984d1d71c7255161d8fb5d1b305b70fc5b04f4c"
+    },
+    {
+      "path": "src/components/ui/track-row.tsx",
+      "bytes": 3093,
+      "lines": 93,
+      "sha256": "9cebeb26833f715699c1c548f92e6f8b87c7d3652adc4476cc6f975d98b68fe7"
+    },
+    {
+      "path": "src/data/curriculum-runtime.js",
+      "bytes": 6802,
+      "lines": 174,
+      "sha256": "4b451ed888ffd07d90f4dd25a81c42702a6f7fc4521dfa04d9df4750fb0e4b1b"
+    },
+    {
+      "path": "src/data/curriculum.js",
+      "bytes": 462,
+      "lines": 6,
+      "sha256": "4f71b726e82b779647c123d6b325301e121be181b6251e3c5d8836fa019f671b"
+    },
+    {
+      "path": "src/data/grammar-extra.js",
+      "bytes": 22587,
+      "lines": 183,
+      "sha256": "55d63dc01bce1511b784c2fe22ea6a73c0df6de92ff281addd60418a6fcfa206"
+    },
+    {
+      "path": "src/data/grammar.js",
+      "bytes": 43134,
+      "lines": 1251,
+      "sha256": "8a33b2a610a63c5473d95e154263fe9f0655c3ec9f44580e7db4f4288738c7e5"
+    },
+    {
+      "path": "src/data/hangul.js",
+      "bytes": 11838,
+      "lines": 123,
+      "sha256": "43b2d04a5a4de78d6c92c1a9556f900235f7f43e6665f34af238b49eae169c95"
+    },
+    {
+      "path": "src/data/lessons/completions.js",
+      "bytes": 23875,
+      "lines": 167,
+      "sha256": "aee0ec685f72015a363871363a3349029fa8a5738ecb54c3050afff5fd68c990"
+    },
+    {
+      "path": "src/data/lessons/depth.js",
+      "bytes": 29274,
+      "lines": 469,
+      "sha256": "8199bb7f1d1cd5d78c104746c2b9d1517641f58d5c03697c6a91d7e142bc2152"
+    },
+    {
+      "path": "src/data/lessons/extra.js",
+      "bytes": 96365,
+      "lines": 1867,
+      "sha256": "85db36f8a43d526f23ad4a70a8c1adc4681e6dfca05c443e8d43f7a31ed788df"
+    },
+    {
+      "path": "src/data/lessons/index.js",
+      "bytes": 555,
+      "lines": 20,
+      "sha256": "30ae62a81a0c052cbdef24c764057f54bc126673d291148594cbccea9a1e59ab"
+    },
+    {
+      "path": "src/data/lessons/m0.js",
+      "bytes": 16570,
+      "lines": 406,
+      "sha256": "243573df212b77565391e90d1a3dcab8f98ea222e2930af2c48b1cd8dbb0cee2"
+    },
+    {
+      "path": "src/data/lessons/m1.js",
+      "bytes": 25525,
+      "lines": 510,
+      "sha256": "8a4bd280c8f20af96e92a7d74ea170dfb26da8fb886f3bff9445f7a6c8cb634a"
+    },
+    {
+      "path": "src/data/lessons/m2a.js",
+      "bytes": 51092,
+      "lines": 1324,
+      "sha256": "333eb5a697c4332d804ec26c85705724764585a5b886498927a3b4e74cdbf256"
+    },
+    {
+      "path": "src/data/lessons/m2b.js",
+      "bytes": 16704,
+      "lines": 435,
+      "sha256": "f4c9638bc61959a479f1695dfc92c4f7f5a0ef70cefc9e9938ee5bbd911ab1af"
+    },
+    {
+      "path": "src/data/lessons/m3.js",
+      "bytes": 43577,
+      "lines": 1129,
+      "sha256": "1cf804e9b5833d1bcb35a3a20c6920a01ccfd5b5163d563b6b4dc670de1a47ea"
+    },
+    {
+      "path": "src/data/lessons/m4.js",
+      "bytes": 35518,
+      "lines": 803,
+      "sha256": "85d01232cc6537cba42e6ca870085ce90bc391133cc0297be975a81798934272"
+    },
+    {
+      "path": "src/data/lessons/path-sequence.js",
+      "bytes": 2173,
+      "lines": 91,
+      "sha256": "086ab39ba0a887bfa26ea2c338e63f3c70d671efa73eb909551a3618980013b2"
+    },
+    {
+      "path": "src/data/lessons/runtime.generated.js",
+      "bytes": 151979,
+      "lines": 4,
+      "sha256": "fd0937289ad7655508606ea3032d7dc8a2e1f5ed32f51fb42668e29d406da833"
+    },
+    {
+      "path": "src/data/lessons/types.ts",
+      "bytes": 738,
+      "lines": 30,
+      "sha256": "6e4f55b8c8e8342d5cc147682fc643deaf534ffecf6dbe5de9892ca3378753b9"
+    },
+    {
+      "path": "src/data/lexicon.js",
+      "bytes": 2122,
+      "lines": 49,
+      "sha256": "c7804c059caac00e9eb809b3862db46bef82d7738eac61f400b895e6a23709a0"
+    },
+    {
+      "path": "src/data/materials.ts",
+      "bytes": 58281,
+      "lines": 712,
+      "sha256": "bc16c3731b8ce34a240468ae3d1a8a1ebe83ec150b38b7f5918123eb353af555"
+    },
+    {
+      "path": "src/data/native-roadmap.js",
+      "bytes": 6512,
+      "lines": 146,
+      "sha256": "2ff8c32bf4ae9ea55c1737e86475b9dc1254e2ac0644f7be9ef3a40a814939e5"
+    },
+    {
+      "path": "src/data/nuance.js",
+      "bytes": 8310,
+      "lines": 302,
+      "sha256": "7106d869614dd60519929c4ee522179eb73d4456c5a5ef9fa20529a978687d1b"
+    },
+    {
+      "path": "src/data/pragmatics.js",
+      "bytes": 16916,
+      "lines": 503,
+      "sha256": "a83f3ae0c589ea604dc302cbad8ff862ee02f3b88cddcad8c1620e476e7a945d"
+    },
+    {
+      "path": "src/data/proficiency.js",
+      "bytes": 4352,
+      "lines": 123,
+      "sha256": "997490b04189fc5be9000f4ab614be81b6ab2e6a3e53881c1fb2d18719816cc6"
+    },
+    {
+      "path": "src/data/self-study.js",
+      "bytes": 9041,
+      "lines": 232,
+      "sha256": "9a2ab0f8a83b7155c75bf0ae0cb88ad666ed79ea219fa75f60775eb3b038a065"
+    },
+    {
+      "path": "src/data/sound-changes.js",
+      "bytes": 5113,
+      "lines": 94,
+      "sha256": "a0e1e4fb402af04737df9cc6a304548fb77ca15a4dd3cc426e8ee2ccad64d0fb"
+    },
+    {
+      "path": "src/data/speech-assets.generated.js",
+      "bytes": 91620,
+      "lines": 1216,
+      "sha256": "42ca7bda632bbb5664ad6e17d462c9c4784dff977b11ede94dcb06956c4f9fa2"
+    },
+    {
+      "path": "src/data/visuals/assets.ts",
+      "bytes": 15800,
+      "lines": 97,
+      "sha256": "92e56f0dff66b4b38e1d221d1bee3b6a8596995ad1baed87b4f3a62deb132044"
+    },
+    {
+      "path": "src/data/visuals/manifest.ts",
+      "bytes": 1724,
+      "lines": 36,
+      "sha256": "ebcfcf4272625c9cfb9ec1a92eea6865e80c9f6949a3a0fe6a99c6229ee8ba01"
+    },
+    {
+      "path": "src/data/vocab/daily.js",
+      "bytes": 10155,
+      "lines": 393,
+      "sha256": "e66467e94cce4ec2d74023e7cbf18bd2e720b4df21d463c8cfdaaa510b7ba2ae"
+    },
+    {
+      "path": "src/data/vocab/depth.js",
+      "bytes": 84032,
+      "lines": 391,
+      "sha256": "0bf77e02a5f8a6baf8b99c2ebadb46779bff390c53b931bf8a5a6c638ecfb536"
+    },
+    {
+      "path": "src/data/vocab/expanded.js",
+      "bytes": 36543,
+      "lines": 262,
+      "sha256": "8aca0d19573bfa250218a76ea46bde16105f3d692f8d481e3b509cbd983c82e3"
+    },
+    {
+      "path": "src/data/vocab/index.js",
+      "bytes": 328,
+      "lines": 8,
+      "sha256": "330c017017290b9bfcf56e573c81920e633895c5b772be174f1ff937d5a8e860"
+    },
+    {
+      "path": "src/data/vocab/native.js",
+      "bytes": 5090,
+      "lines": 185,
+      "sha256": "3efd1880c6fb488d5ed6cda7d1fc430998c17e922690ad91c636528bbf8032fa"
+    },
+    {
+      "path": "src/data/vocab/survival.js",
+      "bytes": 67169,
+      "lines": 2127,
+      "sha256": "b2736cbd5ec9598697462f96d3371a4f46cc9896b395177687e91379ec4ec0e9"
+    },
+    {
+      "path": "src/lib/korean/content-checks.ts",
+      "bytes": 1675,
+      "lines": 33,
+      "sha256": "7eb8d1c03156023a1575f14f75d228edb9746401ef364529bd030baec9091412"
+    },
+    {
+      "path": "src/lib/korean/jamo.ts",
+      "bytes": 5853,
+      "lines": 157,
+      "sha256": "6b1ac7320550d93f34ae29db088fdbdd59ff51544642cd92646f211b2053c8ee"
+    },
+    {
+      "path": "src/lib/learning/backup-schema.ts",
+      "bytes": 6491,
+      "lines": 86,
+      "sha256": "616be2ce2dbb5f09a05d9d75b7e920aa72cfa67c95f950318f5362c97c630438"
+    },
+    {
+      "path": "src/lib/learning/backup.ts",
+      "bytes": 8843,
+      "lines": 203,
+      "sha256": "0cda3327322dfb54bde11a3f936ebda7608b91773ae15ef856e21a1bb039175c"
+    },
+    {
+      "path": "src/lib/learning/capstone.ts",
+      "bytes": 4759,
+      "lines": 83,
+      "sha256": "cb76848bea46d135b95cd8ee3b48ad9776634b8fb209bdb6ae19dd42fcefe2b5"
+    },
+    {
+      "path": "src/lib/learning/compass.ts",
+      "bytes": 4170,
+      "lines": 100,
+      "sha256": "d88bbeb03d68719d968e096f0be38d0902405f98f1c0748b3e077ab2b827d38d"
+    },
+    {
+      "path": "src/lib/learning/drafts.ts",
+      "bytes": 6317,
+      "lines": 169,
+      "sha256": "8a683d137175c5d0fa5ef77ddc983eadb3ad61d88ce7854077794bc4845e6e1c"
+    },
+    {
+      "path": "src/lib/learning/evidence.ts",
+      "bytes": 9070,
+      "lines": 218,
+      "sha256": "276e6589a3d3905dc26d7b99452d15ca9fd4417c6db2caaa43a19694b2fe2074"
+    },
+    {
+      "path": "src/lib/learning/gate.ts",
+      "bytes": 10245,
+      "lines": 245,
+      "sha256": "12910139eec5716b02321b1afcbe3a6148847965508edb6ebed29cbf1f751024"
+    },
+    {
+      "path": "src/lib/learning/ids.ts",
+      "bytes": 5543,
+      "lines": 189,
+      "sha256": "f4b296f318f9de1d16cca55b4ab9d04159f5e54d1b5d88f2ffcbff9c8b46f884"
+    },
+    {
+      "path": "src/lib/learning/lesson-assessment.ts",
+      "bytes": 4409,
+      "lines": 109,
+      "sha256": "d7e297a87ecd88a00a94eaaf1b84a8151912028a536c7c48e7f1e6e200c48aaa"
+    },
+    {
+      "path": "src/lib/learning/lesson-bridge.ts",
+      "bytes": 8094,
+      "lines": 164,
+      "sha256": "3b979f4ba2f8cf2f4ded3c8367bdb433f35ee2c67cd2012c567428a81d5ebd29"
+    },
+    {
+      "path": "src/lib/learning/lesson-evidence.ts",
+      "bytes": 5850,
+      "lines": 168,
+      "sha256": "29aee9436c315bbf79274dd1ca391fc35671c71c648cc4a348f2cc1526341395"
+    },
+    {
+      "path": "src/lib/learning/lesson-session.ts",
+      "bytes": 4497,
+      "lines": 119,
+      "sha256": "bb5f7cdc37dc4c0bc6e4e46d13dda8f5ade3e2a0916dd240f5ad2aacf359b6ed"
+    },
+    {
+      "path": "src/lib/learning/mistakes.ts",
+      "bytes": 4428,
+      "lines": 122,
+      "sha256": "2fce172a5c96d739f556839c25598c5b306c23cd0b3bddf214e19b3b66892a87"
+    },
+    {
+      "path": "src/lib/learning/modules.js",
+      "bytes": 2850,
+      "lines": 86,
+      "sha256": "cfa4ef57826aaa99f3142d796d81a2ff82b70d41023851bfbf499ba49d6b4a98"
+    },
+    {
+      "path": "src/lib/learning/native-portfolio.ts",
+      "bytes": 12176,
+      "lines": 339,
+      "sha256": "eed5a4630b5a4dbb0eb88447b1d8b0f31ddc5068f781de09ae3401a36bd989ba"
+    },
+    {
+      "path": "src/lib/learning/output.ts",
+      "bytes": 3323,
+      "lines": 93,
+      "sha256": "7f046ae01c2c5925a5c5d6bc9b0645d5b59ebf70e133d6b1e46138ee13d4cfd8"
+    },
+    {
+      "path": "src/lib/learning/path-gates.ts",
+      "bytes": 2689,
+      "lines": 95,
+      "sha256": "e920b079a6007614c974d5f30b1ebf477a666ba5972455562ad6a793e16c72a4"
+    },
+    {
+      "path": "src/lib/learning/phonology.ts",
+      "bytes": 568,
+      "lines": 13,
+      "sha256": "177022277c43682e8a0f9d5d2e13ef1cc4d70104e0377dcfa1d72e127afb4994"
+    },
+    {
+      "path": "src/lib/learning/player.ts",
+      "bytes": 5616,
+      "lines": 155,
+      "sha256": "fc0409afbe552f390d66fba3b335675eb609d59bcbb27b80b084f0c45ce1125f"
+    },
+    {
+      "path": "src/lib/learning/progress-normalization.ts",
+      "bytes": 16570,
+      "lines": 366,
+      "sha256": "3480b00289cace7754f75cf840f6c9c46c0cc8fcf35ee1b3fa026e2d770ba205"
+    },
+    {
+      "path": "src/lib/learning/question-audio.ts",
+      "bytes": 464,
+      "lines": 10,
+      "sha256": "464cf723dc51d859303b8fa6f46186664aef2c863c23671eb1de67db29026208"
+    },
+    {
+      "path": "src/lib/learning/quiz.ts",
+      "bytes": 26257,
+      "lines": 576,
+      "sha256": "d5ce4719c8c053d8dac6a690f1ac9f49f21d39e49a23fef87042aacf6722783d"
+    },
+    {
+      "path": "src/lib/learning/recordings.ts",
+      "bytes": 4251,
+      "lines": 121,
+      "sha256": "552b7da9694b8e3efe2c574ebb56ad39483a5d69ac3cad8c2058e774cfd6a7c3"
+    },
+    {
+      "path": "src/lib/learning/srs.ts",
+      "bytes": 14729,
+      "lines": 438,
+      "sha256": "3b1548cec28902d76a293f47ba971e5758963c18946548a860af726f2f5a9dcd"
+    },
+    {
+      "path": "src/lib/learning/storage-health.ts",
+      "bytes": 4461,
+      "lines": 147,
+      "sha256": "b6d56993158654fd31c36160d42cf2dc417b3d650236525989511f104eaba0b1"
+    },
+    {
+      "path": "src/lib/learning/storage.ts",
+      "bytes": 5224,
+      "lines": 197,
+      "sha256": "ced5023448402c20d7823dd496c32e201ee21cfc4425313a284f32392a9917b9"
+    },
+    {
+      "path": "src/lib/learning/types.ts",
+      "bytes": 3818,
+      "lines": 131,
+      "sha256": "c6f1e9a4e6437bcee5ef488d26d90098baae413a2f592d9f879a8b408f4cba8a"
+    },
+    {
+      "path": "src/lib/learning/use-learning-workspace.ts",
+      "bytes": 8546,
+      "lines": 190,
+      "sha256": "fc9be85d159825a0cd1e68b43268ec54d8b91ad5bdd7d81c841f3e00250b320a"
+    },
+    {
+      "path": "src/lib/learning/workspace-snapshot.ts",
+      "bytes": 47322,
+      "lines": 987,
+      "sha256": "debbf92aead9f7b562835f0c6a09323cfe6285064a417bf32992bc7dcf8c005a"
+    },
+    {
+      "path": "src/lib/learning/workspace.ts",
+      "bytes": 71479,
+      "lines": 1499,
+      "sha256": "9891cf4b683cf93316daa609408d985d2189cdb5e59979477799076cddc17f48"
+    },
+    {
+      "path": "src/lib/site-metadata.ts",
+      "bytes": 3004,
+      "lines": 47,
+      "sha256": "bc2108aafa5ba20197e0117a19ae4c69ccfe45b4c7203a4884dbce837b6f2cf3"
+    },
+    {
+      "path": "src/lib/speech.js",
+      "bytes": 17554,
+      "lines": 519,
+      "sha256": "68ef080dba6aab5cd5e61c41d87c38c4c880eac714afaab74aeb525004dd6efb"
+    },
+    {
+      "path": "src/lib/studio-navigation.ts",
+      "bytes": 2214,
+      "lines": 50,
+      "sha256": "092bfb8a140e8c6c83a2eb81a49e1ba3bb4333469e578ea839ab722c0f72bab1"
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "bytes": 169,
+      "lines": 7,
+      "sha256": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "bytes": 1048,
+      "lines": 35,
+      "sha256": "82665fbb6c4e2256c7e8f3d4a3eac03c1f9939bf01f7872fd7c66507f743f980"
+    },
+    {
+      "path": "tests/audit-regressions.test.mjs",
+      "bytes": 8820,
+      "lines": 159,
+      "sha256": "555983844094fc44819cc0dc5743a96167174e61f573e74e9bf277b6df47b63c"
+    },
+    {
+      "path": "tests/backup.test.mjs",
+      "bytes": 14661,
+      "lines": 358,
+      "sha256": "5d30d98dc65ea1e02b9ad8263a5783ade6303833f67b1ad063d0b4444014f0ee"
+    },
+    {
+      "path": "tests/capstone.test.mjs",
+      "bytes": 3465,
+      "lines": 53,
+      "sha256": "31467703d97d83c7cb107779ff13d06690114df007d79af8612c6a756373bc08"
+    },
+    {
+      "path": "tests/compass.test.mjs",
+      "bytes": 6379,
+      "lines": 143,
+      "sha256": "ed212c463293d774e3e9ed9faf9a35d6baf40366cb92d50419aa328565928f3d"
+    },
+    {
+      "path": "tests/content-accuracy.test.mjs",
+      "bytes": 6709,
+      "lines": 122,
+      "sha256": "c2f20839745a466d9dfd81e40bee2b0f4f341466eed2f2a9285c6402749017e1"
+    },
+    {
+      "path": "tests/curriculum.test.mjs",
+      "bytes": 6831,
+      "lines": 147,
+      "sha256": "e24ff98041b821a689186df9433446d563a2cdf20c00d9b9ad73ce459ec41414"
+    },
+    {
+      "path": "tests/drafts.test.mjs",
+      "bytes": 4032,
+      "lines": 110,
+      "sha256": "75d05ed7e51457c645c02b34c9278b84d17e48b85bbf9911e982e9586e45debe"
+    },
+    {
+      "path": "tests/evidence.test.mjs",
+      "bytes": 6085,
+      "lines": 116,
+      "sha256": "745dec1a1e3c3747524608e8b35b728e8562771050c03aa873992ab7fc493d94"
+    },
+    {
+      "path": "tests/gate.test.mjs",
+      "bytes": 5097,
+      "lines": 100,
+      "sha256": "6ded20c6c79434f9764e9409a7df446a1cc712860beb901f06c74beeb550e688"
+    },
+    {
+      "path": "tests/helpers/srs-core.mjs",
+      "bytes": 96,
+      "lines": 2,
+      "sha256": "edb4737dbf30a5af414e122b410a6fb64557924e569f305f977d85d0376bdeec"
+    },
+    {
+      "path": "tests/ids.test.mjs",
+      "bytes": 4191,
+      "lines": 92,
+      "sha256": "7233ff23381377cdbc26f9dc496882c191956f1ce06ed441f40b08aa6e27d73e"
+    },
+    {
+      "path": "tests/jamo.test.mjs",
+      "bytes": 3616,
+      "lines": 96,
+      "sha256": "389543c2369a5fae008594f1c3504686ed135c0b2fadc97527a5c8f4f7b0544b"
+    },
+    {
+      "path": "tests/korean-ui-lifecycle.test.mjs",
+      "bytes": 106662,
+      "lines": 2558,
+      "sha256": "5dbab9a0c5b056a9a3efea7715e420744a343ebc95273f91a9ca352b5cbf7707"
+    },
+    {
+      "path": "tests/lesson-assessment.test.mjs",
+      "bytes": 4257,
+      "lines": 100,
+      "sha256": "df8e8a062d6eb1c7dae2596b479ba42a6e6dca9314df344aa70d5839942d0c22"
+    },
+    {
+      "path": "tests/lesson-evidence.test.mjs",
+      "bytes": 3596,
+      "lines": 77,
+      "sha256": "708efff9d875b296f0b74e0b686dac3e25087320849a9b06d45f3319489dd246"
+    },
+    {
+      "path": "tests/lesson-session.test.mjs",
+      "bytes": 5334,
+      "lines": 151,
+      "sha256": "11a9b382680a6d814333225d52537f81630d61f94d74d19e7a268a1b45caca5d"
+    },
+    {
+      "path": "tests/material-prerequisites.test.mjs",
+      "bytes": 7014,
+      "lines": 81,
+      "sha256": "0025e368857562def595372d7648225b8e42a1259a782f19b4f203d9ee0e7165"
+    },
+    {
+      "path": "tests/mistakes.test.mjs",
+      "bytes": 5192,
+      "lines": 154,
+      "sha256": "7b985a61c77773e356bae063549d2eeed34683f81679534789d3d39f4a759491"
+    },
+    {
+      "path": "tests/native-portfolio.test.mjs",
+      "bytes": 5887,
+      "lines": 161,
+      "sha256": "8585979b4fff89e25da625a589b9cef8c51b5931b33bfeef6dab225ca06a25e2"
+    },
+    {
+      "path": "tests/output-browser.test.mjs",
+      "bytes": 6097,
+      "lines": 177,
+      "sha256": "82414c0edb8edb95d34869b5a2f3bd69c890a3a8f6ac45e4e816ef2b48f41970"
+    },
+    {
+      "path": "tests/path-gates.test.mjs",
+      "bytes": 5150,
+      "lines": 103,
+      "sha256": "1d7ff512b65e519cda84805d860ce7106e402aa42e61b02ee5c89f66a2a127ad"
+    },
+    {
+      "path": "tests/player.test.mjs",
+      "bytes": 5924,
+      "lines": 138,
+      "sha256": "6b7ab3a3c0c4380fc80a07b1aeb5e1221653285189e1e37948f8eb6f04124082"
+    },
+    {
+      "path": "tests/pwa-install.test.mjs",
+      "bytes": 15182,
+      "lines": 476,
+      "sha256": "c46a54b7cc3143163fb068546cdafb3edc87b39a61a9b6c117a1384cdc8a894c"
+    },
+    {
+      "path": "tests/quiz.test.mjs",
+      "bytes": 22588,
+      "lines": 577,
+      "sha256": "e6c59dc6a827d18888709317dd05ca5a0fdd719b370c224f33311064a29c14ed"
+    },
+    {
+      "path": "tests/recordings.test.mjs",
+      "bytes": 1644,
+      "lines": 64,
+      "sha256": "9be538a5f158645fb8e75dfec44e66bc43b5aa700aa59fc31230a1bb91841009"
+    },
+    {
+      "path": "tests/site-metadata.test.mjs",
+      "bytes": 1563,
+      "lines": 27,
+      "sha256": "da3154bccb0734eadc8a0d7de4225b5f138b1679bab0d65c8da28e87ada74168"
+    },
+    {
+      "path": "tests/speech.test.mjs",
+      "bytes": 18330,
+      "lines": 517,
+      "sha256": "e716442d185585d1d34fbe38409fceb9e8e501dc568df0a1122504c26fd74710"
+    },
+    {
+      "path": "tests/srs-browser.test.mjs",
+      "bytes": 17796,
+      "lines": 469,
+      "sha256": "d9d1da5080103d558cc9e78a8c9db4d4ddca77662035480298d0bdd4515efdec"
+    },
+    {
+      "path": "tests/srs.test.mjs",
+      "bytes": 7239,
+      "lines": 187,
+      "sha256": "6733f32e23e9c76ae9450a7a60a58c9bf1dd36dd5c392cff61d528ebcb041443"
+    },
+    {
+      "path": "tests/storage-health.test.mjs",
+      "bytes": 2238,
+      "lines": 75,
+      "sha256": "2126a4b94bdc660f8dd31f6a516090a38e401ffe671d6bbc08631590e1107cf4"
+    },
+    {
+      "path": "tests/studio-navigation.test.mjs",
+      "bytes": 1923,
+      "lines": 30,
+      "sha256": "b45dfc61a297822673b46851558cc99c54bbcfdb5440bb4becafa2a0c79f22c1"
+    },
+    {
+      "path": "tests/workspace.test.mjs",
+      "bytes": 149595,
+      "lines": 3240,
+      "sha256": "3e62936ab30e6aeeb2ac91a3f82ef3981d1dcb4ee443537a3a39824f9a55cf8e"
+    },
+    {
+      "path": "tsconfig.content.json",
+      "bytes": 169,
+      "lines": 6,
+      "sha256": "ad26b41f85524d246dbdca939ee5ffa6047ffb70277395d2b46f72b112cab507"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 805,
+      "lines": 44,
+      "sha256": "201e579def463b69953550cbac6a637d8396b2eed1900cbd3fda7c97fe57d883"
+    },
+    {
+      "path": "tsconfig.strict.json",
+      "bytes": 409,
+      "lines": 7,
+      "sha256": "f316d2b3303e766de25cf9d72fef8cf74796649a6442b67ee7e2774f0151f8ab"
+    }
+  ]
+}

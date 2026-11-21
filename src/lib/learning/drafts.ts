@@ -19,13 +19,21 @@ export interface SelfStudyCheckpointDraft {
   updatedAt: string;
 }
 
+export interface NativeExpressionDraft {
+  listened: boolean;
+  retell: string;
+  transfer: string;
+  updatedAt: string;
+}
+
 export interface LearningDraftState {
   immersion: Record<string, ImmersionMaterialDraft>;
   selfStudyCheckpoints: Record<string, SelfStudyCheckpointDraft>;
+  nativeExpressions: Record<string, NativeExpressionDraft>;
 }
 
 export function defaultLearningDraftState(): LearningDraftState {
-  return { immersion: {}, selfStudyCheckpoints: {} };
+  return { immersion: {}, selfStudyCheckpoints: {}, nativeExpressions: {} };
 }
 
 export function getLearningDraftState() {
@@ -93,6 +101,30 @@ export function clearSelfStudyCheckpointDraft(checkpointId: string) {
   return saveLearningDraftState(state);
 }
 
+export function getNativeExpressionDraft(expressionId: string) {
+  const id = normalizeDraftId(expressionId);
+  return id ? getLearningDraftState().nativeExpressions[id] ?? null : null;
+}
+
+export function saveNativeExpressionDraft(expressionId: string, input: Partial<NativeExpressionDraft>) {
+  const id = normalizeDraftId(expressionId);
+  if (!id) return false;
+  const state = getLearningDraftState();
+  const draft = normalizeNativeExpressionDraft({ ...state.nativeExpressions[id], ...input, updatedAt: nowIso() });
+  if (!draft.listened && !draft.retell && !draft.transfer) delete state.nativeExpressions[id];
+  else state.nativeExpressions[id] = draft;
+  return saveLearningDraftState(state);
+}
+
+export function clearNativeExpressionDraft(expressionId: string) {
+  const id = normalizeDraftId(expressionId);
+  if (!id) return false;
+  const state = getLearningDraftState();
+  if (!state.nativeExpressions[id]) return true;
+  delete state.nativeExpressions[id];
+  return saveLearningDraftState(state);
+}
+
 export function normalizeLearningDraftState(input: Partial<LearningDraftState> | null | undefined): LearningDraftState {
   const source = input && typeof input === "object" ? input : {};
   const immersion: LearningDraftState["immersion"] = {};
@@ -119,7 +151,26 @@ export function normalizeLearningDraftState(input: Partial<LearningDraftState> |
     }
   }
 
-  return { immersion, selfStudyCheckpoints };
+  const nativeExpressions: LearningDraftState["nativeExpressions"] = {};
+  if (source.nativeExpressions && typeof source.nativeExpressions === "object") {
+    for (const [rawId, value] of Object.entries(source.nativeExpressions).slice(0, 80)) {
+      const id = normalizeDraftId(rawId);
+      if (!id || !value || typeof value !== "object") continue;
+      const draft = normalizeNativeExpressionDraft(value);
+      if (draft.listened || draft.retell || draft.transfer) nativeExpressions[id] = draft;
+    }
+  }
+
+  return { immersion, selfStudyCheckpoints, nativeExpressions };
+}
+
+function normalizeNativeExpressionDraft(input: Partial<NativeExpressionDraft>): NativeExpressionDraft {
+  return {
+    listened: input.listened === true,
+    retell: normalizeDraftText(input.retell, 1200),
+    transfer: normalizeDraftText(input.transfer, 1200),
+    updatedAt: normalizeDraftDate(input.updatedAt)
+  };
 }
 
 function normalizeImmersionMaterialDraft(input: Partial<ImmersionMaterialDraft>): ImmersionMaterialDraft {

@@ -1,5 +1,9 @@
+"use client";
+
 import { cn } from "@/lib/utils";
-import { VisualPanel, type VisualPanelTreatment } from "@/components/assets/visual-panel";
+import { useEmbeddedPage } from "@/components/layout/embedded-page";
+import type { VisualPanelTreatment } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import type { DisplayVisualAssetId } from "@/data/visuals/assets";
 
 export function PageHeader({
@@ -17,13 +21,15 @@ export function PageHeader({
   className?: string;
   compact?: boolean;
 }) {
+  const embedded = useEmbeddedPage();
+  if (embedded) return children ? <div className="embedded-actions">{children}</div> : null;
   return (
     <section className={cn("page-header", compact && "page-header--compact", className)}>
       <div className="max-w-[72ch]">
         <p className="eyebrow">{kicker}</p>
         <h1 className={cn(
           "page-title",
-          compact ? "text-[clamp(2.25rem,5vw,4.4rem)]" : "text-[clamp(2.6rem,6vw,5.8rem)]"
+          compact ? "text-[clamp(1.8rem,3.5vw,2.7rem)]" : "text-[clamp(2rem,4vw,3.2rem)]"
         )}>
           {title}
         </h1>
@@ -91,15 +97,16 @@ export function ModuleHero({
   imageAlt?: string;
   priority?: boolean;
 }) {
+  const embedded = useEmbeddedPage();
   return (
-    <section className="module-hero studio-panel">
+    <section className={cn("module-hero studio-panel", embedded && "module-hero--embedded")}>
       <div className="module-hero__copy">
         <p className="eyebrow">{kicker}</p>
         <h2>{title}</h2>
         {copy ? <p>{copy}</p> : null}
         {children ? <div className="mt-5">{children}</div> : null}
       </div>
-      <VisualPanel
+      {embedded ? null : <ArtScene
         asset={asset}
         priority={priority}
         sizes={`(max-width: 1024px) 100vw, ${imageSize}`}
@@ -109,7 +116,7 @@ export function ModuleHero({
         objectPosition={objectPosition}
         alt={imageAlt}
         className={imageClassName}
-      />
+      />}
     </section>
   );
 }

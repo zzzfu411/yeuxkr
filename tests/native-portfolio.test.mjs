@@ -158,3 +158,15 @@ test("invalid drafts and failed browser writes do not replace saved portfolio ev
   assert.equal(addNativePortfolioEntry({ ...completeDraft, title: "第二条作品" }), false);
   assert.equal(store.get(NATIVE_PORTFOLIO_STORAGE_KEY), savedRaw);
 });
+
+test("portfolio normalization strips unsafe non-http(s) sourceUrl schemes", () => {
+  const normalized = getNativePortfolioStateFromRaw(JSON.stringify({
+    version: 1,
+    entries: [
+      { ...completeDraft, id: "e-unsafe", sourceUrl: "javascript:alert(1)" },
+      { ...completeDraft, id: "e-safe", sourceUrl: "https://news.kbs.co.kr/article" }
+    ]
+  }));
+  assert.equal(normalized.entries[0].sourceUrl, "");
+  assert.equal(normalized.entries[1].sourceUrl, "https://news.kbs.co.kr/article");
+});

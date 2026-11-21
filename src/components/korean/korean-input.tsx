@@ -141,8 +141,9 @@ export function KoreanInput({
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={inputRef}
-          className="focus-ring hangul-display min-h-12 min-w-0 flex-1 rounded-none border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 text-lg"
+          className="focus-ring hangul-display min-h-12 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--surface-solid)] px-3 text-lg"
           lang="ko"
+          inputMode={keyboardOpen && coarsePointer ? "none" : undefined}
           value={value}
           disabled={disabled}
           placeholder={placeholder}
@@ -172,7 +173,7 @@ export function KoreanInput({
         <button
           type="button"
           className={cn(
-            "focus-ring inline-flex min-h-12 items-center gap-2 rounded-none border px-3 text-sm font-extrabold transition",
+            "focus-ring inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-sm)] border px-3 text-sm font-extrabold transition",
             keyboardOpen
               ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--navy)_12%,transparent)] text-[var(--ocean)]"
               : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"

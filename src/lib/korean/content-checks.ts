@@ -20,6 +20,13 @@ export function checkTeachingDecompositions(lessons: Array<{ id: string; teach?:
       if (breakdown && !decompositionMatches(breakdown[1], breakdown[2].split("/"))) {
         errors.push(`${lesson.id}: ${breakdown[1]} has an incorrect syllable breakdown`);
       }
+      const compositions = entry.body?.matchAll(/([ㄱ-ㅎㅏ-ㅣ](?:\s*[+、]\s*[ㄱ-ㅎㅏ-ㅣ]){1,2})[^。！？]*?(?:组成|压成|拼成)\s*([가-힣])/gu) ?? [];
+      for (const composition of compositions) {
+        const written = composition[1].replace(/、/g, "+");
+        if (!decompositionMatches(composition[2], [written])) {
+          errors.push(`${lesson.id}: ${composition[2]} does not match ${composition[1]}`);
+        }
+      }
       for (const example of entry.examples ?? []) {
         const parts = example.zh?.match(/^([ㄱ-ㅎㅏ-ㅣ](?:\s*\+\s*[ㄱ-ㅎㅏ-ㅣ]){1,2})(?!\s*\+)/);
         if (parts && /^[가-힣]$/.test(example.ko) && !decompositionMatches(example.ko, [parts[1]])) {

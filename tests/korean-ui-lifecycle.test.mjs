@@ -1,8 +1,11 @@
+import { canPlayQuestionAudio } from "../src/lib/learning/question-audio.ts";
+import { needsOnboardingFunnel } from "../src/lib/learning/compass.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { legacyStudio, navigationGroup } from "../src/lib/studio-navigation.ts";
 
 const JSX_RUNTIME = { jsx: createElement, jsxs: createElement, Fragment: Symbol("Fragment") };
 
@@ -150,7 +153,7 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
   let waitingForVoice = true;
   const icons = Object.fromEntries([
     "BookOpen", "BrainCircuit", "CircleAlert", "Compass", "GraduationCap", "LibraryBig", "MessagesSquare",
-    "NotebookTabs", "Radio", "RefreshCcw", "Settings2", "Sparkles"
+    "NotebookTabs", "Radio", "RefreshCcw", "Settings2", "Sparkles", "UserRound"
   ].map((name) => [name, `${name}Icon`]));
   const window = {
     requestAnimationFrame() { return 1; },
@@ -164,10 +167,19 @@ test("AppShell stops active and voice-waiting speech when the pathname changes",
     "next/navigation": { usePathname: () => pathname },
     "lucide-react": icons,
     "@/components/layout/pwa-register": { PwaRegister: "PwaRegister" },
+    "@/components/layout/studio-navigation": { StudioNavigation: "StudioNavigation" },
+    "@/lib/studio-navigation": { legacyStudio, navigationGroup },
     "@/components/layout/learning-data-panel": { LearningDataPanel: "LearningDataPanel" },
     "@/components/layout/now-playing": { NowPlayingRail: "NowPlayingRail", NowPlayingBar: "NowPlayingBar" },
     "@/components/theme/theme-toggle": { ThemeToggle: "ThemeToggle" },
     "@/components/korean/speech-status": { SpeechStatusBanner: "SpeechStatusBanner" },
+    "@/lib/speech-core": {
+      stopSpeech() {
+        stops += 1;
+        playing = false;
+        waitingForVoice = false;
+      }
+    },
     "@/lib/speech": {
       stopSpeech() {
         stops += 1;
@@ -1139,6 +1151,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
   ];
   const { default: MistakesPage } = loadComponent("src/app/mistakes/page.tsx", {
     react: hooks.react,
+    "@/lib/learning/compass": { needsOnboardingFunnel },
     "next/link": { default: "Link" },
     "lucide-react": {
       ArrowRight: "ArrowRightIcon",
@@ -1148,7 +1161,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
       RefreshCcw: "RefreshIcon",
       Trash2: "TrashIcon"
     },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
     "@/components/learning/learning-compass": { LearningCompass: "LearningCompass" },
     "@/components/ui/button": { Button: "Button" },
@@ -1182,7 +1195,7 @@ test("MistakesPage remounts retrain runner when the target changes", () => {
       removeMistakeCardAndPracticeItem: () => true,
     },
     "@/lib/learning/use-learning-workspace": {
-      useLearningWorkspace: () => ({ workspace: {} })
+      useLearningWorkspace: () => ({ workspace: {}, srsState: { cards: {}, history: [] } })
     }
   });
 
@@ -1217,7 +1230,7 @@ test("onboarding unlocks only after playback and recovers from a failed sample",
       CheckCircle2: "CheckIcon",
       Volume2: "VolumeIcon"
     },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-settings": { SpeechSettings: "SpeechSettings" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1374,7 +1387,7 @@ test("review and retrain refuse answers when the queued card disappears", () => 
   assert.match(mistakes, /if \(!card \|\| !gradeReviewCardAndProgress\(card, entry\.correct, \{ allowEarly: true, skipped: Boolean\(entry\.skipped\) \}\)\)/);
 });
 
-test("cinematic scene frames clip media and keep film texture inside the image", () => {
+test("sticker art remains contained and fallback frames stay accessible", () => {
   const visual = readFileSync("src/components/assets/visual-panel.tsx", "utf8");
   const section = readFileSync("src/components/ui/section.tsx", "utf8");
   const selfStudy = readFileSync("src/app/self-study/page.tsx", "utf8");
@@ -1382,14 +1395,15 @@ test("cinematic scene frames clip media and keep film texture inside the image",
   const css = readFileSync("src/app/globals.css", "utf8");
   assert.match(visual, /className=\{\s*cn\("visual-panel relative isolate min-h-56"/);
   assert.match(visual, /<div className="absolute inset-0 overflow-hidden">/);
-  assert.match(visual, /<div className="film-grain pointer-events-none absolute inset-0"/);
+  assert.match(visual, /image: "object-contain"/);
+  assert.doesNotMatch(visual, /film-grain|brightness-\[|saturate-\[/);
   assert.doesNotMatch(visual, /paper-tape/);
   assert.match(section, /"surface relative p-4 md:p-5"/);
-  assert.match(section, /className="module-hero studio-panel"/);
+  assert.match(section, /"module-hero studio-panel"/);
   assert.doesNotMatch(section, /surface relative overflow-hidden p-4/);
   assert.match(visual, /bg-\[linear-gradient\(140deg,var\(--paper-hi\),var\(--paper-lo\)\)\]/);
   assert.doesNotMatch(visual, /251,252,249/);
-  assert.match(css, /\.film-grain \{/);
+  assert.match(css, /--art-surface:/);
   assert.match(css, /\.module-hero \{/);
   assert.match(css, /\.paper-tape \{ display: none !important; \}/);
   assert.match(css, /--hero-radius:/);
@@ -1466,7 +1480,7 @@ test("DrillRunner ignores speech events from outside its current audio question"
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1505,9 +1519,13 @@ test("DrillRunner ignores speech events from outside its current audio question"
 
   speechCalls[0].options.onstart();
   tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  findButton(tree, "播放").props.onClick();
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
   assert.ok(findElement(tree, (node) => node.type === "KoreanInput"));
 
-  speechCalls[0].options.onerror({ error: "network" });
+  speechCalls[1].options.onerror({ error: "network" });
   tree = hooks.render(DrillRunner, props);
   assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
   assert.ok(findButton(tree, "跳过音频题"));
@@ -1525,7 +1543,7 @@ test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a 
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1562,8 +1580,12 @@ test("DrillRunner treats autoplay NotAllowedError as a retryable gesture, not a 
 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+  findButton(tree, "听").props.onClick();
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
   assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
-  assert.ok(findButton(tree, "听"));
 });
 
 test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable gesture", async () => {
@@ -1578,7 +1600,7 @@ test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable 
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1616,8 +1638,12 @@ test("DrillRunner treats TTS not-allowed after autoplay fallback as a retryable 
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
   assert.doesNotMatch(textContent(tree), /这次未能播放韩语音频/);
   assert.match(textContent(tree), /浏览器拦截了自动播放/);
+  assert.equal(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"), null);
+  assert.equal(findButton(tree, "提交").props.disabled, true);
+  findButton(tree, "听").props.onClick();
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
   assert.ok(findElement(tree, (node) => node.type === "input" && node.props?.type === "radio"));
-  assert.ok(findButton(tree, "听"));
 });
 
 test("skipping a review audio question defers the card so it is no longer due", async () => {
@@ -1651,7 +1677,7 @@ test("skipping a review audio question defers the card so it is no longer due", 
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1730,7 +1756,7 @@ test("DrillRunner keeps a new audio question pending until its own playback reso
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1806,7 +1832,7 @@ test("DrillRunner keeps audio alive when a parent recreates an equivalent questi
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1858,7 +1884,7 @@ test("DrillRunner survives StrictMode audio effect replay and still stops on tea
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1915,7 +1941,7 @@ test("leaving a pending audio question and returning retries autoplay instead of
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -1967,7 +1993,7 @@ test("leaving a pending audio question and returning retries autoplay instead of
   assert.doesNotMatch(textContent(tree), /正在检查这台设备的韩语语音/);
 });
 
-test("DrillRunner watchdog treats accepted playback without onstart as started, not unavailable", async () => {
+test("DrillRunner watchdog fails silent playback and allows an explicit successful retry", async () => {
   const hooks = createHookHarness();
   const speechCalls = [];
   const timeouts = [];
@@ -1983,7 +2009,7 @@ test("DrillRunner watchdog treats accepted playback without onstart as started, 
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -2017,7 +2043,19 @@ test("DrillRunner watchdog treats accepted playback without onstart as started, 
   watchdog.fn();
   tree = hooks.render(DrillRunner, props);
 
-  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"), "answering should unblock after accepted playback");
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  assert.ok(findButton(tree, "跳过音频题"));
+  assert.match(textContent(tree), /这次未能播放韩语音频/);
+  // A late event from the timed-out request cannot grant listening credit.
+  speechCalls[0].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  findButton(tree, "播放").props.onClick();
+  tree = hooks.render(DrillRunner, props);
+  assert.equal(findElement(tree, (node) => node.type === "KoreanInput"), null);
+  speechCalls[1].options.onstart();
+  tree = hooks.render(DrillRunner, props);
+  assert.ok(findElement(tree, (node) => node.type === "KoreanInput"), "only an actual start event unlocks answering");
   assert.ok(findButton(tree, "播放"));
   assert.ok(findButton(tree, "慢速重播"));
   assert.equal(findElement(tree, (node) => node.type === "Button" && textContent(node).includes("跳过音频题")), null);
@@ -2044,7 +2082,7 @@ test("DrillRunner still offers skip when speak is rejected or hard-fails", async
     const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
       react: hooks.react,
       "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-      "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+      "@/components/assets/art-scene": { ArtScene: "ArtScene" },
       "@/components/ui/button": { Button: "Button" },
       "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
       "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -2092,7 +2130,7 @@ test("DrillRunner lets a resumed answered audio question advance", () => {
   const { DrillRunner } = loadComponent("src/components/learning/drill-runner.tsx", {
     react: hooks.react,
     "lucide-react": { CircleSlash2: "SkipIcon", Volume2: "VolumeIcon" },
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/ui/button": { Button: "Button" },
     "@/components/korean/korean-input": { KoreanInput: "KoreanInput" },
     "@/components/korean/speech-status": { useKoreanVoiceStatus: () => ({ status: "ready" }) },
@@ -2149,7 +2187,7 @@ function loadLessonEvidencePanels(hooks, {
     react: hooks.react,
     "next/link": { default: "Link" },
     "lucide-react": icons,
-    "@/components/assets/visual-panel": { VisualPanel: "VisualPanel" },
+    "@/components/assets/art-scene": { ArtScene: "ArtScene" },
     "@/components/learning/drill-runner": { DrillRunner: "DrillRunner" },
     "@/components/korean/romanization-text": { RomanizationText: "RomanizationText" },
     "@/components/ui/button": { Button: "Button" },
@@ -2186,6 +2224,7 @@ function loadLessonEvidencePanels(hooks, {
       getLessonPracticeSession: () => null,
       saveLessonPracticeSession: () => true
     },
+    "@/lib/learning/lesson-questions": { lessonQuestions: () => [] },
     "@/lib/learning/quiz": { lessonQuestions: () => [] },
     "@/lib/learning/recordings": {
       deleteLearningRecording: async () => true,
@@ -2331,7 +2370,10 @@ function loadComponent(file, imports, globals = {}, transformSource = (source) =
     exports: moduleRecord.exports,
     require(id) {
       if (id === "react/jsx-runtime") return JSX_RUNTIME;
+      if (id === "@/lib/learning/question-audio") return { canPlayQuestionAudio };
+      if (id === "@/components/learning/studio-link" && "next/link" in imports) return imports["next/link"];
       if (id in imports) return imports[id];
+      if (id === "@/components/layout/embedded-page") return { useEmbeddedPage: () => false };
       if (id === "@/data/curriculum-runtime" && "@/data/curriculum" in imports) return imports["@/data/curriculum"];
       throw new Error(`Unexpected component import: ${id}`);
     },

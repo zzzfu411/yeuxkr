@@ -29,7 +29,7 @@ export const hangulGroups = [
     id: "vowels-compound",
     title: "复合元音",
     track: "sound",
-    summary: "复合元音由基础元音组合而成。没有它们，예요、회사、왜 这些高频字都拼不出来。",
+    summary: "这里按字形组合学习复合元音；书写上由基础字母组成，不代表发音都是双元音。用它们拼出 예요、회사、왜。",
     items: [
       { id: "v-ae", glyph: "ㅐ", romanization: "ae", ipa: "ɛ", cue: "ㅏ + ㅣ 合成，现代首尔话里和 ㅔ 几乎同音", example: "개", exampleMeaning: "狗", parts: ["ㅏ", "ㅣ"] },
       { id: "v-e", glyph: "ㅔ", romanization: "e", ipa: "e", cue: "ㅓ + ㅣ 合成，比 ㅐ 略闭，口语中两者靠词汇区分", example: "네", exampleMeaning: "是；好的", parts: ["ㅓ", "ㅣ"] },
@@ -37,10 +37,10 @@ export const hangulGroups = [
       { id: "v-ye", glyph: "ㅖ", romanization: "ye", ipa: "je", cue: "ㅕ + ㅣ，等于 y + ㅔ；예요 就靠它", example: "예요", exampleMeaning: "是……（陈述句尾）", parts: ["ㅕ", "ㅣ"] },
       { id: "v-wa", glyph: "ㅘ", romanization: "wa", ipa: "wa", cue: "ㅗ 滑向 ㅏ，像干脆的 wa", example: "과일", exampleMeaning: "水果", parts: ["ㅗ", "ㅏ"] },
       { id: "v-wae", glyph: "ㅙ", romanization: "wae", ipa: "wɛ", cue: "ㅗ + ㅐ，口型从圆到开", example: "왜", exampleMeaning: "为什么", parts: ["ㅗ", "ㅐ"] },
-      { id: "v-oe", glyph: "ㅚ", romanization: "oe", ipa: "we", cue: "写作 ㅗ + ㅣ，但现代发音同 ㅞ", example: "회사", exampleMeaning: "公司", parts: ["ㅗ", "ㅣ"] },
+      { id: "v-oe", glyph: "ㅚ", romanization: "oe", ipa: "ø / we", cue: "写作 ㅗ + ㅣ；规范为单元音，也允许读 we，常与 ㅞ 合流", example: "회사", exampleMeaning: "公司", parts: ["ㅗ", "ㅣ"] },
       { id: "v-wo", glyph: "ㅝ", romanization: "wo", ipa: "wʌ", cue: "ㅜ 滑向 ㅓ；韩元 원 就是它", example: "원", exampleMeaning: "韩元；圆", parts: ["ㅜ", "ㅓ"] },
       { id: "v-we", glyph: "ㅞ", romanization: "we", ipa: "we", cue: "ㅜ + ㅔ，多见于外来词", example: "스웨터", exampleMeaning: "毛衣", parts: ["ㅜ", "ㅔ"] },
-      { id: "v-wi", glyph: "ㅟ", romanization: "wi", ipa: "wi", cue: "ㅜ 滑向 ㅣ，像法语 oui", example: "위", exampleMeaning: "上面；胃", parts: ["ㅜ", "ㅣ"] },
+      { id: "v-wi", glyph: "ㅟ", romanization: "wi", ipa: "y / wi", cue: "写作 ㅜ + ㅣ；规范为圆唇单元音，也允许读成 wi", example: "위", exampleMeaning: "上面；胃", parts: ["ㅜ", "ㅣ"] },
       { id: "v-ui", glyph: "ㅢ", romanization: "ui", ipa: "ɰi", cue: "ㅡ 快速滑向 ㅣ；词首读 ui，词中常读 i，表示“的”时常读 e", example: "의사", exampleMeaning: "医生", parts: ["ㅡ", "ㅣ"] }
     ]
   },
@@ -114,9 +114,9 @@ export const pronunciationPairs = [
   { id: "eo-o", a: "어", b: "오", focus: "ㅓ vs ㅗ", tip: "오 圆唇，어 不圆唇且更靠后。" },
   { id: "eu-u", a: "으", b: "우", focus: "ㅡ vs ㅜ", tip: "우 圆唇，으 嘴唇放松。" },
   { id: "s-si", a: "사", b: "시", focus: "ㅅ 遇 ㅣ 的音色变化", tip: "시 更接近 xi，不要读成 si。" },
-  { id: "ae-e", a: "개", b: "게", focus: "ㅐ vs ㅔ", tip: "现代口语两者几乎同音，靠词汇和拼写记忆区分。" },
+  { id: "ae-e", a: "개", b: "게", focus: "ㅐ vs ㅔ", spellingPrompts: ["表示「狗」的词怎样拼写？", "表示「螃蟹」的词怎样拼写？"], tip: "不少现代说话者将两者读得很接近；本组练词义与拼写，不以孤立音频强制区分。" },
   { id: "ye-e", a: "예", b: "에", focus: "ㅖ vs ㅔ", tip: "예 前面有 y 滑音，에 直接发元音。" },
   { id: "wa-o", a: "와", b: "오", focus: "ㅘ vs ㅗ", tip: "와 从圆唇滑向开口，오 保持圆唇不动。" },
-  { id: "oe-we", a: "외", b: "웨", focus: "ㅚ vs ㅞ", tip: "两者现代发音相同，都读 we，差别只在拼写。" },
+  { id: "oe-we", a: "외", b: "웨", focus: "ㅚ vs ㅞ", spellingPrompts: ["ㅇ 加上由 ㅗ、ㅣ 组成的元音，写成哪个音节？", "ㅇ 加上由 ㅜ、ㅔ 组成的元音，写成哪个音节？"], tip: "ㅚ 允许读成与 ㅞ 相同的 we，也有单元音 ø 的规范读法；本组练构字，不要求仅凭声音区分。" },
   { id: "ui-i", a: "의", b: "이", focus: "ㅢ vs ㅣ", tip: "의 先经过 ㅡ 再滑到 ㅣ，词中位置常弱化成 이。" }
 ];

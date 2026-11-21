@@ -6,10 +6,10 @@ const THEME_EVENT = "yeuxkr-theme";
 const THEME_KEY = "yeuxkr.theme";
 
 const THEMES = [
-  { id: "yuan", label: "春日", ko: "봄", swatch: "#f4f6f5" },
-  { id: "yue", label: "雨季", ko: "여름", swatch: "#dfecea" },
-  { id: "qing", label: "晚秋", ko: "가을", swatch: "#e8e1da" },
-  { id: "ye", label: "蓝夜", ko: "겨울", swatch: "#172238" },
+  { id: "yuan", label: "白昼", ko: "낮", swatch: "#fcfcfa" },
+  { id: "yue", label: "蓝调", ko: "파랑", swatch: "#e8edfb" },
+  { id: "qing", label: "暖阳", ko: "햇살", swatch: "#f5efd9" },
+  { id: "ye", label: "夜行", ko: "밤", swatch: "#191b22" },
 ] as const;
 
 type Theme = (typeof THEMES)[number]["id"];
@@ -74,7 +74,7 @@ export function ThemeToggle() {
         event.currentTarget.querySelector("summary")?.focus();
       }
     }}>
-      <summary className="season-trigger focus-ring" aria-label={`季节主题：${active.label}`}>
+      <summary className="season-trigger focus-ring" aria-label={`外观主题：${active.label}`}>
         <span className="theme-toggle__swatch" style={{ backgroundColor: active.swatch }} aria-hidden="true" />
         <span>{active.label}</span>
       </summary>

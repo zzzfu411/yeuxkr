@@ -1987,7 +1987,7 @@ test("locked lesson previews do not count as formal study sessions", () => {
 
   assert.equal(completeLessonProgress("l10-native-softeners", 100), true);
   let progress = JSON.parse(store.get("kirina.progress.v2"));
-  assert.equal(progress.previewLessonScores["l10-native-softeners"], 100);
+  assert.equal(progress.previewLessonScores["l10-native-softeners"], 0);
   assert.equal(progress.completedLessons.includes("l10-native-softeners"), false);
   assert.equal(progress.streak, 0);
   assert.equal(progress.lastStudyDate, null);
@@ -1997,10 +1997,10 @@ test("locked lesson previews do not count as formal study sessions", () => {
 
   assert.equal(completeLessonProgress("l01-hangul-map", 64), true);
   progress = JSON.parse(store.get("kirina.progress.v2"));
-  assert.equal(progress.lessonScores["l01-hangul-map"], 64);
+  assert.equal(progress.lessonScores["l01-hangul-map"], 0);
   assert.equal(progress.completedLessons.includes("l01-hangul-map"), false);
-  assert.equal(progress.streak, 1);
-  assert.equal(typeof progress.lastStudyDate, "string");
+  assert.equal(progress.streak, 0);
+  assert.equal(progress.lastStudyDate, null);
 });
 
 test("first lesson stays in preview until onboarding is saved", () => {
@@ -2008,7 +2008,7 @@ test("first lesson stays in preview until onboarding is saved", () => {
   assert.equal(completeLessonProgress("l01-hangul-map", UNLOCK_SCORE), true);
   const progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.completedLessons.includes("l01-hangul-map"), false);
-  assert.equal(progress.previewLessonScores["l01-hangul-map"], UNLOCK_SCORE);
+  assert.equal(progress.previewLessonScores["l01-hangul-map"], 0);
   assert.equal(progress.lessonScores["l01-hangul-map"], undefined);
 });
 
@@ -2150,7 +2150,11 @@ test("native capstone requires a saved Korean output artifact before path comple
   assert.equal(saveCapstonePracticeEvidence({ ...capstoneArtifact, recordedSeconds: 121, recordingId: "capstone:replacement" }, priorProgress, "capstone:test-recording"), true);
   assert.equal(saveCapstonePracticeEvidence({ ...capstoneArtifact, recordedSeconds: 122, recordingId: "capstone:stale" }, priorProgress, "capstone:test-recording"), false);
   assert.equal(JSON.parse(store.get(progressStorageKey)).capstoneEvidence.recordingId, "capstone:replacement");
-  assert.equal(commitLessonSession(capstone.id, [], UNLOCK_SCORE, priorProgress), true);
+  const answers = capstone.drills.map((question, index) => ({
+    question: { ...question, id: question.id ?? lessonReviewCardId(capstone.id, index) },
+    answer: question.answer, correct: true
+  }));
+  assert.equal(commitLessonSession(capstone.id, answers, UNLOCK_SCORE, priorProgress), true);
 
   const progress = JSON.parse(store.get(progressStorageKey));
   assert.equal(progress.completedLessons.includes(capstone.id), true);

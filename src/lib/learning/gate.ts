@@ -5,7 +5,8 @@ import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
 import { vocab } from "../../data/lexicon.js";
 import { soundChangeRules } from "../../data/sound-changes.js";
 import { grammarQuestionId, hangulQuestionId, pronunciationQuestionId, soundChangeQuestionId, vocabQuestionId } from "./ids.ts";
-import { buildDistractors, makeChoices, seededRandom, type Question } from "./quiz.ts";
+import { buildDistractors, grammarTranslationDistractors, makeChoices, pronunciationContrastQuestion, seededRandom, vocabMeaningCue, type Question } from "./quiz.ts";
+import { confusableVowelSounds } from "./phonology.ts";
 
 export const GATE_PASS_SCORE = 80;
 
@@ -28,27 +29,10 @@ export function buildGateQuestions(kind: GateKind, itemId: string, seed = 1): Qu
 function buildPronunciationGate(itemId: string, random: () => number): Question[] {
   const pair = pronunciationPairs.find((entry: any) => entry.id === itemId);
   if (!pair) return [];
-  const syllables = [...new Set(pronunciationPairs.flatMap((entry: any) => [entry.a, entry.b]))];
   const otherFocus = pronunciationPairs.filter((entry: any) => entry.id !== itemId).map((entry: any) => entry.focus);
   return [
-    {
-      id: `${pronunciationQuestionId(itemId)}:gate1`,
-      type: "listen",
-      prompt: "只听第一个音节，选出你听到的韩文。",
-      answer: pair.a,
-      choices: makeChoices(pair.a, syllables.filter((item) => item !== pair.a), 4, random),
-      explain: `${pair.a} / ${pair.b}：${pair.tip}`,
-      speak: pair.a
-    },
-    {
-      id: `${pronunciationQuestionId(itemId)}:gate2`,
-      type: "listen",
-      prompt: "只听第二个音节，选出你听到的韩文。",
-      answer: pair.b,
-      choices: makeChoices(pair.b, syllables.filter((item) => item !== pair.b), 4, random),
-      explain: `${pair.a} / ${pair.b}：${pair.tip}`,
-      speak: pair.b
-    },
+    pronunciationContrastQuestion(pair, `${pronunciationQuestionId(itemId)}:gate1`, random, 0),
+    pronunciationContrastQuestion(pair, `${pronunciationQuestionId(itemId)}:gate2`, random, 1),
     {
       id: `${pronunciationQuestionId(itemId)}:gate3`,
       type: "choice",
@@ -67,15 +51,18 @@ function buildHangulGate(itemId: string, random: () => number): Question[] {
   if (!group || !item) return [];
   const otherGlyphs = group.items.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.glyph);
   const otherRoman = group.items.filter((entry: any) => entry.id !== item.id).map((entry: any) => entry.romanization);
+  const sameSound = confusableVowelSounds(item.glyph);
+  const soundDistractors = otherGlyphs.filter((glyph: string) => !sameSound.includes(glyph));
+  const soundPosition = item.id.startsWith("v-") ? "元音" : item.id.startsWith("b-") ? "收音" : "初声";
   return [
     {
       id: `${hangulQuestionId(itemId)}:gate1`,
       type: "listen",
-      prompt: "听例词，它练的是哪个字母？",
+      prompt: `听示范音，选出其中的${soundPosition}字母。`,
       answer: item.glyph,
-      choices: makeChoices(item.glyph, otherGlyphs, 4, random),
-      explain: `例词 ${item.example}（${item.exampleMeaning}）练的是 ${item.glyph}。`,
-      speak: item.example
+      choices: makeChoices(item.glyph, soundDistractors, 4, random),
+      explain: `示范音 ${item.sound} 的${soundPosition}是 ${item.glyph}。${item.cue}`,
+      speak: item.sound
     },
     {
       id: `${hangulQuestionId(itemId)}:gate2`,
@@ -98,7 +85,7 @@ function buildHangulGate(itemId: string, random: () => number): Question[] {
     {
       id: `${hangulQuestionId(itemId)}:gate4`,
       type: "dictation",
-      prompt: "听音频，用韩文键盘打出这个例词。",
+      prompt: `听音频，用韩文键盘打出这个例词（词义：${item.exampleMeaning}）。`,
       answer: item.example,
       explain: `${item.example} = ${item.exampleMeaning}`,
       speak: item.example
@@ -115,7 +102,7 @@ function buildVocabGate(itemId: string, random: () => number): Question[] {
     {
       id: `${vocabQuestionId(itemId)}:gate1`,
       type: "choice",
-      prompt: `「${item.meaning}」对应哪一个韩语？`,
+      prompt: `「${vocabMeaningCue(item)}」对应哪一个韩语？`,
       answer: item.korean,
       choices: makeChoices(item.korean, koreanDistractors, 4, random),
       explain: `${item.korean}（${item.romanization}）。${item.note}`,
@@ -133,7 +120,7 @@ function buildVocabGate(itemId: string, random: () => number): Question[] {
     {
       id: `${vocabQuestionId(itemId)}:gate3`,
       type: "dictation",
-      prompt: "听音频，用韩文写出这个词。",
+      prompt: `听音频，用韩文写出这个词（词义：${vocabMeaningCue(item)}）。`,
       answer: item.korean,
       explain: `${item.korean}（${item.romanization}）= ${item.meaning}`,
       speak: item.korean
@@ -153,7 +140,7 @@ function buildVocabGate(itemId: string, random: () => number): Question[] {
     questions.push({
       id: `${vocabQuestionId(itemId)}:gate4`,
       type: "translate",
-      prompt: `「${item.meaning}」用韩语怎么说？`,
+      prompt: `「${vocabMeaningCue(item)}」用韩语怎么说？`,
       answer: item.korean,
       acceptable: [item.korean],
       hint: `罗马音提示：${item.romanization}`,
@@ -179,7 +166,7 @@ function buildGrammarGate(itemId: string, random: () => number): Question[] {
       type: "choice",
       prompt: `${point.title}: ${example.ko} 的意思是？`,
       answer: example.zh,
-      choices: makeChoices(example.zh, meaningDistractors, 4, random),
+      choices: makeChoices(example.zh, grammarTranslationDistractors(point.id), 4, random),
       explain: point.explanation,
       speak: example.ko
     },
@@ -209,7 +196,7 @@ function buildGrammarGate(itemId: string, random: () => number): Question[] {
       type: "choice",
       prompt: `${point.title}: ${second.ko} 的意思是？`,
       answer: second.zh,
-      choices: makeChoices(second.zh, meaningDistractors, 4, random),
+      choices: makeChoices(second.zh, grammarTranslationDistractors(point.id), 4, random),
       explain: point.explanation,
       speak: second.ko
     });

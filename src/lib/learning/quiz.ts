@@ -1,8 +1,7 @@
 "use client";
 
-import { lessons } from "../../data/curriculum-runtime.js";
 import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
-import { vocab } from "../../data/lexicon.js";
+import { vocab, vocabPosLabels } from "../../data/lexicon.js";
 import { grammarPoints } from "../../data/grammar.js";
 import { nuanceSets } from "../../data/nuance.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
@@ -11,7 +10,6 @@ import { immersionMaterials } from "../../data/materials.ts";
 import {
   grammarQuestionId,
   hangulQuestionId,
-  lessonReviewCardId,
   materialCardId,
   materialRetellQuestionId,
   nativeNuanceQuestionId,
@@ -28,52 +26,10 @@ import { hasKoreanDictationEvidence, hasKoreanOutputRewrite, hasKoreanRetellEvid
 import { getOutputState, type OutputEntry } from "./output.ts";
 import { getSrsState, type SrsState } from "./srs.ts";
 import type { SrsCard } from "./srs.ts";
-import type { LearningProgress, QuestionType } from "./types.ts";
+import type { LearningProgress } from "./types.ts";
 
-export interface Question {
-  id: string;
-  type: QuestionType;
-  prompt: string;
-  answer: string;
-  acceptable?: string[];
-  choices?: string[];
-  explain?: string;
-  speak?: string;
-  clozeText?: string;
-  hint?: string;
-}
-
-export function normalizeAnswer(value: unknown) {
-  return String(value ?? "")
-    .normalize("NFC")
-    .trim()
-    .replace(/[.。?？!！…~〜]+$/g, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .trim();
-}
-
-export function checkAnswer(question: Question, answer: string) {
-  const normalized = normalizeAnswer(answer);
-  const accepted = [question.answer, ...(question.acceptable ?? [])].map(normalizeAnswer);
-  return accepted.includes(normalized);
-}
-
-export function lessonQuestions(lessonId: string): Question[] {
-  return lessonReviewQuestions(lessonId);
-}
-
-export function lessonReviewQuestions(lessonId: string): Question[] {
-  const lesson = lessons.find((item: any) => item.id === lessonId);
-  return ((lesson?.drills ?? []) as Question[]).map((question, index) => ({
-    ...question,
-    id: question.id ?? lessonReviewCardId(lessonId, index)
-  }));
-}
-
-export function lessonQuestionId(lessonId: string, index: number) {
-  return lessonReviewCardId(lessonId, index);
-}
+import { checkAnswer, lessonQuestionId, lessonQuestions, lessonReviewQuestions, normalizeAnswer, type Question } from "./lesson-questions.ts";
+export { checkAnswer, lessonQuestionId, lessonQuestions, lessonReviewQuestions, normalizeAnswer, type Question };
 
 export function buildReviewQuestions(cards: SrsCard[]): Question[] {
   const allHangul = hangulGroups.flatMap((group: any) => group.items.map((item: any) => ({ ...item, groupTitle: group.title })));
@@ -95,15 +51,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
       if (card.payload.kind === "pronunciation") {
         const pair = pronunciationPairs.find((entry: any) => entry.id === card.payload.itemId);
         if (!pair) return null;
-        return {
-          id: card.id,
-          type: "choice",
-          prompt: `${pair.a} vs ${pair.b}: 训练重点是什么？`,
-          answer: pair.focus,
-          choices: makeChoices(pair.focus, pronunciationPairs.filter((entry: any) => entry.id !== pair.id).map((entry: any) => entry.focus)),
-          explain: pair.tip,
-          speak: `${pair.a}. ${pair.b}`
-        } satisfies Question;
+        return pronunciationContrastQuestion(pair, card.id);
       }
       if (card.payload.kind === "vocab") {
         const item = vocab.find((entry: any) => entry.id === card.payload.itemId);
@@ -112,7 +60,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
           return {
             id: card.id,
             type: "translate",
-            prompt: `「${item.meaning}」用韩语怎么说？`,
+            prompt: `「${vocabMeaningCue(item)}」用韩语怎么说？`,
             answer: item.korean,
             acceptable: [item.korean],
             hint: `罗马音提示：${item.romanization}`,
@@ -131,12 +79,19 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
         } satisfies Question;
       }
       if (card.payload.kind === "mistake" && card.payload.prompt && card.payload.answer) {
+        // Rebuild obsolete homophone exams without removing the learner's mistake card.
+        const contrast = /^pq:([^:]+):gate([12])$/.exec(card.payload.itemId);
+        const pair = contrast && pronunciationPairs.find((entry) => entry.id === contrast[1]);
+        if (pair?.spellingPrompts && contrast) {
+          return pronunciationContrastQuestion(pair, card.id, Math.random, Number(contrast[2]) - 1);
+        }
+        const archivedOutput = /^(?:oq|mq):/.test(card.payload.itemId);
         return {
           id: card.id,
           type: card.payload.type ?? "type",
-          prompt: card.payload.prompt,
+          prompt: archivedOutput ? "回忆并写出这道题归档时的目标原句。" : card.payload.prompt,
           answer: card.payload.answer,
-          acceptable: card.payload.acceptable,
+          acceptable: archivedOutput ? [card.payload.answer] : card.payload.acceptable,
           choices: card.payload.choices,
           speak: card.payload.speak,
           clozeText: card.payload.clozeText,
@@ -167,7 +122,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
           type: "choice",
           prompt: `${point.title}: ${example.ko} 的意思是？`,
           answer: example.zh,
-          choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning)),
+          choices: makeChoices(example.zh, grammarTranslationDistractors(point.id)),
           explain: point.explanation,
           speak: example.ko
         } satisfies Question;
@@ -197,7 +152,7 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
             type: "choice",
             prompt: `${set.title}: ${example.ko} 的语气/用法是？`,
             answer: example.register,
-            choices: makeChoices(example.register, nuanceSets.flatMap((entry: any) => entry.examples.map((item: any) => item.register)).filter((item: string) => item !== example.register)),
+            choices: makeChoices(example.register, example.distractors ?? []),
             explain: set.explanation,
             speak: example.ko
           } satisfies Question;
@@ -220,15 +175,15 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
       if (card.payload.kind === "material") {
         const material = immersionMaterials.find((entry) => entry.id === card.payload.itemId);
         if (!material) return null;
-        const prompt = card.payload.prompt ?? `${material.title}: ${material.retellPrompts[0] ?? "这段材料的核心信息是什么？"}`;
+        const prompt = `${material.title}：回忆并写出已归档的复述原句。`;
         const answer = card.payload.answer ?? material.lines[0]?.ko ?? material.title;
         return {
           id: card.id,
           type: "type",
           prompt,
           answer,
-          acceptable: card.payload.acceptable ?? material.lines.map((line) => line.ko),
-          explain: card.payload.explain ?? `用韩语复述重点：${material.summary}`,
+          acceptable: [answer],
+          explain: "本题核对归档原句，忽略句末标点；新的同义表达请到听读材料中自评归档。",
           speak: card.payload.speak ?? material.lines.map((line) => line.ko).join(" ")
         } satisfies Question;
       }
@@ -236,9 +191,9 @@ export function buildReviewQuestions(cards: SrsCard[]): Question[] {
         return {
           id: card.id,
           type: "type",
-          prompt: card.payload.prompt,
+          prompt: "回忆并写出已归档的目标改写原句。",
           answer: card.payload.answer,
-          explain: "这是你输出后设定的目标改写，重新写对或写得更自然后再延后复习。"
+          explain: "本题核对目标改写原句，忽略句末标点；不自动判断新表达是否自然。"
         } satisfies Question;
       }
       return null;
@@ -262,7 +217,7 @@ export function buildMixedQuiz(count = 10, seed = Date.now()): Question[] {
   const vocabQuestions = vocab.map((item: any) => ({
     id: vocabQuestionId(item.id),
     type: "choice" as const,
-    prompt: `${item.meaning} 对应哪一个韩语？`,
+    prompt: `${vocabMeaningCue(item)} 对应哪一个韩语？`,
     answer: item.korean,
     choices: makeChoices(item.korean, buildDistractors(item, vocab as any[], (entry: any) => entry.korean, 6, random), 4, random),
     explain: `${item.korean}: ${item.note}`,
@@ -274,20 +229,12 @@ export function buildMixedQuiz(count = 10, seed = Date.now()): Question[] {
       type: "choice" as const,
       prompt: `${point.title}: ${example.ko} 的意思是？`,
       answer: example.zh,
-      choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning, 6, random), 4, random),
+      choices: makeChoices(example.zh, grammarTranslationDistractors(point.id), 4, random),
       explain: point.explanation,
       speak: example.ko
     }))
   );
-  const soundQuestions = pronunciationPairs.map((pair: any) => ({
-    id: pronunciationQuestionId(pair.id),
-    type: "choice" as const,
-    prompt: `${pair.a} vs ${pair.b}: 训练重点是什么？`,
-    answer: pair.focus,
-    choices: makeChoices(pair.focus, pronunciationPairs.filter((entry: any) => entry.id !== pair.id).map((entry: any) => entry.focus), 4, random),
-    explain: pair.tip,
-    speak: `${pair.a}. ${pair.b}`
-  }));
+  const soundQuestions = pronunciationPairs.map((pair) => pronunciationContrastQuestion(pair, pronunciationQuestionId(pair.id), random));
   return shuffle([...hangulQuestions, ...vocabQuestions, ...grammarQuestions, ...soundQuestions], random).slice(0, count);
 }
 
@@ -322,7 +269,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .map((item: any) => ({
       id: vocabQuestionId(item.id),
       type: "choice" as const,
-      prompt: `${item.meaning} 对应哪一个韩语？`,
+      prompt: `${vocabMeaningCue(item)} 对应哪一个韩语？`,
       answer: item.korean,
       choices: makeChoices(item.korean, buildDistractors(item, vocab as any[], (entry: any) => entry.korean, 6, random), 4, random),
       explain: `${item.korean}: ${item.note}`,
@@ -333,7 +280,7 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .map((item: any) => ({
       id: vocabDictationQuestionId(item.id),
       type: "dictation" as const,
-      prompt: "听音频，用韩文写出这个词。",
+      prompt: `听音频，用韩文写出这个词（词义：${vocabMeaningCue(item)}）。`,
       answer: item.korean,
       explain: `${item.korean}（${item.romanization}）= ${item.meaning}。${item.note}`,
       speak: item.korean
@@ -357,22 +304,14 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
         type: "choice" as const,
         prompt: `${point.title}: ${example.ko} 的意思是？`,
         answer: example.zh,
-        choices: makeChoices(example.zh, buildDistractors(point, grammarPoints as any[], (entry: any) => entry.meaning, 6, random), 4, random),
+        choices: makeChoices(example.zh, grammarTranslationDistractors(point.id), 4, random),
         explain: point.explanation,
         speak: example.ko
       }))
     );
   const soundQuestions = pronunciationPairs
-    .filter((pair: any) => learnedPronunciation.has(pair.id))
-    .map((pair: any) => ({
-      id: pronunciationQuestionId(pair.id),
-      type: "choice" as const,
-      prompt: `${pair.a} vs ${pair.b}: 训练重点是什么？`,
-      answer: pair.focus,
-      choices: makeChoices(pair.focus, pronunciationPairs.filter((entry: any) => entry.id !== pair.id).map((entry: any) => entry.focus), 4, random),
-      explain: pair.tip,
-      speak: `${pair.a}. ${pair.b}`
-    }));
+    .filter((pair) => learnedPronunciation.has(pair.id))
+    .map((pair) => pronunciationContrastQuestion(pair, pronunciationQuestionId(pair.id), random));
   const pragmaticQuestions = pragmaticScenarios
     .filter((scene: any) => practicedNative.has(`pragmatics:${scene.id}`))
     .flatMap((scene: any) =>
@@ -412,10 +351,10 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
       return {
         id: materialRetellQuestionId(material.id),
         type: "type" as const,
-        prompt: `${material.title}: 复述你归档过的一个核心信息。`,
+        prompt: `${material.title}：回忆并写出已归档的复述原句。`,
         answer: retell,
         acceptable: [retell],
-        explain: `用自己的韩语复述重点：${material.summary}`,
+        explain: "本题核对归档原句，忽略句末标点；新的同义表达请到听读材料中自评归档。",
         speak: material.lines.map((line) => line.ko).join(" ")
       };
     })
@@ -431,11 +370,11 @@ export function buildProgressQuiz(progress: LearningProgress, count = 10, seed =
     .map((entry) => ({
       id: outputTransferQuestionId(entry.id),
       type: "type" as const,
-      prompt: `${entry.materialTitle}: 重新写出你的目标改写。${entry.weakPoint ? `弱点：${entry.weakPoint}` : ""}`,
-      answer: entry.targetRewrite || entry.draft,
-      acceptable: [entry.targetRewrite, entry.draft].filter(Boolean),
-      explain: `输出任务：${entry.mission || "把自己的弱点改写成更自然的韩语。"}`,
-      speak: entry.targetRewrite || entry.draft
+      prompt: `${entry.materialTitle}：回忆并写出已归档的目标改写原句。${entry.weakPoint ? `弱点：${entry.weakPoint}` : ""}`,
+      answer: entry.targetRewrite,
+      acceptable: [entry.targetRewrite],
+      explain: "本题核对目标原句，忽略句末标点；不自动判断新表达是否自然。",
+      speak: entry.targetRewrite
     }));
   const pool = [...completedLessonQuestions, ...hangulQuestions, ...vocabQuestions, ...vocabDictationQuestions, ...vocabClozeQuestions, ...grammarQuestions, ...soundQuestions, ...pragmaticQuestions, ...nuanceQuestions, ...materialQuestions, ...outputQuestions];
   if (pool.length) return prioritizeWeakPracticeQuestions(pool, progress, random).slice(0, count);
@@ -485,6 +424,32 @@ function hasCompleteMaterialSelfCheck(input: unknown, expected: string[]) {
 export function makeChoices(answer: string, distractors: string[], count = 4, random = Math.random) {
   const unique = [...new Set(distractors)].filter((item) => item !== answer);
   return shuffle([answer, ...shuffle(unique, random).slice(0, count - 1)], random);
+}
+
+export function grammarTranslationDistractors(pointId: string): string[] {
+  return grammarPoints.filter((point) => point.id !== pointId).flatMap((point) => point.examples.map((example: { zh: string }) => example.zh));
+}
+
+export function vocabMeaningCue(item: { meaning: string; pos?: string }) {
+  const ambiguous = vocab.filter((entry) => entry.meaning === item.meaning).length > 1;
+  const pos = item.pos && Object.hasOwn(vocabPosLabels, item.pos)
+    ? vocabPosLabels[item.pos as keyof typeof vocabPosLabels] : "";
+  return ambiguous && pos ? `${item.meaning}（${pos}）` : item.meaning;
+}
+
+export function pronunciationContrastQuestion(
+  pair: typeof pronunciationPairs[number], id: string, random = Math.random, side = random() < 0.5 ? 0 : 1
+): Question {
+  const answer = side === 0 ? pair.a : pair.b;
+  return {
+    id,
+    type: pair.spellingPrompts ? "choice" : "listen",
+    prompt: pair.spellingPrompts?.[side] ?? "听示范音，选出你听到的音节。",
+    answer,
+    choices: makeChoices(answer, [side === 0 ? pair.b : pair.a], 2, random),
+    explain: `${pair.a} / ${pair.b}：${pair.tip}`,
+    speak: answer
+  };
 }
 
 type DistractorSource = {

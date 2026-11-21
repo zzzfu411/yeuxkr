@@ -8,6 +8,7 @@ import {
   hasKoreanRetellEvidence,
   hasKoreanText,
   hasMaterialOutputEvidence,
+  validateMaterialOutputEvidence,
   mapFocusToAbilities,
   requiresKoreanOutput,
   unknownFocusTags
@@ -89,6 +90,33 @@ test("requiresKoreanOutput accepts explicit Korean-output instructions", () => {
   assert.equal(requiresKoreanOutput("用韩语写一句目标改写。"), true);
   assert.equal(requiresKoreanOutput("한국어로 다시 말해 보세요."), true);
   assert.equal(requiresKoreanOutput("Write a reflection."), false);
+});
+
+test("material output feedback explains missing fields without relaxing archive validation", () => {
+  const material = { level: "native", lines: [{ ko: "카드로 계산하고 영수증을 받았어요." }] };
+  const input = {
+    draft: "저는 카페에서 따뜻한 음료를 주문하고 현금으로 바로 계산하고 싶어요.",
+    weakPoint: "数量说明不够清楚",
+    targetRewrite: "따뜻한 라테 두 잔을 포장해서 현금으로 계산하고 싶어요."
+  };
+  const oneClause = validateMaterialOutputEvidence(input, material);
+  assert.equal(oneClause.valid, false);
+  assert.deepEqual(oneClause.draftIssues, ["至少写 2 句，或用连接表达展开 2 个分句"]);
+  const complete = { ...input, draft: `${input.draft} 친구와 같이 마실 거예요.` };
+  const checked = validateMaterialOutputEvidence(complete, material);
+  assert.equal(checked.valid, true);
+  assert.equal(hasMaterialOutputEvidence(complete, material), true);
+  assert.deepEqual([checked.draftIssues, checked.weakPointIssues, checked.rewriteIssues], [[], [], []]);
+  const empty = validateMaterialOutputEvidence({}, material);
+  assert.equal(empty.minimumSyllables, 28);
+  assert.match(empty.draftIssues[0], /28.*0/);
+  assert.ok(empty.weakPointIssues.length);
+  assert.ok(empty.rewriteIssues.length);
+  const copied = validateMaterialOutputEvidence({ ...complete, draft: material.lines[0].ko }, material);
+  assert.ok(copied.draftIssues.some((issue) => issue.includes("照抄")));
+  const unchanged = validateMaterialOutputEvidence({ ...complete, targetRewrite: complete.draft.replaceAll(" ", "") }, material);
+  assert.ok(unchanged.rewriteIssues.some((issue) => issue.includes("空格或标点")));
+  assert.equal(validateMaterialOutputEvidence(complete, null).valid, false);
 });
 
 test("focus tags map to stable ability ids", () => {

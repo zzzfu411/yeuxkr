@@ -26,7 +26,7 @@ for (const example of syllableLabs) {
   if (!decompositionMatches(example.result, [example.blocks.join("")])) errors.push(`Invalid syllable lab: ${example.result}`);
 }
 const knownAppRoutes = new Set([
-  "/", "/onboarding", "/settings", "/path", "/self-study", "/hangul", "/vocabulary", "/grammar",
+  "/", "/study", "/practice", "/onboarding", "/settings", "/path", "/self-study", "/hangul", "/vocabulary", "/grammar",
   "/native", "/immersion", "/review", "/mistakes", "/quiz"
 ]);
 
@@ -635,8 +635,8 @@ assert(manifest.start_url === "/" && manifest.scope === "/", "manifest should st
 assert(manifest.display === "standalone", "manifest should install as standalone PWA");
 assert(Array.isArray(manifest.display_override) && manifest.display_override.includes("standalone"), "manifest display_override should retain standalone fallback");
 assert(manifest.orientation === "any", "manifest should not force a device orientation");
-assert(manifest.background_color === "#f4f6f5", "manifest background should match the porcelain spring shell");
-assert(manifest.theme_color === "#f4f6f5", "manifest theme color should match the default spring scene");
+assert(manifest.background_color === "#fcfcfa", "manifest background should match the Seoul sticker shell");
+assert(manifest.theme_color === "#fcfcfa", "manifest theme color should match the default daylight theme");
 assert(Array.isArray(manifest.categories) && manifest.categories.includes("education"), "manifest should declare education category");
 assert(Array.isArray(manifest.icons) && manifest.icons.length >= 4, "manifest should include app icons");
 const manifestPurposeSizes = new Set();
@@ -658,7 +658,7 @@ for (const required of ["any:192", "any:512", "maskable:192", "maskable:512"]) {
   assert(manifestPurposeSizes.has(required), `manifest missing ${required} icon`);
 }
 assert(Array.isArray(manifest.shortcuts) && manifest.shortcuts.length >= 2, "manifest should expose shortcuts");
-assert(manifest.shortcuts.some((shortcut) => shortcut?.url === "/mistakes"), "manifest should expose a mistake notebook shortcut");
+assert(["/", "/study", "/practice"].every(route => manifest.shortcuts.some((shortcut) => shortcut?.url === route)), "installed app shortcuts should match the three integrated destinations");
 for (const shortcut of manifest.shortcuts ?? []) {
   assert(shortcut.name?.trim(), "manifest shortcut should have a name");
   assertReadableUiText(shortcut.name, `manifest shortcut ${shortcut.url} name`);
@@ -753,8 +753,8 @@ const visualAssetIds = new Set(Object.keys(visualAssets));
 const manifestAssetIds = new Set(Object.keys(visualAssetManifest));
 for (const file of listSourceFiles("src")) {
   const source = readFileSync(file, "utf8");
-  for (const match of source.matchAll(/<VisualPanel[^>]*\sasset=["']([^"']+)["']/g)) {
-    assert(visualAssetIds.has(match[1]), `VisualPanel in ${file} references missing asset ${match[1]}`);
+  for (const match of source.matchAll(/<(?:VisualPanel|ArtScene|LetterFragment)[^>]*\sasset=["']([^"']+)["']/g)) {
+    assert(visualAssetIds.has(match[1]), `Artwork in ${file} references missing asset ${match[1]}`);
   }
 }
 for (const assetId of visualAssetIds) {
@@ -775,7 +775,7 @@ const smokeBrowser = readFileSync("scripts/smoke-browser.mjs", "utf8");
 assert(visualPanel.includes("unoptimized"), "VisualPanel should serve local generated assets directly and predictably");
 assert(visualPanel.includes("DisplayVisualAssetId") && !visualPanel.includes("asset: VisualAssetId"), "VisualPanel should not accept iconBase as a page display asset");
 assert(visualPanel.includes("manifestLabel") && visualPanel.includes('role={resolvedImageState.failed && !decorative ? "img" : undefined}'), "VisualPanel should render an accessible fallback when generated assets fail");
-assert(visualPanel.includes("film-grain") && visualPanel.includes("var(--night)") && visualPanel.includes("brightness-[0.8]") && !visualPanel.includes("paper-tape"), "VisualPanel should frame generated scenes with a restrained cinematic treatment instead of paper decorations");
+assert(visualPanel.includes("object-contain") && visualPanel.includes("var(--art-surface)") && !visualPanel.includes("film-grain") && !visualPanel.includes("paper-tape"), "VisualPanel should preserve complete Hangul stickers without cinematic filters or paper UI decoration");
 assert(smokeBrowser.includes("desktop-1440") && smokeBrowser.includes("tablet-768") && smokeBrowser.includes("mobile-320"), "browser smoke should check layout overflow across mobile, tablet, and desktop widths");
 assert(smokeBrowser.includes("visibleElementOverflow") && smokeBrowser.includes("getBoundingClientRect"), "browser smoke should detect clipped visible elements hidden by overflow-x rules");
 assert(smokeBrowser.includes("verifyLearningDataPanel") && smokeBrowser.includes("learning data reset should preserve unmanaged localStorage entries") && smokeBrowser.includes("已持久"), "browser smoke should cover learning data export/import/reset/storage health controls");
@@ -796,6 +796,7 @@ const learningCompassSource = readFileSync("src/components/learning/learning-com
 const compassLogicSource = readFileSync("src/lib/learning/compass.ts", "utf8");
 const drillRunnerSource = readFileSync("src/components/learning/drill-runner.tsx", "utf8");
 const homePage = readFileSync("src/app/page.tsx", "utf8");
+const settingsPage = readFileSync("src/app/settings/page.tsx", "utf8");
 const lessonClientSource = readFileSync("src/app/learn/[lessonId]/lesson-client.tsx", "utf8") + readFileSync("src/components/learning/lesson-result-actions.tsx", "utf8");
 const quizPage = readFileSync("src/app/quiz/page.tsx", "utf8");
 const quizSource = readFileSync("src/lib/learning/quiz.ts", "utf8");
@@ -818,10 +819,10 @@ assert(globalsCss.includes(".app-main") && globalsCss.includes("min-width: 0"), 
 assert(globalsCss.includes(":where(.app-main .grid:not(.grid-flow-col))") && globalsCss.includes("grid-template-columns: minmax(0, 1fr)"), "single-column app grids should use a minmax track so mobile layouts are not clipped behind overflow-x");
 assert(globalsCss.includes(".dark-slab") && globalsCss.includes("var(--paper-lo)") && !globalsCss.includes("#000"), "dark-slab should remain a readable seasonal surface instead of void-black chrome");
 assert(globalsCss.includes('html[data-theme="yue"]') && globalsCss.includes('html[data-theme="qing"]') && globalsCss.includes('html[data-theme="ye"]'), "global shell should expose spring, rain, autumn, and blue-night seasonal themes");
-assert(globalsCss.includes("--camellia") && globalsCss.includes("--mist") && globalsCss.includes("--leaf") && globalsCss.includes("--hero-radius"), "global seasonal system should expose its restrained K-drama palette and cinematic geometry");
-assert(globalsCss.includes(".app-header") && globalsCss.includes("backdrop-filter: blur(18px)") && appShellSource.includes('className="header-inner"'), "AppShell should use a light cinematic header that remains legible over every season");
+assert(globalsCss.includes("--accent") && globalsCss.includes("--sticker-lemon") && globalsCss.includes("--sticker-lilac") && globalsCss.includes("--hero-radius"), "global system should expose the Seoul sticker palette and shared geometry");
+assert(globalsCss.includes(".app-header") && globalsCss.includes("backdrop-filter: blur(18px)") && appShellSource.includes('className="header-inner header-inner--quiet"'), "AppShell should use a light cinematic header that remains legible over every season");
 assert(appShellSource.includes('className="main-nav nav-scroll"') && globalsCss.includes("overflow-x: auto") && globalsCss.includes("max-width: 100%"), "AppShell navigation should scroll internally without widening the document");
-assert(appShellSource.includes("<LearningDataPanel"), "AppShell should expose local learning data backup controls");
+assert(settingsPage.includes("<LearningDataPanel") && appShellSource.includes('href="/settings"'), "personal space should expose learning backup controls");
 assert(learningDataPanelSource.includes("createLearningBackup") && learningDataPanelSource.includes("restoreLearningBackup") && learningDataPanelSource.includes("resetLearningData"), "learning data panel should support export, import, and reset");
 assert(learningDataPanelSource.includes("requestLearningStoragePersistence") && learningDataPanelSource.includes("存储"), "learning data panel should expose a one-click storage persistence health check");
 assert(learningDataPanelSource.includes("w-[min(20rem,calc(100vw-1.5rem))]") && learningDataPanelSource.includes("<details"), "learning data panel should keep its menu inside the viewport");
@@ -842,7 +843,7 @@ assert(drillRunnerSource.includes("onResult") && drillRunnerSource.includes("emi
 assert(drillRunnerSource.includes("KoreanInput") && drillRunnerSource.includes("hasKoreanText(question.answer)"), "DrillRunner should offer the on-screen Korean keyboard for Korean type answers");
 assert(drillRunnerSource.includes('role="progressbar"'), "DrillRunner should render a visible progress bar");
 assert(drillRunnerSource.includes("playedListenRef"), "DrillRunner should auto-play listen prompts once per question");
-const speechSource = readFileSync("src/lib/speech.js", "utf8");
+const speechSource = `${readFileSync("src/lib/speech-core.js", "utf8")}\n${readFileSync("src/lib/speech.js", "utf8")}`;
 assert(speechSource.includes("kirina.speech.v1") && learningStorageSource.includes("kirina.speech.v1") && learningBackupSource.includes("normalizeSpeechSettings"), "speech settings key should be declared in speech.js, storage keys, and backup normalization");
 assert(speechSource.includes("ensureVoicesReady") && speechSource.includes("voiceschanged"), "speech should wait for voices to load before first playback");
 assert(speechSource.includes("getKoreanVoiceStatus") && speechSource.includes('"missing"'), "speech should detect a missing Korean voice pack");
@@ -863,18 +864,18 @@ assert(reviewPage.includes('"kirina:learning"') && reviewPage.includes("reviewRe
 assert(reviewPage.includes("LEARNING_REFRESH_EVENT_TYPES") && reviewPage.includes("questions.length && LEARNING_REFRESH_EVENT_TYPES.has(event.type)"), "review page should skip remounting an active queue for same-tab, batch, and cross-tab learning refreshes");
 assert(lessonClientSource.includes("savingRef") && lessonClientSource.includes("handleSave") && lessonClientSource.includes("重新保存"), "lesson result actions should latch in-flight saves and still allow retry after an error");
 assert(pageHeaderSource.includes("compact = false"), "PageHeader should keep a compact variant for tool-like module pages");
-assert(pageHeaderSource.includes('compact ? "text-[clamp(2.25rem,5vw,4.4rem)]"'), "PageHeader compact variant should preserve a responsive H1 hierarchy above module hero headings");
+assert(pageHeaderSource.includes('compact ? "text-[clamp(1.8rem,3.5vw,2.7rem)]"'), "PageHeader compact variant should preserve a responsive H1 hierarchy above module hero headings");
 assert(learningCompassSource.includes("function CompactMetric"), "LearningCompass condensed mode should keep compact evidence metrics");
 assert((learningCompassSource.match(/aria-current=\{track\.active \? "page" : undefined\}/g) ?? []).length >= 2, "LearningCompass active route cards should expose aria-current in condensed and full modes");
 assert(learningCompassSource.includes("mt-5 min-w-0 overflow-hidden"), "LearningCompass condensed route strip should be clipped inside its card on mobile");
 assert(learningCompassSource.includes("nav-scroll flex w-full max-w-full snap-x overflow-x-auto"), "LearningCompass condensed route strip should be horizontally scrollable on mobile");
 assert(learningCompassSource.includes("md:grid md:grid-cols-4") && learningCompassSource.includes("xl:grid-cols-7"), "LearningCompass condensed route strip should become a dense seven-track grid on larger screens");
-assert(homePage.includes('asset="hero"') && homePage.includes('className="home-hero"') && homePage.includes("EP. TODAY"), "home page should open on an original cinematic Korean-drama scene");
-assert(homePage.includes("开始这一集") && !homePage.includes("<DashboardMetric") && !homePage.includes("<MobileHeroMetric"), "home page hero should keep one current learning action instead of dashboard chrome");
-assert(homePage.includes("练习轨迹") && homePage.includes("workspace.stats.weakPracticeItems") && homePage.includes("workspace.stats.practiceItems"), "home page should expose item-level practice history instead of only coarse course totals");
-assert(homePage.includes("saveProfile") && homePage.includes("handleStudyMode") && homePage.includes('aria-pressed={profile.studyMode === "guided"}') && homePage.includes('aria-pressed={profile.studyMode === "self"}'), "home page should let learners switch guided path and self-study mode directly");
-assert(homePage.includes("先从序幕开始") && homePage.includes("今天的三幕") && homePage.includes("workspace.recommended.slice(0, 3)") && !homePage.includes("paper-tape"), "home page should use a truthful first-visit prologue, then organize active study as three concise scenes without legacy paper decoration");
-assert(homePage.includes('<LearningCompass workspace={workspace} active="workspace" condensed'), "home page should use the condensed learning compass");
+assert(homePage.includes('asset="letterK"') && homePage.includes('asset="letterHello"') && homePage.includes("home-hero--letters") && homePage.includes("学进日常。"), "home page should place independent Hangul cutouts around the learning action");
+assert(homePage.includes("开始学习") && !homePage.includes("<DashboardMetric") && !homePage.includes("<MobileHeroMetric"), "home page hero should keep one current learning action instead of dashboard chrome");
+assert(settingsPage.includes("练习轨迹") && settingsPage.includes("workspace.stats.weakPracticeItems") && settingsPage.includes("workspace.stats.practiceItems"), "personal space should expose real item-level practice history");
+assert(settingsPage.includes("saveProfile") && settingsPage.includes('aria-pressed={profile.studyMode === "guided"}') && settingsPage.includes('aria-pressed={profile.studyMode === "self"}'), "personal preferences should let learners switch study mode");
+assert(homePage.includes("完成入门设置，再开始第一课") && homePage.includes("workspace.recommended[0]") && homePage.includes("studioHref(heroAction.href)"), "home should offer one truthful next action");
+assert(!homePage.includes("<LearningCompass") && settingsPage.includes("<SelfStudyPage"), "study plans belong in personal space");
 assert(homePage.includes('"/onboarding"') && homePage.includes("needsOnboardingFunnel"), "home page should invite brand-new learners into onboarding");
 for (const [route, pageSource, requiresCompass] of [
   ["/hangul", hangulPage, false],
@@ -934,7 +935,7 @@ assert(pathPage.includes("needsOnboarding && !mastered") && pathPage.includes("f
 assert(compassLogicSource.includes("needsOnboardingFunnel") && compassLogicSource.includes("system:retrain-"), "path compass should prefer review, then library, then retrain over the next lesson");
 assert(compassLogicSource.includes("pathSpineDetail"), "compass path track copy should follow the same next-action order as the path CTA");
 assert((learningCompassSource.match(/href: funnel \? "\/onboarding"/g) ?? []).length >= 7, "compass route tracks should send un-onboarded learners to onboarding");
-assert(homePage.includes('kicker="모든 장면 · 全部"') && homePage.includes("{isFirstVisit ? null : ("), "home page should hide free module entrances until onboarding is done");
+assert(homePage.includes('href: "/study"') && homePage.includes('href: "/practice"') && !homePage.includes("workspace.openStudy"), "home should expose two integrated spaces instead of a module directory");
 assert(quizPage.includes("followUp") && quizPage.includes("先清到期复习"), "quiz results should offer the current next action instead of only another quiz");
 assert(immersionPage.includes("先学第") && immersionPage.includes("lockedCtaLesson") && immersionPage.includes("firstActionableLesson"), "immersion hero should send locked materials to the currently enterable missing lesson");
 assert(hangulPage.includes("OnboardingGateNotice") && vocabularyPage.includes("OnboardingGateNotice") && grammarPage.includes("OnboardingGateNotice") && nativePage.includes("OnboardingGateNotice") && nativePage.includes("enrollBlocked"), "library and native pages should warn un-onboarded learners before mastery enrollment");

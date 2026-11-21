@@ -1,0 +1,1317 @@
+{
+  "date": "2026-09-12",
+  "generatedAt": "2026-09-12T05:59:44.401Z",
+  "status": "passed",
+  "scope": "Current working tree product audit; baseline bcc2ce9 plus pre-existing redesign and engineering changes",
+  "issues": {
+    "total": 13,
+    "closed": 13,
+    "open": 0,
+    "priorityCounts": {
+      "P1": 2,
+      "P2": 10,
+      "P3": 1
+    },
+    "ids": [
+      "P01",
+      "P02",
+      "P03",
+      "P04",
+      "P05",
+      "P06",
+      "P07",
+      "P08",
+      "P09",
+      "P10",
+      "P11",
+      "P12",
+      "P13"
+    ]
+  },
+  "checks": {
+    "content": "passed",
+    "lint": "passed with zero warnings",
+    "strictTypes": "passed",
+    "tests": {
+      "total": 414,
+      "passed": 414,
+      "failed": 0
+    },
+    "productionBuild": {
+      "status": "passed",
+      "staticPages": 79
+    },
+    "httpRoutes": {
+      "total": 117,
+      "status": "passed"
+    },
+    "browserSmoke": "passed",
+    "productionDependencies": {
+      "knownVulnerabilities": 0,
+      "command": "npm audit --omit=dev"
+    }
+  },
+  "visual": {
+    "viewportWidths": [
+      320,
+      390,
+      768,
+      1024,
+      1280,
+      1440
+    ],
+    "fullPageViewports": [
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 1440,
+        "height": 980
+      }
+    ],
+    "layouts": [
+      {
+        "width": 390,
+        "name": "home",
+        "scrollWidth": 380,
+        "scrollHeight": 844,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "courses",
+        "scrollWidth": 380,
+        "scrollHeight": 1679,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": {
+          "x": 16,
+          "y": 455.234375,
+          "width": 348,
+          "height": 131.875
+        },
+        "firstExpression": {
+          "x": 16,
+          "y": 455.234375,
+          "width": 348,
+          "height": 131.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "hangul",
+        "scrollWidth": 380,
+        "scrollHeight": 25878,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 16,
+          "y": 892.390625,
+          "width": 348,
+          "height": 111.875
+        },
+        "syllableButton": {
+          "x": 16,
+          "y": 541.546875,
+          "width": 48.71875,
+          "height": 48
+        }
+      },
+      {
+        "width": 390,
+        "name": "vocabulary",
+        "scrollWidth": 380,
+        "scrollHeight": 5701,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 16,
+          "y": 721.4375,
+          "width": 348,
+          "height": 111.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "grammar",
+        "scrollWidth": 380,
+        "scrollHeight": 6536,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 16,
+          "y": 689.4375,
+          "width": 348,
+          "height": 111.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "listening",
+        "scrollWidth": 380,
+        "scrollHeight": 5298,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "expression",
+        "scrollWidth": 380,
+        "scrollHeight": 2677,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 16,
+          "y": 695.953125,
+          "width": 348,
+          "height": 91.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "review",
+        "scrollWidth": 380,
+        "scrollHeight": 844,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "mistakes",
+        "scrollWidth": 380,
+        "scrollHeight": 844,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "quiz",
+        "scrollWidth": 380,
+        "scrollHeight": 844,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "settings",
+        "scrollWidth": 380,
+        "scrollHeight": 1780,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 390,
+        "name": "onboarding",
+        "scrollWidth": 380,
+        "scrollHeight": 941,
+        "header": [
+          {
+            "x": 16,
+            "y": 10.390625,
+            "width": 78.21875,
+            "height": 44
+          },
+          {
+            "x": 97.40625,
+            "y": 10.390625,
+            "width": 219.40625,
+            "height": 44
+          },
+          {
+            "x": 320,
+            "y": 10.390625,
+            "width": 44,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "home",
+        "scrollWidth": 1430,
+        "scrollHeight": 980,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "courses",
+        "scrollWidth": 1430,
+        "scrollHeight": 1426,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": {
+          "x": 195,
+          "y": 404.53125,
+          "width": 1040,
+          "height": 111.875
+        },
+        "firstExpression": {
+          "x": 195,
+          "y": 404.53125,
+          "width": 1040,
+          "height": 111.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "hangul",
+        "scrollWidth": 1430,
+        "scrollHeight": 25417,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 195,
+          "y": 865.484375,
+          "width": 1040,
+          "height": 111.875
+        },
+        "syllableButton": {
+          "x": 195,
+          "y": 528.546875,
+          "width": 48.71875,
+          "height": 48
+        }
+      },
+      {
+        "width": 1440,
+        "name": "vocabulary",
+        "scrollWidth": 1430,
+        "scrollHeight": 5601,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 195,
+          "y": 747.53125,
+          "width": 1040,
+          "height": 111.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "grammar",
+        "scrollWidth": 1430,
+        "scrollHeight": 6132,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 195,
+          "y": 715.53125,
+          "width": 1040,
+          "height": 111.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "listening",
+        "scrollWidth": 1430,
+        "scrollHeight": 3845,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "expression",
+        "scrollWidth": 1430,
+        "scrollHeight": 2466,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": {
+          "x": 195,
+          "y": 711.953125,
+          "width": 1040,
+          "height": 91.875
+        },
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "review",
+        "scrollWidth": 1430,
+        "scrollHeight": 980,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "mistakes",
+        "scrollWidth": 1430,
+        "scrollHeight": 980,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "quiz",
+        "scrollWidth": 1430,
+        "scrollHeight": 980,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "settings",
+        "scrollWidth": 1430,
+        "scrollHeight": 1083,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      },
+      {
+        "width": 1440,
+        "name": "onboarding",
+        "scrollWidth": 1430,
+        "scrollHeight": 980,
+        "header": [
+          {
+            "x": 195,
+            "y": 10.390625,
+            "width": 93.671875,
+            "height": 44
+          },
+          {
+            "x": 300.671875,
+            "y": 10.390625,
+            "width": 849.15625,
+            "height": 44
+          },
+          {
+            "x": 1161.828125,
+            "y": 10.390625,
+            "width": 73.171875,
+            "height": 44
+          }
+        ],
+        "firstLesson": null,
+        "firstExpression": null,
+        "syllableButton": null
+      }
+    ],
+    "themes": [
+      {
+        "name": "home",
+        "theme": "yuan"
+      },
+      {
+        "name": "listening",
+        "theme": "yuan"
+      },
+      {
+        "name": "home",
+        "theme": "yue"
+      },
+      {
+        "name": "listening",
+        "theme": "yue"
+      },
+      {
+        "name": "home",
+        "theme": "qing"
+      },
+      {
+        "name": "listening",
+        "theme": "qing"
+      },
+      {
+        "name": "home",
+        "theme": "ye"
+      },
+      {
+        "name": "listening",
+        "theme": "ye"
+      }
+    ],
+    "checks": [
+      "All syllable examples remain selectable; the topic directory reaches sound-change lessons"
+    ]
+  },
+  "before": [
+    {
+      "view": "home",
+      "pageHeight": 844,
+      "overflow": false
+    },
+    {
+      "view": "courses",
+      "pageHeight": 2234,
+      "overflow": false
+    },
+    {
+      "view": "vocabulary",
+      "pageHeight": 5934,
+      "overflow": false
+    },
+    {
+      "view": "expression",
+      "pageHeight": 13338,
+      "overflow": false
+    },
+    {
+      "view": "listening",
+      "pageHeight": 5292,
+      "overflow": false
+    },
+    {
+      "view": "practice",
+      "pageHeight": 844,
+      "overflow": false
+    }
+  ],
+  "libraries": {
+    "checks": [
+      "One expanded expression; drafts survive filtering, reload, and navigation without learning credit",
+      "Failed draft write keeps live text and retry persists it",
+      "Facet alternatives retain truthful counts; keyboard selection works in all three libraries"
+    ],
+    "facets": {
+      "grammar": [
+        "全部",
+        "基础骨架 22",
+        "连续表达 41",
+        "进阶语法 20"
+      ],
+      "vocabulary": [
+        "全部",
+        "生存核心 253",
+        "日常扩展 338",
+        "自然表达 131"
+      ],
+      "expression": [
+        "全部",
+        "基础交际 9",
+        "连贯表达 12",
+        "语用进阶 11"
+      ]
+    }
+  },
+  "listening": {
+    "checks": [
+      "one material heading",
+      "preview audio available",
+      "five keyboard-focusable stage targets",
+      "field validation feedback",
+      "prerequisites still block archive",
+      "four viewport widths"
+    ],
+    "layouts": [
+      {
+        "width": 320,
+        "scrollWidth": 310,
+        "headingTop": 407.78125
+      },
+      {
+        "width": 390,
+        "scrollWidth": 380,
+        "headingTop": 407.78125
+      },
+      {
+        "width": 768,
+        "scrollWidth": 758,
+        "headingTop": 425.375
+      },
+      {
+        "width": 1440,
+        "scrollWidth": 1430,
+        "headingTop": 423.78125
+      }
+    ],
+    "errors": []
+  },
+  "performance": {
+    "budgets": {
+      "largestChunkRaw": 650000,
+      "largestChunkGzip": 220000
+    },
+    "largest": {
+      "file": "static/chunks/1efq_85jydow1.js",
+      "raw": 598203,
+      "gzip": 195326
+    },
+    "totalRaw": 2534306,
+    "totalGzip": 821686,
+    "chunks": [
+      {
+        "file": "static/chunks/1efq_85jydow1.js",
+        "raw": 598203,
+        "gzip": 195326
+      },
+      {
+        "file": "static/chunks/1mkbuudhndal5.js",
+        "raw": 228922,
+        "gzip": 71576
+      },
+      {
+        "file": "static/chunks/3bawhkhjtuhib.js",
+        "raw": 160635,
+        "gzip": 43778
+      },
+      {
+        "file": "static/chunks/0cz1d0mv5g_q7.js",
+        "raw": 112594,
+        "gzip": 39627
+      },
+      {
+        "file": "static/chunks/2dql5xtv-y2v9.js",
+        "raw": 93081,
+        "gzip": 31955
+      },
+      {
+        "file": "static/chunks/1yr07q94rsomz.js",
+        "raw": 71846,
+        "gzip": 21936
+      },
+      {
+        "file": "static/chunks/35v14ydqu_xga.js",
+        "raw": 68410,
+        "gzip": 20986
+      },
+      {
+        "file": "static/chunks/2_vb4lg4k9law.js",
+        "raw": 57939,
+        "gzip": 17308
+      },
+      {
+        "file": "static/chunks/2e4lyhxm0b1i7.js",
+        "raw": 54503,
+        "gzip": 16371
+      },
+      {
+        "file": "static/chunks/2mifbb8jvp422.js",
+        "raw": 52219,
+        "gzip": 17270
+      },
+      {
+        "file": "static/chunks/0s7duaoqvdcbv.js",
+        "raw": 49122,
+        "gzip": 13936
+      },
+      {
+        "file": "static/chunks/30_inssye_0h6.js",
+        "raw": 48783,
+        "gzip": 16301
+      },
+      {
+        "file": "static/chunks/1n8jsxgadvvr8.js",
+        "raw": 47419,
+        "gzip": 15751
+      },
+      {
+        "file": "static/chunks/29e_k0-68_th5.js",
+        "raw": 45371,
+        "gzip": 14690
+      },
+      {
+        "file": "static/chunks/39ea9l82x-bxs.js",
+        "raw": 44243,
+        "gzip": 14824
+      },
+      {
+        "file": "static/chunks/3unqhyj0toxl5.js",
+        "raw": 43983,
+        "gzip": 14803
+      },
+      {
+        "file": "static/chunks/1s-b5r_6s1-bb.js",
+        "raw": 42735,
+        "gzip": 13511
+      },
+      {
+        "file": "static/chunks/2cljw-v905506.js",
+        "raw": 42592,
+        "gzip": 13472
+      },
+      {
+        "file": "static/chunks/0xcexwty6wq--.js",
+        "raw": 40807,
+        "gzip": 13826
+      },
+      {
+        "file": "static/chunks/1w30kej0_03fx.js",
+        "raw": 39499,
+        "gzip": 10713
+      },
+      {
+        "file": "static/chunks/27_-o8x4ea8xb.js",
+        "raw": 36220,
+        "gzip": 10825
+      },
+      {
+        "file": "static/chunks/3q_g34x9xrjx_.js",
+        "raw": 35620,
+        "gzip": 10738
+      },
+      {
+        "file": "static/chunks/1zbdbfjqqf1ll.js",
+        "raw": 35423,
+        "gzip": 10864
+      },
+      {
+        "file": "static/chunks/0vc52935nd2bg.js",
+        "raw": 34844,
+        "gzip": 12218
+      },
+      {
+        "file": "static/chunks/0_61nj-s39kxf.js",
+        "raw": 33440,
+        "gzip": 11777
+      },
+      {
+        "file": "static/chunks/0z9e0nat5c6w8.js",
+        "raw": 33210,
+        "gzip": 11488
+      },
+      {
+        "file": "static/chunks/1l8adh1z87-yx.js",
+        "raw": 30958,
+        "gzip": 10784
+      },
+      {
+        "file": "static/chunks/1si9b165lujpm.js",
+        "raw": 30664,
+        "gzip": 11347
+      },
+      {
+        "file": "static/chunks/1fecc2nzgels0.js",
+        "raw": 30004,
+        "gzip": 10793
+      },
+      {
+        "file": "static/chunks/2-5aom1-dxc3i.js",
+        "raw": 28983,
+        "gzip": 10379
+      },
+      {
+        "file": "static/chunks/2yn2wjsbmxpzb.js",
+        "raw": 27401,
+        "gzip": 9195
+      },
+      {
+        "file": "static/chunks/0nyy9hkktrzez.js",
+        "raw": 27335,
+        "gzip": 8604
+      },
+      {
+        "file": "static/chunks/21q2_7yv_th7o.js",
+        "raw": 25629,
+        "gzip": 8778
+      },
+      {
+        "file": "static/chunks/066smpoq2y4zv.js",
+        "raw": 24391,
+        "gzip": 8430
+      },
+      {
+        "file": "static/chunks/11er8fghtgdbz.js",
+        "raw": 24190,
+        "gzip": 8521
+      },
+      {
+        "file": "static/chunks/3zmryijqk5z4f.js",
+        "raw": 22158,
+        "gzip": 7834
+      },
+      {
+        "file": "static/chunks/10nnyv96pafll.js",
+        "raw": 20920,
+        "gzip": 7488
+      },
+      {
+        "file": "static/chunks/0u_fxhk-8wgf-.js",
+        "raw": 17997,
+        "gzip": 6264
+      },
+      {
+        "file": "static/chunks/3fntmmi971322.js",
+        "raw": 14377,
+        "gzip": 3661
+      },
+      {
+        "file": "static/chunks/3zxmzkclu6pqv.js",
+        "raw": 11785,
+        "gzip": 4524
+      },
+      {
+        "file": "static/chunks/0i795j3v_8lf2.js",
+        "raw": 11750,
+        "gzip": 4502
+      },
+      {
+        "file": "static/chunks/turbopack-0d44pbontg4ma.js",
+        "raw": 9688,
+        "gzip": 3834
+      },
+      {
+        "file": "static/chunks/1uv7-meur5jb_.js",
+        "raw": 8369,
+        "gzip": 3475
+      },
+      {
+        "file": "static/chunks/1vpnbwsct6a-e.js",
+        "raw": 8334,
+        "gzip": 3457
+      },
+      {
+        "file": "static/chunks/00loulu7vfoen.js",
+        "raw": 2981,
+        "gzip": 1282
+      },
+      {
+        "file": "static/chunks/3an_haah_dt49.js",
+        "raw": 2801,
+        "gzip": 1097
+      },
+      {
+        "file": "static/chunks/3-7bin0o_gakj.js",
+        "raw": 935,
+        "gzip": 627
+      },
+      {
+        "file": "static/chunks/26pb8-zf_wjrx.js",
+        "raw": 248,
+        "gzip": 215
+      },
+      {
+        "file": "static/chunks/0icgt9x-ymlz8.js",
+        "raw": 149,
+        "gzip": 145
+      },
+      {
+        "file": "static/chunks/0ykbrxr1fv167.js",
+        "raw": 149,
+        "gzip": 145
+      },
+      {
+        "file": "static/chunks/2h--qewasm4dx.js",
+        "raw": 149,
+        "gzip": 145
+      },
+      {
+        "file": "static/chunks/3igdcqxsyh56o.js",
+        "raw": 149,
+        "gzip": 145
+      },
+      {
+        "file": "static/chunks/3ygn8dkiy-g1p.js",
+        "raw": 149,
+        "gzip": 145
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "source": ".browser-check/product-home-1440.png",
+      "destination": "docs/screenshots/product-home.png"
+    },
+    {
+      "source": ".browser-check/product-courses-1440.png",
+      "destination": "docs/screenshots/product-study.png"
+    },
+    {
+      "source": ".browser-check/product-review-1440.png",
+      "destination": "docs/screenshots/product-practice.png"
+    },
+    {
+      "source": ".browser-check/product-courses-390.png",
+      "destination": "docs/screenshots/product-courses-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-before-courses-390.png",
+      "destination": "docs/screenshots/product-before-courses-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-expression-390.png",
+      "destination": "docs/screenshots/product-expression-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-before-expression-390.png",
+      "destination": "docs/screenshots/product-before-expression-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-listening-390.png",
+      "destination": "docs/screenshots/product-listening-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-mistakes-390.png",
+      "destination": "docs/screenshots/product-mistakes-mobile.png"
+    },
+    {
+      "source": ".browser-check/product-home-1440.png",
+      "destination": "public/assets/screenshots/home-wide.png"
+    },
+    {
+      "source": ".browser-check/product-home-390.png",
+      "destination": "public/assets/screenshots/home-narrow.png"
+    }
+  ],
+  "logs": [
+    {
+      "file": ".browser-check/product-check-final.log",
+      "sha256": "9eec0b94d8e8fca94a93b56228b97877f363db73696b62b7295b59b1c3a22b80"
+    },
+    {
+      "file": ".browser-check/product-smoke-final.log",
+      "sha256": "3f1379be06ccbe2f944dfe6076724e110df27af0a80aaa5550b3896c53309404"
+    },
+    {
+      "file": ".browser-check/product-dependencies.log",
+      "sha256": "4b02d4a3c23d969c46bd2041360f80bfcb1fe760d9db864009acdd710f9de601"
+    }
+  ],
+  "limitations": [
+    "No real learner study or formal language-level certification",
+    "Not a full native-teacher review of all 722 vocabulary items",
+    "No full manual audio listening audit",
+    "Chromium laboratory regression does not replace all real devices or Core Web Vitals field measurements"
+  ]
+}

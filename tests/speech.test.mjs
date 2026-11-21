@@ -514,3 +514,40 @@ test("normalizeSpeechSettings drops junk fields", () => {
   assert.deepEqual(normalizeSpeechSettings({ voiceURI: "v", rate: 0.2, dismissedVoiceWarning: true }), { voiceURI: "v", rate: 0.6, dismissedVoiceWarning: true });
   assert.deepEqual(normalizeSpeechSettings(null), {});
 });
+
+test("preferSystemVoice previews the selected system Korean voice even when bundled audio exists", () => {
+  global.window.Audio = TestAudio;
+  assert.equal(speakKorean("우", { preferSystemVoice: true }), true);
+  assert.equal(audioInstances.length, 0);
+  assert.deepEqual(spoken, ["우"]);
+});
+
+test("bundled audio decode error falls back to available system Korean speech", () => {
+  const events = [];
+  global.window.Audio = TestAudio;
+  global.window.addEventListener(SPEECH_EVENT_NAME, (event) => events.push(event.detail));
+
+  assert.equal(speakKorean("우"), true);
+  assert.equal(audioInstances.length, 1);
+  audioInstances[0].error = { code: 4 };
+  audioInstances[0].onerror({});
+
+  assert.deepEqual(spoken, ["우"]);
+  assert.equal(events.some((event) => event.reason === "audio-error"), false);
+});
+
+test("speakSequence halts immediately when playback is blocked by gesture policy", (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  voices = [{ lang: "en-US", name: "English" }];
+  global.window.Audio = class BlockedAudio extends TestAudio {
+    play() {
+      return Promise.reject(Object.assign(new Error("autoplay blocked"), { name: "NotAllowedError" }));
+    }
+  };
+
+  assert.equal(speakSequence(["우", "유", "아"], 50), true);
+  return Promise.resolve().then(() => Promise.resolve()).then(() => {
+    context.mock.timers.tick(500);
+    assert.equal(audioInstances.length, 1);
+  });
+});

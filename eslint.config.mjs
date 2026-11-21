@@ -6,6 +6,13 @@ const config = [
     ignores: [
       ".next/**",
       ".browser-check/**",
+      ".tools/**",
+      ".preview/**",
+      ".playwright-cli/**",
+      ".codex/**",
+      "tmp/**",
+      "output/**",
+      "security-audit-results/**",
       "generated/**",
       "node_modules/**",
       "next-env.d.ts"

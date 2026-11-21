@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { visualAssets, type DisplayVisualAssetId } from "@/data/visuals/assets";
 
 export type VisualPanelOverlay = "left" | "right" | "bottom" | "none";
-export type VisualPanelTreatment = "paper" | "raw" | "darkCaption" | "inset" | "ambient";
+export type VisualPanelTreatment = "paper" | "raw" | "darkCaption" | "inset" | "ambient" | "cutout";
 
 const overlayClasses: Record<VisualPanelOverlay, string> = {
   left: "bg-gradient-to-r from-[color-mix(in_srgb,var(--night)_78%,transparent)] via-[color-mix(in_srgb,var(--night)_22%,transparent)] to-transparent",
@@ -15,39 +15,13 @@ const overlayClasses: Record<VisualPanelOverlay, string> = {
   none: ""
 };
 
-const treatmentStyles: Record<
-  VisualPanelTreatment,
-  {
-    frame: string;
-    image: string;
-    wash?: string;
-    grid?: string;
-  }
-> = {
-  paper: {
-    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--paper-lo)]",
-    image: "object-cover saturate-[0.88] contrast-[0.98]",
-    wash: "bg-[linear-gradient(180deg,var(--scene-sheen),transparent_42%,var(--scene-shade))]"
-  },
-  raw: {
-    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--paper-lo)]",
-    image: "object-cover saturate-[0.92] contrast-[1.01]"
-  },
-  darkCaption: {
-    frame: "overflow-hidden rounded-[var(--screen-radius)] border border-[var(--line)] bg-[var(--night)]",
-    image: "object-cover brightness-[0.82] saturate-[0.82]",
-    wash: "bg-[linear-gradient(180deg,transparent_36%,color-mix(in_srgb,var(--night)_66%,transparent))]"
-  },
-  inset: {
-    frame: "overflow-hidden rounded-[var(--screen-radius-sm)] border border-[var(--line)] bg-[var(--card)]",
-    image: "object-cover scale-[1.01] saturate-[0.86] contrast-[0.98]",
-    wash: "bg-[linear-gradient(145deg,var(--scene-sheen),transparent_52%,var(--scene-shade))]"
-  },
-  ambient: {
-    frame: "overflow-hidden rounded-[var(--hero-radius)] border-0 bg-[var(--night)] shadow-none",
-    image: "object-cover brightness-[0.8] saturate-[0.86] contrast-[1.02]",
-    wash: "bg-[linear-gradient(90deg,color-mix(in_srgb,var(--night)_80%,transparent)_0%,color-mix(in_srgb,var(--night)_38%,transparent)_48%,color-mix(in_srgb,var(--night)_8%,transparent)_78%,transparent_100%)]"
-  }
+const treatmentStyles: Record<VisualPanelTreatment, { frame: string; image: string }> = {
+  cutout: { frame: "overflow-visible bg-transparent", image: "object-contain" },
+  paper: { frame: "overflow-hidden rounded-[var(--screen-radius)] bg-[var(--art-surface)]", image: "object-contain" },
+  raw: { frame: "overflow-hidden rounded-[var(--screen-radius)] bg-[var(--art-surface)]", image: "object-contain" },
+  darkCaption: { frame: "overflow-hidden rounded-[var(--screen-radius)] bg-[var(--art-surface)]", image: "object-contain" },
+  inset: { frame: "overflow-hidden rounded-[var(--screen-radius-sm)] bg-[var(--art-surface)]", image: "object-contain" },
+  ambient: { frame: "overflow-hidden rounded-[var(--hero-radius)] bg-[var(--art-surface)]", image: "object-contain" }
 };
 
 export function VisualPanel({
@@ -91,7 +65,7 @@ export function VisualPanel({
       aria-label={resolvedImageState.failed && !decorative ? fallbackLabel : undefined}
     >
       <div className="absolute inset-0 overflow-hidden">
-        {resolvedImageState.failed ? (
+        {resolvedImageState.failed && !decorative ? (
           <>
             <div className="absolute inset-0 bg-[linear-gradient(140deg,var(--paper-hi),var(--paper-lo))]" />
             <div className="absolute inset-0 grid place-items-center p-5 text-center">
@@ -121,10 +95,6 @@ export function VisualPanel({
             }}
           />
         ) : null}
-        <div className="film-grain pointer-events-none absolute inset-0" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,var(--scene-sheen),transparent)]" />
-        {style.wash ? <div className={cn("pointer-events-none absolute inset-0", style.wash)} /> : null}
-        {style.grid ? <div className={cn("pointer-events-none absolute inset-0", style.grid)} /> : null}
         {overlayClass ? <div className={cn("pointer-events-none absolute inset-0", overlayClass)} /> : null}
       </div>
     </div>

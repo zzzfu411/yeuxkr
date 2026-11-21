@@ -117,20 +117,53 @@ export function materialOutputMinimumSyllables(level: unknown) {
   return level === "native" ? 28 : level === "growth" ? 20 : 12;
 }
 
+export function validateMaterialOutputEvidence(
+  input: { draft?: unknown; weakPoint?: unknown; targetRewrite?: unknown } | null | undefined,
+  material: { level?: unknown; lines?: Array<{ ko?: unknown }> } | null | undefined
+) {
+  const draft = String(input?.draft ?? "").trim();
+  const weakPoint = String(input?.weakPoint ?? "").trim();
+  const targetRewrite = String(input?.targetRewrite ?? "").trim();
+  const sourceLines = material?.lines?.map((line) => line.ko) ?? [];
+  const minimumSyllables = materialOutputMinimumSyllables(material?.level);
+  const draftSyllables = countHangulSyllables(draft);
+  const rewriteSyllables = countHangulSyllables(targetRewrite);
+  const draftWordCount = new Set(koreanWords(draft)).size;
+  const rewriteWordCount = new Set(koreanWords(targetRewrite)).size;
+  const draftIssues: string[] = [];
+  const weakPointIssues: string[] = [];
+  const rewriteIssues: string[] = [];
+  if (draftSyllables < minimumSyllables) draftIssues.push(`至少 ${minimumSyllables} 个韩文字，目前 ${draftSyllables} 个`);
+  if (draftWordCount < 4) draftIssues.push(`至少 4 个不同的韩语词块，目前 ${draftWordCount} 个`);
+  if (minimumSyllables >= 24 && countKoreanClauses(draft) < 2) draftIssues.push("至少写 2 句，或用连接表达展开 2 个分句");
+  if (draftSyllables >= minimumSyllables && !hasMeaningfulKoreanSentence(draft, minimumSyllables)) {
+    draftIssues.push("请以韩语写完整句子，避免重复堆字或混入过多其他字符");
+  }
+  if (isKoreanSourceCopy(draft, sourceLines)) draftIssues.push("请用自己的话表达，不要照抄或拼接原句");
+  if (weakPoint.length < 4) weakPointIssues.push("用至少 4 个字具体说明需要修正的地方");
+  if (rewriteSyllables < 8) rewriteIssues.push(`至少 8 个韩文字，目前 ${rewriteSyllables} 个`);
+  if (rewriteWordCount < 2) rewriteIssues.push("至少使用 2 个不同的韩语词块");
+  if (rewriteSyllables >= 8 && !hasMeaningfulKoreanSentence(targetRewrite, 8)) {
+    rewriteIssues.push("请写完整的韩语改写，避免重复堆字或混入过多其他字符");
+  }
+  if (draft && normalizeComparableKorean(draft) === normalizeComparableKorean(targetRewrite)) {
+    rewriteIssues.push("请根据弱点修改表达，不能只改空格或标点");
+  }
+  return {
+    valid: Boolean(input && material) && !draftIssues.length && !weakPointIssues.length && !rewriteIssues.length,
+    minimumSyllables,
+    draftSyllables,
+    draftIssues,
+    weakPointIssues,
+    rewriteIssues
+  };
+}
+
 export function hasMaterialOutputEvidence(
   input: { draft?: unknown; weakPoint?: unknown; targetRewrite?: unknown } | null | undefined,
   material: { level?: unknown; lines?: Array<{ ko?: unknown }> } | null | undefined
 ) {
-  if (!input || !material) return false;
-  const draft = String(input.draft ?? "").trim();
-  const weakPoint = String(input.weakPoint ?? "").trim();
-  const targetRewrite = String(input.targetRewrite ?? "").trim();
-  const sourceLines = material.lines?.map((line) => line.ko) ?? [];
-  return hasKoreanOutputDraft(draft, materialOutputMinimumSyllables(material.level)) &&
-    !isKoreanSourceCopy(draft, sourceLines) &&
-    weakPoint.length >= 4 &&
-    hasKoreanOutputRewrite(targetRewrite) &&
-    normalizeComparableKorean(draft) !== normalizeComparableKorean(targetRewrite);
+  return validateMaterialOutputEvidence(input, material).valid;
 }
 
 export function hasExcessiveKoreanRepetition(value: unknown) {

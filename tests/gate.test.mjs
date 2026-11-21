@@ -33,8 +33,8 @@ test("hangul gate mixes listening, recognition, and keyboard production", () => 
 test("hangul gate uses the letter sound except for explicit example-word tasks", () => {
   const questions = buildGateQuestions("hangul", "v-oe", 7);
 
-  assert.equal(questions[0].prompt, "听例词，它练的是哪个字母？");
-  assert.equal(questions[0].speak, "회사");
+  assert.match(questions[0].prompt, /元音字母/);
+  assert.equal(questions[0].speak, "외");
   assert.equal(questions[1].speak, "외");
   assert.equal(questions[2].speak, "외");
   assert.equal(questions[3].speak, "회사");

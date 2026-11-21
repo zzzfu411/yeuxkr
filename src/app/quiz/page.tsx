@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Radio, RefreshCcw } from "lucide-react";
+import Link from "@/components/learning/studio-link";
+import { ArrowRight } from "lucide-react";
+import { ArtScene } from "@/components/assets/art-scene";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
@@ -60,46 +61,14 @@ export default function QuizPage() {
         ) : null}
       </PageHeader>
 
-      <LibraryGateNotice />
+      {questions.length ? <LibraryGateNotice /> : null}
 
-      <Surface>
+      {questions.length ? <Surface>
         <DrillRunner
           key={seed}
           questions={questions}
           recordMistakes={false}
           finishLabel="查看结果"
-          emptyState={{
-            title: "还没有可出的题目。",
-            detail: "先完成一课、加入几个词，或保存一段听写和复述。学过的内容会自动出现在这里。",
-            action: (
-              <>
-                <Button asChild>
-                  <Link href={followUp.href}>
-                    <ArrowRight className="h-4 w-4" />
-                    {followUp.label}
-                  </Link>
-                </Button>
-                {funnel ? null : (
-                  <>
-                    {srs.due > 0 && followUp.href !== "/review" ? (
-                      <Button asChild variant="secondary">
-                        <Link href="/review">
-                          <RefreshCcw className="h-4 w-4" />
-                          先清复习
-                        </Link>
-                      </Button>
-                    ) : null}
-                    <Button asChild variant="secondary">
-                      <Link href="/immersion">
-                        <Radio className="h-4 w-4" />
-                        去做听读
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </>
-            )
-          }}
           resultAddon={({ score, answers, finish }) => (
             <div className="grid gap-3">
               {saveError ? (
@@ -133,18 +102,36 @@ export default function QuizPage() {
           onResult={saveQuizResult}
           onFinish={() => nextQuiz()}
         />
-      </Surface>
+      </Surface> : (
+        <Surface variant="plain">
+          <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
+            <div className="paper-rail p-5 pt-8">
+              <h2 className="font-serif text-3xl font-normal">还没有可出的题目。</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                {funnel ? "先完成入门，再开始第一课。学过的内容会自动出现在测验里。" : "先完成一课或加入几个复习词。测验只会抽取你学过的内容。"}
+              </p>
+              <Button asChild className="mt-4">
+                <Link href={funnel ? "/onboarding" : "/path"}>
+                  <ArrowRight className="h-4 w-4" />
+                  {funnel ? "先去入门" : "继续学习"}
+                </Link>
+              </Button>
+            </div>
+            <ArtScene asset="empty" priority decorative treatment="inset" className="hidden border-0 shadow-none md:block" />
+          </div>
+        </Surface>
+      )}
 
-      <ModuleHero
+      {questions.length ? <ModuleHero
         kicker="바꿔서 풀기 · 换题检查"
         title="换个题型，看看还能不能答对。"
         copy="题目会混合声音、拼写、词义和句型。分数不理想时，错题会进入复习，告诉你下一轮先补哪里。"
         asset="quiz"
         imageSize="22rem"
         imageClassName="min-h-64 rounded-none border-0"
-      />
+      /> : null}
 
-      <LearningCompass workspace={workspace} active="quiz" condensed />
+      {questions.length ? <LearningCompass workspace={workspace} active="quiz" condensed /> : null}
     </div>
   );
 }

@@ -16,9 +16,10 @@ export function useLibraryPage<T>(items: T[], filterKey: string, pageSize: numbe
   };
 }
 
-export function LibraryPagination({ page, pages, total, pageSize, onPage, label, resultsId }: {
+export function LibraryPagination({ page, pages, total, pageSize, onPage, label, resultsId, compact = false }: {
   page: number; pages: number; total: number; pageSize: number;
   onPage: (page: number) => void; label: string; resultsId: string;
+  compact?: boolean;
 }) {
   if (!total) return null;
   const go = (next: number) => {
@@ -30,7 +31,7 @@ export function LibraryPagination({ page, pages, total, pageSize, onPage, label,
     });
   };
   return <nav aria-label={label} className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] py-3">
-    <p className="text-sm text-[var(--muted)]" role="status">第 {page + 1} / {pages} 页 · 显示 {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)}，共 {total} 项</p>
+    <p className="text-sm text-[var(--muted)]" role="status">第 {page + 1} / {pages} 页<span className={compact ? "sr-only" : undefined}> · 显示 {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)}，共 {total} 项</span></p>
     <div className="flex gap-2">
       <Button type="button" variant="secondary" size="sm" disabled={page === 0} onClick={() => go(page - 1)}>上一页</Button>
       <Button type="button" variant="secondary" size="sm" disabled={page + 1 === pages} onClick={() => go(page + 1)}>下一页</Button>

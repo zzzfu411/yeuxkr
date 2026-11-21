@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { ArrowRight, BookOpenCheck, CircleAlert, ScrollText } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
+import { useEmbeddedPage } from "@/components/layout/embedded-page";
 import { Button } from "@/components/ui/button";
 import { ModuleHero, PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { buildReviewQuestions } from "@/lib/learning/quiz";
@@ -32,6 +33,7 @@ export default function ReviewPage() {
 }
 
 function ReviewContent() {
+  const embedded = useEmbeddedPage();
   const [sessionKey, setSessionKey] = useState(0);
   const [reviewError, setReviewError] = useState("");
   const [queueChanged, setQueueChanged] = useState(false);
@@ -88,8 +90,8 @@ function ReviewContent() {
     <div className="grid gap-6">
       <ReviewHeader />
 
-      <Surface>
-        <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
+      <Surface variant={questions.length ? "panel" : "plain"}>
+        {questions.length ? <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" /> : null}
         {queueChanged ? (
           <div className="mb-4 grid gap-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-4" role="status">
             <p>其他页面已更新学习数据。已保存的答案会保留，请读取最新队列后继续。</p>
@@ -128,7 +130,6 @@ function ReviewContent() {
           />
         ) : (
           <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
-            <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
             <div className="paper-rail p-5 pt-8">
               <p className="eyebrow">오늘은 맑음 · 今天没有到期项</p>
               <h2 className="inkline mt-2 font-serif text-3xl font-normal">现在没有到期复习</h2>
@@ -144,7 +145,7 @@ function ReviewContent() {
                     {needsOnboardingFunnel(profile, progress) ? "先去入门" : "继续路径"}
                   </Link>
                 </Button>
-                {needsOnboardingFunnel(profile, progress) ? null : (
+                {needsOnboardingFunnel(profile, progress) || embedded ? null : (
                   <>
                     <Button asChild variant="secondary">
                       <Link href="/mistakes">
@@ -168,7 +169,7 @@ function ReviewContent() {
                 )}
               </div>
             </div>
-            <VisualPanel asset="empty" priority treatment="inset" className="min-h-52 border-0 shadow-none" />
+            <ArtScene asset="empty" priority treatment="inset" className="hidden border-0 shadow-none md:block" />
           </div>
         )}
         {reviewError ? (
@@ -178,7 +179,7 @@ function ReviewContent() {
         ) : null}
       </Surface>
 
-      <ReviewStatusHero srs={srs} />
+      {srs.total > 0 ? <ReviewStatusHero srs={srs} /> : null}
       <LearningCompass workspace={workspace} active="review" condensed />
     </div>
   );
@@ -204,21 +205,21 @@ function ReviewLoading() {
       <Surface>
         <SectionHeading kicker="오늘의 복습 · 今天复习" title="到期队列" />
         <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
-          <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
           <div className="paper-rail p-5 pt-8">
             <p className="eyebrow">잠시 · 正在读取</p>
             <h2 className="inkline mt-2 font-serif text-3xl font-normal">正在读取本机复习队列</h2>
             <p className="mt-2 leading-7 text-[var(--muted)]">复习卡片保存在本机浏览器里，页面会在挂载后读取到期状态。</p>
           </div>
-          <VisualPanel asset="review" priority decorative treatment="inset" className="min-h-52 border-0 shadow-none" />
+          <ArtScene asset="review" priority decorative treatment="inset" className="min-h-52 border-0 shadow-none" />
         </div>
       </Surface>
-      <ReviewStatusHero srs={{ total: 0, due: 0, mature: 0, shaky: 0 }} />
     </div>
   );
 }
 
 function ReviewHeader() {
+  const embedded = useEmbeddedPage();
+  if (embedded) return null;
   return (
     <PageHeader
       kicker="복습 · 复习"

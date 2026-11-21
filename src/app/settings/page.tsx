@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { LearningDataPanel } from "@/components/layout/learning-data-panel";
+import { EmbeddedPage } from "@/components/layout/embedded-page";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SpeechSettings } from "@/components/korean/speech-settings";
 import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { PageHeader, SectionHeading, Surface } from "@/components/ui/section";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+
+const SelfStudyPage = dynamic(() => import("@/app/self-study/page"), { loading: () => <p role="status">正在打开学习计划…</p> });
 
 const ROMANIZATION_OPTIONS = [
   { id: "fade", label: "起步后折叠", copy: "前 6 课直接显示，之后按需点开。" },
@@ -18,6 +23,29 @@ export default function SettingsPage() {
   const { workspace, saveProfile } = useLearningWorkspace();
   const profile = workspace.profile;
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [view, setView] = useState<"preferences" | "plan">("preferences");
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const requested = new URLSearchParams(window.location.search).get("view");
+      if (requested === "plan" || requested === "preferences") setView(requested);
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  const switchView = (nextView: "preferences" | "plan") => {
+    setView(nextView);
+    try {
+      const url = new URL(window.location.href);
+      if (nextView === "plan") url.searchParams.set("view", "plan");
+      else url.searchParams.delete("view");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      // History updates are optional in restricted environments.
+    }
+  };
 
   const save = (input: Parameters<typeof saveProfile>[0]) => {
     setStatus(saveProfile(input) ? "saved" : "error");
@@ -27,10 +55,27 @@ export default function SettingsPage() {
     <div className="grid gap-6">
       <PageHeader
         kicker="설정 · 设置"
-        title="学习设置"
-        copy="学习模式、每日时长、罗马音显示和韩语语音都在这里调整。所有设置只保存在本地浏览器。"
+        title="我的学习"
+        copy="按自己的节奏，慢慢来。"
         compact
-      />
+      >
+        <div className="personal-tools"><ThemeToggle /><LearningDataPanel /></div>
+      </PageHeader>
+
+      <div className="studio-tabs" role="group" aria-label="个人空间">
+        <button type="button" className="focus-ring" aria-pressed={view === "preferences"} onClick={() => switchView("preferences")}>偏好</button>
+        <button type="button" className="focus-ring" aria-pressed={view === "plan"} onClick={() => switchView("plan")}>计划与记录</button>
+      </div>
+
+      {view === "plan" ? <div className="grid gap-6">
+        <div className="personal-progress" aria-label="练习轨迹">
+          <p><strong>{workspace.stats.practiceItems}</strong><span>练习记录</span></p>
+          <p><strong>{workspace.stats.weakPracticeItems}</strong><span>待巩固</span></p>
+          <p><strong>{workspace.stats.outputEntries}</strong><span>写作与复述</span></p>
+          <p><strong>{workspace.proficiency.current.band}</strong><span>站内参考阶段</span></p>
+        </div>
+        <EmbeddedPage><SelfStudyPage /></EmbeddedPage>
+      </div> : (
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Surface>
@@ -74,7 +119,7 @@ export default function SettingsPage() {
                   aria-pressed={profile.studyMode === "guided"}
                   onClick={() => save({ studyMode: "guided" })}
                 >
-                  按路径引导
+                  按路径
                 </Button>
                 <Button
                   type="button"
@@ -83,7 +128,7 @@ export default function SettingsPage() {
                   aria-pressed={profile.studyMode === "self"}
                   onClick={() => save({ studyMode: "self" })}
                 >
-                  自由自学
+                  自学
                 </Button>
               </div>
             </div>
@@ -119,14 +164,11 @@ export default function SettingsPage() {
             <SpeechSettings />
           </Surface>
           <Surface>
-            <SectionHeading kicker="내 기록 · 学习记录" title="备份与迁移" copy="学习数据只存在当前浏览器。换设备或清理缓存前，请先从页面顶部导出备份，再在新设备导入。麦克风录音不会随备份导出，换设备后需要重新录制。" />
-            <p className="flex items-center gap-2 text-sm font-bold text-[var(--muted)]">
-              <Save className="h-4 w-4" aria-hidden="true" />
-              顶部工具栏：导出 / 导入 / 存储 / 重置
-            </p>
+            <SectionHeading kicker="내 기록 · 学习记录" title="备份与迁移" copy="学习数据保存在当前浏览器。换设备或清理缓存前，从本页上方的「学习数据」导出备份，在新设备导入。麦克风录音需要在新设备重新录制。" />
           </Surface>
         </div>
       </div>
+      )}
     </div>
   );
 }

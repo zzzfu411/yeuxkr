@@ -1,28 +1,19 @@
 # Kirina Korean
 
-Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。新版采用 **四季片场** 视觉：把每天的学习安排成一集安静的韩国生活剧，用季节光线、原创日常场景和清楚的字幕式排版，引导学习者知道现在学什么、为什么学、学完去哪里。
+Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应用。新版采用 **韩文字碎片 × 简洁留白**：独立的单字与短词小贴片散落在页面角落，课程、词汇、听读与练习保留清晰的阅读和操作空间。
 
-视觉提供春日、雨季、晚秋与蓝夜四种季节主题。正文使用清楚的系统 sans，大型标题与韩文细读使用 Noto Serif KR；冷瓷白、雾蓝、山茶粉和新叶绿随季节改变，但学习结构保持一致。
+视觉提供白昼、蓝调、暖阳与夜行四种主题。系统 sans 负责正文、标题和控件，韩文细读保留 Noto Serif KR；钴蓝、柠檬黄、橙色和淡紫组成统一的贴纸色彩。
 
-![学习工作台](docs/screenshots/hero-workspace.png)
+![今日学习便笺](docs/screenshots/product-home.png)
 
-<p align="center"><em>今日片场：一幅季节场景、一个下一步，以及当天最值得完成的三幕学习。</em></p>
+一个开始按钮、两个学习入口，韩文字贴纸在上方错落排布。
 
-### 产品界面
-
-| Hangul Studio | Immersion Lab |
+| 学习 | 练习 |
 |:---:|:---:|
-| ![韩文实验室](docs/screenshots/hangul.png) | ![情境材料](docs/screenshots/immersion.png) |
-| 韩文实验室：拆音节块、辨听相近发音，再把掌握项加入复习。 | 自编咖啡店情境：逐句听读、遮住译文听写，再用韩语复述。 |
+| ![整合学习页](docs/screenshots/product-study.png) | ![整合练习页](docs/screenshots/product-practice.png) |
+| 课程与字词、听说内容在同一个空间切换。 | 到期复习、错题与小测集中在一个空间。 |
 
-| 五阶段路径 | 间隔复习 |
-|:---:|:---:|
-| ![学习路径](docs/screenshots/path.png) | ![间隔复习](docs/screenshots/review.png) |
-| 五阶段学习路线：从读写韩文逐步走到自然表达。 | 到期队列：韩文、词汇和错题使用同一套间隔复习。 |
-
-![咖啡店点单课](docs/screenshots/lesson.png)
-
-<p align="center"><em>课程页：目标、讲解、听读和练习会汇总到同一份学习记录。</em></p>
+最新产品审计：[视觉与学习体验报告](docs/product-audit-2026-09-12.md) · [优化执行计划](docs/product-optimization-plan-2026-09-12.md) · [教材与29份材料逐段核对](docs/content-task-audit-2026-09-12.md)。上一轮[工程审计](docs/audit-2026-09-11.md)保留为历史记录。截图来自生产构建的浏览器检查。
 
 ## 当前能力
 
@@ -33,6 +24,7 @@ Kirina Korean 是一个从零基础开始学习韩语的 Next.js 在线学习应
 - `LearningWorkspace` 会参考课程进度、自学目标、薄弱项和到期复习，推荐下一项任务，也保留自由入口。
 - 课程练习、综合测验、韩文、词汇、语法、语用、情境听读和输出弱点都能加入复习；答错的题会进入错题复习。
 - `Immersion Lab` 使用自编情境脚本，支持逐句播放、遮住译文听写、复述提示、输出草稿、自评和后续复习。
+- 听读允许先浏览和试听，前置课程仍约束归档；输出保存会具体说明未满足条件。自然表达支持本地草稿恢复，筛选、刷新和切换栏目后可接着写。
 - 课程朗读优先使用 `public/assets/audio/ko/` 中的 1212 条统一韩语 MP3；未收录的动态内容才回退到浏览器系统韩语语音。
 - 图片资产通过 OpenAI ImageGen 工作流生成后接入 `public/assets/generated/`，页面通过 `src/data/visuals/assets.ts` 引用，并由 `src/data/visuals/manifest.ts` 记录 provider、prompt、源 PNG 和 WebP 派生关系。
 
@@ -69,11 +61,11 @@ npm run audit:prod
 
 同时打开多个页面时，复习会检测过期卡片快照并拒绝重复计分，提供“读取更新后的队列”。本地存储仍不是跨进程数据库事务；不建议在多个页面同时执行导入、重置等整库操作。
 
-课程讲解源保留在 `src/data/lessons/`。修改课程后运行 `npm run content:prepare` 更新不含讲解卡的运行目录；`validate` 会检查生成文件是否同步。完整讲解由课程服务端页面按课传入，学习引擎使用较小的运行目录。React 工作区通过单个 Provider 共享存储订阅，课程结果和录音证据面板独立维护。`typecheck:strict` 对元数据、备份、归一化、状态计算、写入操作、Hook 和韩文拼字启用严格检查，并以 `checkJs` 验证生成课程是否符合 `RuntimeLesson` 契约；历史页面尚未全量迁移到 strict。
+课程讲解源保留在 `src/data/lessons/`。修改课程后运行 `npm run content:prepare` 更新不含讲解卡的运行目录；`validate` 会检查生成文件是否同步。完整讲解由课程服务端页面按课传入，学习引擎使用较小的运行目录。React 工作区通过单个 Provider 共享存储订阅，课程结果和录音证据面板独立维护。`typecheck` 对全仓 TypeScript 开启 strict；`typecheck:strict` 继续单独验证学习领域边界，并以 `checkJs` 验证生成课程是否符合 `RuntimeLesson` 契约。
 
-`check:smoke` 包含脚本体积预算、数据导入取消/替换、音频失败、跨标签页复习、分页和六档宽度回归。性能结果记录在 `.browser-check/performance.json`，DOM/布局数据记录在 `.browser-check/audit-regression.json`。这些是实验室回归，不替代真机浏览器和真实学习效果验证。具体修复范围见 [修复计划](docs/remediation-plan-2026-09-05.md)。
+`check:smoke` 包含脚本体积预算、数据导入取消/替换、音频失败、跨标签页复习、分页和六档宽度回归，也检查表达草稿、三类库筛选计数、24 个产品页面布局与四主题。性能结果记录在 `.browser-check/performance.json`，DOM/布局数据记录在 `.browser-check/audit-regression.json` 与 `.browser-check/product-visual-validation.json`。这些是实验室回归，不替代真机浏览器和真实学习效果验证。本轮 13 项问题均已关闭，详见[产品优化计划](docs/product-optimization-plan-2026-09-12.md)与[最终验收数据](docs/product-validation-2026-09-12.json)；历史工程记录继续保留。
 
-生产依赖升级后可用 `npm audit --omit=dev --audit-level=high` 做阻断式检查；仓库 CI 会执行同一检查。完整 `npm audit` 可能仍报告仅供开发期 lint 工具链使用的依赖，不能把它们误解为线上运行时依赖。
+依赖升级后执行 `npm run audit:prod`；CI 使用相同的生产风险门槛。2026-09-12 同时完成生产与开发依赖修复，全量 `npm audit` 为零已知漏洞；这是一份有日期的检查结果，不能替代后续维护。
 
 ## 结构
 
@@ -107,11 +99,11 @@ scripts/validate.mjs       # 数据、应用元信息、视觉资产校验
 
 ## 图片资产
 
-当前视觉资产登记在 `public/assets/generated/`（hero、workspace、hangul、immersion、empty 等），并通过 VisualPanel 的场景调色、字幕遮罩与局部 film grain 接入页面。23 个登记项均已替换为同一套原创四季场景。
+当前页面使用 `public/assets/generated/letter-*.webp` 中的六张独立文字贴片：ㅋ、ㅎ、안녕、한글、다시、조금씩。贴片保留真实透明背景，分散在页角和标题留白处；原始 PNG 与完整生成提示词一并保留。首轮八张拼贴仅保留源资产记录，页面不再展示。
 
-生成美学约束：原创韩国生活剧照感、季节自然光、可信的日常质感、35mm 轻颗粒、充足留白、低饱和蓝绿与少量山茶粉。禁止复制剧照、演员肖像、片名标志、可读伪文字、水印、假 UI、霓虹赛博、奢华棚拍和宝丽来拼贴。
+生成美学约束：每张图片仅含一个韩文字母或 2–3 字短词，准确字形、白色裁切边缘、钴蓝/柠檬黄/橙色/淡紫印刷色。不加入生活场景、物件、整幅拼贴、假透明棋盘格或水印。详见 `design/scattered-fragments.md`。
 
-页面通过宽银幕 Hero、开放排版、三幕列表、季节色温与轻量浮动“下一集”组织内容。普通内容面、大场景和控件使用不同层级的圆角；所有图像与控件都必须同时适配春日、雨季、晚秋和蓝夜。视觉层可以重构，课程、SRS、quiz engine、workspace model、speech 和进度数据契约保持不变。
+导航收敛为「今日、学习、练习」，首页只有一个学习动作、两个文字入口，以及点缀留白的小韩文字贴片。学习空间集成课程、字词、听说，练习空间集成复习、错题和测验；个人空间集中偏好、计划、记录、外观和数据工具。栏目支持刷新与浏览历史，旧课程和材料链接继续有效。详见 `design/quiet-learning-spaces.md`。
 
 每张资产都需要：
 

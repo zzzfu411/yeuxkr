@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
 export const sitePages = {
-  "/": ["今日学习", "从第一句韩语开始，在四季场景里学习、复习、听读与开口表达。"],
+  "/": ["今日学习", "从第一句韩语开始，在首尔日常里学习、听读与开口表达。"],
+  "/study": ["学习空间", "在一个空间里学习韩语课程、字词与听说，循序练习自然表达。"],
+  "/practice": ["练习空间", "集中复习到期内容、重练错题与完成综合测验。"],
   "/path": ["学习路线", "循序完成韩文、基础句型和自然表达课程，按学习证据推进主线。"],
   "/hangul": ["韩文字母与发音", "练习韩文字母、拼读、收音和音变，用听辨与输入建立基础。"],
   "/vocabulary": ["场景词汇", "按等级和场景检索韩语词汇，练习听写、搭配并加入间隔复习。"],
@@ -16,7 +18,7 @@ export const sitePages = {
   "/onboarding": ["三分钟入门", "设置学习偏好，试听韩语并尝试输入，开始第一课。"],
 } as const;
 
-export const privateRoutes = new Set(["/review", "/mistakes", "/quiz", "/settings", "/onboarding"]);
+export const privateRoutes = new Set(["/practice", "/review", "/mistakes", "/quiz", "/settings", "/onboarding"]);
 
 export function getSiteOrigin(configured = process.env.NEXT_PUBLIC_SITE_URL): URL | null {
   if (!configured?.trim()) return null;
@@ -38,7 +40,7 @@ export function pageMetadata(path: string, title: string, description: string): 
     robots: publicPage ? { index: true, follow: true } : { index: false, follow: true },
     openGraph: {
       title: `${title} | Kirina Korean`, description, type: "website", locale: "zh_CN", siteName: "Kirina Korean",
-      ...(origin ? { url: new URL(path, origin).href, images: [{ url: new URL("/assets/generated/hero.webp", origin).href, alt: "春雨夜窗边，两只杯子与一朵山茶花" }] } : {})
+      ...(origin ? { url: new URL(path, origin).href, images: [{ url: new URL("/assets/generated/letter-hangul.webp", origin).href, alt: "钴蓝韩文字贴纸，Kirina 韩语学习" }] } : {})
     }
   };
 }

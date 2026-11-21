@@ -1,10 +1,10 @@
+import { pronunciationAbilities } from "./phonology.ts";
 import { isAbilityId, validateCheckpointEvidence, materialPrerequisitesMet, checkpointCreditKey, hasValidOutputEvidence, buildOpenStudyTasks, libraryCountsForWrite, mapQuestionToAbilities, type OutputEvidenceInput, getValidMaterialIds, countNativePracticeEvidence, lessonAbilitiesWithEvidence, lessonAbilityDelta, normalizeAbilityEventValue, mapLessonCardToAbilities } from "./workspace-snapshot.ts";
 import { abilityLabels, normalizeLearningProgress, hangulIdSet, vocabIdSet, grammarIdSet, nativeIdSet, type NativeEvidenceInput, normalizeNativeEvidenceEntry, hasCompleteNativePracticeEvidence, normalizeMaterialSelfCheck, isRecord, abilityIds, materialIdSet, normalizeUserProfile, lessonIdSet, hasListeningFocus, normalizePracticeItemId, clampNumber } from "./progress-normalization.ts";
 
 import { lessons, getNextLesson, getLessonPrerequisites, UNLOCK_SCORE } from "../../data/curriculum-runtime.js";
 import { hangulGroups, pronunciationPairs } from "../../data/hangul.js";
-import { vocab } from "../../data/lexicon.js";
-import { grammarPoints } from "../../data/grammar.js";
+import { grammarIds, vocabIds } from "../../data/catalog-ids.generated.js";
 import { pragmaticScenarios } from "../../data/pragmatics.js";
 import { nuanceSets } from "../../data/nuance.js";
 import { soundChangeRules } from "../../data/sound-changes.js";
@@ -19,7 +19,7 @@ import { addOutputEntry, clearOutputEntriesByMaterial, defaultOutputState, getOu
 import { applyDeferToState, applyGradeToState, defaultSrsState, ensureCard, getDueCardsFromState, getSrsState, removeCard, saveSrsState, type SrsCard, type SrsState } from "./srs.ts";
 import { defaultLessonPracticeState, getLessonPracticeState, saveLessonPracticeState } from "./lesson-session.ts";
 import { defaultLearningDraftState, getLearningDraftState, saveLearningDraftState } from "./drafts.ts";
-import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio.ts";
+import { defaultNativePortfolioState, normalizeNativePortfolioState } from "./native-portfolio-store.ts";
 import { clearLearningRecordings } from "./recordings.ts";
 
 import { getLibraryGateForLesson, type LibraryCounts } from "./path-gates.ts";
@@ -128,12 +128,13 @@ export function togglePronunciationPair(itemId: string, fallbackProgress: Learni
 
   const next = mutableProgress(current);
   if (snapshots[0]?.previous) {
-    removeAbilityEvent(next, `pronunciation:${itemId}`, ["listening"]);
+    removeAbilityEvent(next, `pronunciation:${itemId}`, ["script", "listening"]);
     clearTaskDoneIfNoRemainingEvidence(next, "ability:listening");
+    clearTaskDoneIfNoRemainingEvidence(next, "ability:script");
   } else {
     bumpStreak(next);
-    markTaskDone(next, "ability:listening");
-    recordAbilityEvent(next, `pronunciation:${itemId}`, ["listening"], 2);
+    for (const ability of pronunciationAbilities(itemId)) markTaskDone(next, `ability:${ability}`);
+    recordAbilityEvent(next, `pronunciation:${itemId}`, pronunciationAbilities(itemId), 2);
   }
   if (!saveLearningProgress(next)) {
     rollbackSrsCardSnapshots(snapshots);
@@ -759,14 +760,13 @@ export function commitLessonSession(lessonId: string, answers: LessonAnswerCommi
   const lesson = lessons.find((item: any) => item.id === lessonId);
   const task = lessonCompletionTask(lesson);
   if (coreOpen && score >= UNLOCK_SCORE && !checkLessonTaskEvidence(task, current.lessonTaskEvidence[lessonId]).ready) return false;
-  const assessment = answers.length
-    ? assessLessonAttempt(
+  const assessment = assessLessonAttempt(
         { ...lesson, drills: (lesson?.drills ?? []).map((question: any, index: number) => ({ ...question, id: question.id ?? lessonReviewCardId(lessonId, index) })) },
-        answers as any,
+        answers,
         score
-      )
-    : null;
-  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score, assessment?.corePassed ?? true, hasOnboardedProfile());
+      );
+  score = assessment.score;
+  const { next, previousScore, canMasterCorePath, wasUnlocked, knownLesson } = applyLessonCompletion(current, lessonId, score, assessment.corePassed, hasOnboardedProfile());
   if (!knownLesson) return false;
   const previousListeningEvidence = current.lessonListeningEvidence[lessonId] === true;
   const hasListeningEvidence = answers.some((entry) => isAuditoryQuestion(entry.question) && !entry.skipped && entry.correct);
@@ -776,7 +776,7 @@ export function commitLessonSession(lessonId: string, answers: LessonAnswerCommi
   if (wasUnlocked && assessment?.productionPassed) {
     next.lessonProductionEvidence[lessonId] = true;
   }
-  if (wasUnlocked) bumpStreak(next);
+  if (wasUnlocked && answers.length > 0) bumpStreak(next);
   if (wasUnlocked) bumpAbilityFromLesson(next, lessonId, previousScore, next.lessonScores[lessonId], previousListeningEvidence);
   if (wasUnlocked) {
     for (const entry of answers) {
@@ -1411,7 +1411,7 @@ function checkpointEvidenceFingerprint(evidence: string) {
 
 export function mapCardToAbilities(card: SrsCard): AbilityId[] {
   if (card.payload.kind === "hangul") return ["script"];
-  if (card.payload.kind === "pronunciation") return ["listening"];
+  if (card.payload.kind === "pronunciation") return pronunciationAbilities(card.payload.itemId);
   if (card.payload.kind === "soundChange") return ["listening"];
   if (card.payload.kind === "vocab") return ["vocabulary"];
   if (card.payload.kind === "grammar") return ["grammar"];
@@ -1459,9 +1459,9 @@ function clearTaskDoneIfNoRemainingEvidence(progress: LearningProgress, taskId: 
 }
 
 function hasRemainingAbilityTaskEvidence(progress: LearningProgress, taskId: string) {
-  if (taskId === "ability:script") return progress.masteredHangul.length > 0;
+  if (taskId === "ability:script") return progress.masteredHangul.length > 0 || Object.values(getSrsState().cards).some((card) => card.payload.kind === "pronunciation" && pronunciationAbilities(card.payload.itemId).includes("script"));
   if (taskId === "ability:listening") {
-    return Object.values(getSrsState().cards).some((card) => card.payload.kind === "pronunciation" || card.payload.kind === "soundChange");
+    return Object.values(getSrsState().cards).some((card) => (card.payload.kind === "pronunciation" && pronunciationAbilities(card.payload.itemId).includes("listening")) || card.payload.kind === "soundChange");
   }
   if (taskId === "ability:vocabulary") return progress.learnedVocab.length > 0;
   if (taskId === "ability:grammar") return progress.learnedGrammar.length > 0;
@@ -1482,8 +1482,8 @@ function compactAbilityEventValue(value: Partial<Record<AbilityId, number>>, abi
 
 export const contentCounts = {
   lessons: lessons.length,
-  vocab: vocab.length,
-  grammar: grammarPoints.length,
+  vocab: vocabIds.length,
+  grammar: grammarIds.length,
   hangul: hangulGroups.flatMap((group: any) => group.items).length,
   pragmatics: pragmaticScenarios.length,
   nuance: nuanceSets.length,

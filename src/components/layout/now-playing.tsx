@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { Play } from "lucide-react";
@@ -54,13 +54,14 @@ function useNowPlayingTrack() {
 }
 
 export function NowPlayingBar() {
-  const { current, href, glyph } = useNowPlayingTrack();
+  const { current, href, glyph, pathname } = useNowPlayingTrack();
+  if (pathname === "/") return null;
 
   return (
     <aside className="next-episode" aria-label="下一项学习">
       <div className="next-episode__glyph hangul-display" aria-hidden="true">{glyph}</div>
       <div className="next-episode__copy">
-        <p>{current ? `下一集 · ${KIND_LABEL[current.kind]}` : "下一集"}</p>
+        <p>{current ? `接着学 · ${KIND_LABEL[current.kind]}` : "接着学"}</p>
         <strong>{current?.title ?? "从韩文开始"}</strong>
       </div>
       <Link

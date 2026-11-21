@@ -6,11 +6,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "border border-[var(--ink)] bg-[var(--ink)] text-[var(--ink-inv)] shadow-none hover:border-[var(--seal)] hover:bg-[var(--seal)]",
+  primary: "border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)] shadow-none hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]",
   secondary:
     "border border-[var(--line-strong)] bg-[var(--paper-hi)] text-[var(--ink)] shadow-none hover:border-[var(--ink)] hover:bg-[var(--wash-1)]",
   ghost: "border border-transparent text-[var(--ink)] hover:border-[var(--line)] hover:bg-[var(--wash-2)]",
-  danger: "border border-[color-mix(in_srgb,var(--seal)_62%,var(--line))] bg-[var(--seal-soft)] text-[var(--cinnabar)] shadow-none hover:border-[var(--seal)] hover:bg-[color-mix(in_srgb,var(--seal)_18%,transparent)]"
+  danger: "border border-[var(--danger-border)] bg-[var(--danger-soft)] text-[var(--danger-ink)] shadow-none hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_16%,var(--paper-hi))]"
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

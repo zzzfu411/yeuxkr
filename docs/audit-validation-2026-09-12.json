@@ -1,0 +1,97 @@
+{
+  "completedAt": "2026-09-11T16:33:46.701Z",
+  "findingStatus": {
+    "A01": "fixed-and-verified",
+    "A02": "fixed-and-verified",
+    "A03": "fixed-and-verified",
+    "A04": "fixed-and-verified",
+    "A05": "fixed-and-verified",
+    "A06": "fixed-and-verified",
+    "A07": "fixed-and-verified",
+    "A08": "fixed-and-verified",
+    "A09": "fixed-and-verified",
+    "A10": "fixed-and-verified",
+    "A11": "fixed-and-verified",
+    "A12": "fixed-and-verified"
+  },
+  "scope": {
+    "files": 214,
+    "counts": {
+      ".github": 1,
+      "root configuration/documentation": 11,
+      "design": 10,
+      "scripts": 19,
+      "src": 141,
+      "tests": 32
+    },
+    "content": {
+      "lessons": 60,
+      "vocab": 722,
+      "grammar": 83,
+      "hangul": 47,
+      "pronunciation": 10,
+      "materials": 29,
+      "questionTypes": {
+        "choice": 200,
+        "type": 55,
+        "listen": 62,
+        "cloze": 84,
+        "dictation": 72,
+        "translate": 39
+      }
+    }
+  },
+  "validation": {
+    "unitTests": {
+      "passed": 410,
+      "failed": 0
+    },
+    "content": "passed",
+    "lint": "passed; zero warnings",
+    "typescript": "full strict and JS content contract passed",
+    "productionBuild": "passed",
+    "productionDependencyVulnerabilities": 0,
+    "allDependencyVulnerabilities": 0,
+    "httpRoutes": 117,
+    "browserSmoke": "passed",
+    "studioViews": 9,
+    "studioLayouts": 30,
+    "manualScreenshots": 16,
+    "unexpectedVisualPageErrors": [],
+    "performance": {
+      "budgets": {
+        "largestChunkRaw": 650000,
+        "largestChunkGzip": 220000
+      },
+      "largest": {
+        "file": "static/chunks/1euk-lj4pt-rz.js",
+        "raw": 595542,
+        "gzip": 194421
+      },
+      "totalRawAllChunks": 2553321
+    },
+    "recovery": [
+      {
+        "action": "重新加载",
+        "recovered": true,
+        "route": "/study?view=listening"
+      },
+      {
+        "action": "回到学习",
+        "recovered": true,
+        "route": "/study"
+      }
+    ]
+  },
+  "limitations": [
+    "Structural content checks are exhaustive; native-speaker naturalness review is not.",
+    "No real-learner efficacy trial or external proficiency certification.",
+    "All-chunk bytes are not a per-route transfer measurement."
+  ],
+  "logs": [
+    ".browser-check/audit2-check-final.log",
+    ".browser-check/audit2-smoke-final.log",
+    ".browser-check/audit2-production-final.log",
+    ".browser-check/audit2-dependencies-final.log"
+  ]
+}

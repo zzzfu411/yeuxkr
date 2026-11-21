@@ -5,7 +5,7 @@ import { getOutputStateFromRaw } from "./output.ts";
 import { getSrsStateFromRaw } from "./srs.ts";
 import { getLessonPracticeStateFromRaw } from "./lesson-session.ts";
 import { getLearningDraftStateFromRaw } from "./drafts.ts";
-import { getNativePortfolioStateFromRaw } from "./native-portfolio.ts";
+import { getNativePortfolioStateFromRaw } from "./native-portfolio-store.ts";
 import { normalizeLearningProgress, normalizeUserProfile } from "./workspace.ts";
 import { normalizeSpeechSettings } from "../speech.js";
 import { clearLearningRecordings } from "./recordings.ts";

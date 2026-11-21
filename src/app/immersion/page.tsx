@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { useSearchParams } from "next/navigation";
 import { ArrowDownToLine, Check, CheckCircle2, Eye, EyeOff, PenLine, RotateCcw, Volume2 } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { useEmbeddedPage } from "@/components/layout/embedded-page";
+import { studioHref } from "@/lib/studio-navigation";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { LibraryGateNotice } from "@/components/learning/library-gate-notice";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,10 @@ import { TrackRow } from "@/components/ui/track-row";
 import { getMissingMaterialPrerequisiteIds, immersionMaterialHref, immersionMaterials, outputRubric, type ImmersionMaterial } from "@/data/materials";
 import { firstActionableLesson, getLessonById, isLessonMastered } from "@/data/curriculum-runtime";
 import { clearImmersionMaterialDraft, getImmersionMaterialDraft, saveImmersionMaterialDraft } from "@/lib/learning/drafts";
-import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence } from "@/lib/learning/evidence";
+import { hasKoreanDictationEvidence, hasKoreanRetellEvidence, hasMaterialOutputEvidence, validateMaterialOutputEvidence } from "@/lib/learning/evidence";
 import { notifyNowPlayingLocationChange } from "@/lib/learning/player";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+import { abilityLabels } from "@/lib/learning/progress-normalization";
 import { speakKorean, speakSequence } from "@/lib/speech";
 
 const levelLabels: Record<ImmersionMaterial["level"], string> = {
@@ -24,6 +26,8 @@ const levelLabels: Record<ImmersionMaterial["level"], string> = {
   growth: "连续理解",
   native: "进阶表达"
 };
+
+const focusLabels: Readonly<Record<string, string>> = abilityLabels;
 
 const kindLabels: Record<ImmersionMaterial["kind"], string> = {
   dialogue: "对话",
@@ -41,6 +45,7 @@ export default function ImmersionPage() {
 }
 
 function ImmersionContent() {
+  const embedded = useEmbeddedPage();
   const { workspace, outputEntries, completeMaterial, saveOutputArchive, clearMaterialArchive } = useLearningWorkspace();
   const searchParams = useSearchParams();
   const requestedMaterial = searchParams.get("material");
@@ -101,11 +106,11 @@ function ImmersionContent() {
   );
   const activePrerequisites = active.requiredLessons
     .map((lessonId) => getLessonById(lessonId))
-    .filter(Boolean);
+    .filter((lesson): lesson is NonNullable<typeof lesson> => Boolean(lesson));
   const missingPrerequisiteIds = getMissingMaterialPrerequisiteIds(active, masteredLessons);
   const missingPrerequisites = missingPrerequisiteIds
     .map((lessonId) => getLessonById(lessonId))
-    .filter(Boolean)
+    .filter((lesson): lesson is NonNullable<typeof lesson> => Boolean(lesson))
     .sort((a, b) => a.order - b.order);
   const completedLessonIds = new Set(workspace.progress.completedLessons);
   const lockedCtaLesson = firstActionableLesson(
@@ -128,7 +133,8 @@ function ImmersionContent() {
   const selectedOutputEntry = activeOutputs.find((entry) => entry.id === selectedOutputId) ?? null;
   const sourceLines = active.lines.map((line) => line.ko);
   const savedKoreanOutput = hasMaterialOutputEvidence(selectedOutputEntry, active);
-  const currentOutputReady = hasMaterialOutputEvidence({ draft, weakPoint, targetRewrite }, active);
+  const outputValidation = validateMaterialOutputEvidence({ draft, weakPoint, targetRewrite }, active);
+  const currentOutputReady = outputValidation.valid;
   const effectiveDictation = dictationEvidence.trim() || savedEvidence?.dictation || "";
   const effectiveRetell = retellEvidence.trim() || savedEvidence?.retell || "";
   const effectiveSelfCheck = checkedSelfCheckByMaterial[active.id] ?? savedEvidence?.selfCheck ?? [];
@@ -138,6 +144,9 @@ function ImmersionContent() {
       id: "prerequisites",
       done: prerequisitesReady,
       label: "前置课程已完成",
+      action: "完成前置课",
+      shortLabel: "前置课",
+      target: "material-prerequisites",
       detail: missingPrerequisites.length
         ? `尚缺：${missingPrerequisites.map((lesson) => `第 ${lesson.order} 课 ${lesson.title}`).join("、")}`
         : "这段听读需要的课程都已完成。"
@@ -146,32 +155,44 @@ function ImmersionContent() {
       id: "dictation",
       done: hasKoreanDictationEvidence(effectiveDictation, active.dictation),
       label: "听写已完成",
+      action: "写下一句听写",
+      shortLabel: "听写",
+      target: "material-dictation",
       detail: "至少写下一句听到的韩语，再对照原文修正。"
     },
     {
       id: "retell",
       done: hasKoreanRetellEvidence(effectiveRetell, sourceLines),
       label: "复述已完成",
+      action: "用自己的话复述",
+      shortLabel: "复述",
+      target: "material-retell",
       detail: "用韩语复述人物、动作、原因或结果。"
     },
     {
       id: "self-check",
       done: selfCheckComplete,
       label: "自检已完成",
+      action: "逐项自检",
+      shortLabel: "自检",
+      target: "material-self-check",
       detail: "逐项确认这段材料的听辨、表达和语用目标。"
     },
     {
       id: "output",
       done: savedKoreanOutput,
       label: "输出改写已保存",
+      action: "保存自己的改写",
+      shortLabel: "改写",
+      target: "material-output",
       detail: "保存一条韩语改写；完成整段练习后，它会加入间隔复习。"
     }
   ];
-  const missingGateLabels = completionGates.filter((gate) => !gate.done).map((gate) => gate.label);
+  const missingGateLabels = completionGates.filter((gate) => !gate.done).map((gate) => gate.action);
   const hasCompletionEvidence = completionGates.every((gate) => gate.done);
-  const activeGateIndex = Math.max(0, completionGates.findIndex((gate) => !gate.done));
   const completedGateCount = completionGates.filter((gate) => gate.done).length;
-  const nextGateLabel = completionGates.find((gate) => !gate.done)?.label ?? "全部完成";
+  const nextGate = completionGates.find((gate) => !gate.done);
+  const hasWorkToContinue = prerequisitesReady && !completed.has(active.id) && Boolean(dictationEvidence || retellEvidence || draft || savedEvidence || materialOutputs.length);
 
   useEffect(() => {
     displayedMaterialIdRef.current = active.id;
@@ -310,7 +331,8 @@ function ImmersionContent() {
 
   const pinActiveMaterial = (materialId: string) => {
     setSelectedMaterialId(materialId);
-    window.history.replaceState(null, "", immersionMaterialHref(materialId));
+    const href = immersionMaterialHref(materialId);
+    window.history.replaceState(null, "", embedded ? studioHref(href) : href);
     notifyNowPlayingLocationChange();
   };
 
@@ -411,9 +433,10 @@ function ImmersionContent() {
     });
   };
 
-  const focusMaterialPractice = () => {
-    const target = document.getElementById("material-listen-practice");
+  const focusMaterialStep = (id: string) => {
+    const target = document.getElementById(id);
     if (!target) return;
+    if (target instanceof HTMLDetailsElement) target.open = true;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     target.focus({ preventScroll: true });
@@ -431,36 +454,51 @@ function ImmersionContent() {
       <LibraryGateNotice focus="materials" />
 
       <Surface>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">当前材料 · {active.minutes} 分钟</p>
-            <h2 className="mt-2 font-serif text-2xl">{active.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">已完成 {completedGateCount}/{completionGates.length} 步 · 下一步：{nextGateLabel}</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-[64ch]">
+            <p className="text-xs text-[var(--muted)]">{levelLabels[active.level]} · 自编{kindLabels[active.kind]} · 约 {active.minutes} 分钟</p>
+            <h2 id="current-material-heading" tabIndex={-1} className="focus-ring scroll-mt-40 mt-2 font-serif text-[clamp(1.5rem,3vw,2rem)]">{active.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{active.summary}</p>
           </div>
-        {prerequisitesReady ? (
-          <Button
-            className="mt-4"
-            type="button"
-            variant="secondary"
-            onClick={focusMaterialPractice}
-          >
+          <Button type="button" variant="secondary" onClick={() => focusMaterialStep(hasWorkToContinue ? nextGate?.target ?? "material-finish" : "material-listen-practice")}>
             <ArrowDownToLine className="h-4 w-4" />
-            开始听读
+            {hasWorkToContinue ? "继续练习" : prerequisitesReady ? "开始听读" : "先试听这段"}
           </Button>
-        ) : (
-          <Button asChild className="mt-4" variant="secondary">
-            <Link href={lockedCtaLesson ? `/learn/${lockedCtaLesson.id}` : "/path"}>
-              <ArrowDownToLine className="h-4 w-4" />
-              {lockedCtaLesson ? `先学第 ${lockedCtaLesson.order} 课` : "查看前置课程"}
-            </Link>
-          </Button>
-        )}
-
         </div>
-        {!prerequisitesReady ? <p className="mt-2 text-sm leading-6 text-[var(--muted)]">还需完成 {missingPrerequisites.length} 节前置课。现在可以浏览说明、保存草稿。</p> : null}
+        <div className="mt-4 border-t border-[var(--line)] pt-4">
+          <p className="text-sm leading-6">{completed.has(active.id) ? "本段已完成并加入复习。" : `已完成 ${completedGateCount}/${completionGates.length} 项 · ${nextGate ? `下一步：${nextGate.action}` : "可以完成练习并加入复习"}`}</p>
+          <nav aria-label="本段听读步骤" className="mt-2 grid grid-cols-5 gap-1">
+            {completionGates.map((gate) => (
+              <button
+                key={gate.id}
+                type="button"
+                className={`focus-ring flex min-h-11 items-center justify-center gap-1 rounded-[var(--radius)] px-1 py-2 text-xs leading-5 ${gate.done ? "bg-[var(--green-soft)] text-[var(--celadon)]" : nextGate?.id === gate.id ? "bg-[var(--seal-soft)] text-[var(--accent)]" : "bg-[var(--wash-1)] text-[var(--muted)]"}`}
+                onClick={() => focusMaterialStep(gate.target)}
+                aria-label={`${gate.done ? "已完成：" : "前往："}${gate.action}`}
+              >
+                {gate.done ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+                {gate.shortLabel}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <details id="material-prerequisites" tabIndex={-1} className="focus-ring mt-3 scroll-mt-40 border-t border-[var(--line)] pt-2">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">{prerequisitesReady ? "前置课程已完成" : `还需 ${missingPrerequisites.length} 节前置课才能归档`} · 查看课程</summary>
+          <p className="mb-3 text-xs leading-5 text-[var(--muted)]">自编情境 · {active.sourceLabel} · 预生成录音或设备语音，非原生节目。训练：{active.focus.map((item) => focusLabels[item] ?? item).join("、")}。</p>
+          <div className="flex flex-wrap gap-2 pb-2">
+            {activePrerequisites.map((lesson) => (
+              <Link key={lesson.id} href={`/learn/${lesson.id}`} className="focus-ring inline-flex min-h-11 items-center gap-1 rounded-[var(--radius)] bg-[var(--wash-1)] px-3 text-xs text-[var(--ink-soft)]">
+                {masteredLessons.has(lesson.id) ? <Check className="h-3.5 w-3.5" /> : null}
+                第 {lesson.order} 课 · {lesson.title}
+              </Link>
+            ))}
+          </div>
+          {!prerequisitesReady ? <Button asChild variant="secondary" size="sm" className="mt-2"><Link href={lockedCtaLesson ? `/learn/${lockedCtaLesson.id}` : "/path"}>{lockedCtaLesson ? `先学第 ${lockedCtaLesson.order} 课` : "查看学习路线"}</Link></Button> : null}
+        </details>
+        {!prerequisitesReady ? <p className="mt-2 text-xs leading-5 text-[var(--muted)]">可以先看原文、试听和保留草稿；完成前置课后，才能保存输出、完成练习并计入进度。</p> : null}
       </Surface>
 
-      <details><summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">查看学习安排与阶段进度</summary><LearningCompass workspace={workspace} active="immersion" condensed /></details>
+      <LearningCompass workspace={workspace} active="immersion" condensed />
       {draftRestoredFor === active.id && !completed.has(active.id) ? (
         <InlineAlert tone="success">
           已恢复上次的草稿。完成练习或保存输出后，草稿会自动清理。
@@ -474,14 +512,14 @@ function ImmersionContent() {
           <div>
             {queuedMaterials.map((material, materialIndex) => {
               const missingIds = getMissingMaterialPrerequisiteIds(material, masteredLessons);
-              const missingLessons = missingIds.map((lessonId) => getLessonById(lessonId)).filter(Boolean);
+              const missingLessons = missingIds.map((lessonId) => getLessonById(lessonId)).filter((lesson): lesson is NonNullable<typeof lesson> => Boolean(lesson));
               const unlocked = missingIds.length === 0;
               return (
                 <TrackRow
                   key={material.id}
                   index={materialIndex + 1}
                   glyph={material.title.slice(0, 1)}
-                  kicker={`${levelLabels[material.level]} · ${kindLabels[material.kind]}${unlocked ? (completed.has(material.id) ? " · 已完成" : " · 可完成") : " · 尚未解锁"}`}
+                  kicker={`${levelLabels[material.level]} · ${kindLabels[material.kind]}${unlocked ? (completed.has(material.id) ? " · 已完成" : " · 可练习") : " · 可试听"}`}
                   title={material.title}
                   detail={unlocked ? "前置课程已完成" : `还需：${missingLessons.map((lesson) => `第 ${lesson.order} 课`).join(" / ")}`}
                   meta={`${material.minutes} 分钟`}
@@ -503,99 +541,15 @@ function ImmersionContent() {
         </div></details>
 
         <div className="grid gap-5">
-          <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
-            <div className="paper-rail p-5 pt-8">
-              <p className="eyebrow">{active.sourceLabel}</p>
-              <h2 id="current-material-heading" tabIndex={-1} className="inkline focus-ring scroll-mt-40 mt-2 font-serif text-4xl font-normal leading-tight">{active.title}</h2>
-              <p className="mt-3 leading-7 text-[var(--muted)]">{active.summary}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {active.focus.map((item) => (
-                  <span key={item} className="border border-[var(--line)] bg-[var(--wash-2)] px-3 py-1 font-[family-name:var(--font-script)] text-sm text-[var(--ink-soft)]">
-                    {item}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 grid gap-2 border-y border-[var(--line)] bg-[var(--wash-1)] p-3 shadow-[inset_0_1px_0_var(--sheen)]">
-                <p className="eyebrow">완료 순서 · 完成步骤</p>
-                <div className="grid gap-2 sm:grid-cols-4">
-                  {completionGates.map((gate, index) => (
-                    <div
-                      key={gate.id}
-                      className={`border px-3 py-2 text-xs leading-5 ${
-                        gate.done
-                          ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]"
-                          : index === activeGateIndex
-                            ? "border-[color-mix(in_srgb,var(--seal)_58%,var(--line))] bg-[var(--seal-soft)] text-[var(--cinnabar)]"
-                            : "border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_44%,transparent)] text-[var(--muted)]"
-                      }`}
-                    >
-                      <span className="block font-[family-name:var(--font-script)] text-xs opacity-70">
-                        Step {index + 1}
-                      </span>
-                      {gate.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className={`mt-4 border-l-2 p-3 ${
-                missingPrerequisites.length
-                  ? "border-[var(--seal)] bg-[var(--seal-soft)]"
-                  : "border-[var(--green)] bg-[var(--green-soft)]"
-              }`}>
-                <p className="eyebrow">먼저 읽기 · 前置课程</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {activePrerequisites.map((lesson) => {
-                    const ready = isLessonMastered(lesson.id, masteredLessons, workspace.progress.lessonScores);
-                    return (
-                      <span
-                        key={lesson.id}
-                        className={`border px-2.5 py-1 text-xs ${
-                          ready
-                            ? "border-[var(--green)] bg-[var(--green-soft)] text-[var(--celadon)]"
-                            : "border-[color-mix(in_srgb,var(--seal)_48%,var(--line))] bg-[color-mix(in_srgb,var(--paper-hi)_55%,transparent)] text-[var(--cinnabar)]"
-                        }`}
-                      >
-                        第 {lesson.order} 课 · {lesson.title}
-                      </span>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                  {missingPrerequisites.length
-                    ? `尚缺：${missingPrerequisites.map((lesson) => `第 ${lesson.order} 课 ${lesson.title}`).join("、")}。完成这些课程后，才会开放原文、朗读和输出存档。`
-                    : "前置课程已完成，可以开始听写、复述和改写。"}
-                </p>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                {prerequisitesReady ? (
-                  <Button type="button" onClick={() => speakSequence(active.lines.map((line) => line.ko), 1200)}>
-                    <Volume2 className="h-4 w-4" />
-                    连续播放
-                  </Button>
-                ) : null}
-                <Button type="button" variant="secondary" onClick={() => setShowZh((value) => !value)}>
-                  {showZh ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {showZh ? "隐藏译文" : "显示译文"}
-                </Button>
-              </div>
-            </div>
-            <div className="relative min-h-80">
-              <VisualPanel asset="immersion" priority sizes="(max-width: 1024px) 100vw, 22rem" treatment="paper" overlay="bottom" className="absolute inset-0 border-0 shadow-none" />
-              <div className="absolute bottom-4 left-4 right-4 border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper-hi)_88%,transparent)] p-4 text-[var(--ink)] shadow-editorial backdrop-blur-sm">
-                <span className="paper-tape left-5 top-[-7px]" aria-hidden="true" />
-                <p className="eyebrow">자료 진도 · 材料进度</p>
-                <strong className="mt-2 block font-serif text-4xl font-normal">{workspace.stats.completedMaterials}/{workspace.stats.totalMaterials}</strong>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">完成后，这段内容和目标改写会加入间隔复习。</p>
-              </div>
-            </div>
-          </section>
-
           <div id="material-listen-practice" className="scroll-mt-40 lg:scroll-mt-28" tabIndex={-1}>
             <Surface>
-              <SectionHeading kicker="한 줄씩 · 一句一句听" title="逐句听读" />
+              <SectionHeading title="逐句听读" />
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Button type="button" onClick={() => speakSequence(active.lines.map((line) => line.ko), 1200)}><Volume2 className="h-4 w-4" />连续播放</Button>
+                <Button type="button" variant="secondary" onClick={() => setShowZh((value) => !value)}>{showZh ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}{showZh ? "隐藏译文" : "显示译文"}</Button>
+              </div>
               <div className="grid gap-3">
-                {prerequisitesReady ? active.lines.map((line, index) => (
+                {active.lines.map((line, index) => (
                   <article key={line.ko} className="paper-rail grid gap-3 border border-[var(--line)] p-4 shadow-[inset_0_1px_0_var(--sheen)] md:grid-cols-[3rem_minmax(0,1fr)_auto]">
                     <span className="font-[family-name:var(--font-script)] text-2xl text-[var(--seal)]">{String(index + 1).padStart(2, "0")}</span>
                     <div>
@@ -607,20 +561,16 @@ function ImmersionContent() {
                       <Volume2 className="h-4 w-4" />
                     </Button>
                   </article>
-                )) : (
-                  <p className="border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-4 text-sm leading-6 text-[var(--ink-soft)]">
-                    前置课程还没完成，暂时不显示原文和朗读。你仍可以先看内容说明：{active.summary}
-                  </p>
-                )}
+                ))}
               </div>
             </Surface>
           </div>
 
           <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <Surface>
-              <SectionHeading kicker="첫 장면 · 第一步" title="遮译文听写" />
+              <h3 id="material-dictation" tabIndex={-1} className="focus-ring mb-4 scroll-mt-40 text-xl font-semibold">遮译文听写</h3>
               <div className="grid gap-2">
-                {prerequisitesReady ? active.dictation.map((item, index) => (
+                {active.dictation.map((item, index) => (
                   <div key={item} className="paper-rail border border-[var(--line)] p-3 shadow-[inset_0_1px_0_var(--sheen)]">
                     <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => speakKorean(item)}>
                       <Volume2 className="h-4 w-4" />
@@ -631,11 +581,7 @@ function ImmersionContent() {
                       <strong className="hangul-display mt-2 block text-xl" lang="ko">{item}</strong>
                     </details>
                   </div>
-                )) : (
-                  <p className="border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3 text-sm leading-6 text-[var(--ink-soft)]">
-                    完成前置课程后才能播放和核对原句。现在可以先在下方留草稿。
-                  </p>
-                )}
+                ))}
               </div>
               <label className="mt-4 grid gap-2 text-sm font-medium">
                 听写完成
@@ -651,7 +597,7 @@ function ImmersionContent() {
             </Surface>
 
             <Surface>
-              <SectionHeading kicker="둘째 장면 · 第二步" title="复述检查" />
+              <h3 id="material-retell" tabIndex={-1} className="focus-ring mb-4 scroll-mt-40 text-xl font-semibold">复述检查</h3>
               <div className="grid gap-2">
                 {active.retellPrompts.map((item) => (
                   <div key={item} className="border-l-2 border-[var(--seal)] bg-[var(--wash-2)] p-3 text-sm leading-6 text-[var(--ink-soft)]">
@@ -668,36 +614,12 @@ function ImmersionContent() {
                   placeholder="用韩语写 1-2 句复述：谁做了什么、为什么、结果是什么。"
                 />
               </label>
-              {!hasCompletionEvidence && !completed.has(active.id) ? (
-                <p className="mt-3 border-l border-[var(--line-strong)] pl-3 text-xs leading-5 text-[var(--muted)]">
-                  还差：{missingGateLabels.join("、")}。
-                </p>
-              ) : null}
-              {selectedOutputEntry ? (
-                <p className="mt-3 border-l-2 border-[var(--green)] bg-[var(--green-soft)] p-3 text-xs leading-5 text-[var(--muted)]">
-                  绑定输出：{selectedOutputEntry.targetRewrite}
-                </p>
-              ) : null}
-              <Button
-                className="mt-4"
-                type="button"
-                variant="secondary"
-                onClick={finishMaterial}
-                disabled={completed.has(active.id) || !hasCompletionEvidence}
-              >
-                {completed.has(active.id) ? "已完成并加入复习" : "完成练习并加入复习"}
-              </Button>
-              {materialError ? (
-                <p className="mt-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm leading-6 text-[var(--cinnabar)]" role="alert">
-                  {materialError}
-                </p>
-              ) : null}
             </Surface>
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+          <section>
             <Surface>
-              <SectionHeading kicker="셋째 장면 · 第三步" title="自检清单" />
+              <h3 id="material-self-check" tabIndex={-1} className="focus-ring mb-4 scroll-mt-40 text-xl font-semibold">自检清单</h3>
               <div className="grid gap-2">
                 {active.selfCheck.map((item, index) => {
                   const checked = effectiveSelfCheck.includes(item);
@@ -730,31 +652,25 @@ function ImmersionContent() {
               </div>
             </Surface>
 
-            <Surface>
-              <SectionHeading
-                kicker="마무리 · 收尾"
-                title="完成条件"
-                copy="五个步骤都完成后，这段听读和对应改写才会计入学习进度，并加入间隔复习。"
-              />
-              <div className="grid gap-2">
-                {completionGates.map((gate) => (
-                  <GateRow key={gate.id} done={gate.done} label={gate.label} detail={gate.detail} />
-                ))}
-              </div>
-            </Surface>
           </section>
 
           <Surface>
-            <SectionHeading kicker="넷째 장면 · 第四步" title="输出任务与自评" copy={active.outputMission} />
+            <h3 id="material-output" tabIndex={-1} className="focus-ring scroll-mt-40 text-xl font-semibold">输出任务与自评</h3>
+            <p className="mb-4 mt-2 text-sm leading-6 text-[var(--muted)]">{active.outputMission}</p>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
               <label className="grid gap-2 text-sm font-medium">
                 输出草稿
                 <textarea
                   className="focus-ring min-h-44 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[color-mix(in_srgb,var(--paper-hi)_64%,transparent)] p-3 leading-7 shadow-[inset_0_1px_0_var(--shade)]"
                   value={draft}
+                  aria-label="输出草稿"
+                  aria-describedby="material-draft-feedback"
+                  lang="ko"
+                  spellCheck={false}
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder="在这里写韩语输出或复述稿..."
                 />
+                <span id="material-draft-feedback" className="text-xs font-normal leading-5 text-[var(--muted)]">{outputValidation.draftIssues.length ? outputValidation.draftIssues.join("；") : "草稿形式已齐全，请继续检查内容是否准确。"}</span>
               </label>
               <div className="grid gap-2">
                 {outputRubric.map((item) => (
@@ -785,24 +701,33 @@ function ImmersionContent() {
                   <input
                     className="focus-ring min-h-11 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[color-mix(in_srgb,var(--paper-hi)_64%,transparent)] px-3 shadow-[inset_0_1px_0_var(--shade)]"
                     value={weakPoint}
+                    aria-label="需要修正的弱点"
+                    aria-describedby="material-weak-point-feedback"
                     onChange={(event) => setWeakPoint(event.target.value)}
                     placeholder="例如：拒绝太直接 / 语序像中文 / 缺少缓冲"
                   />
+                  <span id="material-weak-point-feedback" className="text-xs font-normal leading-5 text-[var(--muted)]">{outputValidation.weakPointIssues.join("；") || "已记录具体弱点。"}</span>
                 </label>
                 <label className="grid gap-2 text-sm font-medium">
                   送回复习的目标改写
                   <input
                     className="focus-ring min-h-11 rounded-[var(--radius)] border border-[var(--line-strong)] bg-[color-mix(in_srgb,var(--paper-hi)_64%,transparent)] px-3 shadow-[inset_0_1px_0_var(--shade)]"
                     value={targetRewrite}
+                    aria-label="送回复习的目标改写"
+                    aria-describedby="material-rewrite-feedback"
+                    lang="ko"
+                    spellCheck={false}
                     onChange={(event) => setTargetRewrite(event.target.value)}
                     placeholder="例如：좋긴 한데 조금 비싼 것 같아요."
                   />
+                  <span id="material-rewrite-feedback" className="text-xs font-normal leading-5 text-[var(--muted)]">{outputValidation.rewriteIssues.join("；") || "改写形式已齐全，保存前请自己核对表达。"}</span>
                 </label>
               </div>
               <div className="flex items-end gap-2">
                 <Button
                   type="button"
                   disabled={!prerequisitesReady || !currentOutputReady}
+                  aria-describedby="material-output-feedback"
                   onClick={saveOutput}
                 >
                   <PenLine className="h-4 w-4" />
@@ -817,11 +742,47 @@ function ImmersionContent() {
                 </Button>
               </div>
             </div>
+            <p id="material-output-feedback" className="mt-3 text-xs leading-5 text-[var(--muted)]">{!prerequisitesReady ? "前置课程尚未完成，当前只能保留草稿。" : !currentOutputReady ? "请补齐上方提示的内容后保存。" : "内容已齐全，可以保存。"} 这里只检查提交形式，不判断韩语语法或自然度；词块按连续韩文计数。</p>
             {saveError ? (
               <p className="mt-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm leading-6 text-[var(--cinnabar)]" role="alert">
                 {saveError}
               </p>
             ) : null}
+          </Surface>
+
+          <Surface>
+            <h3 id="material-finish" tabIndex={-1} className="focus-ring scroll-mt-40 text-xl font-semibold">完成本段练习</h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">听写、复述、自检与改写都完成后，再把本段加入间隔复习。</p>
+              {!hasCompletionEvidence && !completed.has(active.id) ? (
+                <p className="mt-3 border-l border-[var(--line-strong)] pl-3 text-xs leading-5 text-[var(--muted)]">
+                  还差：{missingGateLabels.join("、")}。
+                </p>
+              ) : null}
+              {selectedOutputEntry ? (
+                <p className="mt-3 border-l-2 border-[var(--green)] bg-[var(--green-soft)] p-3 text-xs leading-5 text-[var(--muted)]">
+                  绑定输出：{selectedOutputEntry.targetRewrite}
+                </p>
+              ) : null}
+              <Button
+                className="mt-4"
+                type="button"
+                variant="secondary"
+                onClick={finishMaterial}
+                disabled={completed.has(active.id) || !hasCompletionEvidence}
+              >
+                {completed.has(active.id) ? "已完成并加入复习" : "完成练习并加入复习"}
+              </Button>
+              {materialError ? (
+                <p className="mt-3 border-l-2 border-[var(--seal)] bg-[var(--seal-soft)] p-3 text-sm leading-6 text-[var(--cinnabar)]" role="alert">
+                  {materialError}
+                </p>
+              ) : null}
+            <details className="mt-4 border-t border-[var(--line)] pt-2">
+              <summary className="focus-ring min-h-11 cursor-pointer py-3 text-sm text-[var(--muted)]">查看完成条件 · {completedGateCount}/{completionGates.length}</summary>
+              <div className="grid gap-2">
+                {completionGates.map((gate) => <GateRow key={gate.id} done={gate.done} label={gate.done ? gate.label : gate.action} detail={gate.detail} />)}
+              </div>
+            </details>
           </Surface>
 
           <Surface>
@@ -918,7 +879,6 @@ function ImmersionContent() {
               </div>
             ) : (
               <div className="paper-rail relative border border-[var(--line)] p-4 pt-7 shadow-[inset_0_1px_0_var(--sheen)]">
-                <span className="paper-tape left-6 top-[-7px]" aria-hidden="true" />
                 <p className="eyebrow">빈 기록 · 还没有保存</p>
                 <h3 className="inkline mt-2 font-serif text-2xl font-normal">还没有保存这段材料的输出</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">完成一段复述或观点短文后保存，下一次回来就能看到自己的表达轨迹。</p>
@@ -941,7 +901,6 @@ function ImmersionFallback() {
       />
       <Surface>
         <div className="paper-rail relative grid min-h-48 place-items-center border border-[var(--line)] p-6 pt-8 text-center shadow-[inset_0_1px_0_var(--sheen)]">
-          <span className="paper-tape left-1/2 top-[-7px] -translate-x-1/2" aria-hidden="true" />
           <div>
             <p className="eyebrow">잠시 · 稍等一下</p>
             <p className="inkline mt-2 font-serif text-3xl font-normal">正在打开对应材料</p>

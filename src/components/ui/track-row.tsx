@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { ArrowRight, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,22 +37,23 @@ export function TrackRow({
   children?: ReactNode;
 }) {
   const order = index != null ? String(index).padStart(2, "0") : "·";
+  const coverGlyph = glyph.match(/[가-힣ㄱ-ㅎㅏ-ㅣ]/u)?.[0] ?? Array.from(glyph.trim())[0] ?? "·";
   const titleInner = (
     <>
       <span className="flex flex-wrap items-center gap-2">
-        {kicker ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--ocean)]">{kicker}</span> : null}
-        {completed ? <span className="font-mono text-[0.66rem] font-black uppercase text-[var(--celadon)]">已掌握</span> : null}
+        {kicker ? <span className="text-xs font-semibold text-[var(--ocean)]">{kicker}</span> : null}
+        {completed ? <span className="text-xs font-semibold text-[var(--celadon)]">已掌握</span> : null}
       </span>
-      <strong className="line-clamp-2 block break-words font-serif text-xl font-black leading-tight">{title}</strong>
-      {detail ? <span className="mt-0.5 line-clamp-2 block text-sm font-bold leading-5 text-[var(--muted)]">{detail}</span> : null}
+      <strong className="line-clamp-2 block break-words font-sans text-lg font-semibold leading-tight">{title}</strong>
+      {detail ? <span className="mt-0.5 line-clamp-2 block text-sm font-normal leading-5 text-[var(--muted)]">{detail}</span> : null}
     </>
   );
 
   return (
     <article className="pl-block">
       <div className={cn("pl-item", completed && "is-done", (active || expanded) && "is-open", active && "is-active")}>
-        <span className="font-mono text-[0.7rem] font-black text-[var(--fade)]">{order}</span>
-        <span className="pl-cover hangul-display" lang="ko" aria-hidden="true">{glyph}</span>
+        <span className="text-[0.7rem] font-semibold text-[var(--fade)]">{order}</span>
+        <span className="pl-cover hangul-display" lang="ko" aria-hidden="true">{coverGlyph}</span>
         {onToggle ? (
           <button
             type="button"
@@ -69,7 +70,7 @@ export function TrackRow({
         ) : (
           <div className="min-w-0 py-1">{titleInner}</div>
         )}
-        {meta ? <span className="hidden font-mono text-xs font-black text-[var(--muted)] sm:inline">{meta}</span> : <span />}
+        {meta ? <span className="hidden text-xs font-semibold text-[var(--muted)] sm:inline">{meta}</span> : <span />}
         {onPlay ? (
           <button
             type="button"

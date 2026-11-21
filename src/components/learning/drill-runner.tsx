@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CircleSlash2, Volume2 } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import { Button } from "@/components/ui/button";
 import { KoreanInput } from "@/components/korean/korean-input";
 import { useKoreanVoiceStatus } from "@/components/korean/speech-status";
 import { hasKoreanText } from "@/lib/learning/evidence";
 import { mistakeCardId } from "@/lib/learning/ids";
 import { checkAnswer, type Question } from "@/lib/learning/quiz";
+import { canPlayQuestionAudio } from "@/lib/learning/question-audio";
 import { recordMistake } from "@/lib/learning/srs";
 import {
   isGestureBlockedPlaybackError,
@@ -83,24 +84,41 @@ interface ResultContext {
 }
 
 type AudioPlaybackStatus = "pending" | "started" | "failed" | "needs-gesture";
-type AudioPlaybackState = { questionId: string; status: AudioPlaybackStatus };
+type AudioPlaybackState = { questionId: string; status: AudioPlaybackStatus; attempt?: symbol };
 
 function playQuestionAudio(
   question: Pick<Question, "id" | "speak">,
   setAudioPlayback: (next: AudioPlaybackState | ((current: AudioPlaybackState) => AudioPlaybackState)) => void,
+  timeoutRef: { current: number | null },
   rate?: number
 ) {
   if (!question.speak) return false;
   const questionId = question.id;
-  return speakKorean(question.speak, {
+  const attempt = Symbol("playback");
+  setAudioPlayback({ questionId, status: "pending", attempt });
+  if (timeoutRef.current !== null) {
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }
+  const timeout = window.setTimeout(() => {
+    if (timeoutRef.current === timeout) timeoutRef.current = null;
+    setAudioPlayback((current) => current.attempt === attempt && current.status === "pending"
+      ? { ...current, status: "failed" } : current);
+  }, 5000);
+  timeoutRef.current = timeout;
+  const update = (status: AudioPlaybackStatus) => {
+    window.clearTimeout(timeout);
+    if (timeoutRef.current === timeout) timeoutRef.current = null;
+    setAudioPlayback((current) => current.attempt === attempt && current.status !== "failed"
+      ? { ...current, status } : current);
+  };
+  const accepted = speakKorean(question.speak, {
     ...(rate === undefined ? {} : { rate }),
-    onstart: () => setAudioPlayback((current) => current.questionId === questionId
-      ? { questionId, status: "started" }
-      : current),
-    onerror: (event: unknown) => setAudioPlayback((current) => current.questionId === questionId
-      ? { questionId, status: isGestureBlockedPlaybackError(event) ? "needs-gesture" : "failed" }
-      : current)
+    onstart: () => update("started"),
+    onerror: (event: unknown) => update(isGestureBlockedPlaybackError(event) ? "needs-gesture" : "failed")
   });
+  if (!accepted) update("failed");
+  return accepted;
 }
 
 export function DrillRunner({
@@ -147,6 +165,13 @@ export function DrillRunner({
   });
   const emittedResultRef = useRef("");
   const playedListenRef = useRef("");
+  const audioTimeoutRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (audioTimeoutRef.current !== null) {
+      window.clearTimeout(audioTimeoutRef.current);
+      audioTimeoutRef.current = null;
+    }
+  }, []);
   const submitRef = useRef<() => void>(() => {});
   const questionHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
@@ -164,6 +189,7 @@ export function DrillRunner({
   const audioUnavailable = audioQuestion && (
     voiceStatus === "missing" || voiceStatus === "unsupported" || currentPlaybackStatus === "failed"
   );
+  const audioBlocked = !existing && (audioCheckPending || audioNeedsGesture || audioUnavailable);
   const previousViewRef = useRef({
     questionId: question?.id ?? "",
     answered: Boolean(existing),
@@ -195,31 +221,15 @@ export function DrillRunner({
     if (playedListenRef.current === questionId) return;
     let active = true;
     let playbackStarted = false;
-    let playbackTimeout: number | undefined;
     setAudioPlayback({ questionId, status: "pending" });
     queueMicrotask(() => {
       if (!active || playedListenRef.current === questionId) return;
       playedListenRef.current = questionId;
       playbackStarted = true;
-      const started = playQuestionAudio({ id: questionId, speak: questionSpeak }, setAudioPlayback);
-      if (!active) return;
-      if (!started) {
-        setAudioPlayback({ questionId, status: "failed" });
-        return;
-      }
-      playbackTimeout = window.setTimeout(() => {
-        if (!active) return;
-        setAudioPlayback((current) => {
-          if (current.questionId !== questionId || current.status !== "pending") {
-            return current;
-          }
-          return { questionId, status: started ? "started" : "failed" };
-        });
-      }, 5000);
+      playQuestionAudio({ id: questionId, speak: questionSpeak }, setAudioPlayback, audioTimeoutRef);
     });
     return () => {
       active = false;
-      if (playbackTimeout !== undefined) window.clearTimeout(playbackTimeout);
       if (playbackStarted) {
         stopSpeech();
         if (playedListenRef.current === questionId) playedListenRef.current = "";
@@ -267,7 +277,7 @@ export function DrillRunner({
       }
       return;
     }
-    if (!value.trim()) return;
+    if (audioBlocked || !value.trim()) return;
     const answer = value;
     const correct = checkAnswer(question, answer);
     const next = [...answers];
@@ -364,7 +374,7 @@ export function DrillRunner({
           </p>
           {emptyState?.action ? <div className="mt-4 flex flex-wrap gap-2">{emptyState.action}</div> : null}
         </div>
-        <VisualPanel asset="empty" priority decorative className="min-h-52 rounded-none border-0" />
+        <ArtScene asset="empty" priority decorative className="min-h-52 rounded-none border-0" />
       </div>
     );
   }
@@ -383,7 +393,7 @@ export function DrillRunner({
               </p>
             ) : null}
           </div>
-          <VisualPanel asset={score >= 65 ? "complete" : "review"} className="min-h-48 rounded-none border-0" />
+          <ArtScene asset={score >= 65 ? "complete" : "review"} className="min-h-48 rounded-none border-0" />
         </div>
         <div className="mt-5 grid gap-2">
           {answers.map((entry) => (
@@ -436,8 +446,8 @@ export function DrillRunner({
       <div className="min-h-72">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h3 ref={questionHeadingRef} className="focus-ring font-serif text-3xl font-black leading-tight" tabIndex={-1}>{question.prompt}</h3>
-          {question.speak && question.type !== "dictation" && voiceStatus === "ready" ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => playQuestionAudio(question, setAudioPlayback)}>
+          {canPlayQuestionAudio(question, Boolean(existing)) && question.type !== "dictation" && voiceStatus === "ready" ? (
+            <Button type="button" variant="secondary" size="sm" onClick={() => playQuestionAudio(question, setAudioPlayback, audioTimeoutRef)}>
               <Volume2 className="h-4 w-4" />
               听
             </Button>
@@ -446,11 +456,11 @@ export function DrillRunner({
 
         {question.type === "dictation" && question.speak && voiceStatus === "ready" ? (
           <div className="mt-6 flex flex-wrap gap-2">
-            <Button type="button" onClick={() => playQuestionAudio(question, setAudioPlayback)}>
+            <Button type="button" onClick={() => playQuestionAudio(question, setAudioPlayback, audioTimeoutRef)}>
               <Volume2 className="h-4 w-4" />
               播放
             </Button>
-            <Button type="button" variant="secondary" onClick={() => playQuestionAudio(question, setAudioPlayback, 0.62)}>
+            <Button type="button" variant="secondary" onClick={() => playQuestionAudio(question, setAudioPlayback, audioTimeoutRef, 0.62)}>
               慢速重播
             </Button>
           </div>
@@ -497,7 +507,7 @@ export function DrillRunner({
           </details>
         ) : null}
 
-        {!audioUnavailable && !audioCheckPending && usesTextEntry ? (
+        {!audioBlocked && usesTextEntry ? (
           hasKoreanText(question.answer) ? (
             <div className="mt-6 grid gap-2 font-extrabold">
               输入答案（可用屏幕韩文键盘）
@@ -527,7 +537,7 @@ export function DrillRunner({
               />
             </label>
           )
-        ) : !audioUnavailable && !audioCheckPending ? (
+        ) : !audioBlocked ? (
           <fieldset className="mt-6 grid gap-2">
             <legend className="sr-only">{question.prompt}</legend>
             {(question.choices ?? []).map((choice, choiceIndex) => (
@@ -590,7 +600,7 @@ export function DrillRunner({
         <Button
           type="button"
           onClick={audioUnavailable && !existing ? skipAudioQuestion : submit}
-          disabled={audioCheckPending || (!audioUnavailable && !existing && !value.trim())}
+          disabled={audioCheckPending || audioNeedsGesture || (!audioUnavailable && !existing && !value.trim())}
         >
           {existing ? (index === questions.length - 1 ? finishLabel : "下一题") : audioUnavailable ? (
             <>

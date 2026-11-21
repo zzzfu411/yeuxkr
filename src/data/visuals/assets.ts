@@ -1,4 +1,10 @@
 export type VisualAssetId =
+  | "letterK"
+  | "letterH"
+  | "letterHello"
+  | "letterHangul"
+  | "letterAgain"
+  | "letterSlowly"
   | "hero"
   | "workspace"
   | "path"
@@ -24,6 +30,7 @@ export type VisualAssetId =
   | "iconBase";
 
 export type DisplayVisualAssetId = Exclude<VisualAssetId, "iconBase">;
+export type LetterAssetId = Extract<VisualAssetId, `letter${string}`>;
 
 export interface VisualAsset {
   id: VisualAssetId;
@@ -56,171 +63,34 @@ function createIconBaseAsset(alt: string, promptSummary: string, manifestLabel: 
   return { id: "iconBase", src: source, source, alt, promptSummary, manifestLabel };
 }
 
-const studyStudioPrompt = "Quiet lived-in apartment study corner beside a spring window, with a completely blank open notebook, pencil, lightweight headphones, clear water glass, soft daylight, real home texture, and cinematic 35mm grain.";
-const hangulPrompt = "Contemporary Hangul study close-up using translucent abstract acrylic bars, circles, and corners beside a blank notebook, with cool window light and no readable or invented characters.";
-const pathPrompt = "Empty neighborhood train platform after summer rain, with a powder-blue bench, transparent umbrella, wet tracks receding into soft morning mist, greenery, and quiet Korean coming-of-age cinematography.";
-const dialoguePrompt = "Two simple blue and muted-rose chairs angled toward each other across a small table at dusk, using a divided window and contrasting light to express conversational distance and connection.";
-const immersionPrompt = "Empty city-bus window seat on a gentle autumn rain night, wired earbuds on worn navy fabric, fogged glass, restrained street-light bokeh, and reflective 35mm cinematography.";
-const reviewPrompt = "Soft early-autumn bedroom morning with a numeral-free analog clock, a tidy stack of completely blank study cards, pencil, water, and reassuring cool daylight.";
-
 export const visualAssets = {
-  hero: createGeneratedAsset(
-    "hero",
-    "hero",
-    "春雨后的城市窗边，两只杯子和山茶花枝映着蓝色暮光。",
-    "Seoul apartment window at blue hour after spring rain, with two ceramic cups, a camellia branch, a sheer curtain, broad negative space, and quiet original romance-drama cinematography.",
-    "Spring-rain opening frame"
-  ),
-  workspace: createGeneratedAsset(
-    "workspace",
-    "workspace",
-    "窗光落在安静的学习桌、空白笔记本、耳机和水杯上。",
-    studyStudioPrompt,
-    "Window-side study scene"
-  ),
-  path: createGeneratedAsset(
-    "path",
-    "path",
-    "雨后清晨的空站台，蓝色长椅旁的透明伞与轨道一起伸向远处。",
-    pathPrompt,
-    "Rain-washed learning path"
-  ),
-  selfStudy: createGeneratedAsset(
-    "selfStudy",
-    "self-study",
-    "公寓窗边的空白笔记本和耳机，为今天留出一段安静的自学时间。",
-    studyStudioPrompt,
-    "Self-study window scene"
-  ),
-  hangul: createGeneratedAsset(
-    "hangul",
-    "hangul",
-    "半透明几何字块在窗边组合，旁边放着空白练习本和铅笔。",
-    hangulPrompt,
-    "Abstract Hangul building blocks"
-  ),
-  vocabulary: createGeneratedAsset(
-    "vocabulary",
-    "vocabulary",
-    "雨天社区咖啡馆的窗边桌上，摆着杯子、点心、橘子和一张无字卡片。",
-    "Neighborhood cafe window table on a cloudy late-summer afternoon, with an unbranded ceramic cup, plain pastry, cotton tote, blank transit card, tangerines, and candid everyday texture.",
-    "Everyday cafe vocabulary scene"
-  ),
-  grammar: createGeneratedAsset(
-    "grammar",
-    "grammar",
-    "暮色客厅里，一蓝一粉两把椅子隔桌相对，像一句话里的距离与连接。",
-    dialoguePrompt,
-    "Conversation-distance scene"
-  ),
-  native: createGeneratedAsset(
-    "native",
-    "native",
-    "两把颜色不同的椅子在黄昏窗前相对，留出恰好的礼貌距离。",
-    dialoguePrompt,
-    "Natural-expression dialogue scene"
-  ),
-  immersion: createGeneratedAsset(
-    "immersion",
-    "immersion",
-    "雨夜公交的空座上放着耳机，窗外灯光在水汽里变成柔和光点。",
-    immersionPrompt,
-    "Rainy-night listening scene"
-  ),
-  quiz: createGeneratedAsset(
-    "quiz",
-    "quiz",
-    "半透明几何字块和空白练习本在窗光里等待重新组合。",
-    hangulPrompt,
-    "Transfer-check scene"
-  ),
-  lesson: createGeneratedAsset(
-    "lesson",
-    "lesson",
-    "有使用痕迹的学习桌沐在窗光里，笔记本仍留着下一页空白。",
-    studyStudioPrompt,
-    "Everyday lesson scene"
-  ),
-  lessonPronunciation: createGeneratedAsset(
-    "lessonPronunciation",
-    "lesson-pronunciation",
-    "透明字块、圆形和折角在桌上排列，帮助观察声音与字形的位置。",
-    hangulPrompt,
-    "Pronunciation building-block scene"
-  ),
-  lessonCafe: createGeneratedAsset(
-    "lessonCafe",
-    "lesson-cafe",
-    "社区咖啡馆窗边放着无品牌杯子、点心、橘子和随身布袋。",
-    "Lived-in neighborhood cafe table with an unbranded drink, plain pastry, cotton tote, blank card, tangerines, soft rainy-day window light, and no commercial styling.",
-    "Cafe lesson scene"
-  ),
-  lessonTransit: createGeneratedAsset(
-    "lessonTransit",
-    "lesson-transit",
-    "雨后站台的轨道通向远处，蓝色长椅旁靠着一把透明伞。",
-    pathPrompt,
-    "Transit lesson scene"
-  ),
-  lessonTime: createGeneratedAsset(
-    "lessonTime",
-    "lesson-time",
-    "无数字时钟、空白卡片和水杯在清晨窗光里排好。",
-    reviewPrompt,
-    "Time lesson morning scene"
-  ),
-  lessonHealth: createGeneratedAsset(
-    "lessonHealth",
-    "lesson-health",
-    "雨天窗边的水杯、无字药袋、毛巾和橘子组成安静的恢复场景。",
-    "Calm rainy apartment table with a water glass, completely unmarked medicine packet, face-down thermometer, pale-blue towel, and one tangerine in gentle domestic light.",
-    "Health lesson recovery scene"
-  ),
-  lessonMedia: createGeneratedAsset(
-    "lessonMedia",
-    "lesson-media",
-    "公交空座上的有线耳机等着播放下一段，雨水顺着夜色中的车窗滑落。",
-    immersionPrompt,
-    "Media listening night scene"
-  ),
-  lessonHonorific: createGeneratedAsset(
-    "lessonHonorific",
-    "lesson-honorific",
-    "黄昏窗前的两把椅子与两杯水，安静地表现说话时的分寸。",
-    dialoguePrompt,
-    "Honorific-distance scene"
-  ),
-  lessonOutput: createGeneratedAsset(
-    "lessonOutput",
-    "lesson-output",
-    "窗边学习桌上摊着空白笔记本，耳机和铅笔留出表达的起点。",
-    studyStudioPrompt,
-    "Output lesson writing scene"
-  ),
-  review: createGeneratedAsset(
-    "review",
-    "review",
-    "清晨床边放着无数字时钟、空白卡片、铅笔和一杯水。",
-    reviewPrompt,
-    "Morning review-return scene"
-  ),
-  complete: createGeneratedAsset(
-    "complete",
-    "complete",
-    "春日窗台上，合起的旧书、蓝色书签和一朵山茶花迎着明亮窗光。",
-    "Hopeful final episode frame with a well-used unmarked clothbound book, pale-blue bookmark, one camellia bloom, lifted sheer curtains, spring greenery, and luminous space after rain.",
-    "Quiet completion frame"
-  ),
-  empty: createGeneratedAsset(
-    "empty",
-    "empty",
-    "雨停后的河边长椅空着，一把透明伞靠在旁边，地上落着几片山茶花瓣。",
-    "Gentle in-between frame at a riverside park after spring rain, with an empty wooden bench, transparent umbrella, wet pavement, a few camellia petals, and broad calm space.",
-    "Rain-cleared empty state"
-  ),
-  iconBase: createIconBaseAsset(
-    "Kirina Korean 四季窗格应用图标。",
-    "Minimal square brand mark built from one deep-navy rounded window frame, four unequal panes, a continuous curved learning path, mist blue and leaf green fields, and one camellia endpoint.",
-    "Four-season window icon"
-  )
+  letterK: createGeneratedAsset("letterK", "letter-k", "单个钴蓝色韩文字母 ㅋ 贴片。", "One isolated cobalt Korean consonant ㅋ, close white die-cut outline, transparent alpha, bold printed type, no extra words, no scene, no photograph, no watermark.", "Korean letter ㅋ"),
+  letterH: createGeneratedAsset("letterH", "letter-h", "柠檬黄色纸片上的单个韩文字母 ㅎ。", "One black Korean consonant ㅎ on a tiny lemon yellow paper scrap, transparent alpha, bold printed lettering, no other graphics, no photograph, no watermark.", "Korean letter ㅎ"),
+  letterHello: createGeneratedAsset("letterHello", "letter-annyeong", "淡紫色短纸条上的韩文 안녕，意为你好。", "One short lilac typographic sticker reading exactly 안녕, two black Korean syllables, transparent alpha, no additional marks, no photographs, no watermark.", "Korean word 안녕"),
+  letterHangul: createGeneratedAsset("letterHangul", "letter-hangul", "钴蓝色短贴纸上的白色韩文 한글。", "One short cobalt paper cutout with the exact white word 한글, accurate heavy Korean type, transparent alpha, no scene, no photograph, no watermark.", "Korean word 한글"),
+  letterAgain: createGeneratedAsset("letterAgain", "letter-dasi", "橘色小纸条上的韩文 다시，意为再一次。", "One short tangerine paper scrap reading exactly 다시 in chunky black Korean type, transparent alpha, no additional characters, no photograph, no watermark.", "Korean word 다시"),
+  letterSlowly: createGeneratedAsset("letterSlowly", "letter-jogeumssik", "白色纸片上的钴蓝韩文 조금씩，意为一点一点。", "One die-cut Korean word 조금씩, three accurate cobalt syllables on close white contour, transparent alpha, no collage, no photographs, no watermark.", "Korean word 조금씩"),
+  hero: createGeneratedAsset("hero", "seoul-street", "首尔街角、书店和咖啡馆照片，与问候语 안녕!、서울、한글 彩色韩文贴纸拼贴。", "Use case: stylized-concept. Make one original square hero ART COLLAGE for a Korean learning website named Kirina (do not write the brand). Art direction: SEOUL STREET + HANGUL STICKER WALL, contemporary independent Seoul magazine / street poster culture. This must NOT be a landscape painting, NOT watercolor, NOT a quiet porcelain still life. Build a tactile ", "Seoul street sticker collage"),
+  workspace: createGeneratedAsset("workspace", "seoul-bookshop", "首尔街角书店、书架与 책방、공부、차근차근 韩文贴纸。", "Generate one NEW original square editorial collage, matching the supplied Kirina Seoul sticker reference in visual language, NOT copying its specific composition. Hero artwork for an integrated Korean study space. Central photographic cut-out of a tiny independent Seoul bookshop: glass door, outdoor book rack, blue metal stool, warm brick facade, a", "Seoul neighborhood bookshop"),
+  path: createGeneratedAsset("path", "seoul-bookshop", "首尔街角书店、书架与 책방、공부、차근차근 韩文贴纸。", "Generate one NEW original square editorial collage, matching the supplied Kirina Seoul sticker reference in visual language, NOT copying its specific composition. Hero artwork for an integrated Korean study space. Central photographic cut-out of a tiny independent Seoul bookshop: glass door, outdoor book rack, blue metal stool, warm brick facade, a", "Seoul neighborhood bookshop"),
+  selfStudy: createGeneratedAsset("selfStudy", "seoul-bookshop", "首尔街角书店、书架与 책방、공부、차근차근 韩文贴纸。", "Generate one NEW original square editorial collage, matching the supplied Kirina Seoul sticker reference in visual language, NOT copying its specific composition. Hero artwork for an integrated Korean study space. Central photographic cut-out of a tiny independent Seoul bookshop: glass door, outdoor book rack, blue metal stool, warm brick facade, a", "Seoul neighborhood bookshop"),
+  hangul: createGeneratedAsset("hangul", "hangul-wall", "钴蓝 한글 标题与 ㄱ、ㄴ、ㄷ、ㅏ、가、나、다 韩文字母贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a graphic HANGUL STICKER WALL, no photographs: original oversized crisp typography die-cut stickers reading exactly '한글', 'ㄱ', 'ㄴ', 'ㄷ', 'ㅏ', '가', '나', '다'. The main 한글 label in cobalt occupies the upper center, ", "Hangul sticker wall"),
+  vocabulary: createGeneratedAsset("vocabulary", "seoul-market", "首尔分食店、辣炒年糕与 맛있다!、골목、한 입 韩文贴纸。", "Generate one NEW original square Seoul street photography and Hangul sticker collage in the supplied reference visual family, using the reference ONLY for style. Photographic cut-outs of an ordinary Seoul neighborhood snack storefront with simple sign '분식', a little stainless counter, a bright orange tray of tteokbokki, unbranded banana milk carton", "Seoul neighborhood market"),
+  grammar: createGeneratedAsset("grammar", "cafe-talk", "绿色遮阳篷咖啡馆、纸杯与 커피、한 잔、이야기 韩文贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a cut-out color film photograph of a small Seoul red-brick neighborhood cafe, green striped awning, open window, two mismatched stools, one takeaway cup in the foreground, tiny unbranded bakery paper bag. Overlay", "Cafe conversation collage"),
+  native: createGeneratedAsset("native", "cafe-talk", "绿色遮阳篷咖啡馆、纸杯与 커피、한 잔、이야기 韩文贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a cut-out color film photograph of a small Seoul red-brick neighborhood cafe, green striped awning, open window, two mismatched stools, one takeaway cup in the foreground, tiny unbranded bakery paper bag. Overlay", "Cafe conversation collage"),
+  immersion: createGeneratedAsset("immersion", "seoul-records", "首尔夜间唱片店、耳机与 듣다、오늘、천천히 韩文贴纸。", "Generate one NEW original square Seoul street photography + bold Hangul sticker collage in the supplied reference visual family. Reference is ONLY a style reference. An original fictional small vinyl record shop on a Seoul street after sunset, indigo door, warm rectangular window, a modest sign reading '음악', a close photographic crop of wired headp", "Seoul evening records"),
+  quiz: createGeneratedAsset("quiz", "practice-stickers", "钴蓝 다시!、柠檬黄 할 수 있어!、淡紫 조금씩 与 가、나、다 练习贴纸。", "Generate one NEW original square artwork matching the supplied Kirina Seoul sticker reference ONLY in style. A graphic Korean STICKER WALL for a friendly practice space, typographic artwork rather than a photo scene. Oversized accurate Hangul die-cut stickers reading exactly '다시!' (dominant cobalt blue type on white rim), '할 수 있어!' (black on lemon ", "Hangul practice stickers"),
+  lesson: createGeneratedAsset("lesson", "seoul-street", "首尔街角、书店和咖啡馆照片，与问候语 안녕!、서울、한글 彩色韩文贴纸拼贴。", "Use case: stylized-concept. Make one original square hero ART COLLAGE for a Korean learning website named Kirina (do not write the brand). Art direction: SEOUL STREET + HANGUL STICKER WALL, contemporary independent Seoul magazine / street poster culture. This must NOT be a landscape painting, NOT watercolor, NOT a quiet porcelain still life. Build a tactile ", "Seoul street sticker collage"),
+  lessonPronunciation: createGeneratedAsset("lessonPronunciation", "hangul-wall", "钴蓝 한글 标题与 ㄱ、ㄴ、ㄷ、ㅏ、가、나、다 韩文字母贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a graphic HANGUL STICKER WALL, no photographs: original oversized crisp typography die-cut stickers reading exactly '한글', 'ㄱ', 'ㄴ', 'ㄷ', 'ㅏ', '가', '나', '다'. The main 한글 label in cobalt occupies the upper center, ", "Hangul sticker wall"),
+  lessonCafe: createGeneratedAsset("lessonCafe", "cafe-talk", "绿色遮阳篷咖啡馆、纸杯与 커피、한 잔、이야기 韩文贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a cut-out color film photograph of a small Seoul red-brick neighborhood cafe, green striped awning, open window, two mismatched stools, one takeaway cup in the foreground, tiny unbranded bakery paper bag. Overlay", "Cafe conversation collage"),
+  lessonTransit: createGeneratedAsset("lessonTransit", "seoul-listening", "首尔街道、绿色公交车、耳机与 듣다、서울、출발! 韩文贴纸。", "Use case: stylized-concept. Create a new square Seoul street photograph + Hangul sticker collage in the attached reference's graphic family. A cut-out candid color film photograph of a pale mint-green Seoul city bus seen at a street corner with a zebra crossing and brick neighborhood buildings. Smaller photo fragment of a subway stair entrance; close-up of o", "Seoul listening collage"),
+  lessonTime: createGeneratedAsset("lessonTime", "seoul-listening", "首尔街道、绿色公交车、耳机与 듣다、서울、출발! 韩文贴纸。", "Use case: stylized-concept. Create a new square Seoul street photograph + Hangul sticker collage in the attached reference's graphic family. A cut-out candid color film photograph of a pale mint-green Seoul city bus seen at a street corner with a zebra crossing and brick neighborhood buildings. Smaller photo fragment of a subway stair entrance; close-up of o", "Seoul listening collage"),
+  lessonHealth: createGeneratedAsset("lessonHealth", "seoul-market", "首尔分食店、辣炒年糕与 맛있다!、골목、한 입 韩文贴纸。", "Generate one NEW original square Seoul street photography and Hangul sticker collage in the supplied reference visual family, using the reference ONLY for style. Photographic cut-outs of an ordinary Seoul neighborhood snack storefront with simple sign '분식', a little stainless counter, a bright orange tray of tteokbokki, unbranded banana milk carton", "Seoul neighborhood market"),
+  lessonMedia: createGeneratedAsset("lessonMedia", "seoul-records", "首尔夜间唱片店、耳机与 듣다、오늘、천천히 韩文贴纸。", "Generate one NEW original square Seoul street photography + bold Hangul sticker collage in the supplied reference visual family. Reference is ONLY a style reference. An original fictional small vinyl record shop on a Seoul street after sunset, indigo door, warm rectangular window, a modest sign reading '음악', a close photographic crop of wired headp", "Seoul evening records"),
+  lessonHonorific: createGeneratedAsset("lessonHonorific", "cafe-talk", "绿色遮阳篷咖啡馆、纸杯与 커피、한 잔、이야기 韩文贴纸。", "Use case: stylized-concept. Generate one NEW original square artwork in the visual family of the reference, which is ONLY a style reference. Scene: a cut-out color film photograph of a small Seoul red-brick neighborhood cafe, green striped awning, open window, two mismatched stools, one takeaway cup in the foreground, tiny unbranded bakery paper bag. Overlay", "Cafe conversation collage"),
+  lessonOutput: createGeneratedAsset("lessonOutput", "seoul-bookshop", "首尔街角书店、书架与 책방、공부、차근차근 韩文贴纸。", "Generate one NEW original square editorial collage, matching the supplied Kirina Seoul sticker reference in visual language, NOT copying its specific composition. Hero artwork for an integrated Korean study space. Central photographic cut-out of a tiny independent Seoul bookshop: glass door, outdoor book rack, blue metal stool, warm brick facade, a", "Seoul neighborhood bookshop"),
+  review: createGeneratedAsset("review", "practice-stickers", "钴蓝 다시!、柠檬黄 할 수 있어!、淡紫 조금씩 与 가、나、다 练习贴纸。", "Generate one NEW original square artwork matching the supplied Kirina Seoul sticker reference ONLY in style. A graphic Korean STICKER WALL for a friendly practice space, typographic artwork rather than a photo scene. Oversized accurate Hangul die-cut stickers reading exactly '다시!' (dominant cobalt blue type on white rim), '할 수 있어!' (black on lemon ", "Hangul practice stickers"),
+  complete: createGeneratedAsset("complete", "practice-stickers", "钴蓝 다시!、柠檬黄 할 수 있어!、淡紫 조금씩 与 가、나、다 练习贴纸。", "Generate one NEW original square artwork matching the supplied Kirina Seoul sticker reference ONLY in style. A graphic Korean STICKER WALL for a friendly practice space, typographic artwork rather than a photo scene. Oversized accurate Hangul die-cut stickers reading exactly '다시!' (dominant cobalt blue type on white rim), '할 수 있어!' (black on lemon ", "Hangul practice stickers"),
+  empty: createGeneratedAsset("empty", "seoul-street", "首尔街角、书店和咖啡馆照片，与问候语 안녕!、서울、한글 彩色韩文贴纸拼贴。", "Use case: stylized-concept. Make one original square hero ART COLLAGE for a Korean learning website named Kirina (do not write the brand). Art direction: SEOUL STREET + HANGUL STICKER WALL, contemporary independent Seoul magazine / street poster culture. This must NOT be a landscape painting, NOT watercolor, NOT a quiet porcelain still life. Build a tactile ", "Seoul street sticker collage"),
+  iconBase: createIconBaseAsset("柠檬黄色贴纸上的钴蓝韩文 ㅋ，Kirina 应用图标。", "Use case: logo-brand. Generate one minimalist square Korean-letter app icon, a counterpart to the reference sticker art. ONLY a single perfectly accurate Korean consonant 'ㅋ', large and very bold geometric, cobalt blue #3155E7, centered inside a softly irregular lemon-yellow #F2EB98 rounded square sticker on plain white. Straight frontal view, not tilted. Th", "Kirina Hangul sticker icon")
 } satisfies Record<VisualAssetId, VisualAsset>;

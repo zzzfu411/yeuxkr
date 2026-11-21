@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { RefreshCcw, Route } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

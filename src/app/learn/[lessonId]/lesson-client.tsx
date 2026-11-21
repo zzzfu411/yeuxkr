@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import Link from "@/components/learning/studio-link";
 import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Radio, RefreshCcw, Route } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { RomanizationText } from "@/components/korean/romanization-text";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { buildLessonBridge, type LessonBridge } from "@/lib/learning/lesson-brid
 import { assessLessonAttempt } from "@/lib/learning/lesson-assessment";
 import { checkLessonTaskEvidence, lessonCompletionTask } from "@/lib/learning/lesson-evidence";
 import { clearLessonPracticeSession, getLessonPracticeSession, saveLessonPracticeSession } from "@/lib/learning/lesson-session";
-import { lessonQuestions } from "@/lib/learning/quiz";
+import { lessonQuestions } from "@/lib/learning/lesson-questions";
 
 import { getLibraryGateForLesson, libraryRepairHref } from "@/lib/learning/path-gates";
 import { ABILITY_LABELS, libraryCountsForWrite } from "@/lib/learning/workspace";
@@ -68,8 +68,8 @@ export function LessonClient({ lesson }: { lesson: any }) {
     invalidateLessonTaskRecording,
     invalidateCapstoneRecording
   } = useLearningWorkspace();
-  const questions = lessonQuestions(lesson.id);
-  const [restoredSession, setRestoredSession] = useState<ReturnType<typeof getLessonPracticeSession>>(null);
+  const questions = useMemo(() => lessonQuestions(lesson.id), [lesson.id]);
+  const [restoredSession, setRestoredSession] = useState<ReturnType<typeof getLessonPracticeSession> | null>(null);
   const [sessionSaveError, setSessionSaveError] = useState(false);
   const [sessionClearError, setSessionClearError] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -140,7 +140,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
 
   return (
     <div className="grid gap-5">
-      <section className="studio-panel relative grid lg:grid-cols-[minmax(0,1fr)_28rem]">
+      <section className="studio-panel lesson-intro">
         <div className="paper-rail p-5 md:p-6">
           <Button asChild variant="ghost" size="sm">
             <Link href="/path">
@@ -151,7 +151,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
           <p className="eyebrow mt-5">
             第 {lesson.order} 课 · {lesson.duration} 分钟
           </p>
-          <h1 className="inkline mt-2 max-w-4xl font-serif text-4xl font-normal leading-tight md:text-6xl">
+          <h1 className="page-title mt-2 text-[clamp(1.8rem,3.5vw,2.7rem)]">
             {lesson.title}
           </h1>
           <p className="mt-4 max-w-3xl leading-7 text-[var(--muted)]">{lesson.subtitle}</p>
@@ -200,7 +200,7 @@ export function LessonClient({ lesson }: { lesson: any }) {
             </div>
           ) : null}
         </div>
-        <VisualPanel asset={getLessonVisualAsset(lesson.id)} priority sizes="(max-width: 1024px) 100vw, 28rem" className="min-h-56 border-0 md:min-h-80" />
+        <ArtScene asset={getLessonVisualAsset(lesson.id)} priority sizes="(max-width: 1024px) 100vw, 28rem" className="lesson-intro__art border-0" />
       </section>
 
       <div id="lesson-content" className="grid scroll-mt-40 gap-5 lg:scroll-mt-28 lg:grid-cols-[24rem_minmax(0,1fr)]">

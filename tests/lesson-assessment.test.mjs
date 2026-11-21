@@ -25,7 +25,7 @@ test("a passing total cannot hide failed active production", () => {
   }));
   const result = assessLessonAttempt({ ...lesson, drills: questions }, answers, 80);
 
-  assert.equal(result.overallPassed, true);
+  assert.equal(result.overallPassed, false);
   assert.equal(result.productionPassed, false);
   assert.equal(result.corePassed, false);
 });

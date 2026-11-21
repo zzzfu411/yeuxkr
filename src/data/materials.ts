@@ -95,7 +95,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "네, 영수증도 같이 주세요.", zh: "好的，收据也一起给我。", note: "도 같이 表示也一起。" }
     ],
     dictation: ["봉투 필요하세요?", "이것만 계산해 주세요.", "영수증도 같이 주세요."],
-    retellPrompts: ["店员先问了什么？", "顾客买了多少东西？", "顾客要不要收据？"],
+    retellPrompts: ["店员先问了什么？", "顾客要不要袋子？", "顾客要不要收据？"],
     outputMission: "用韩语写 4 句便利店结账：袋子、付款、收据和感谢。",
     requiredLessons: ["l37-numbers-counters", "l06-cafe", "l11-shopping-price"],
     recommendedLessons: ["l06-cafe", "l11-shopping-price"],
@@ -161,7 +161,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "좋아요. 그때 봐요.", zh: "好。那时候见。", note: "그때 指双方刚确认的时间。" }
     ],
     dictation: ["시간 괜찮아요?", "조금 힘들 것 같아요.", "일요일 점심은 어때요?"],
-    retellPrompts: ["谁提出邀请？", "为什么周六不行？", "最终约在什么时候？"],
+    retellPrompts: ["最初询问的是哪个时间段？", "为什么周六不行？", "最终约在什么时候？"],
     outputMission: "用韩语写一段你拒绝某个时间但给出替代方案的对话。",
     requiredLessons: ["l38-time-date", "l16-because", "l20-invitation", "l10-native-softeners", "l28-soft-refusal"],
     recommendedLessons: ["l20-invitation", "l10-native-softeners"],
@@ -248,7 +248,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "좋아요. 장소는 제가 찾아보고 공유할게요.", zh: "好。地点我找一下再分享。", note: "찾아보고 공유할게요 是先做再分享。" }
     ],
     dictation: ["괜찮은 사람?", "7시 이후면 가능해요.", "찾아보고 공유할게요."],
-    retellPrompts: ["大家在协调什么？", "谁几点以后可以？", "谁负责找地点？"],
+    retellPrompts: ["大家在协调什么？", "回复中说几点以后有空，提议几点见面？", "关于寻找地点，最后一条回复承诺了什么？"],
     outputMission: "用韩语写一段群聊：提出时间、说明自己可行时段、确认地点分工。",
     requiredLessons: ["l07-location", "l38-time-date", "l09-connectors", "l12-time-plans", "l42-ability-obligation", "l20-invitation", "l23-social-posts"],
     recommendedLessons: ["l20-invitation", "l23-social-posts"],
@@ -430,26 +430,26 @@ export const immersionMaterials: ImmersionMaterial[] = [
     id: "im-bank-mobile-pay",
     level: "foundation",
     kind: "dialogue",
-    title: "银行窗口与手机支付",
+    title: "转账与店内付款：两个片段",
     sourceLabel: "은행 / 간편결제",
     minutes: 18,
     focus: ["listening", "vocabulary", "travel"],
-    summary: "练习转账金额、收款人、认证、额度不足时改用卡或二维码支付。",
+    summary: "两个独立情境：第 1–2 句在银行确认转账金额和收款资料；第 3–7 句转到商店，练习手机付款失败后换用银行卡。刷卡付款不是替代银行转账。",
     lines: [
-      { ko: "안녕하세요. 계좌이체 부탁드려요. 오만 원만 보낼게요.", zh: "你好。麻烦帮我转账，只转五万韩元。", note: "金额用汉字数词 오만 원。" },
+      { ko: "안녕하세요. 계좌이체 부탁드려요. 오만 원만 보낼게요.", zh: "你好。麻烦帮我转账，只转五万韩元。", note: "片段一 · 银行顾客请求转账。金额用汉字数词 오만 원。" },
       { ko: "받으실 분 성함하고 계좌번호 알려 주세요.", zh: "请告诉我收款人姓名和账号。", note: "성함 是姓名敬语；不要给账号加 -(으)시-。" },
-      { ko: "문자로 받은 번호 그대로 입력했어요. 카카오페이로도 될까요?", zh: "我按短信里的号码原样输入了。用 KakaoPay 也可以吗？", note: "-로도 될까요 询问另一种支付是否可行。" },
+      { ko: "문자로 받은 번호 그대로 입력했어요. 카카오페이로도 될까요?", zh: "我按短信里的号码原样输入了。用 KakaoPay 也可以吗？", note: "片段二 · 商店顾客已输入商家的付款编号，再询问可用的支付方式。这里开始新的对话，不承接前两句的银行转账。" },
       { ko: "네, QR 코드만 보여 주시면 됩니다.", zh: "可以，只需出示二维码即可。", note: "만 限定只需这一步。" },
       { ko: "앱에 한도가 부족해요. 다시 시도해도 될까요?", zh: "App 里额度不够。可以再试一次吗？", note: "-도 될까요 是许可请求。" },
-      { ko: "그럼 카드로 결제할게요. 비밀번호는 다시 확인할게요.", zh: "那我改用卡支付。密码我再确认一次。", note: "전환 결제: 失败后给出替代方式。" },
+      { ko: "그럼 카드로 결제할게요. 비밀번호는 다시 확인할게요.", zh: "那我改用卡支付。密码我再确认一次。", note: "付款失败后，顾客决定换用银行卡。" },
       { ko: "결제가 완료됐습니다. 확인 문자도 곧 보내 드릴게요.", zh: "支付已完成。确认短信我马上发给您。", note: "결제가 완료됐습니다 以交易作主语，不用主体敬语。" },
     ],
     dictation: ["오만 원만 보낼게요.", "카카오페이로도 될까요?", "카드로 결제할게요."],
-    retellPrompts: ["原本想转多少钱？", "为什么手机支付卡住了？", "最后用什么方式付成？"],
-    outputMission: "用韩语写一段支付对话：金额、认证方式、额度问题、改用卡或二维码。",
+    retellPrompts: ["银行片段里，顾客想转多少钱，需要提供什么资料？", "商店片段里，手机付款遇到了什么问题？", "商店片段最后改用了什么支付方式？"],
+    outputMission: "用韩语写两个短片段：先在银行说明转账金额与收款资料；另起一段，在商店说明手机付款的问题并换用银行卡。",
     requiredLessons: ["l37-numbers-counters", "l11-shopping-price", "l40-requests", "l13-permission", "l17-phone-message", "l42-ability-obligation"],
     recommendedLessons: ["l11-shopping-price", "l40-requests"],
-    selfCheck: ["是否用对金额数词", "是否分开说收款人和账号", "额度不够时是否改用替代支付"]
+    selfCheck: ["是否用对金额数词", "是否分开说收款人和账号", "是否分清银行转账与商店付款两个情境"]
   },
   {
     id: "im-drama-family-dinner",
@@ -470,7 +470,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "네, 천천히 드세요. 밥은 제가 데워 둘게요.", zh: "好，您慢用。饭我先热着留着。", note: "对长辈回到 요 体，并主动承担家务。" }
     ],
     dictation: ["진지 드세요.", "아버지께서는 아직 안 들어오셨어요?", "우리 먼저 먹자."],
-    retellPrompts: ["谁用半语、谁用敬语？", "奶奶拒绝了什么？", "父亲为什么还没上桌？"],
+    retellPrompts: ["对奶奶说话时用了哪些敬语，向兄弟姐妹要水时用了什么句尾？", "奶奶拒绝了什么？", "父亲为什么还没上桌？"],
     outputMission: "用韩语写一桌晚饭：对长辈一句敬语、对兄弟姐妹一句半语、再说明谁还没回来。",
     requiredLessons: ["l19-family-honorific", "l27-honorific-register", "l35-negation", "l08-past", "l16-because", "l13-permission"],
     recommendedLessons: ["l19-family-honorific", "l27-honorific-register"],
@@ -486,7 +486,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
     focus: ["pragmatics", "native", "discourse"],
     summary: "练习远程办公状态、文件共享、会议迟到和线程回复，语气像工作群而不是朋友局。",
     lines: [
-      { ko: "오늘 재택입니다. 오전에 자료를 공유해 드리겠습니다.", zh: "今天远程办公。上午把资料发给大家。", note: "상태 공유는 합니다체가 안전하다." },
+      { ko: "오늘 재택입니다. 오전에 자료를 공유해 드리겠습니다.", zh: "今天远程办公。上午把资料发给大家。", note: "用正式礼貌体报告办公状态与接下来的安排。" },
       { ko: "방금 파일 올렸습니다. 확인 부탁드립니다.", zh: "文件刚上传了。麻烦确认一下。", note: "부탁드립니다 把请求说成拜托，不命令。" },
       { ko: "오후 세 시 미팅, 저 십 분 정도 늦을 것 같아요.", zh: "下午三点的会，我大概会晚十分钟。", note: "것 같아요 降低迟到通报的生硬感。" },
       { ko: "네, 알겠습니다. 시작하시면 링크 다시 남겨 주세요.", zh: "好的，知道了。开始时请再留一次链接。", note: "职场里 알겠습니다 比 ㅇㅋ 更稳。" },
@@ -495,7 +495,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "감사합니다. 오늘 중으로 피드백 드리겠습니다.", zh: "谢谢。今天之内给反馈。", note: "오늘 중으로 给出可检查的时限。" }
     ],
     dictation: ["확인 부탁드립니다.", "십 분 정도 늦을 것 같아요.", "오늘 중으로 피드백 드리겠습니다."],
-    retellPrompts: ["今天在哪里办公？", "谁会迟到、晚多久？", "会议记录由谁写？"],
+    retellPrompts: ["首条消息报告了什么办公方式？", "会议几点开始，预计迟到多久？", "关于会议记录，有人承诺了什么？"],
     outputMission: "用韩语写一段工作群消息：报状态、请确认、说明迟到、承诺下一步。",
     requiredLessons: ["l39-hamnida", "l12-time-plans", "l17-phone-message", "l10-native-softeners", "l27-honorific-register", "l38-time-date"],
     recommendedLessons: ["l39-hamnida", "l27-honorific-register"],
@@ -536,8 +536,8 @@ export const immersionMaterials: ImmersionMaterial[] = [
     focus: ["listening", "pragmatics", "vocabulary"],
     summary: "现场分清初诊/复诊、证件、症状、科室、等待号码和取药位置。",
     lines: [
-      { ko: "초진이세요, 재진이세요?", zh: "您是初诊还是复诊？", note: "접수 첫 분기. 초진/재진을 먼저 듣는다." },
-      { ko: "초진이에요. 어제부터 열이 나고 머리가 아파요.", zh: "初诊。从昨天开始发烧，而且头疼。", note: "-고 연결 두 증상。" },
+      { ko: "초진이세요, 재진이세요?", zh: "您是初诊还是复诊？", note: "挂号先区分初诊 초진 和复诊 재진。" },
+      { ko: "초진이에요. 어제부터 열이 나고 머리가 아파요.", zh: "初诊。从昨天开始发烧，而且头疼。", note: "-고 连接发烧和头疼这两个症状。" },
       { ko: "건강보험증이랑 신분증 보여 주세요.", zh: "请出示医保卡和身份证。", note: "이랑 把两件证件绑在一起。" },
       { ko: "내과로 가시면 됩니다. 대기 번호는 십사 번이에요.", zh: "请去内科。等候号码是十四号。", note: "로 가시면 됩니다 给出科室方向。" },
       { ko: "성함 부르면 진료실로 들어가시면 돼요.", zh: "叫到姓名后再进诊室即可。", note: "부르면 是条件，不是立刻进去。" },
@@ -670,7 +670,7 @@ export const immersionMaterials: ImmersionMaterial[] = [
       { ko: "천천히 이야기해요. 오늘 시간 괜찮죠?", zh: "我们慢慢聊。今天时间没问题吧？", note: "죠 确认对方节奏，避免审问式提问。" }
     ],
     dictation: ["조금 늦었어요.", "맛있다고 해서 와 봤어요.", "비빔밥이 괜찮을 것 같아요."],
-    retellPrompts: ["谁迟到了、对方怎么接？", "为什么选这家店？", "两人各自点了什么？"],
+    retellPrompts: ["迟到的原因是什么，对方如何回应？", "为什么选这家店？", "一人觉得哪道菜不错，另一人明确决定点什么？"],
     outputMission: "用韩语写一段初次见面：迟到道歉、选店理由、点餐、确认对方时间。",
     requiredLessons: ["l08-past", "l06-cafe", "l20-invitation", "l16-because", "l10-native-softeners", "l26-indirect-speech"],
     recommendedLessons: ["l20-invitation", "l10-native-softeners"],

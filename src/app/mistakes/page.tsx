@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { ArrowRight, CircleAlert, Clock, Play, RefreshCcw, Trash2 } from "lucide-react";
-import { VisualPanel } from "@/components/assets/visual-panel";
+import { ArtScene } from "@/components/assets/art-scene";
 import { DrillRunner } from "@/components/learning/drill-runner";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { Button } from "@/components/ui/button";
@@ -13,21 +13,20 @@ import { TrackRow } from "@/components/ui/track-row";
 import { firstHangul } from "@/lib/learning/player";
 import { buildMistakeInsights, buildRetrainQuestions, summarizeMistakes, type MistakeInsight } from "@/lib/learning/mistakes";
 import type { Question } from "@/lib/learning/quiz";
-import { getSrsStateFromRaw } from "@/lib/learning/srs";
-import { STORAGE_KEYS, useClientNow, useStorageRaw } from "@/lib/learning/storage";
+import { useClientNow } from "@/lib/learning/storage";
 import { gradeReviewCardAndProgress, removeMistakeCardAndPracticeItem } from "@/lib/learning/workspace";
 import { useLearningWorkspace } from "@/lib/learning/use-learning-workspace";
+import { needsOnboardingFunnel } from "@/lib/learning/compass";
 
 export default function MistakesPage() {
-  const { workspace } = useLearningWorkspace();
-  const srsRaw = useStorageRaw(STORAGE_KEYS.srs);
+  const { workspace, srsState } = useLearningWorkspace();
+  const funnel = needsOnboardingFunnel(workspace.profile, workspace.progress);
   const now = useClientNow();
   const [status, setStatus] = useState<"idle" | "removed" | "error">("idle");
   const [retrainQuestions, setRetrainQuestions] = useState<Question[] | null>(null);
   const [retrainSession, setRetrainSession] = useState(0);
   const [retrainError, setRetrainError] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const srsState = useMemo(() => getSrsStateFromRaw(srsRaw), [srsRaw]);
   const insights = useMemo(() => buildMistakeInsights(srsState, now), [srsState, now]);
   const summary = useMemo(() => summarizeMistakes(srsState, now), [srsState, now]);
   const urgent = insights.slice(0, 4);
@@ -52,7 +51,7 @@ export default function MistakesPage() {
         copy="先重练已到期和反复出错的题。若同一知识点总出错，再回到对应课程、词汇或语法查看讲解。"
         compact
       >
-        <div className="flex flex-wrap gap-2">
+        {insights.length ? <div className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href="/review">
               <RefreshCcw className="h-4 w-4" />
@@ -65,10 +64,10 @@ export default function MistakesPage() {
               重新测一组
             </Link>
           </Button>
-        </div>
+        </div> : null}
       </PageHeader>
 
-      <ModuleHero
+      {insights.length ? <ModuleHero
         kicker="다시 배우기 · 回来补一遍"
         title={summary.total ? `${summary.due} 个到期，${summary.repeated} 个反复错。` : "暂时没有待重练的错题。"}
         copy="每张卡会保留原题、正确答案和练习次数。做完到期题后，再回到对应内容补一遍。"
@@ -82,12 +81,12 @@ export default function MistakesPage() {
           <MistakeMetric label="反复错" value={summary.repeated} />
           <MistakeMetric label="已稳住" value={summary.mastered} />
         </div>
-      </ModuleHero>
+      </ModuleHero> : null}
 
       {status === "removed" ? <InlineAlert tone="success">这张错题已移出复习。如果以后再次答错，它会重新回来。</InlineAlert> : null}
       {status === "error" ? <InlineAlert>这张错题没有成功移出，请释放浏览器存储空间后再试。</InlineAlert> : null}
       {retrainError ? <InlineAlert>{retrainError}</InlineAlert> : null}
-      <LearningCompass workspace={workspace} active="mistakes" condensed />
+      {insights.length ? <LearningCompass workspace={workspace} active="mistakes" condensed /> : null}
 
       {retrainQuestions ? (
         <Surface>
@@ -181,30 +180,22 @@ export default function MistakesPage() {
         </section>
       ) : (
         <Surface variant="plain">
-          <div className="studio-panel relative grid md:grid-cols-[minmax(0,1fr)_18rem]">
-            <span className="paper-tape left-8 top-[-8px]" aria-hidden="true" />
+          <div className="studio-panel relative grid gap-4 md:grid-cols-[minmax(0,1fr)_16rem]">
             <div className="paper-rail p-5 pt-8">
-              <p className="eyebrow">빈 기록 · 现在没有错题</p>
-              <h2 className="inkline mt-2 font-serif text-3xl font-normal">当前没有可追踪错题。</h2>
+              <h2 className="font-serif text-3xl font-normal">当前没有可追踪错题。</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                继续学习或做测验。以后答错的题会自动来到这里，并安排下一次复习。
+                {funnel ? "先完成入门，再开始第一课。之后答错的题会来到这里，方便有针对性地复习。" : "继续学一课。以后答错的题会自动来到这里，并安排下一次复习。"}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild>
-                  <Link href="/path">
+                  <Link href={funnel ? "/onboarding" : "/path"}>
                     <ArrowRight className="h-4 w-4" />
-                    继续课程
-                  </Link>
-                </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/quiz">
-                    <CircleAlert className="h-4 w-4" />
-                    做综合测验
+                    {funnel ? "先去入门" : "继续学习"}
                   </Link>
                 </Button>
               </div>
             </div>
-            <VisualPanel asset="empty" priority treatment="inset" className="min-h-56 border-0 shadow-none" />
+            <ArtScene asset="empty" priority decorative treatment="inset" className="hidden border-0 shadow-none md:block" />
           </div>
         </Surface>
       )}

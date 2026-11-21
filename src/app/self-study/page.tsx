@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/learning/studio-link";
 import { CalendarDays, CheckCircle2, Compass, ListChecks, Route, SlidersHorizontal, TimerReset } from "lucide-react";
 import { LearningCompass } from "@/components/learning/learning-compass";
 import { OnboardingGateNotice } from "@/components/learning/onboarding-gate-notice";

@@ -11,7 +11,7 @@ import {
   SPEECH_EVENT_NAME,
   SPEECH_EVENT_PLAYBACK_ERROR,
   SPEECH_EVENT_PLAYBACK_START
-} from "@/lib/speech";
+} from "@/lib/speech-core";
 
 type VoiceStatus = "unsupported" | "loading" | "ready" | "missing";
 type PlaybackError = {
@@ -71,9 +71,9 @@ export function SpeechStatusBanner() {
     : null;
 
   return (
-    <div className="border-b-[3px] border-[var(--border)] bg-[var(--seal-soft)] px-3 py-2" role="alert" aria-live="assertive">
+    <div className="border-b border-[var(--danger-border)] bg-[var(--danger-soft)] px-3 py-2" role="alert" aria-live="assertive">
       <div className="mx-auto flex max-w-[1480px] items-start justify-between gap-2 sm:items-center">
-        <div className="flex min-w-0 items-start gap-2 text-sm font-bold leading-6 text-[var(--cinnabar)]">
+        <div className="flex min-w-0 items-start gap-2 text-sm font-bold leading-6 text-[var(--danger-ink)]">
           <Volume2 className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
             {playbackMessage ?? (status === "unsupported"
